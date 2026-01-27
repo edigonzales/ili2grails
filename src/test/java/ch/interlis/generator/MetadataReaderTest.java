@@ -26,7 +26,8 @@ class MetadataReaderTest {
     @BeforeEach
     void setUp() throws Exception {
         // H2 Memory-Datenbank
-        connection = DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
+        String dbName = "test_" + System.nanoTime();
+        connection = DriverManager.getConnection("jdbc:h2:mem:" + dbName);
         
         // Modell-Datei
         modelFile = new File("test-models/SimpleAddressModel.ili");

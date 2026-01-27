@@ -1,18 +1,37 @@
 package ch.interlis.generator.reader;
 
-import ch.ehi.basics.settings.Settings;
 import ch.interlis.ili2c.Ili2c;
 import ch.interlis.ili2c.Ili2cFailure;
 import ch.interlis.ili2c.config.Configuration;
 import ch.interlis.ili2c.config.FileEntry;
 import ch.interlis.ili2c.config.FileEntryKind;
-import ch.interlis.ili2c.metamodel.*;
+import ch.interlis.ili2c.metamodel.AbstractClassDef;
+import ch.interlis.ili2c.metamodel.AreaType;
+import ch.interlis.ili2c.metamodel.AttributeDef;
+import ch.interlis.ili2c.metamodel.CoordType;
+import ch.interlis.ili2c.metamodel.Domain;
+import ch.interlis.ili2c.metamodel.EnumerationType;
+import ch.interlis.ili2c.metamodel.LineType;
+import ch.interlis.ili2c.metamodel.Model;
+import ch.interlis.ili2c.metamodel.MultiCoordType;
+import ch.interlis.ili2c.metamodel.NumericType;
+import ch.interlis.ili2c.metamodel.NumericalType;
+import ch.interlis.ili2c.metamodel.PolylineType;
+import ch.interlis.ili2c.metamodel.SurfaceType;
+import ch.interlis.ili2c.metamodel.Table;
+import ch.interlis.ili2c.metamodel.TextType;
+import ch.interlis.ili2c.metamodel.Topic;
+import ch.interlis.ili2c.metamodel.TransferDescription;
+import ch.interlis.ili2c.metamodel.Type;
+import ch.interlis.ili2c.metamodel.TypeAlias;
 import ch.interlis.generator.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * Liest ein INTERLIS-Modell mit ili2c und extrahiert semantische Metadaten.
@@ -115,9 +134,11 @@ public class Ili2cModelReader {
         Iterator<?> iterator = topic.iterator();
         while (iterator.hasNext()) {
             Object element = iterator.next();
-            
+
             if (element instanceof Table) {
-                processTable(metadata, (Table) element);
+                processClassDef(metadata, (AbstractClassDef<?>) element);
+            } else if (element instanceof ch.interlis.ili2c.metamodel.AssociationDef) {
+                processClassDef(metadata, (AbstractClassDef<?>) element);
             } else if (element instanceof Domain) {
                 processDomain(metadata, (Domain) element);
             }
@@ -127,8 +148,8 @@ public class Ili2cModelReader {
     /**
      * Verarbeitet eine Tabelle/Klasse.
      */
-    private void processTable(ModelMetadata metadata, Table table) {
-        String qualifiedName = table.getScopedName(null);
+    private void processClassDef(ModelMetadata metadata, AbstractClassDef<?> classDef) {
+        String qualifiedName = classDef.getScopedName(null);
         logger.debug("Processing table: {}", qualifiedName);
         
         // Klasse aus ili2db-Metadaten holen oder neu erstellen
@@ -139,31 +160,33 @@ public class Ili2cModelReader {
         }
         
         // Typ setzen
-        if (table instanceof AssociationDef) {
+        if (classDef instanceof ch.interlis.ili2c.metamodel.AssociationDef) {
             classMetadata.setKind(ClassMetadata.ClassKind.ASSOCIATION);
         } else {
             classMetadata.setKind(ClassMetadata.ClassKind.CLASS);
         }
         
         // Abstract
-        classMetadata.setAbstract(table.isAbstract());
+        classMetadata.setAbstract(classDef.isAbstract());
         
         // Dokumentation
-        if (table.getDocumentation() != null) {
-            classMetadata.setDocumentation(table.getDocumentation());
+        if (classDef.getDocumentation() != null) {
+            classMetadata.setDocumentation(classDef.getDocumentation());
         }
         
         // Vererbung
-        if (table.getExtending() != null) {
-            String baseClassName = table.getExtending().getScopedName(null);
+        if (classDef.getExtending() != null) {
+            String baseClassName = classDef.getExtending().getScopedName(null);
             classMetadata.setBaseClass(baseClassName);
         }
         
         // Attribute verarbeiten
-        Iterator<?> attrIterator = table.getAttributes();
+        Iterator<?> attrIterator = classDef.getAttributes();
         while (attrIterator.hasNext()) {
-            AttributeDef attrDef = (AttributeDef) attrIterator.next();
-            processAttribute(classMetadata, attrDef);
+            Object attribute = attrIterator.next();
+            if (attribute instanceof AttributeDef attrDef) {
+                processAttribute(classMetadata, attrDef);
+            }
         }
     }
     
@@ -193,7 +216,9 @@ public class Ili2cModelReader {
         }
         
         // Mandatory
-        attrMetadata.setMandatory(!attrDef.isDomainBoolean());
+        if (attrDef.getCardinality() != null) {
+            attrMetadata.setMandatory(attrDef.getCardinality().getMinimum() > 0);
+        }
     }
     
     /**
@@ -202,8 +227,13 @@ public class Ili2cModelReader {
     private void processType(AttributeMetadata attr, Type type) {
         if (type instanceof TypeAlias) {
             // Alias auflösen
-            Type aliasing = ((TypeAlias) type).getAliasing();
-            processType(attr, aliasing);
+            Domain aliasing = ((TypeAlias) type).getAliasing();
+            if (aliasing != null) {
+                if (aliasing.getType() instanceof EnumerationType) {
+                    attr.setEnumType(aliasing.getScopedName(null));
+                }
+                processType(attr, aliasing.getType());
+            }
             return;
         }
         
@@ -228,7 +258,7 @@ public class Ili2cModelReader {
             EnumerationType enumType = (EnumerationType) type;
             // Enum-Name speichern
             if (enumType.getConsolidatedEnumeration() != null) {
-                attr.setEnumType(enumType.getConsolidatedEnumeration().getName());
+                attr.setEnumType(attr.getEnumType());
             }
         } else if (type instanceof CoordType || type instanceof MultiCoordType) {
             attr.setGeometry(true);
@@ -251,23 +281,27 @@ public class Ili2cModelReader {
      */
     private void processDomain(ModelMetadata metadata, Domain domain) {
         Type type = domain.getType();
-        
+
         if (type instanceof EnumerationType) {
-            processEnumeration(metadata, domain.getScopedName(null), (EnumerationType) type);
+            processEnumeration(metadata, domain, (EnumerationType) type);
         }
     }
     
     /**
      * Verarbeitet eine Enumeration.
      */
-    private void processEnumeration(ModelMetadata metadata, String name, EnumerationType enumType) {
+    private void processEnumeration(ModelMetadata metadata, Domain domain, EnumerationType enumType) {
+        String name = domain.getScopedName(null);
         logger.debug("Processing enumeration: {}", name);
-        
+
         EnumMetadata enumMetadata = new EnumMetadata(name);
-        enumMetadata.setExtendable(enumType.isExtendable());
+        enumMetadata.setExtendable(!domain.isFinal());
+        if (domain.getExtending() != null) {
+            enumMetadata.setBaseEnum(domain.getExtending().getScopedName(null));
+        }
         
         // Enum-Werte extrahieren
-        Enumeration enumeration = enumType.getConsolidatedEnumeration();
+        ch.interlis.ili2c.metamodel.Enumeration enumeration = enumType.getConsolidatedEnumeration();
         if (enumeration != null) {
             extractEnumValues(enumMetadata, enumeration, 0);
         }
@@ -278,11 +312,14 @@ public class Ili2cModelReader {
     /**
      * Extrahiert Enum-Werte rekursiv.
      */
-    private int extractEnumValues(EnumMetadata enumMetadata, Enumeration enumeration, int seq) {
+    private int extractEnumValues(EnumMetadata enumMetadata,
+                                  ch.interlis.ili2c.metamodel.Enumeration enumeration,
+                                  int seq) {
         Iterator<?> iterator = enumeration.getElements();
         
         while (iterator.hasNext()) {
-            Enumeration.Element element = (Enumeration.Element) iterator.next();
+            ch.interlis.ili2c.metamodel.Enumeration.Element element =
+                (ch.interlis.ili2c.metamodel.Enumeration.Element) iterator.next();
             String name = element.getName();
             
             EnumMetadata.EnumValue value = new EnumMetadata.EnumValue(name, seq++);

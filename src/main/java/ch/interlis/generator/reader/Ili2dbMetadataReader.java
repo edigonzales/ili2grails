@@ -203,39 +203,55 @@ public class Ili2dbMetadataReader {
      */
     private void enrichAttributeFromDbSchema(AttributeMetadata attr, String tableName, String columnName) 
             throws SQLException {
-        String sql = 
+        String baseSql =
             "SELECT column_name, data_type, is_nullable, character_maximum_length, " +
-            "       numeric_precision, numeric_scale, udt_name " +
+            "       numeric_precision, numeric_scale%s " +
             "FROM information_schema.columns " +
-            "WHERE table_schema = ? AND table_name = ? AND column_name = ?";
-        
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, schemaName);
-            pstmt.setString(2, tableName);
-            pstmt.setString(3, columnName);
-            
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    String dataType = rs.getString("data_type");
-                    String isNullable = rs.getString("is_nullable");
-                    Integer maxLength = rs.getInt("character_maximum_length");
-                    if (rs.wasNull()) maxLength = null;
-                    
-                    attr.setDbType(dataType);
-                    attr.setMandatory("NO".equals(isNullable));
-                    attr.setMaxLength(maxLength);
-                    
-                    // Geometrie erkennen
-                    String udtName = rs.getString("udt_name");
-                    if ("geometry".equalsIgnoreCase(udtName) || 
-                        "USER-DEFINED".equals(dataType)) {
-                        attr.setGeometry(true);
+            "WHERE table_schema = ? " +
+            "  AND upper(table_name) = upper(?) " +
+            "  AND upper(column_name) = upper(?)";
+
+        boolean includeUdtName = true;
+        SQLException lastError = null;
+
+        for (int attempt = 0; attempt < 2; attempt++) {
+            String sql = String.format(baseSql, includeUdtName ? ", udt_name" : "");
+            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                pstmt.setString(1, schemaName);
+                pstmt.setString(2, tableName);
+                pstmt.setString(3, columnName);
+
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) {
+                        String dataType = rs.getString("data_type");
+                        String isNullable = rs.getString("is_nullable");
+                        Integer maxLength = rs.getInt("character_maximum_length");
+                        if (rs.wasNull()) {
+                            maxLength = null;
+                        }
+
+                        attr.setDbType(dataType);
+                        attr.setMandatory("NO".equals(isNullable));
+                        attr.setMaxLength(maxLength);
+
+                        String udtName = includeUdtName ? rs.getString("udt_name") : null;
+                        if ("geometry".equalsIgnoreCase(udtName) ||
+                            "USER-DEFINED".equalsIgnoreCase(dataType)) {
+                            attr.setGeometry(true);
+                        }
+
+                        attr.setPrimaryKey(isPrimaryKey(tableName, columnName));
                     }
-                    
-                    // PK erkennen
-                    attr.setPrimaryKey(isPrimaryKey(tableName, columnName));
                 }
+                return;
+            } catch (SQLException e) {
+                lastError = e;
+                includeUdtName = false;
             }
+        }
+
+        if (lastError != null) {
+            throw lastError;
         }
     }
     
@@ -243,10 +259,12 @@ public class Ili2dbMetadataReader {
      * Prüft ob eine Spalte ein Primary Key ist.
      */
     private boolean isPrimaryKey(String tableName, String columnName) throws SQLException {
-        String sql = 
+        String sql =
             "SELECT 1 FROM information_schema.key_column_usage " +
-            "WHERE table_schema = ? AND table_name = ? AND column_name = ? " +
-            "AND constraint_name LIKE '%_pkey'";
+            "WHERE table_schema = ? " +
+            "  AND upper(table_name) = upper(?) " +
+            "  AND upper(column_name) = upper(?) " +
+            "  AND constraint_name LIKE '%_pkey'";
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, schemaName);

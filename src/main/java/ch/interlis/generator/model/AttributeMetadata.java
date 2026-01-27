@@ -85,7 +85,8 @@ public class AttributeMetadata {
     
     private String inferJavaTypeFromDbType(String dbType) {
         String upperDbType = dbType.toUpperCase();
-        if (upperDbType.contains("VARCHAR") || upperDbType.contains("TEXT")) {
+        if (upperDbType.contains("VARCHAR") || upperDbType.contains("TEXT")
+            || upperDbType.contains("CHAR")) {
             return "String";
         } else if (upperDbType.contains("INT")) {
             if (upperDbType.contains("BIGINT")) {
