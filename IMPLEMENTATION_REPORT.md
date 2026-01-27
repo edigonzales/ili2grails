@@ -1,4 +1,4 @@
-# Implementation Report – Phase 1
+# Implementation Report
 
 Der Abschlussbericht wurde in die zentrale Dokumentation verschoben, um Doppelungen zu vermeiden.
 

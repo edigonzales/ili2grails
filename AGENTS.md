@@ -1,7 +1,7 @@
 # AGENTS.md – Arbeitsanweisungen für dieses Repo
 
 ## Projektkontext (kurz)
-- **Phase 1** liefert einen Metadata-Reader für INTERLIS/ili2db.
+- Der Metadata-Reader liefert Metadaten für INTERLIS/ili2db.
 - Der zentrale Architektur-Entscheid: **Hybrid-Ansatz (ili2db + ili2c)**.
   - *Warum:* ili2db gibt exakte Tabellen-/Spaltennamen und Mappings (ohne Modellkompilierung), ili2c liefert Semantik (Constraints, Doku, Labels, Units, Enums). Die Kombination erzeugt ein vollständiges, konsistentes Metamodell für spätere Code-Generatoren.
 - Das **Metamodell ist framework-agnostisch** (Grails, Spring, etc.), um Wiederverwendung zu ermöglichen.

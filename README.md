@@ -1,6 +1,6 @@
-# INTERLIS CRUD Generator – Phase 1 (Metadata Reader)
+# INTERLIS CRUD Generator – Metadata Reader
 
-Der **INTERLIS CRUD Generator** in Phase 1 liest Metadaten aus einer ili2db-Datenbank und einem INTERLIS-Modell und baut daraus ein internes Metamodell auf. Dieses Metamodell ist die Grundlage für spätere Code-Generatoren (z. B. Grails Domains in Phase 2).
+Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und einem INTERLIS-Modell und baut daraus ein internes Metamodell auf. Dieses Metamodell ist die Grundlage für spätere Code-Generatoren (z. B. Grails Domains).
 
 ## Inhalt
 - [Ziel & Funktionsumfang](#ziel--funktionsumfang)
@@ -17,7 +17,7 @@ Der **INTERLIS CRUD Generator** in Phase 1 liest Metadaten aus einer ili2db-Date
 - [Weitere Dokumente](#weitere-dokumente)
 
 ## Ziel & Funktionsumfang
-**Phase 1** liefert ein vollständiges, framework-agnostisches **Metamodell**:
+Der Metadata Reader liefert ein vollständiges, framework-agnostisches **Metamodell**:
 - Klassen/Tabellen, Attribute/Spalten, Constraints
 - Beziehungen (FK, Associations) und Vererbung
 - Enumerationen inkl. Reihenfolge und Erweiterbarkeit
@@ -209,4 +209,4 @@ interlis-crud-generator/
 - [ARCHITECTURE.md](ARCHITECTURE.md) – technische Details, die nicht in den Schnellstart gehören
 - [QUICKSTART.md](QUICKSTART.md) – Kurzfassung der Installation
 - [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) – kompakte Projektübersicht
-- [IMPLEMENTATION_REPORT.md](IMPLEMENTATION_REPORT.md) – Abschlussbericht (Phase 1)
+- [IMPLEMENTATION_REPORT.md](IMPLEMENTATION_REPORT.md) – Abschlussbericht

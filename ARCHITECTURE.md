@@ -1,4 +1,4 @@
-# Architektur – INTERLIS CRUD Generator (Phase 1)
+# Architektur – INTERLIS CRUD Generator
 
 Die Architektur- und Entscheidungsdetails sind jetzt in der [README.md](README.md) konsolidiert, damit der Kontext an einer Stelle gepflegt wird.
 
