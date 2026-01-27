@@ -46,7 +46,7 @@ class GrailsCrudGeneratorTest {
         assertThat(domainContent).contains("firstName column: 'first_name'");
         assertThat(domainContent).contains("firstName maxSize: 40");
         assertThat(domainContent).contains("status nullable: true");
-        assertThat(domainContent).contains("static hasMany = [personaddresses: PersonAddress]");
+        assertThat(domainContent).contains("static hasMany = [personAddresses: PersonAddress]");
 
         String controllerContent = Files.readString(controllerFile);
         assertThat(controllerContent).contains("package com.example.controller");
@@ -60,7 +60,7 @@ class GrailsCrudGeneratorTest {
 
         String createContent = Files.readString(createView);
         assertThat(createContent).contains("<g:select name=\"status\" from=\"Status.values()\"/>");
-        assertThat(createContent).contains("<g:datePicker name=\"birthdate\" precision=\"day\"/>");
+        assertThat(createContent).contains("<g:datePicker name=\"birthDate\" precision=\"day\"/>");
     }
 
     private ModelMetadata buildSampleMetadata() {

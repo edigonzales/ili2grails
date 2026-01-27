@@ -63,8 +63,8 @@ public class AttributeMetadata {
                 case "BOOLEAN" -> "Boolean";
                 case "DATE" -> "java.time.LocalDate";
                 case "DATETIME" -> "java.time.LocalDateTime";
-                case "INTERLIS.XMLDate" -> "java.time.LocalDate";
-                case "INTERLIS.XMLDateTime" -> "java.time.LocalDateTime";
+                case "INTERLIS.XMLDATE" -> "java.time.LocalDate";
+                case "INTERLIS.XMLDATETIME" -> "java.time.LocalDateTime";
                 default -> {
                     // Numerische Typen
                     if (iliType.contains("COORD") || iliType.contains("MULTICOORD")) {
