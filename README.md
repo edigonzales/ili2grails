@@ -1,91 +1,53 @@
-# INTERLIS CRUD Generator - Phase 1: Metadata Reader
+# INTERLIS CRUD Generator – Phase 1 (Metadata Reader)
 
-Phase 1 der INTERLIS CRUD-Anwendungs-Generator Implementierung.
+Der **INTERLIS CRUD Generator** in Phase 1 liest Metadaten aus einer ili2db-Datenbank und einem INTERLIS-Modell und baut daraus ein internes Metamodell auf. Dieses Metamodell ist die Grundlage für spätere Code-Generatoren (z. B. Grails Domains in Phase 2).
 
-## Übersicht
+## Inhalt
+- [Ziel & Funktionsumfang](#ziel--funktionsumfang)
+- [Voraussetzungen](#voraussetzungen)
+- [Installation & Build](#installation--build)
+- [Schnellstart (CLI)](#schnellstart-cli)
+- [Benutzeranleitung (Detail)](#benutzeranleitung-detail)
+- [Programmatische Nutzung](#programmatische-nutzung)
+- [Ausgabe verstehen](#ausgabe-verstehen)
+- [Architektur & Design-Entscheidungen](#architektur--design-entscheidungen)
+- [Projektstruktur](#projektstruktur)
+- [Tests](#tests)
+- [Dependencies](#dependencies)
+- [Weitere Dokumente](#weitere-dokumente)
 
-Dieser Metadaten-Reader liest Informationen aus:
-1. **ili2db Metatabellen** (in der Datenbank) - für Struktur und DB-Mapping
-2. **INTERLIS-Modell via ili2c** - für semantische Informationen
+## Ziel & Funktionsumfang
+**Phase 1** liefert ein vollständiges, framework-agnostisches **Metamodell**:
+- Klassen/Tabellen, Attribute/Spalten, Constraints
+- Beziehungen (FK, Associations) und Vererbung
+- Enumerationen inkl. Reihenfolge und Erweiterbarkeit
+- Dokumentation/Labels
 
-### Erstellt ein internes Metamodell mit:
-- Klassen (Tables)
-- Attribute (Columns) mit Constraints
-- Beziehungen (Foreign Keys)
-- Enumerationen
-- Vererbungshierarchie
-- Dokumentation und Labels
+Die Metadaten kommen aus zwei Quellen:
+1. **ili2db Metatabellen** (Mapping, physische DB-Struktur)
+2. **ili2c Compiler** (Semantik, Constraints, Dokumentation)
 
-## Architektur
+## Voraussetzungen
+- **Java 17+**
+- Zugriff auf eine **ili2db**-Datenbank (PostgreSQL oder H2)
+- Eine passende **.ili**-Modelldatei
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    MetadataReader                           │
-│  (kombiniert ili2db + ili2c)                               │
-└───────────────────┬─────────────────────────────────────────┘
-                    │
-        ┌───────────┴────────────┐
-        │                        │
-        ▼                        ▼
-┌──────────────────┐    ┌──────────────────┐
-│ Ili2dbMetadata   │    │ Ili2cModelReader │
-│ Reader           │    │                  │
-│ (DB Metatabellen)│    │ (ili2c Compiler) │
-└──────────────────┘    └──────────────────┘
-        │                        │
-        │                        │
-        ▼                        ▼
-┌──────────────────┐    ┌──────────────────┐
-│  PostgreSQL/H2   │    │ .ili Modell-Datei│
-│  Datenbank       │    │                  │
-└──────────────────┘    └──────────────────┘
+Prüfen:
+```bash
+java -version
 ```
 
-## Projekt-Struktur
-
-```
-src/main/java/ch/interlis/generator/
-├── model/                      # Internes Metamodell
-│   ├── ModelMetadata.java      # Hauptklasse
-│   ├── ClassMetadata.java      # Klasse/Tabelle
-│   ├── AttributeMetadata.java  # Attribut/Spalte
-│   ├── EnumMetadata.java       # Enumeration
-│   └── RelationshipMetadata.java # Beziehung
-├── reader/                     # Reader-Implementierungen
-│   ├── Ili2dbMetadataReader.java # Liest ili2db-Tabellen
-│   └── Ili2cModelReader.java     # Liest INTERLIS-Modell
-├── metadata/                   # High-level APIs
-│   ├── MetadataReader.java     # Kombinierter Reader
-│   └── MetadataPrinter.java    # Ausgabe-Utility
-└── MetadataReaderApp.java      # Demo-Anwendung
-```
-
-## Verwendung
-
-### Voraussetzungen
-
-1. **Datenbank mit ili2db-Schema**
-   - PostgreSQL oder H2
-   - Mit ili2db importierte Daten
-   - ili2db Metatabellen müssen vorhanden sein
-
-2. **INTERLIS-Modelldatei** (.ili)
-   - Das Modell, das für den ili2db-Import verwendet wurde
-
-### Build
-
+## Installation & Build
 ```bash
 ./gradlew build
 ```
 
-### Ausführung
-
+Optional: Demo-Skript mit eingebauter H2-DB:
 ```bash
-./gradlew run --args="<jdbcUrl> <modelFile> <modelName> [schema]"
+./demo.sh
 ```
 
-#### Beispiele
-
+## Schnellstart (CLI)
 **PostgreSQL:**
 ```bash
 ./gradlew run --args="'jdbc:postgresql://localhost:5432/mydb?user=postgres&password=secret' \
@@ -94,148 +56,157 @@ src/main/java/ch/interlis/generator/
   public"
 ```
 
-**H2 Database:**
+**H2 (embedded):**
 ```bash
 ./gradlew run --args="'jdbc:h2:./data/testdb' \
   test-models/SimpleAddressModel.ili \
   SimpleAddressModel"
 ```
 
-### Programmatische Verwendung
+**Parameter:**
+1. JDBC-URL (inkl. User/Passwort)
+2. Pfad zur `.ili`-Datei
+3. INTERLIS-Modellname
+4. (Optional) DB-Schema
 
+## Benutzeranleitung (Detail)
+### 1) Datenbank vorbereiten
+Die Datenbank muss mit **ili2db** befüllt sein – inklusive Metatabellen. Der Reader nutzt u. a.:
+- `t_ili2db_classname` (Klassen/Tabellen-Mapping)
+- `t_ili2db_attrname` (Attribute/Spalten-Mapping)
+- `t_ili2db_inheritance` (Vererbung)
+- `t_ili2db_trafo` (Transformationsstrategien)
+- `t_ili2db_column_prop` (Constraints/Properties)
+
+### 2) INTERLIS-Modell bereitstellen
+Die `.ili`-Datei muss die gleiche Modellversion widerspiegeln wie der ili2db-Import.
+
+### 3) Programm starten
+Nutzen Sie die Beispiele aus dem Schnellstart. Bei Bedarf kann das Schema explizit gesetzt werden (z. B. `public`).
+
+### 4) Ergebnis interpretieren
+Die Ausgabe zeigt:
+- Modellname, Schema, Versionsinfos
+- Klassen und Attribute inkl. Typen, Constraints, Enums
+- Beziehungen (FK/Association)
+
+## Programmatische Nutzung
 ```java
 import ch.interlis.generator.metadata.MetadataReader;
-import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.*;
 
-// Datenbankverbindung
-Connection conn = DriverManager.getConnection(jdbcUrl);
+import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
 
-// Reader erstellen
-MetadataReader reader = new MetadataReader(
-    conn,
-    new File("model.ili"),
-    "public",  // Schema (optional)
-    null       // Model-Verzeichnisse (optional)
-);
+public class ExampleUsage {
+    public static void main(String[] args) throws Exception {
+        Connection conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/mydb", "user", "password");
 
-// Metadaten lesen
-ModelMetadata metadata = reader.readMetadata("MyModel");
+        MetadataReader reader = new MetadataReader(
+            conn,
+            new File("models/MeinModell.ili"),
+            "public",
+            null
+        );
 
-// Klassen durchgehen
-for (ClassMetadata clazz : metadata.getAllClasses()) {
-    System.out.println("Class: " + clazz.getName());
-    System.out.println("Table: " + clazz.getTableName());
-    
-    for (AttributeMetadata attr : clazz.getAllAttributes()) {
-        System.out.println("  - " + attr.getName() + 
-                         " : " + attr.getJavaType());
+        ModelMetadata metadata = reader.readMetadata("MeinModellName");
+
+        for (ClassMetadata clazz : metadata.getAllClasses()) {
+            System.out.println("Klasse: " + clazz.getSimpleName());
+            for (AttributeMetadata attr : clazz.getAllAttributes()) {
+                System.out.println("  - " + attr.getName() + " : " + attr.getJavaType());
+            }
+        }
+
+        conn.close();
     }
 }
 ```
 
-## Internes Metamodell
+## Ausgabe verstehen
+Beispielauszug:
+```
+INTERLIS Model Metadata
+Model Name:     SimpleAddressModel
+Schema:         PUBLIC
+ILI Version:    2.3
+ili2db Version: 4.9.1
 
-### ModelMetadata
-- Repräsentiert das gesamte Modell
-- Enthält alle Klassen und Enumerationen
-- ili2db-Einstellungen
-
-### ClassMetadata
-- INTERLIS-Klasse → Datenbanktabelle
-- Attribute, Beziehungen
-- Vererbungsinformationen
-- Dokumentation
-
-### AttributeMetadata
-- INTERLIS-Attribut → Datenbankspalte
-- Datentypen (INTERLIS, DB, Java)
-- Constraints (NOT NULL, Length, Range)
-- Enumerationen, Units
-- Foreign Keys
-
-### EnumMetadata
-- INTERLIS-Enumeration
-- Enum-Werte mit Reihenfolge
-- Erweiterbarkeit
-
-### RelationshipMetadata
-- Beziehungen zwischen Klassen
-- Kardinalität
-- Typ (1:1, 1:n, n:m, Association)
-
-## ili2db Metatabellen
-
-Der Reader nutzt folgende ili2db-Tabellen:
-
-| Tabelle | Inhalt |
-|---------|--------|
-| `t_ili2db_classname` | Mapping INTERLIS-Klasse → DB-Tabelle |
-| `t_ili2db_attrname` | Mapping INTERLIS-Attribut → DB-Spalte |
-| `t_ili2db_inheritance` | Vererbungshierarchie |
-| `t_ili2db_trafo` | Transformationsregeln |
-| `t_ili2db_settings` | Import-Einstellungen |
-| `t_ili2db_column_prop` | Spalten-Properties (Constraints, Units) |
-| `t_ili2db_model` | Importierte Modelle |
-
-## Typ-Mapping
-
-### INTERLIS → Java
-
-| INTERLIS-Typ | Java-Typ |
-|--------------|----------|
-| TEXT | String |
-| MTEXT | String |
-| BOOLEAN | Boolean |
-| DATE | LocalDate |
-| DATETIME | LocalDateTime |
-| COORD, MULTICOORD | Geometry (JTS) |
-| Numerische Typen | Integer, Long, BigDecimal, Double |
-| Enumerationen | String (oder enum-Klasse) |
-
-## Nächste Schritte (Phase 2)
-
-- [ ] Code-Generator für Grails Domains
-- [ ] Constraints in Grails-Syntax übersetzen
-- [ ] Beziehungen in GORM-Syntax generieren
-- [ ] Enum-Klassen generieren
-- [ ] Controller-Generierung (CRUD)
-- [ ] View-Generierung (GSP)
-
-## Test-Modell
-
-Ein einfaches Test-Modell ist enthalten:
-- `test-models/SimpleAddressModel.ili`
-- Enthält: Address, Person, Association
-- Demonstriert: Geometrie, Enum, Beziehungen
-
-## Debugging
-
-Für detailliertes Logging:
-
-```bash
-# Logback-Konfiguration anpassen
-export JAVA_OPTS="-Dlogback.configurationFile=logback.xml"
+CLASSES:
+■ SimpleAddressModel.Addresses.Address
+  Table:        address
+  Attributes:
+    ◦ street       : String [astreet]      NOT NULL (100)
+    ◦ status       : String [status]
+      → Enum: SimpleAddressModel.Addresses.AddressStatus
 ```
 
-## Bekannte Limitierungen
+**Legende:**
+- `■` Klasse
+- `◦` Attribut
+- `NOT NULL` Pflichtfeld
+- `(100)` Maximale Länge
 
-- **Komplexe Geometrien**: Nur Basis-Unterstützung
-- **Strukturen**: Werden wie Klassen behandelt
-- **Mehrsprachigkeit**: Labels werden gelesen, aber noch nicht vollständig genutzt
-- **Erweiterte Constraints**: Nur Basis-Constraints (Length, Range)
+## Architektur & Design-Entscheidungen
+### Hybrid-Ansatz: ili2db + ili2c
+**Warum:**
+- **ili2db** liefert exakte Tabellen-/Spaltennamen und Mappings, ohne Modellkompilierung.
+- **ili2c** liefert Semantik: Constraints, Doku, Labels, Units, Enums.
+- **Kombiniert** entsteht ein vollständiges Metamodell für die Code-Generierung.
+
+**Ablauf:**
+1. ili2db-Metatabellen lesen
+2. INTERLIS-Modell kompilieren (ili2c)
+3. Daten mergen → vollständige Metadaten
+
+### Metamodell-Prinzipien
+- Framework-agnostisch (Grails, Spring, etc.)
+- Erweiterbar für weitere Metadaten
+- Separiert von ili2db/ili2c-Implementierungen
+
+### Typ-Inferenz (Beispiele)
+```
+TEXT + VARCHAR     → String
+XMLDate + DATE     → LocalDate
+COORD + GEOMETRY   → org.locationtech.jts.geom.Geometry
+```
+
+## Projektstruktur
+```
+interlis-crud-generator/
+├── README.md
+├── ARCHITECTURE.md
+├── QUICKSTART.md
+├── PROJECT_SUMMARY.md
+├── IMPLEMENTATION_REPORT.md
+├── build.gradle
+├── demo.sh
+├── src/main/java/ch/interlis/generator/
+│   ├── MetadataReaderApp.java
+│   ├── model/
+│   ├── reader/
+│   └── metadata/
+└── test-models/
+```
+
+## Tests
+```bash
+./gradlew test
+```
 
 ## Dependencies
+| Library | Version | Zweck |
+| --- | --- | --- |
+| ili2c-core | 5.5.2 | INTERLIS-Compiler |
+| ili2c-tool | 5.5.2 | INTERLIS-Tools |
+| PostgreSQL JDBC | 42.7.1 | PostgreSQL-Treiber |
+| H2 Database | 2.2.224 | Embedded DB |
+| SLF4J/Logback | 2.0.9/1.4.14 | Logging |
+| JUnit 5 | 5.10.1 | Testing |
 
-- **ili2c** 5.5.2 - INTERLIS Compiler
-- **PostgreSQL JDBC** 42.7.1
-- **H2 Database** 2.2.224
-- **SLF4J/Logback** - Logging
-- **JUnit 5** - Testing
-
-## Lizenz
-
-Dieses Projekt ist ein Prototyp für den persönlichen/kommerziellen Gebrauch.
-
-## Autor
-
-Erstellt mit Claude (Anthropic) für INTERLIS CRUD-Generator Projekt
+## Weitere Dokumente
+- [ARCHITECTURE.md](ARCHITECTURE.md) – technische Details, die nicht in den Schnellstart gehören
+- [QUICKSTART.md](QUICKSTART.md) – Kurzfassung der Installation
+- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) – kompakte Projektübersicht
+- [IMPLEMENTATION_REPORT.md](IMPLEMENTATION_REPORT.md) – Abschlussbericht (Phase 1)
