@@ -118,6 +118,10 @@ public class GrailsViewGenerator {
         }
 
         String javaType = attr.getJavaType();
+        if (javaType == null) {
+            attr.inferJavaType();
+            javaType = attr.getJavaType();
+        }
         if ("Boolean".equals(NameUtils.simpleType(javaType))) {
             sb.append("        <g:checkBox name=\"").append(name).append("\"/>\n");
         } else if ("LocalDate".equals(NameUtils.simpleType(javaType))) {
