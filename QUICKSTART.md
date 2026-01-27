@@ -1,4 +1,4 @@
-# QUICKSTART – INTERLIS CRUD Generator (Phase 1)
+# QUICKSTART – INTERLIS CRUD Generator
 
 Kurzfassung für Installation und Start. Die ausführliche Benutzeranleitung inkl. Architektur- und Entscheidungs-Context steht in der [README.md](README.md).
 

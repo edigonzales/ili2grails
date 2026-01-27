@@ -47,22 +47,22 @@ public class MetadataReader {
     public ModelMetadata readMetadata(String modelName) throws SQLException, Ili2cFailure {
         logger.info("Reading combined metadata for model: {}", modelName);
         
-        // Phase 1: ili2db Metatabellen lesen (Basis-Struktur)
-        logger.info("Phase 1: Reading ili2db metadata from database");
+        // ili2db Metatabellen lesen (Basis-Struktur)
+        logger.info("Reading ili2db metadata from database");
         Ili2dbMetadataReader ili2dbReader = new Ili2dbMetadataReader(connection, schemaName);
         ModelMetadata metadata = ili2dbReader.readMetadata(modelName);
         
-        // Phase 2: ili2c Modell lesen (Semantische Anreicherung)
+        // ili2c Modell lesen (Semantische Anreicherung)
         if (modelFile != null && modelFile.exists()) {
-            logger.info("Phase 2: Enriching with ili2c model information");
+            logger.info("Enriching with ili2c model information");
             enrichFromIli2cModel(metadata, modelName);
         } else {
             logger.warn("No model file provided or file does not exist. " +
                        "Skipping ili2c enrichment.");
         }
         
-        // Phase 3: Nachbearbeitung
-        logger.info("Phase 3: Post-processing metadata");
+        // Nachbearbeitung
+        logger.info("Post-processing metadata");
         postProcess(metadata);
         
         logger.info("Metadata reading complete");

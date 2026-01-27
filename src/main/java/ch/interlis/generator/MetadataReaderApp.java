@@ -46,8 +46,8 @@ public class MetadataReaderApp {
             System.exit(1);
         }
         
-        System.out.println("INTERLIS CRUD Generator - Phase 1: Metadata Reader");
-        System.out.println("===================================================");
+        System.out.println("INTERLIS CRUD Generator - Metadata Reader");
+        System.out.println("========================================");
         System.out.println("JDBC URL:    " + jdbcUrl);
         System.out.println("Model File:  " + modelFilePath);
         System.out.println("Model Name:  " + modelName);
@@ -79,7 +79,7 @@ public class MetadataReaderApp {
             
             System.out.println();
             System.out.println("===================================================");
-            System.out.println("Phase 1 complete. Metadata is now available for code generation.");
+            System.out.println("Metadata is now available for code generation.");
             
         } catch (SQLException e) {
             System.err.println("Database error: " + e.getMessage());
