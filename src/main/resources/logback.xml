@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Set default log level -->
+    <root level="INFO">
+        <appender-ref ref="STDOUT" />
+    </root>
+
+    <!-- Detailed logging for our packages -->
+    <logger name="ch.interlis.generator" level="DEBUG" />
+    
+    <!-- Less verbose for external libraries -->
+    <logger name="ch.interlis.ili2c" level="WARN" />
+</configuration>

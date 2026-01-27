@@ -1,0 +1,63 @@
+INTERLIS 2.3;
+
+MODEL SimpleAddressModel (en)
+AT "http://www.example.ch"
+VERSION "2024-01-27" =
+
+  DOMAIN
+    !! Coordinate system for Switzerland
+    CHKoord = COORD
+      2480000.000 .. 2840000.000 [m],
+      1070000.000 .. 1300000.000 [m],
+      ROTATION 2 -> 1;
+
+  TOPIC Addresses =
+    OID AS INTERLIS.UUIDOID;
+
+    !! Address status
+    DOMAIN
+      AddressStatus = (
+        active,
+        inactive,
+        proposed
+      );
+
+    !! Address class
+    CLASS Address =
+      !! Street name
+      Street: MANDATORY TEXT*100;
+      !! House number
+      HouseNumber: TEXT*10;
+      !! Postal code
+      PostalCode: MANDATORY TEXT*10;
+      !! City name
+      City: MANDATORY TEXT*100;
+      !! Address status
+      Status: AddressStatus;
+      !! Coordinates
+      Position: CHKoord;
+    END Address;
+
+    !! Person class
+    CLASS Person =
+      !! First name
+      FirstName: MANDATORY TEXT*50;
+      !! Last name
+      LastName: MANDATORY TEXT*50;
+      !! Email address
+      Email: TEXT*100;
+      !! Phone number
+      PhoneNumber: TEXT*20;
+      !! Date of birth
+      BirthDate: INTERLIS.XMLDate;
+    END Person;
+
+    !! Association between Person and Address
+    ASSOCIATION PersonAddress =
+      Person -- {0..*} Person;
+      Address -- {0..1} Address;
+    END PersonAddress;
+
+  END Addresses;
+
+END SimpleAddressModel.
