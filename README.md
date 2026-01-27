@@ -31,6 +31,7 @@ Die Metadaten kommen aus zwei Quellen:
 - **Java 17+**
 - Zugriff auf eine **ili2db**-Datenbank (PostgreSQL oder H2)
 - Eine passende **.ili**-Modelldatei
+- Für H2 mit Geometrietypen: **H2GIS** (in den Dependencies enthalten)
 
 Prüfen:
 ```bash
@@ -201,7 +202,8 @@ interlis-crud-generator/
 | ili2c-core | 5.5.2 | INTERLIS-Compiler |
 | ili2c-tool | 5.5.2 | INTERLIS-Tools |
 | PostgreSQL JDBC | 42.7.1 | PostgreSQL-Treiber |
-| H2 Database | 2.2.224 | Embedded DB |
+| H2 Database | 1.4.197 | Embedded DB |
+| H2GIS | 1.5.0 | Spatial Functions für H2 |
 | SLF4J/Logback | 2.0.9/1.4.14 | Logging |
 | JUnit 5 | 5.10.1 | Testing |
 
