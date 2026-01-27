@@ -212,10 +212,18 @@ public class Ili2dbMetadataReader {
             "  AND upper(column_name) = upper(?)";
 
         boolean includeUdtName = true;
+        boolean includeTypeName = true;
         SQLException lastError = null;
 
-        for (int attempt = 0; attempt < 2; attempt++) {
-            String sql = String.format(baseSql, includeUdtName ? ", udt_name" : "");
+        for (int attempt = 0; attempt < 3; attempt++) {
+            String extraColumns = "";
+            if (includeUdtName) {
+                extraColumns += ", udt_name";
+            }
+            if (includeTypeName) {
+                extraColumns += ", type_name";
+            }
+            String sql = String.format(baseSql, extraColumns);
             try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
                 pstmt.setString(1, schemaName);
                 pstmt.setString(2, tableName);
@@ -230,7 +238,9 @@ public class Ili2dbMetadataReader {
                             maxLength = null;
                         }
 
-                        attr.setDbType(dataType);
+                        String typeName = includeTypeName ? rs.getString("type_name") : null;
+                        String resolvedType = resolveDbType(dataType, typeName);
+                        attr.setDbType(resolvedType);
                         attr.setMandatory("NO".equals(isNullable));
                         attr.setMaxLength(maxLength);
 
@@ -246,12 +256,71 @@ public class Ili2dbMetadataReader {
                 return;
             } catch (SQLException e) {
                 lastError = e;
-                includeUdtName = false;
+                if (includeTypeName) {
+                    includeTypeName = false;
+                } else if (includeUdtName) {
+                    includeUdtName = false;
+                }
             }
         }
 
         if (lastError != null) {
             throw lastError;
+        }
+    }
+
+    private String resolveDbType(String dataType, String typeName) {
+        if (dataType == null || dataType.isBlank()) {
+            return typeName;
+        }
+        if (typeName != null && !typeName.isBlank() && dataType.matches("\\d+")) {
+            return typeName;
+        }
+        if (dataType.matches("\\d+")) {
+            String mappedType = mapSqlTypeCode(dataType, typeName);
+            if (mappedType != null) {
+                return mappedType;
+            }
+        }
+        return dataType;
+    }
+
+    private String mapSqlTypeCode(String dataType, String typeName) {
+        int typeCode;
+        try {
+            typeCode = Integer.parseInt(dataType);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        switch (typeCode) {
+            case Types.CHAR:
+            case Types.VARCHAR:
+            case Types.LONGVARCHAR:
+            case Types.NCHAR:
+            case Types.NVARCHAR:
+            case Types.LONGNVARCHAR:
+                return "VARCHAR";
+            case Types.INTEGER:
+                return "INTEGER";
+            case Types.BIGINT:
+                return "BIGINT";
+            case Types.DECIMAL:
+            case Types.NUMERIC:
+                return "DECIMAL";
+            case Types.DOUBLE:
+            case Types.FLOAT:
+            case Types.REAL:
+                return "DOUBLE";
+            case Types.BOOLEAN:
+            case Types.BIT:
+                return "BOOLEAN";
+            case Types.DATE:
+                return "DATE";
+            case Types.TIME:
+            case Types.TIMESTAMP:
+                return "TIMESTAMP";
+            default:
+                return typeName;
         }
     }
     
