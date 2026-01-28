@@ -70,6 +70,20 @@ Optional: Demo-Skript mit eingebauter H2-DB:
 3. INTERLIS-Modellname
 4. (Optional) DB-Schema
 
+**Grails CRUD-Generierung (optional):**
+```bash
+./gradlew run --args="'jdbc:h2:./data/testdb' \
+  test-models/SimpleAddressModel.ili \
+  SimpleAddressModel \
+  --grails-output ./generated-grails \
+  --grails-package ch.example.demo"
+```
+
+Weitere Optionen:
+- `--grails-domain-package` (Default: Basis-Package)
+- `--grails-controller-package` (Default: Basis-Package)
+- `--grails-enum-package` (Default: `<Basis-Package>.enums`)
+
 ## Benutzeranleitung (Detail)
 ### 1) Datenbank vorbereiten
 Die Datenbank muss mit **ili2db** befüllt sein – inklusive Metatabellen. Der Reader nutzt u. a.:

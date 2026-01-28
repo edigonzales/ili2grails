@@ -9,6 +9,7 @@ import java.util.Map;
 public class AttributeMetadata {
     
     private String name;                    // INTERLIS Attributname
+    private String qualifiedName;           // Vollqualifizierter INTERLIS-Name
     private String columnName;              // Datenbank-Spaltenname
     private String sqlName;                 // SQL-Name (falls abweichend)
     private String iliType;                 // INTERLIS-Typ (TEXT, COORD, etc.)
@@ -118,6 +119,14 @@ public class AttributeMetadata {
     
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getQualifiedName() {
+        return qualifiedName;
+    }
+
+    public void setQualifiedName(String qualifiedName) {
+        this.qualifiedName = qualifiedName;
     }
     
     public String getColumnName() {

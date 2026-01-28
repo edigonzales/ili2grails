@@ -128,15 +128,36 @@ public class MetadataReader {
         
         // Attribute anreichern
         for (AttributeMetadata ili2cAttr : ili2cClass.getAllAttributes()) {
-            AttributeMetadata dbAttr = dbClass.getAttribute(ili2cAttr.getName());
+            AttributeMetadata dbAttr = findAttribute(dbClass, ili2cAttr);
             
             if (dbAttr != null) {
                 enrichAttribute(dbAttr, ili2cAttr);
             } else {
-                logger.debug("Attribute {}.{} exists in model but not in database", 
-                    dbClass.getName(), ili2cAttr.getName());
+                String displayName = ili2cAttr.getQualifiedName() != null
+                    ? ili2cAttr.getQualifiedName()
+                    : ili2cAttr.getName();
+                logger.debug("Attribute {} exists in model but not in database", displayName);
             }
         }
+    }
+
+    private AttributeMetadata findAttribute(ClassMetadata dbClass, AttributeMetadata ili2cAttr) {
+        String qualifiedName = ili2cAttr.getQualifiedName();
+        if (qualifiedName != null) {
+            for (AttributeMetadata dbAttr : dbClass.getAllAttributes()) {
+                if (qualifiedName.equals(dbAttr.getQualifiedName())) {
+                    return dbAttr;
+                }
+            }
+        }
+        String simpleName = ili2cAttr.getName();
+        if (simpleName != null) {
+            AttributeMetadata direct = dbClass.getAttribute(simpleName);
+            if (direct != null) {
+                return direct;
+            }
+        }
+        return null;
     }
     
     /**

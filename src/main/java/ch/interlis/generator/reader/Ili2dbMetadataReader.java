@@ -183,7 +183,9 @@ public class Ili2dbMetadataReader {
                         continue;
                     }
                     
-                    AttributeMetadata attrMetadata = new AttributeMetadata(iliName);
+                    String simpleName = extractSimpleName(iliName);
+                    AttributeMetadata attrMetadata = new AttributeMetadata(simpleName);
+                    attrMetadata.setQualifiedName(iliName);
                     attrMetadata.setColumnName(sqlName);
                     attrMetadata.setSqlName(sqlName);
                     
@@ -480,5 +482,13 @@ public class Ili2dbMetadataReader {
     
     private String buildQuery(String template) {
         return template.replace("{schema}", schemaName);
+    }
+
+    private String extractSimpleName(String qualifiedName) {
+        if (qualifiedName == null) {
+            return null;
+        }
+        int lastDot = qualifiedName.lastIndexOf('.');
+        return lastDot >= 0 ? qualifiedName.substring(lastDot + 1) : qualifiedName;
     }
 }

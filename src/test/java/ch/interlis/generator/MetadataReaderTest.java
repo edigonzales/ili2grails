@@ -99,6 +99,27 @@ class MetadataReaderTest {
         assertThat(personAddressClass.getRelationships()).hasSizeGreaterThanOrEqualTo(1);
     }
 
+    @Test
+    void testQualifiedAttributeNameMerge() throws Exception {
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("UPDATE t_ili2db_attrname " +
+                "SET iliname = 'SimpleAddressModel.Addresses.Person.BirthDate' " +
+                "WHERE iliname = 'birthDate'");
+        }
+
+        MetadataReader reader = new MetadataReader(connection, modelFile, "PUBLIC", null);
+        ModelMetadata metadata = reader.readMetadata("SimpleAddressModel");
+
+        ClassMetadata personClass = metadata.getClass("SimpleAddressModel.Addresses.Person");
+        assertThat(personClass).isNotNull();
+
+        AttributeMetadata birthDate = personClass.getAttribute("BirthDate");
+        assertThat(birthDate).isNotNull();
+        assertThat(birthDate.getQualifiedName())
+            .isEqualTo("SimpleAddressModel.Addresses.Person.BirthDate");
+        assertThat(birthDate.getIliType()).isNotNull();
+    }
+
     
     /**
      * Erstellt ili2db Metatabellen (vereinfacht).

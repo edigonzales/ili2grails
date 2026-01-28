@@ -211,6 +211,7 @@ public class Ili2cModelReader {
      */
     private void processAttribute(ClassMetadata classMetadata, AttributeDef attrDef) {
         String attrName = attrDef.getName();
+        String qualifiedName = attrDef.getScopedName(null);
         logger.debug("  Processing attribute: {}", attrName);
         
         // Attribute aus ili2db-Metadaten holen oder neu erstellen
@@ -218,6 +219,9 @@ public class Ili2cModelReader {
         if (attrMetadata == null) {
             attrMetadata = new AttributeMetadata(attrName);
             classMetadata.addAttribute(attrMetadata);
+        }
+        if (qualifiedName != null) {
+            attrMetadata.setQualifiedName(qualifiedName);
         }
         
         // Dokumentation
