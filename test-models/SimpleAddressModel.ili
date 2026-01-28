@@ -7,8 +7,8 @@ VERSION "2024-01-27" =
   DOMAIN
     !! Coordinate system for Switzerland
     CHKoord = COORD
-      2480000.000 .. 2840000.000 [m],
-      1070000.000 .. 1300000.000 [m],
+      2480000.000 .. 2840000.000,
+      1070000.000 .. 1300000.000,
       ROTATION 2 -> 1;
 
   TOPIC Addresses =

@@ -2,6 +2,7 @@ package ch.interlis.generator.reader;
 
 import ch.interlis.ili2c.Ili2c;
 import ch.interlis.ili2c.Ili2cFailure;
+import ch.interlis.ili2c.Ili2cSettings;
 import ch.interlis.ili2c.config.Configuration;
 import ch.interlis.ili2c.config.FileEntry;
 import ch.interlis.ili2c.config.FileEntryKind;
@@ -49,14 +50,14 @@ public class Ili2cModelReader {
         this.modelFile = modelFile;
         this.modelDirs = new ArrayList<>();
         // Standard INTERLIS-Repository
-        this.modelDirs.add("http://models.interlis.ch/");
+        this.modelDirs.add("https://models.interlis.ch/");
     }
     
     public Ili2cModelReader(File modelFile, List<String> modelDirs) {
         this.modelFile = modelFile;
         this.modelDirs = new ArrayList<>(modelDirs);
-        if (!this.modelDirs.contains("http://models.interlis.ch/")) {
-            this.modelDirs.add("http://models.interlis.ch/");
+        if (!this.modelDirs.contains("https://models.interlis.ch/")) {
+            this.modelDirs.add("https://models.interlis.ch/");
         }
     }
     
@@ -76,12 +77,27 @@ public class Ili2cModelReader {
         config.addFileEntry(fileEntry);
         
         // Modell-Verzeichnisse hinzufügen
-        for (String dir : modelDirs) {
-            config.addFileEntry(new FileEntry(dir, FileEntryKind.ILIMODELFILE));
-        }
+//        for (String dir : modelDirs) {
+//            config.addFileEntry(new FileEntry(dir, FileEntryKind.ILIMODELFILE));
+//        }
+        
+        
+        Ili2cSettings set = new Ili2cSettings();
+        ch.interlis.ili2c.Main.setDefaultIli2cPathMap(set);
+        set.setIlidirs(Ili2cSettings.DEFAULT_ILIDIRS);
+
+//        String repos = settings.getModelRepositories();
+//        if (repos != null && !repos.isBlank()) {
+//            set.setIlidirs(repos);
+//        } else {
+//            set.setIlidirs(Ili2cSettings.DEFAULT_ILIDIRS);
+//        }
+        
+        config.setAutoCompleteModelList(true);
+        config.setGenerateWarnings(true);
         
         // Kompilieren
-        td = Ili2c.runCompiler(config);
+        td = ch.interlis.ili2c.Main.runCompiler(config, set, null);
         
         if (td == null) {
             throw new Ili2cFailure("Failed to compile INTERLIS model");
