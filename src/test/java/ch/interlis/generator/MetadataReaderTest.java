@@ -98,6 +98,7 @@ class MetadataReaderTest {
         // Sollte 2 Beziehungen haben (zu Person und zu Address)
         assertThat(personAddressClass.getRelationships()).hasSizeGreaterThanOrEqualTo(1);
     }
+
     
     /**
      * Erstellt ili2db Metatabellen (vereinfacht).
@@ -117,7 +118,7 @@ class MetadataReaderTest {
                 "CREATE TABLE t_ili2db_attrname (" +
                 "  iliname VARCHAR(1024)," +
                 "  sqlname VARCHAR(1024)," +
-                "  owner VARCHAR(1024)," +
+                "  colowner VARCHAR(1024)," +
                 "  target VARCHAR(1024)" +
                 ")"
             );

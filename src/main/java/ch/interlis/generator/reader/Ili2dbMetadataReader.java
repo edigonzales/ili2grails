@@ -23,6 +23,9 @@ import java.util.*;
 public class Ili2dbMetadataReader {
     
     private static final Logger logger = LoggerFactory.getLogger(Ili2dbMetadataReader.class);
+
+    private static final String ATTR_OWNER_COLUMN = "colowner";
+    private static final String ATTR_TARGET_COLUMN = "target";
     
     private final Connection connection;
     private String schemaName;
@@ -151,12 +154,16 @@ public class Ili2dbMetadataReader {
      * Liest alle Attribute (Columns) für die Klassen.
      */
     private void readAttributes(ModelMetadata metadata) throws SQLException {
-        String sql = buildQuery(
-            "SELECT a.iliname, a.sqlname, a.owner, a.target " +
+        String sql = buildQuery(String.format(
+            "SELECT a.iliname, a.sqlname, a.%s AS owner, a.%s AS target " +
             "FROM {schema}.t_ili2db_attrname a " +
-            "WHERE a.owner LIKE ? " +
-            "ORDER BY a.owner, a.sqlname"
-        );
+            "WHERE a.%s LIKE ? " +
+            "ORDER BY a.%s, a.sqlname",
+            ATTR_OWNER_COLUMN,
+            ATTR_TARGET_COLUMN,
+            ATTR_OWNER_COLUMN,
+            ATTR_OWNER_COLUMN
+        ));
         
         String modelPrefix = metadata.getModelName() + ".%";
         
