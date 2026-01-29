@@ -113,7 +113,7 @@ public class Ili2dbMetadataReader {
                 String setting = rs.getString("setting");
                 metadata.getSettings().put(tag, setting);
                 
-                if ("ch.ehi.ili2db.version".equals(tag)) {
+                if ("ch.ehi.ili2db.sender".equals(tag)) {
                     metadata.setIli2dbVersion(setting);
                 }
             }
@@ -164,7 +164,7 @@ public class Ili2dbMetadataReader {
         String sql = buildQuery(String.format(
             "SELECT " + ATTR_ILINAME_REF + ", a.sqlname, a.%s AS owner, a.%s AS target " +
             "FROM {schema}.t_ili2db_attrname a " +
-            "WHERE " + buildLikeClause(ATTR_OWNER_REF, prefixes.size()) + " " +
+            "WHERE " + buildLikeClause(ATTR_ILINAME_REF, prefixes.size()) + " " +
             "ORDER BY a.%s, a.sqlname",
             ATTR_OWNER_COLUMN,
             ATTR_TARGET_COLUMN,
