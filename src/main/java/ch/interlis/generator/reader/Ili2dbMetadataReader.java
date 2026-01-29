@@ -24,8 +24,11 @@ public class Ili2dbMetadataReader {
     
     private static final Logger logger = LoggerFactory.getLogger(Ili2dbMetadataReader.class);
 
+    private static final String ATTR_ILINAME_COLUMN = "iliname";
     private static final String ATTR_OWNER_COLUMN = "colowner";
     private static final String ATTR_TARGET_COLUMN = "target";
+    private static final String ATTR_ILINAME_REF = "a." + ATTR_ILINAME_COLUMN;
+    private static final String ATTR_OWNER_REF = "a." + ATTR_OWNER_COLUMN;
     
     private final Connection connection;
     private String schemaName;
@@ -110,7 +113,7 @@ public class Ili2dbMetadataReader {
                 String setting = rs.getString("setting");
                 metadata.getSettings().put(tag, setting);
                 
-                if ("ch.ehi.ili2db.version".equals(tag)) {
+                if ("ch.ehi.ili2db.sender".equals(tag)) {
                     metadata.setIli2dbVersion(setting);
                 }
             }
@@ -159,9 +162,9 @@ public class Ili2dbMetadataReader {
     private void readAttributes(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
         List<String> prefixes = buildModelPrefixes(metadata, modelNames);
         String sql = buildQuery(String.format(
-            "SELECT a.iliname, a.sqlname, a.%s AS owner, a.%s AS target " +
+            "SELECT " + ATTR_ILINAME_REF + ", a.sqlname, a.%s AS owner, a.%s AS target " +
             "FROM {schema}.t_ili2db_attrname a " +
-            "WHERE " + buildLikeClause("a." + ATTR_OWNER_COLUMN, prefixes.size()) + " " +
+            "WHERE " + buildLikeClause(ATTR_ILINAME_REF, prefixes.size()) + " " +
             "ORDER BY a.%s, a.sqlname",
             ATTR_OWNER_COLUMN,
             ATTR_TARGET_COLUMN,
@@ -177,10 +180,12 @@ public class Ili2dbMetadataReader {
                     String sqlName = rs.getString("sqlname");
                     String owner = rs.getString("owner");
                     String target = rs.getString("target");
-                    
-                    ClassMetadata classMetadata = metadata.getClass(owner);
+
+                    String ownerClassName = extractOwnerClassName(iliName);
+                    ClassMetadata classMetadata = metadata.getClass(ownerClassName);
                     if (classMetadata == null) {
-                        logger.warn("Attribute {} belongs to unknown class {}", iliName, owner);
+                        logger.warn("Attribute {} belongs to unknown class {} (owner table: {})",
+                            iliName, ownerClassName, owner);
                         continue;
                     }
                     
@@ -508,6 +513,14 @@ public class Ili2dbMetadataReader {
         }
         int lastDot = qualifiedName.lastIndexOf('.');
         return lastDot >= 0 ? qualifiedName.substring(lastDot + 1) : qualifiedName;
+    }
+
+    private String extractOwnerClassName(String attributeQualifiedName) {
+        if (attributeQualifiedName == null) {
+            return null;
+        }
+        int lastDot = attributeQualifiedName.lastIndexOf('.');
+        return lastDot >= 0 ? attributeQualifiedName.substring(0, lastDot) : attributeQualifiedName;
     }
 
     private List<String> buildModelPrefixes(ModelMetadata metadata, Collection<String> modelNames) {
