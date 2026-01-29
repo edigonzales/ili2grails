@@ -579,23 +579,15 @@ public class Ili2dbMetadataReader {
     }
 
     private Optional<String> findModelsTable() {
-        List<String> candidates = List.of("t_ili2db_models", "t_ili2db_model");
-        try {
-            DatabaseMetaData metaData = connection.getMetaData();
-            for (String table : candidates) {
-                try (ResultSet rs = metaData.getTables(null, schemaName, table, null)) {
-                    if (rs.next()) {
-                        return Optional.of(table);
-                    }
-                }
-                try (ResultSet rs = metaData.getTables(null, schemaName, table.toUpperCase(Locale.ROOT), null)) {
-                    if (rs.next()) {
-                        return Optional.of(table);
-                    }
-                }
+        String tableName = "t_ili2db_model";
+        String sql = buildQuery("SELECT 1 FROM {schema}." + tableName + " LIMIT 1");
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                return Optional.of(tableName);
             }
         } catch (SQLException e) {
-            logger.debug("Could not inspect ili2db model tables.", e);
+            logger.debug("Could not query ili2db model table {}.", tableName, e);
         }
         return Optional.empty();
     }
