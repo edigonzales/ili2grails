@@ -31,8 +31,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Liest ein INTERLIS-Modell mit ili2c und extrahiert semantische Metadaten.
@@ -76,22 +80,14 @@ public class Ili2cModelReader {
         );
         config.addFileEntry(fileEntry);
         
-        // Modell-Verzeichnisse hinzufügen
-//        for (String dir : modelDirs) {
-//            config.addFileEntry(new FileEntry(dir, FileEntryKind.ILIMODELFILE));
-//        }
-        
-        
         Ili2cSettings set = new Ili2cSettings();
         ch.interlis.ili2c.Main.setDefaultIli2cPathMap(set);
-        set.setIlidirs(Ili2cSettings.DEFAULT_ILIDIRS);
-
-//        String repos = settings.getModelRepositories();
-//        if (repos != null && !repos.isBlank()) {
-//            set.setIlidirs(repos);
-//        } else {
-//            set.setIlidirs(Ili2cSettings.DEFAULT_ILIDIRS);
-//        }
+        String repos = resolveModelRepositories();
+        if (repos != null && !repos.isBlank()) {
+            set.setIlidirs(repos);
+        } else {
+            set.setIlidirs(Ili2cSettings.DEFAULT_ILIDIRS);
+        }
         
         config.setAutoCompleteModelList(true);
         config.setGenerateWarnings(true);
@@ -117,7 +113,7 @@ public class Ili2cModelReader {
         
         logger.info("Reading metadata from ili2c model: {}", modelName);
         
-        Model model = (Model) td.getElement(Model.class, modelName);
+        Model model = td.getLastModel();
         if (model == null) {
             throw new IllegalArgumentException("Model not found: " + modelName);
         }
@@ -126,12 +122,14 @@ public class Ili2cModelReader {
         metadata.setIliVersion(model.getIliVersion());
         
         // Topics durchgehen
+        Set<String> processedTopics = new HashSet<>();
+        Set<String> processedClasses = new HashSet<>();
         Iterator<?> topicIterator = model.iterator();
         while (topicIterator.hasNext()) {
             Object element = topicIterator.next();
             
             if (element instanceof Topic) {
-                processTopic(metadata, (Topic) element);
+                processTopic(metadata, (Topic) element, processedTopics, processedClasses);
             } else if (element instanceof Domain) {
                 processDomain(metadata, (Domain) element);
             }
@@ -144,7 +142,23 @@ public class Ili2cModelReader {
     /**
      * Verarbeitet ein Topic und extrahiert Klassen.
      */
-    private void processTopic(ModelMetadata metadata, Topic topic) {
+    private void processTopic(ModelMetadata metadata, Topic topic,
+                              Set<String> processedTopics,
+                              Set<String> processedClasses) {
+        Objects.requireNonNull(topic, "topic");
+        String topicName = topic.getScopedName(null);
+        if (topicName != null && processedTopics.contains(topicName)) {
+            return;
+        }
+        if (topicName != null) {
+            processedTopics.add(topicName);
+        }
+
+        Object extending = topic.getExtending();
+        if (extending instanceof Topic) {
+            processTopic(metadata, (Topic) extending, processedTopics, processedClasses);
+        }
+
         logger.debug("Processing topic: {}", topic.getName());
         
         Iterator<?> iterator = topic.iterator();
@@ -152,9 +166,9 @@ public class Ili2cModelReader {
             Object element = iterator.next();
 
             if (element instanceof Table) {
-                processClassDef(metadata, (AbstractClassDef<?>) element);
+                processClassDef(metadata, (AbstractClassDef<?>) element, processedClasses);
             } else if (element instanceof ch.interlis.ili2c.metamodel.AssociationDef) {
-                processClassDef(metadata, (AbstractClassDef<?>) element);
+                processClassDef(metadata, (AbstractClassDef<?>) element, processedClasses);
             } else if (element instanceof Domain) {
                 processDomain(metadata, (Domain) element);
             }
@@ -164,8 +178,22 @@ public class Ili2cModelReader {
     /**
      * Verarbeitet eine Tabelle/Klasse.
      */
-    private void processClassDef(ModelMetadata metadata, AbstractClassDef<?> classDef) {
+    private void processClassDef(ModelMetadata metadata,
+                                 AbstractClassDef<?> classDef,
+                                 Set<String> processedClasses) {
         String qualifiedName = classDef.getScopedName(null);
+        if (qualifiedName != null && processedClasses.contains(qualifiedName)) {
+            return;
+        }
+        AbstractClassDef<?> baseClass = null;
+        Object extending = classDef.getExtending();
+        if (extending instanceof AbstractClassDef<?>) {
+            baseClass = (AbstractClassDef<?>) extending;
+            processClassDef(metadata, baseClass, processedClasses);
+        }
+        if (qualifiedName != null) {
+            processedClasses.add(qualifiedName);
+        }
         logger.debug("Processing table: {}", qualifiedName);
         
         // Klasse aus ili2db-Metadaten holen oder neu erstellen
@@ -191,8 +219,8 @@ public class Ili2cModelReader {
         }
         
         // Vererbung
-        if (classDef.getExtending() != null) {
-            String baseClassName = classDef.getExtending().getScopedName(null);
+        if (baseClass != null) {
+            String baseClassName = baseClass.getScopedName(null);
             classMetadata.setBaseClass(baseClassName);
         }
         
@@ -360,5 +388,16 @@ public class Ili2cModelReader {
      */
     public TransferDescription getTransferDescription() {
         return td;
+    }
+
+    private String resolveModelRepositories() {
+        if (modelDirs == null || modelDirs.isEmpty()) {
+            return null;
+        }
+        return modelDirs.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(dir -> !dir.isEmpty())
+            .collect(Collectors.joining(";"));
     }
 }

@@ -56,14 +56,16 @@ public class Ili2dbMetadataReader {
         // Settings lesen
         readSettings(metadata);
         
+        Set<String> modelNames = resolveRelevantModelNames(modelName);
+
         // Klassen lesen
-        readClasses(metadata, modelName);
+        readClasses(metadata, modelNames);
         
         // Attribute lesen
-        readAttributes(metadata);
+        readAttributes(metadata, modelNames);
         
         // Vererbung auflösen
-        readInheritance(metadata);
+        readInheritance(metadata, modelNames);
         
         // Spalten-Properties lesen (Constraints, etc.)
         readColumnProperties(metadata);
@@ -120,14 +122,15 @@ public class Ili2dbMetadataReader {
     /**
      * Liest alle Klassen (Tables) für das gegebene Modell.
      */
-    private void readClasses(ModelMetadata metadata, String modelName) throws SQLException {
+    private void readClasses(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
+        List<String> prefixes = buildModelPrefixes(metadata, modelNames);
         String sql = buildQuery(
             "SELECT iliname, sqlname FROM {schema}.t_ili2db_classname " +
-            "WHERE iliname LIKE ? ORDER BY iliname"
+            "WHERE " + buildLikeClause("iliname", prefixes.size()) + " ORDER BY iliname"
         );
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, modelName + ".%");
+            bindLikePrefixes(pstmt, prefixes);
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -153,22 +156,20 @@ public class Ili2dbMetadataReader {
     /**
      * Liest alle Attribute (Columns) für die Klassen.
      */
-    private void readAttributes(ModelMetadata metadata) throws SQLException {
+    private void readAttributes(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
+        List<String> prefixes = buildModelPrefixes(metadata, modelNames);
         String sql = buildQuery(String.format(
             "SELECT a.iliname, a.sqlname, a.%s AS owner, a.%s AS target " +
             "FROM {schema}.t_ili2db_attrname a " +
-            "WHERE a.%s LIKE ? " +
+            "WHERE " + buildLikeClause("a." + ATTR_OWNER_COLUMN, prefixes.size()) + " " +
             "ORDER BY a.%s, a.sqlname",
             ATTR_OWNER_COLUMN,
             ATTR_TARGET_COLUMN,
-            ATTR_OWNER_COLUMN,
             ATTR_OWNER_COLUMN
         ));
         
-        String modelPrefix = metadata.getModelName() + ".%";
-        
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, modelPrefix);
+            bindLikePrefixes(pstmt, prefixes);
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -358,16 +359,15 @@ public class Ili2dbMetadataReader {
     /**
      * Liest die Vererbungshierarchie.
      */
-    private void readInheritance(ModelMetadata metadata) throws SQLException {
+    private void readInheritance(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
+        List<String> prefixes = buildModelPrefixes(metadata, modelNames);
         String sql = buildQuery(
             "SELECT thisclass, baseclass FROM {schema}.t_ili2db_inheritance " +
-            "WHERE thisclass LIKE ?"
+            "WHERE " + buildLikeClause("thisclass", prefixes.size())
         );
         
-        String modelPrefix = metadata.getModelName() + ".%";
-        
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, modelPrefix);
+            bindLikePrefixes(pstmt, prefixes);
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -484,11 +484,140 @@ public class Ili2dbMetadataReader {
         return template.replace("{schema}", schemaName);
     }
 
+    private String buildLikeClause(String columnName, int paramCount) {
+        StringBuilder builder = new StringBuilder("(");
+        for (int i = 0; i < paramCount; i++) {
+            if (i > 0) {
+                builder.append(" OR ");
+            }
+            builder.append(columnName).append(" LIKE ?");
+        }
+        builder.append(")");
+        return builder.toString();
+    }
+
+    private void bindLikePrefixes(PreparedStatement pstmt, List<String> prefixes) throws SQLException {
+        for (int i = 0; i < prefixes.size(); i++) {
+            pstmt.setString(i + 1, prefixes.get(i));
+        }
+    }
+
     private String extractSimpleName(String qualifiedName) {
         if (qualifiedName == null) {
             return null;
         }
         int lastDot = qualifiedName.lastIndexOf('.');
         return lastDot >= 0 ? qualifiedName.substring(lastDot + 1) : qualifiedName;
+    }
+
+    private List<String> buildModelPrefixes(ModelMetadata metadata, Collection<String> modelNames) {
+        Set<String> uniqueNames = new LinkedHashSet<>();
+        if (modelNames != null) {
+            for (String name : modelNames) {
+                if (name != null && !name.isBlank()) {
+                    uniqueNames.add(name);
+                }
+            }
+        }
+        if (uniqueNames.isEmpty()) {
+            if (metadata.getModelName() != null && !metadata.getModelName().isBlank()) {
+                uniqueNames.add(metadata.getModelName());
+            }
+        }
+        List<String> prefixes = new ArrayList<>();
+        if (uniqueNames.isEmpty()) {
+            prefixes.add("%");
+        } else {
+            for (String name : uniqueNames) {
+                prefixes.add(name + ".%");
+            }
+        }
+        return prefixes;
+    }
+
+    private Set<String> resolveRelevantModelNames(String requestedModel) {
+        Set<String> modelNames = new LinkedHashSet<>();
+        if (requestedModel != null && !requestedModel.isBlank()) {
+            modelNames.add(requestedModel);
+        }
+
+        Optional<String> modelTable = findModelsTable();
+        if (modelTable.isEmpty()) {
+            logger.debug("No ili2db models table found, using requested model only.");
+            return modelNames;
+        }
+
+        String sql = buildQuery("SELECT * FROM {schema}." + modelTable.get());
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            ResultSetMetaData meta = rs.getMetaData();
+            String modelColumn = findColumn(meta, "modelname", "model", "name");
+            if (modelColumn == null) {
+                logger.warn("Could not detect model name column in {}, using requested model only.", modelTable.get());
+                return modelNames;
+            }
+            String typeColumn = findColumn(meta, "type", "modeltype", "kind", "model_kind");
+
+            while (rs.next()) {
+                String modelName = rs.getString(modelColumn);
+                if (modelName == null || modelName.isBlank()) {
+                    continue;
+                }
+                if (typeColumn != null) {
+                    String type = rs.getString(typeColumn);
+                    if (type != null && "TYPE".equalsIgnoreCase(type.trim())) {
+                        continue;
+                    }
+                }
+                modelNames.add(modelName);
+            }
+        } catch (SQLException e) {
+            logger.warn("Could not read model list from {}, using requested model only.", modelTable.get(), e);
+        }
+
+        return modelNames;
+    }
+
+    private Optional<String> findModelsTable() {
+        List<String> candidates = List.of("t_ili2db_models", "t_ili2db_model");
+        try {
+            DatabaseMetaData metaData = connection.getMetaData();
+            for (String table : candidates) {
+                try (ResultSet rs = metaData.getTables(null, schemaName, table, null)) {
+                    if (rs.next()) {
+                        return Optional.of(table);
+                    }
+                }
+                try (ResultSet rs = metaData.getTables(null, schemaName, table.toUpperCase(Locale.ROOT), null)) {
+                    if (rs.next()) {
+                        return Optional.of(table);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logger.debug("Could not inspect ili2db model tables.", e);
+        }
+        return Optional.empty();
+    }
+
+    private String findColumn(ResultSetMetaData meta, String... candidates) throws SQLException {
+        Map<String, String> available = new HashMap<>();
+        for (int i = 1; i <= meta.getColumnCount(); i++) {
+            String label = meta.getColumnLabel(i);
+            String name = meta.getColumnName(i);
+            if (label != null) {
+                available.putIfAbsent(label.toLowerCase(Locale.ROOT), label);
+            }
+            if (name != null) {
+                available.putIfAbsent(name.toLowerCase(Locale.ROOT), name);
+            }
+        }
+        for (String candidate : candidates) {
+            String matched = available.get(candidate.toLowerCase(Locale.ROOT));
+            if (matched != null) {
+                return matched;
+            }
+        }
+        return null;
     }
 }
