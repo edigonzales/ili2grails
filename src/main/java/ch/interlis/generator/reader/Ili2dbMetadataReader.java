@@ -541,55 +541,33 @@ public class Ili2dbMetadataReader {
             modelNames.add(requestedModel);
         }
 
-        Optional<String> modelTable = findModelsTable();
-        if (modelTable.isEmpty()) {
-            logger.debug("No ili2db models table found, using requested model only.");
-            return modelNames;
-        }
-
-        String sql = buildQuery("SELECT * FROM {schema}." + modelTable.get());
+        String sql = buildQuery("SELECT * FROM {schema}.t_ili2db_model");
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             ResultSetMetaData meta = rs.getMetaData();
             String modelColumn = findColumn(meta, "modelname", "model", "name");
             if (modelColumn == null) {
-                logger.warn("Could not detect model name column in {}, using requested model only.", modelTable.get());
+                logger.warn("Could not detect model name column in t_ili2db_model, using requested model only.");
                 return modelNames;
             }
-            String typeColumn = findColumn(meta, "type", "modeltype", "kind", "model_kind");
+            String contentColumn = findColumn(meta, "content");
 
             while (rs.next()) {
                 String modelName = rs.getString(modelColumn);
                 if (modelName == null || modelName.isBlank()) {
                     continue;
                 }
-                if (typeColumn != null) {
-                    String type = rs.getString(typeColumn);
-                    if (type != null && "TYPE".equalsIgnoreCase(type.trim())) {
-                        continue;
-                    }
+                if (contentColumn != null && isTypeModel(rs.getString(contentColumn))) {
+                    continue;
                 }
                 modelNames.add(modelName);
+                logger.debug("Detected ili2db model: {}", modelName);
             }
         } catch (SQLException e) {
-            logger.warn("Could not read model list from {}, using requested model only.", modelTable.get(), e);
+            logger.warn("Could not read model list from t_ili2db_model, using requested model only.", e);
         }
 
         return modelNames;
-    }
-
-    private Optional<String> findModelsTable() {
-        String tableName = "t_ili2db_model";
-        String sql = buildQuery("SELECT 1 FROM {schema}." + tableName + " LIMIT 1");
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            if (rs.next()) {
-                return Optional.of(tableName);
-            }
-        } catch (SQLException e) {
-            logger.debug("Could not query ili2db model table {}.", tableName, e);
-        }
-        return Optional.empty();
     }
 
     private String findColumn(ResultSetMetaData meta, String... candidates) throws SQLException {
@@ -611,5 +589,12 @@ public class Ili2dbMetadataReader {
             }
         }
         return null;
+    }
+
+    private boolean isTypeModel(String content) {
+        if (content == null) {
+            return false;
+        }
+        return content.matches("(?s).*TYPE\\s+MODEL.*");
     }
 }
