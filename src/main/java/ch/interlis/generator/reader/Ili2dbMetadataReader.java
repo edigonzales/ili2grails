@@ -164,7 +164,7 @@ public class Ili2dbMetadataReader {
         String sql = buildQuery(String.format(
             "SELECT " + ATTR_ILINAME_REF + ", a.sqlname, a.%s AS owner, a.%s AS target " +
             "FROM {schema}.t_ili2db_attrname a " +
-            "WHERE " + buildLikeClause(ATTR_ILINAME_REF, prefixes.size()) + " " +
+            "WHERE " + buildAttributeLikeClause(prefixes.size()) + " " +
             "ORDER BY a.%s, a.sqlname",
             ATTR_OWNER_COLUMN,
             ATTR_TARGET_COLUMN,
@@ -172,7 +172,7 @@ public class Ili2dbMetadataReader {
         ));
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            bindLikePrefixes(pstmt, prefixes);
+            bindAttributePrefixes(pstmt, prefixes);
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -183,6 +183,12 @@ public class Ili2dbMetadataReader {
 
                     String ownerClassName = extractOwnerClassName(iliName);
                     ClassMetadata classMetadata = metadata.getClass(ownerClassName);
+                    if (classMetadata == null && owner != null && !owner.isBlank()) {
+                        classMetadata = metadata.getClass(owner);
+                        if (classMetadata != null) {
+                            ownerClassName = owner;
+                        }
+                    }
                     if (classMetadata == null) {
                         logger.warn("Attribute {} belongs to unknown class {} (owner table: {})",
                             iliName, ownerClassName, owner);
@@ -191,7 +197,11 @@ public class Ili2dbMetadataReader {
                     
                     String simpleName = extractSimpleName(iliName);
                     AttributeMetadata attrMetadata = new AttributeMetadata(simpleName);
-                    attrMetadata.setQualifiedName(iliName);
+                    String qualifiedName = iliName;
+                    if ((qualifiedName == null || !qualifiedName.contains(".")) && ownerClassName != null) {
+                        qualifiedName = ownerClassName + "." + simpleName;
+                    }
+                    attrMetadata.setQualifiedName(qualifiedName);
                     attrMetadata.setColumnName(sqlName);
                     attrMetadata.setSqlName(sqlName);
                     
@@ -218,69 +228,41 @@ public class Ili2dbMetadataReader {
      */
     private void enrichAttributeFromDbSchema(AttributeMetadata attr, String tableName, String columnName) 
             throws SQLException {
-        String baseSql =
+        String sql =
             "SELECT column_name, data_type, is_nullable, character_maximum_length, " +
-            "       numeric_precision, numeric_scale%s " +
+            "       numeric_precision, numeric_scale, type_name " +
             "FROM information_schema.columns " +
-            "WHERE table_schema = ? " +
+            "WHERE upper(table_schema) = upper(?) " +
             "  AND upper(table_name) = upper(?) " +
             "  AND upper(column_name) = upper(?)";
 
-        boolean includeUdtName = true;
-        boolean includeTypeName = true;
-        SQLException lastError = null;
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, schemaName);
+            pstmt.setString(2, tableName);
+            pstmt.setString(3, columnName);
 
-        for (int attempt = 0; attempt < 3; attempt++) {
-            String extraColumns = "";
-            if (includeUdtName) {
-                extraColumns += ", udt_name";
-            }
-            if (includeTypeName) {
-                extraColumns += ", type_name";
-            }
-            String sql = String.format(baseSql, extraColumns);
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, schemaName);
-                pstmt.setString(2, tableName);
-                pstmt.setString(3, columnName);
-
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        String dataType = rs.getString("data_type");
-                        String isNullable = rs.getString("is_nullable");
-                        Integer maxLength = rs.getInt("character_maximum_length");
-                        if (rs.wasNull()) {
-                            maxLength = null;
-                        }
-
-                        String typeName = includeTypeName ? rs.getString("type_name") : null;
-                        String resolvedType = resolveDbType(dataType, typeName);
-                        attr.setDbType(resolvedType);
-                        attr.setMandatory("NO".equals(isNullable));
-                        attr.setMaxLength(maxLength);
-
-                        String udtName = includeUdtName ? rs.getString("udt_name") : null;
-                        if ("geometry".equalsIgnoreCase(udtName) ||
-                            "USER-DEFINED".equalsIgnoreCase(dataType)) {
-                            attr.setGeometry(true);
-                        }
-
-                        attr.setPrimaryKey(isPrimaryKey(tableName, columnName));
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    String dataType = rs.getString("data_type");
+                    String isNullable = rs.getString("is_nullable");
+                    Integer maxLength = rs.getInt("character_maximum_length");
+                    if (rs.wasNull()) {
+                        maxLength = null;
                     }
-                }
-                return;
-            } catch (SQLException e) {
-                lastError = e;
-                if (includeTypeName) {
-                    includeTypeName = false;
-                } else if (includeUdtName) {
-                    includeUdtName = false;
+
+                    String typeName = rs.getString("type_name");
+                    String resolvedType = resolveDbType(dataType, typeName);
+                    attr.setDbType(resolvedType);
+                    attr.setMandatory("NO".equals(isNullable));
+                    attr.setMaxLength(maxLength);
+
+                    if ("GEOMETRY".equalsIgnoreCase(typeName)) {
+                        attr.setGeometry(true);
+                    }
+
+                    attr.setPrimaryKey(isPrimaryKey(tableName, columnName));
                 }
             }
-        }
-
-        if (lastError != null) {
-            throw lastError;
         }
     }
 
@@ -504,6 +486,30 @@ public class Ili2dbMetadataReader {
     private void bindLikePrefixes(PreparedStatement pstmt, List<String> prefixes) throws SQLException {
         for (int i = 0; i < prefixes.size(); i++) {
             pstmt.setString(i + 1, prefixes.get(i));
+        }
+    }
+
+    private String buildAttributeLikeClause(int paramCount) {
+        StringBuilder builder = new StringBuilder("(");
+        for (int i = 0; i < paramCount; i++) {
+            if (i > 0) {
+                builder.append(" OR ");
+            }
+            builder.append("(")
+                .append(ATTR_ILINAME_REF)
+                .append(" LIKE ? OR ")
+                .append(ATTR_OWNER_REF)
+                .append(" LIKE ?)");
+        }
+        builder.append(")");
+        return builder.toString();
+    }
+
+    private void bindAttributePrefixes(PreparedStatement pstmt, List<String> prefixes) throws SQLException {
+        int index = 1;
+        for (String prefix : prefixes) {
+            pstmt.setString(index++, prefix);
+            pstmt.setString(index++, prefix);
         }
     }
 

@@ -173,6 +173,16 @@ public class MetadataReader {
         if (ili2cAttr.getIliType() != null) {
             dbAttr.setIliType(ili2cAttr.getIliType());
         }
+
+        // Java-Typ (vom ili2c-Reader abgeleitet)
+        if (ili2cAttr.getJavaType() != null && dbAttr.getJavaType() == null) {
+            dbAttr.setJavaType(ili2cAttr.getJavaType());
+        }
+
+        // Mandatory (OR-Logik: Modell-Constraint zählt)
+        if (ili2cAttr.isMandatory() && !dbAttr.isMandatory()) {
+            dbAttr.setMandatory(true);
+        }
         
         // Constraints
         if (ili2cAttr.getMaxLength() != null && dbAttr.getMaxLength() == null) {
