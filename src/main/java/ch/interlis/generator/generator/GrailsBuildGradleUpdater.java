@@ -27,36 +27,43 @@ class GrailsBuildGradleUpdater {
     }
 
     private List<String> insertDependency(List<String> lines) {
-        int dependenciesBlockStart = -1;
-        int dependenciesBlockEnd = -1;
+        int[] buildscriptRange = findBlockRange(lines, "buildscript", null);
+        int[] dependenciesRange = findBlockRange(lines, "dependencies", buildscriptRange);
+        if (dependenciesRange == null) {
+            return lines;
+        }
+        String indent = detectIndent(lines, dependenciesRange[0]);
+        List<String> updated = new java.util.ArrayList<>(lines);
+        updated.add(dependenciesRange[1], indent + JTS_DEPENDENCY);
+        return updated;
+    }
+
+    private int[] findBlockRange(List<String> lines, String blockName, int[] excludeRange) {
+        int blockStart = -1;
         int braceDepth = 0;
         for (int i = 0; i < lines.size(); i++) {
+            if (excludeRange != null && i >= excludeRange[0] && i <= excludeRange[1]) {
+                continue;
+            }
             String trimmed = lines.get(i).trim();
-            if (dependenciesBlockStart < 0 && trimmed.startsWith("dependencies")) {
-                dependenciesBlockStart = i;
+            if (blockStart < 0 && trimmed.startsWith(blockName)) {
+                blockStart = i;
                 braceDepth += countChar(lines.get(i), '{');
                 braceDepth -= countChar(lines.get(i), '}');
                 if (braceDepth == 0) {
-                    dependenciesBlockStart = -1;
+                    blockStart = -1;
                 }
                 continue;
             }
-            if (dependenciesBlockStart >= 0) {
+            if (blockStart >= 0) {
                 braceDepth += countChar(lines.get(i), '{');
                 braceDepth -= countChar(lines.get(i), '}');
                 if (braceDepth == 0) {
-                    dependenciesBlockEnd = i;
-                    break;
+                    return new int[] { blockStart, i };
                 }
             }
         }
-        if (dependenciesBlockStart < 0 || dependenciesBlockEnd < 0) {
-            return lines;
-        }
-        String indent = detectIndent(lines, dependenciesBlockStart);
-        List<String> updated = new java.util.ArrayList<>(lines);
-        updated.add(dependenciesBlockEnd, indent + JTS_DEPENDENCY);
-        return updated;
+        return null;
     }
 
     private String detectIndent(List<String> lines, int dependenciesBlockStart) {
