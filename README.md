@@ -7,6 +7,7 @@ Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und e
 - [Voraussetzungen](#voraussetzungen)
 - [Installation & Build](#installation--build)
 - [Schnellstart (CLI)](#schnellstart-cli)
+- [Grails-Projekt starten](#grails-projekt-starten)
 - [Benutzeranleitung (Detail)](#benutzeranleitung-detail)
 - [Programmatische Nutzung](#programmatische-nutzung)
 - [Ausgabe verstehen](#ausgabe-verstehen)
@@ -32,6 +33,7 @@ Die Metadaten kommen aus zwei Quellen:
 - Zugriff auf eine **ili2db**-Datenbank (PostgreSQL oder H2)
 - Eine passende **.ili**-Modelldatei
 - Für H2 mit Geometrietypen: **H2GIS** (in den Dependencies enthalten)
+- Für Grails-Ausgabe/Start: **Grails SDK** und ein Grails-Projekt
 
 Prüfen:
 ```bash
@@ -83,6 +85,36 @@ Weitere Optionen:
 - `--grails-domain-package` (Default: Basis-Package)
 - `--grails-controller-package` (Default: Basis-Package)
 - `--grails-enum-package` (Default: `<Basis-Package>.enums`)
+
+## Grails-Projekt starten
+Der Generator schreibt Artefakte in ein bestehendes Grails-Projekt (oder in ein neu erzeugtes). Die Dateien landen in:
+- `grails-app/domain/...` (Domains)
+- `grails-app/controllers/...` (Controller)
+- `grails-app/views/...` (GSPs)
+- `src/main/groovy/...` (Enums)
+
+### 1) Grails-App erstellen (falls noch nicht vorhanden)
+```bash
+grails create-app my-grails-app
+```
+
+### 2) CRUD-Artefakte generieren
+```bash
+./gradlew run --args="'jdbc:postgresql://localhost:5432/mydb?user=postgres&password=secret' \
+  test-models/SimpleAddressModel.ili \
+  SimpleAddressModel \
+  public \
+  --grails-output /path/to/my-grails-app \
+  --grails-package ch.example.demo"
+```
+
+### 3) Grails-App starten
+```bash
+cd /path/to/my-grails-app
+./gradlew bootRun
+# Alternativ:
+grails run-app
+```
 
 ## Benutzeranleitung (Detail)
 ### 1) Datenbank vorbereiten
@@ -196,7 +228,7 @@ NUMERIC 1.00..3.55 → BigDecimal
 
 ## Projektstruktur
 ```
-interlis-crud-generator/
+ili2grails/
 ├── README.md
 ├── ARCHITECTURE.md
 ├── QUICKSTART.md
