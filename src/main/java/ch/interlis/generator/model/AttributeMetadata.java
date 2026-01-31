@@ -26,6 +26,7 @@ public class AttributeMetadata {
     private String minValue;
     private String maxValue;
     private String enumType;                // Falls Enumeration
+    private final java.util.List<EnumMetadata.EnumValue> enumValues = new java.util.ArrayList<>();
     private String unit;                    // Masseinheit
     
     // Beziehungen
@@ -242,6 +243,14 @@ public class AttributeMetadata {
     
     public void setEnumType(String enumType) {
         this.enumType = enumType;
+    }
+
+    public java.util.List<EnumMetadata.EnumValue> getEnumValues() {
+        return enumValues;
+    }
+
+    public void addEnumValue(EnumMetadata.EnumValue value) {
+        enumValues.add(value);
     }
     
     public String getUnit() {
