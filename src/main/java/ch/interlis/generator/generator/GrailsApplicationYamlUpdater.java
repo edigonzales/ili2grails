@@ -17,13 +17,13 @@ class GrailsApplicationYamlUpdater {
             return;
         }
         List<String> lines = Files.readAllLines(applicationYamlPath, StandardCharsets.UTF_8);
-        List<String> updated = updateDevelopmentUrl(lines, jdbcUrl);
+        List<String> updated = updateDevelopmentDataSource(lines, jdbcUrl);
         if (updated != lines) {
             Files.write(applicationYamlPath, updated, StandardCharsets.UTF_8);
         }
     }
 
-    private List<String> updateDevelopmentUrl(List<String> lines, String jdbcUrl) {
+    private List<String> updateDevelopmentDataSource(List<String> lines, String jdbcUrl) {
         int envIndex = findBlockStart(lines, "environments:");
         if (envIndex < 0) {
             return lines;
@@ -36,26 +36,44 @@ class GrailsApplicationYamlUpdater {
         if (dataSourceIndex < 0) {
             return lines;
         }
-        int urlIndex = findChildKeyLine(lines, dataSourceIndex, "url:");
-        if (urlIndex < 0) {
-            return insertUrlLine(lines, dataSourceIndex, jdbcUrl);
-        }
-        String indent = leadingWhitespace(lines.get(urlIndex));
-        String updatedLine = indent + "url: " + quoteYaml(jdbcUrl);
-        if (lines.get(urlIndex).equals(updatedLine)) {
+        List<String> updated = new ArrayList<>(lines);
+        boolean changed = false;
+        changed |= upsertDataSourceKey(updated, dataSourceIndex, "url:", quoteYaml(jdbcUrl), null);
+        changed |= upsertDataSourceKey(updated, dataSourceIndex, "dbCreate:", "none", "url:");
+        if (!changed) {
             return lines;
         }
-        List<String> updated = new ArrayList<>(lines);
-        updated.set(urlIndex, updatedLine);
         return updated;
     }
 
-    private List<String> insertUrlLine(List<String> lines, int dataSourceIndex, String jdbcUrl) {
+    private boolean upsertDataSourceKey(
+        List<String> lines,
+        int dataSourceIndex,
+        String key,
+        String value,
+        String insertAfterKey
+    ) {
+        int keyIndex = findChildKeyLine(lines, dataSourceIndex, key);
+        String indent = keyIndex >= 0
+            ? leadingWhitespace(lines.get(keyIndex))
+            : leadingWhitespace(lines.get(dataSourceIndex)) + "  ";
+        String updatedLine = indent + key + " " + value;
+        if (keyIndex >= 0) {
+            if (lines.get(keyIndex).equals(updatedLine)) {
+                return false;
+            }
+            lines.set(keyIndex, updatedLine);
+            return true;
+        }
         int insertionIndex = dataSourceIndex + 1;
-        String indent = leadingWhitespace(lines.get(dataSourceIndex)) + "  ";
-        List<String> updated = new ArrayList<>(lines);
-        updated.add(insertionIndex, indent + "url: " + quoteYaml(jdbcUrl));
-        return updated;
+        if (insertAfterKey != null) {
+            int afterIndex = findChildKeyLine(lines, dataSourceIndex, insertAfterKey);
+            if (afterIndex >= 0) {
+                insertionIndex = afterIndex + 1;
+            }
+        }
+        lines.add(insertionIndex, updatedLine);
+        return true;
     }
 
     private int findBlockStart(List<String> lines, String key) {

@@ -124,7 +124,7 @@ Der Scaffold-Schritt wird blockiert, wenn im Zielverzeichnis bereits `build.grad
   --grails-package ch.example.demo"
 ```
 Hinweis: Der Generator ergänzt in `build.gradle` automatisch die JTS-Dependency, sobald eine Grails-App vorhanden ist.
-Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `development`-Datenbank auf die per CLI übergebene JDBC-URL.
+Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `development`-Datenbank auf die per CLI übergebene JDBC-URL und stellt `dbCreate` auf `none`.
 
 ### 3) Grails-App starten
 ```bash
