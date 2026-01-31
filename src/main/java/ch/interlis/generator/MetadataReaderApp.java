@@ -9,15 +9,16 @@ import ch.interlis.ili2c.Ili2cFailure;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 
 /**
  * Demo-Anwendung zum Testen des Metadata-Readers.
@@ -118,6 +119,8 @@ public class MetadataReaderApp {
         System.out.println();
         System.out.println("Options:");
         System.out.println("  --grails-output <dir>             - Output directory for Grails CRUD artifacts");
+        System.out.println("  --grails-init [appName]           - Initialize a Grails app in the output directory");
+        System.out.println("  --grails-version <x.y>            - Grails version for --grails-init");
         System.out.println("  --grails-package <package>        - Base package for generated classes (default: com.example)");
         System.out.println("  --grails-domain-package <package> - Package for domain classes (default: <base>)");
         System.out.println("  --grails-controller-package <package> - Package for controllers (default: <base>)");
@@ -143,9 +146,15 @@ public class MetadataReaderApp {
         );
     }
 
-    private static void generateGrailsCrud(ModelMetadata metadata, CliOptions options) throws IOException {
+    private static void generateGrailsCrud(ModelMetadata metadata, CliOptions options)
+        throws IOException, InterruptedException {
+        Path outputDir = Objects.requireNonNull(options.grailsOutputDir, "grailsOutputDir");
+        if (options.grailsInitRequested) {
+            scaffoldGrailsProjectIfNeeded(options, outputDir);
+        }
+
         String basePackage = options.grailsBasePackage != null ? options.grailsBasePackage : "com.example";
-        GenerationConfig.Builder builder = GenerationConfig.builder(options.grailsOutputDir, basePackage);
+        GenerationConfig.Builder builder = GenerationConfig.builder(outputDir, basePackage);
         if (options.grailsDomainPackage != null) {
             builder.domainPackage(options.grailsDomainPackage);
         }
@@ -157,46 +166,175 @@ public class MetadataReaderApp {
         }
         GenerationConfig config = builder.build();
         new GrailsCrudGenerator().generate(metadata, config);
-        System.out.println("Grails CRUD artifacts generated in: " + options.grailsOutputDir.toAbsolutePath());
+        System.out.println("Grails CRUD artifacts generated in: " + outputDir.toAbsolutePath());
     }
 
     private static CliOptions parseArgs(String[] args) {
         List<String> positional = new ArrayList<>();
-        Map<String, String> options = new HashMap<>();
+        CliOptions cliOptions = new CliOptions();
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
-            if (arg.startsWith("--")) {
-                if (i + 1 >= args.length) {
-                    System.err.println("Missing value for option: " + arg);
+            if (!arg.startsWith("--")) {
+                positional.add(arg);
+                continue;
+            }
+
+            switch (arg) {
+                case "--grails-init":
+                    cliOptions.grailsInitRequested = true;
+                    if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+                        cliOptions.grailsInitAppName = args[++i];
+                    }
+                    break;
+                case "--grails-output":
+                    String outputValue = readOptionValue(args, arg, ++i);
+                    if (outputValue == null) {
+                        return null;
+                    }
+                    cliOptions.grailsOutputDir = Path.of(outputValue);
+                    break;
+                case "--grails-version":
+                    String versionValue = readOptionValue(args, arg, ++i);
+                    if (versionValue == null) {
+                        return null;
+                    }
+                    cliOptions.grailsVersion = versionValue;
+                    break;
+                case "--grails-package":
+                    cliOptions.grailsBasePackage = readOptionValue(args, arg, ++i);
+                    if (cliOptions.grailsBasePackage == null) {
+                        return null;
+                    }
+                    break;
+                case "--grails-domain-package":
+                    cliOptions.grailsDomainPackage = readOptionValue(args, arg, ++i);
+                    if (cliOptions.grailsDomainPackage == null) {
+                        return null;
+                    }
+                    break;
+                case "--grails-controller-package":
+                    cliOptions.grailsControllerPackage = readOptionValue(args, arg, ++i);
+                    if (cliOptions.grailsControllerPackage == null) {
+                        return null;
+                    }
+                    break;
+                case "--grails-enum-package":
+                    cliOptions.grailsEnumPackage = readOptionValue(args, arg, ++i);
+                    if (cliOptions.grailsEnumPackage == null) {
+                        return null;
+                    }
+                    break;
+                default:
+                    System.err.println("Unknown option: " + arg);
                     printUsage();
                     return null;
-                }
-                String value = args[++i];
-                options.put(arg, value);
-            } else {
-                positional.add(arg);
             }
         }
 
-        if (positional.size() < 4 || positional.size() > 4) {
+        if (positional.size() != 4) {
             printUsage();
             return null;
         }
 
-        CliOptions cliOptions = new CliOptions();
         cliOptions.jdbcUrl = positional.get(0);
         cliOptions.modelFilePath = positional.get(1);
         cliOptions.modelName = positional.get(2);
         cliOptions.schema = positional.get(3);
-        if (options.containsKey("--grails-output")) {
-            cliOptions.grailsOutputDir = Path.of(options.get("--grails-output"));
+        if (cliOptions.grailsInitRequested && cliOptions.grailsOutputDir == null) {
+            System.err.println("Option --grails-init requires --grails-output.");
+            printUsage();
+            return null;
         }
-        cliOptions.grailsBasePackage = options.get("--grails-package");
-        cliOptions.grailsDomainPackage = options.get("--grails-domain-package");
-        cliOptions.grailsControllerPackage = options.get("--grails-controller-package");
-        cliOptions.grailsEnumPackage = options.get("--grails-enum-package");
+        if (cliOptions.grailsVersion != null && !cliOptions.grailsInitRequested) {
+            System.err.println("Option --grails-version requires --grails-init.");
+            printUsage();
+            return null;
+        }
         return cliOptions;
+    }
+
+    private static String readOptionValue(String[] args, String option, int index) {
+        if (index >= args.length) {
+            System.err.println("Missing value for option: " + option);
+            printUsage();
+            return null;
+        }
+        String value = args[index];
+        if (value.startsWith("--")) {
+            System.err.println("Missing value for option: " + option);
+            printUsage();
+            return null;
+        }
+        return value;
+    }
+
+    private static void scaffoldGrailsProjectIfNeeded(CliOptions options, Path outputDir)
+        throws IOException, InterruptedException {
+        if (isGrailsProject(outputDir)) {
+            throw new IllegalStateException(
+                "Grails scaffold blocked: existing project detected at "
+                    + outputDir.toAbsolutePath()
+            );
+        }
+
+        if (Files.exists(outputDir) && !Files.isDirectory(outputDir)) {
+            throw new IllegalStateException("Grails scaffold blocked: target is not a directory: "
+                + outputDir.toAbsolutePath());
+        }
+        if (Files.exists(outputDir) && !isDirectoryEmpty(outputDir)) {
+            throw new IllegalStateException("Grails scaffold blocked: target directory is not empty: "
+                + outputDir.toAbsolutePath());
+        }
+
+        String appName = options.grailsInitAppName;
+        if (appName == null || appName.isBlank()) {
+            Path fileName = outputDir.getFileName();
+            appName = fileName != null ? fileName.toString() : "grails-app";
+        }
+        runGrailsCreateApp(outputDir, appName, options.grailsVersion);
+    }
+
+    private static boolean isGrailsProject(Path outputDir) {
+        return Files.exists(outputDir.resolve("build.gradle"))
+            || Files.exists(outputDir.resolve("settings.gradle"))
+            || Files.exists(outputDir.resolve("grails-app"));
+    }
+
+    private static boolean isDirectoryEmpty(Path outputDir) throws IOException {
+        try (var stream = Files.list(outputDir)) {
+            return stream.findAny().isEmpty();
+        }
+    }
+
+    private static void runGrailsCreateApp(Path outputDir, String appName, String grailsVersion)
+        throws IOException, InterruptedException {
+        Path absoluteOutputDir = outputDir.toAbsolutePath().normalize();
+        Path workingDir = absoluteOutputDir.getParent();
+        if (workingDir == null) {
+            workingDir = Path.of(".").toAbsolutePath().normalize();
+        }
+        Files.createDirectories(workingDir);
+
+        List<String> command = new ArrayList<>();
+        command.add("grails");
+        command.add("create-app");
+        command.add(appName);
+        if (grailsVersion != null && !grailsVersion.isBlank()) {
+            command.add("--grails-version");
+            command.add(grailsVersion);
+        }
+
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.directory(workingDir.toFile());
+        builder.redirectErrorStream(true);
+        Process process = builder.start();
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IOException("Grails CLI failed (exit " + exitCode + ") while creating app in "
+                + absoluteOutputDir + ". Output:\n" + output);
+        }
     }
 
     private static class CliOptions {
@@ -205,6 +343,9 @@ public class MetadataReaderApp {
         private String modelName;
         private String schema;
         private Path grailsOutputDir;
+        private boolean grailsInitRequested;
+        private String grailsInitAppName;
+        private String grailsVersion;
         private String grailsBasePackage;
         private String grailsDomainPackage;
         private String grailsControllerPackage;
