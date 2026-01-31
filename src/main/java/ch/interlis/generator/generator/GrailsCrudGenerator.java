@@ -14,6 +14,8 @@ public class GrailsCrudGenerator {
     private final GrailsControllerGenerator controllerGenerator = new GrailsControllerGenerator();
     private final GrailsViewGenerator viewGenerator = new GrailsViewGenerator();
     private final GrailsEnumGenerator enumGenerator = new GrailsEnumGenerator();
+    private final GrailsBuildGradleUpdater buildGradleUpdater = new GrailsBuildGradleUpdater();
+    private final GrailsApplicationYamlUpdater applicationYamlUpdater = new GrailsApplicationYamlUpdater();
 
     public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
         Files.createDirectories(config.getOutputDir());
@@ -21,5 +23,10 @@ public class GrailsCrudGenerator {
         domainGenerator.generate(metadata, config);
         controllerGenerator.generate(metadata, config);
         viewGenerator.generate(metadata, config);
+        buildGradleUpdater.ensureJtsDependency(config.getOutputDir().resolve("build.gradle"));
+        applicationYamlUpdater.ensureDevelopmentDataSourceUrl(
+            config.getOutputDir().resolve("grails-app/conf/application.yml"),
+            config.getJdbcUrl()
+        );
     }
 }

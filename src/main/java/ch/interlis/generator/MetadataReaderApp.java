@@ -141,6 +141,7 @@ public class MetadataReaderApp {
 
         String basePackage = options.grailsBasePackage != null ? options.grailsBasePackage : "com.example";
         GenerationConfig.Builder builder = GenerationConfig.builder(grailsProjectDir, basePackage);
+        builder.jdbcUrl(options.jdbcUrl);
         if (options.grailsDomainPackage != null) {
             builder.domainPackage(options.grailsDomainPackage);
         }

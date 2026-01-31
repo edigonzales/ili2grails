@@ -123,6 +123,8 @@ Der Scaffold-Schritt wird blockiert, wenn im Zielverzeichnis bereits `build.grad
   --grails-output /path/to/my-grails-app \
   --grails-package ch.example.demo"
 ```
+Hinweis: Der Generator ergänzt in `build.gradle` automatisch die JTS-Dependency, sobald eine Grails-App vorhanden ist.
+Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `development`-Datenbank auf die per CLI übergebene JDBC-URL.
 
 ### 3) Grails-App starten
 ```bash
@@ -131,6 +133,8 @@ cd /path/to/my-grails-app
 # Alternativ:
 grails run-app
 ```
+Die H2-URL (und generell die DB-Verbindung) kommt aus der Grails-Konfiguration in `grails-app/conf/application.yml`
+(Property `dataSource.url` inkl. `driverClassName`, `username`, `password`).
 
 ## Benutzeranleitung (Detail)
 ### 1) Datenbank vorbereiten
