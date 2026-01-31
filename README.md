@@ -82,6 +82,8 @@ Optional: Demo-Skript mit eingebauter H2-DB:
 ```
 
 Weitere Optionen:
+- `--grails-init [appName]` (optional: erzeugt ein Grails-Projekt im Zielverzeichnis)
+- `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
 - `--grails-controller-package` (Default: Basis-Package)
 - `--grails-enum-package` (Default: `<Basis-Package>.enums`)
@@ -94,9 +96,23 @@ Der Generator schreibt Artefakte in ein bestehendes Grails-Projekt (oder in ein 
 - `src/main/groovy/...` (Enums)
 
 ### 1) Grails-App erstellen (falls noch nicht vorhanden)
+Manuell (Grails CLI):
 ```bash
 grails create-app my-grails-app
 ```
+
+Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch keine Grails-Struktur vorhanden ist:
+```bash
+./gradlew run --args="'jdbc:postgresql://localhost:5432/mydb?user=postgres&password=secret' \
+  test-models/SimpleAddressModel.ili \
+  SimpleAddressModel \
+  public \
+  --grails-output /path/to/my-grails-app \
+  --grails-init my-grails-app \
+  --grails-version 5.3.2 \
+  --grails-package ch.example.demo"
+```
+Der Scaffold-Schritt wird blockiert, wenn im Zielverzeichnis bereits `build.gradle`, `settings.gradle` oder `grails-app/` vorhanden sind.
 
 ### 2) CRUD-Artefakte generieren
 ```bash
