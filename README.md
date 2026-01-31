@@ -82,7 +82,7 @@ Optional: Demo-Skript mit eingebauter H2-DB:
 ```
 
 Weitere Optionen:
-- `--grails-init [appName]` (optional: erzeugt ein Grails-Projekt im Zielverzeichnis)
+- `--grails-init [appName]` (optional: erzeugt ein Grails-Projekt im Zielverzeichnis; mit `appName` wird ein Unterordner erstellt)
 - `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
 - `--grails-controller-package` (Default: Basis-Package)
@@ -101,7 +101,7 @@ Manuell (Grails CLI):
 grails create-app my-grails-app
 ```
 
-Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch keine Grails-Struktur vorhanden ist:
+Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch keine Grails-Struktur vorhanden ist (bei `appName` wird ein Unterordner erzeugt):
 ```bash
 ./gradlew run --args="'jdbc:postgresql://localhost:5432/mydb?user=postgres&password=secret' \
   test-models/SimpleAddressModel.ili \

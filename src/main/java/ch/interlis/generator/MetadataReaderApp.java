@@ -134,12 +134,13 @@ public class MetadataReaderApp {
     private static void generateGrailsCrud(ModelMetadata metadata, CliOptions options)
         throws IOException, InterruptedException {
         Path outputDir = Objects.requireNonNull(options.grailsOutputDir, "grailsOutputDir");
+        Path grailsProjectDir = outputDir;
         if (options.grailsInitRequested) {
-            scaffoldGrailsProjectIfNeeded(options, outputDir);
+            grailsProjectDir = scaffoldGrailsProjectIfNeeded(options, outputDir);
         }
 
         String basePackage = options.grailsBasePackage != null ? options.grailsBasePackage : "com.example";
-        GenerationConfig.Builder builder = GenerationConfig.builder(outputDir, basePackage);
+        GenerationConfig.Builder builder = GenerationConfig.builder(grailsProjectDir, basePackage);
         if (options.grailsDomainPackage != null) {
             builder.domainPackage(options.grailsDomainPackage);
         }
@@ -153,7 +154,7 @@ public class MetadataReaderApp {
         new GrailsCrudGenerator().generate(metadata, config);
         System.out.println();
         System.out.println("===================================================");
-        System.out.println("Grails CRUD artifacts generated in: " + outputDir.toAbsolutePath());
+        System.out.println("Grails CRUD artifacts generated in: " + grailsProjectDir.toAbsolutePath());
     }
 
     private static CliOptions parseArgs(String[] args) {
@@ -256,12 +257,21 @@ public class MetadataReaderApp {
         return value;
     }
 
-    private static void scaffoldGrailsProjectIfNeeded(CliOptions options, Path outputDir)
+    private static Path scaffoldGrailsProjectIfNeeded(CliOptions options, Path outputDir)
         throws IOException, InterruptedException {
-        if (isGrailsProject(outputDir)) {
+        String appName = options.grailsInitAppName;
+        Path appDir = outputDir;
+        if (appName == null || appName.isBlank()) {
+            Path fileName = outputDir.getFileName();
+            appName = fileName != null ? fileName.toString() : "grails-app";
+        } else {
+            appDir = outputDir.resolve(appName);
+        }
+
+        if (isGrailsProject(appDir)) {
             throw new IllegalStateException(
                 "Grails scaffold blocked: existing project detected at "
-                    + outputDir.toAbsolutePath()
+                    + appDir.toAbsolutePath()
             );
         }
 
@@ -273,13 +283,16 @@ public class MetadataReaderApp {
             throw new IllegalStateException("Grails scaffold blocked: target directory is not empty: "
                 + outputDir.toAbsolutePath());
         }
-
-        String appName = options.grailsInitAppName;
-        if (appName == null || appName.isBlank()) {
-            Path fileName = outputDir.getFileName();
-            appName = fileName != null ? fileName.toString() : "grails-app";
+        if (!appDir.equals(outputDir) && Files.exists(appDir)) {
+            throw new IllegalStateException("Grails scaffold blocked: app directory already exists: "
+                + appDir.toAbsolutePath());
         }
-        runGrailsCreateApp(outputDir, appName, options.grailsVersion);
+
+        Path workingDir = appDir.equals(outputDir)
+            ? resolveWorkingDir(outputDir)
+            : outputDir.toAbsolutePath().normalize();
+        runGrailsCreateApp(workingDir, appName, options.grailsVersion);
+        return appDir;
     }
 
     private static boolean isGrailsProject(Path outputDir) {
@@ -294,13 +307,8 @@ public class MetadataReaderApp {
         }
     }
 
-    private static void runGrailsCreateApp(Path outputDir, String appName, String grailsVersion)
+    private static void runGrailsCreateApp(Path workingDir, String appName, String grailsVersion)
         throws IOException, InterruptedException {
-        Path absoluteOutputDir = outputDir.toAbsolutePath().normalize();
-        Path workingDir = absoluteOutputDir.getParent();
-        if (workingDir == null) {
-            workingDir = Path.of(".").toAbsolutePath().normalize();
-        }
         Files.createDirectories(workingDir);
 
         List<String> command = new ArrayList<>();
@@ -320,8 +328,17 @@ public class MetadataReaderApp {
         int exitCode = process.waitFor();
         if (exitCode != 0) {
             throw new IOException("Grails CLI failed (exit " + exitCode + ") while creating app in "
-                + absoluteOutputDir + ". Output:\n" + output);
+                + workingDir.toAbsolutePath().normalize().resolve(appName) + ". Output:\n" + output);
         }
+    }
+
+    private static Path resolveWorkingDir(Path outputDir) {
+        Path absoluteOutputDir = outputDir.toAbsolutePath().normalize();
+        Path workingDir = absoluteOutputDir.getParent();
+        if (workingDir == null) {
+            workingDir = Path.of(".").toAbsolutePath().normalize();
+        }
+        return workingDir;
     }
 
     private static class CliOptions {
