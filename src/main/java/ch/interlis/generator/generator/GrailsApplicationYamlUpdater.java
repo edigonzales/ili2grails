@@ -10,36 +10,36 @@ import java.util.List;
 class GrailsApplicationYamlUpdater {
 
     void ensureDevelopmentDataSourceUrl(Path applicationYamlPath, String jdbcUrl) throws IOException {
-        if (jdbcUrl == null || jdbcUrl.isBlank()) {
-            return;
-        }
         if (!Files.exists(applicationYamlPath)) {
             return;
         }
+        String resolvedJdbcUrl = jdbcUrl == null || jdbcUrl.isBlank() ? null : jdbcUrl;
         List<String> lines = Files.readAllLines(applicationYamlPath, StandardCharsets.UTF_8);
-        List<String> updated = updateDevelopmentDataSource(lines, jdbcUrl);
+        List<String> updated = updateDevelopmentDataSource(lines, resolvedJdbcUrl);
         if (updated != lines) {
             Files.write(applicationYamlPath, updated, StandardCharsets.UTF_8);
         }
     }
 
     private List<String> updateDevelopmentDataSource(List<String> lines, String jdbcUrl) {
-        int envIndex = findBlockStart(lines, "environments:");
+        int envIndex = findBlockStart(lines, "environments");
         if (envIndex < 0) {
             return lines;
         }
-        int devIndex = findChildBlockStart(lines, envIndex, "development:");
+        int devIndex = findChildBlockStart(lines, envIndex, "development");
         if (devIndex < 0) {
             return lines;
         }
-        int dataSourceIndex = findChildBlockStart(lines, devIndex, "dataSource:");
+        int dataSourceIndex = findChildBlockStart(lines, devIndex, "dataSource");
         if (dataSourceIndex < 0) {
             return lines;
         }
         List<String> updated = new ArrayList<>(lines);
         boolean changed = false;
-        changed |= upsertDataSourceKey(updated, dataSourceIndex, "url:", quoteYaml(jdbcUrl), null);
-        changed |= upsertDataSourceKey(updated, dataSourceIndex, "dbCreate:", "none", "url:");
+        if (jdbcUrl != null) {
+            changed |= upsertDataSourceKey(updated, dataSourceIndex, "url", quoteYaml(jdbcUrl), null);
+        }
+        changed |= upsertDataSourceKey(updated, dataSourceIndex, "dbCreate", "none", "url");
         if (!changed) {
             return lines;
         }
@@ -57,7 +57,7 @@ class GrailsApplicationYamlUpdater {
         String indent = keyIndex >= 0
             ? leadingWhitespace(lines.get(keyIndex))
             : leadingWhitespace(lines.get(dataSourceIndex)) + "  ";
-        String updatedLine = indent + key + " " + value;
+        String updatedLine = indent + key + ": " + value;
         if (keyIndex >= 0) {
             if (lines.get(keyIndex).equals(updatedLine)) {
                 return false;
@@ -78,7 +78,7 @@ class GrailsApplicationYamlUpdater {
 
     private int findBlockStart(List<String> lines, String key) {
         for (int i = 0; i < lines.size(); i++) {
-            if (lines.get(i).trim().equals(key)) {
+            if (isBlockLine(lines.get(i), key)) {
                 return i;
             }
         }
@@ -96,7 +96,7 @@ class GrailsApplicationYamlUpdater {
             if (indent <= parentIndent) {
                 return -1;
             }
-            if (line.trim().equals(key)) {
+            if (isBlockLine(line, key)) {
                 return i;
             }
         }
@@ -114,7 +114,7 @@ class GrailsApplicationYamlUpdater {
             if (indent <= parentIndent) {
                 return -1;
             }
-            if (line.trim().startsWith(key)) {
+            if (isKeyLine(line, key)) {
                 return i;
             }
         }
@@ -132,5 +132,27 @@ class GrailsApplicationYamlUpdater {
     private String quoteYaml(String value) {
         String escaped = value.replace("'", "''");
         return "'" + escaped + "'";
+    }
+
+    private boolean isBlockLine(String line, String key) {
+        String trimmed = line.trim();
+        if (!trimmed.startsWith(key)) {
+            return false;
+        }
+        String remainder = trimmed.substring(key.length()).stripLeading();
+        if (!remainder.startsWith(":")) {
+            return false;
+        }
+        String afterColon = remainder.substring(1).stripLeading();
+        return afterColon.isEmpty() || afterColon.startsWith("#");
+    }
+
+    private boolean isKeyLine(String line, String key) {
+        String trimmed = line.trim();
+        if (!trimmed.startsWith(key)) {
+            return false;
+        }
+        String remainder = trimmed.substring(key.length()).stripLeading();
+        return remainder.startsWith(":");
     }
 }
