@@ -12,15 +12,25 @@ import ch.interlis.ili2c.metamodel.AttributeDef;
 import ch.interlis.ili2c.metamodel.CoordType;
 import ch.interlis.ili2c.metamodel.Domain;
 import ch.interlis.ili2c.metamodel.EnumerationType;
+import ch.interlis.ili2c.metamodel.FormattedType;
 import ch.interlis.ili2c.metamodel.LineType;
 import ch.interlis.ili2c.metamodel.Model;
+import ch.interlis.ili2c.metamodel.MultiAreaType;
 import ch.interlis.ili2c.metamodel.MultiCoordType;
+import ch.interlis.ili2c.metamodel.MultiPolylineType;
+import ch.interlis.ili2c.metamodel.MultiSurfaceType;
 import ch.interlis.ili2c.metamodel.NumericType;
 import ch.interlis.ili2c.metamodel.NumericalType;
+import ch.interlis.ili2c.metamodel.ObjectType;
 import ch.interlis.ili2c.metamodel.PolylineType;
+import ch.interlis.ili2c.metamodel.PredefinedModel;
+import ch.interlis.ili2c.metamodel.PrecisionDecimal;
+import ch.interlis.ili2c.metamodel.ReferenceType;
+import ch.interlis.ili2c.metamodel.CompositionType;
 import ch.interlis.ili2c.metamodel.SurfaceType;
 import ch.interlis.ili2c.metamodel.Table;
 import ch.interlis.ili2c.metamodel.TextType;
+import ch.interlis.ili2c.metamodel.TextOIDType;
 import ch.interlis.ili2c.metamodel.Topic;
 import ch.interlis.ili2c.metamodel.TransferDescription;
 import ch.interlis.ili2c.metamodel.Type;
@@ -206,6 +216,8 @@ public class Ili2cModelReader {
         // Typ setzen
         if (classDef instanceof ch.interlis.ili2c.metamodel.AssociationDef) {
             classMetadata.setKind(ClassMetadata.ClassKind.ASSOCIATION);
+        } else if (classDef instanceof Table table && !table.isIdentifiable()) {
+            classMetadata.setKind(ClassMetadata.ClassKind.STRUCTURE);
         } else {
             classMetadata.setKind(ClassMetadata.ClassKind.CLASS);
         }
@@ -260,7 +272,7 @@ public class Ili2cModelReader {
         // Typ-Informationen
         Type type = attrDef.getDomain();
         if (type != null) {
-            processType(attrMetadata, type);
+            processType(attrMetadata, attrDef, type);
         }
         
         // Mandatory
@@ -272,7 +284,7 @@ public class Ili2cModelReader {
     /**
      * Verarbeitet Typ-Informationen.
      */
-    private void processType(AttributeMetadata attr, Type type) {
+    private void processType(AttributeMetadata attr, AttributeDef attrDef, Type type) {
         if (type instanceof TypeAlias) {
             // Alias auflösen
             Domain aliasing = ((TypeAlias) type).getAliasing();
@@ -280,7 +292,7 @@ public class Ili2cModelReader {
                 if (aliasing.getType() instanceof EnumerationType) {
                     attr.setEnumType(aliasing.getScopedName(null));
                 }
-                processType(attr, aliasing.getType());
+                processType(attr, attrDef, aliasing.getType());
             }
             return;
         }
@@ -294,6 +306,7 @@ public class Ili2cModelReader {
             if (textType.getMaxLength() > 0) {
                 attr.setMaxLength(textType.getMaxLength());
             }
+            attr.setJavaType("String");
         } else if (type instanceof NumericType) {
             NumericType numType = (NumericType) type;
             if (numType.getMinimum() != null) {
@@ -302,17 +315,45 @@ public class Ili2cModelReader {
             if (numType.getMaximum() != null) {
                 attr.setMaxValue(numType.getMaximum().toString());
             }
+            attr.setJavaType(resolveNumericJavaType(numType));
         } else if (type instanceof EnumerationType) {
             EnumerationType enumType = (EnumerationType) type;
             // Enum-Name speichern
             if (enumType.getConsolidatedEnumeration() != null) {
                 attr.setEnumType(attr.getEnumType());
             }
+            if (attrDef != null && attrDef.isDomainBoolean()) {
+                attr.setJavaType("Boolean");
+            } else {
+                attr.setJavaType("String");
+            }
+        } else if (type instanceof FormattedType formattedType) {
+            attr.setJavaType(resolveFormattedJavaType(formattedType));
+        } else if (type instanceof ObjectType) {
+            attr.setJavaType("Object");
         } else if (type instanceof CoordType || type instanceof MultiCoordType) {
             attr.setGeometry(true);
+            attr.setJavaType("org.locationtech.jts.geom.Geometry");
         } else if (type instanceof LineType || type instanceof PolylineType || 
                    type instanceof SurfaceType || type instanceof AreaType) {
             attr.setGeometry(true);
+            attr.setJavaType("org.locationtech.jts.geom.Geometry");
+        } else if (type instanceof MultiPolylineType || type instanceof MultiSurfaceType
+                   || type instanceof MultiAreaType) {
+            attr.setGeometry(true);
+            attr.setJavaType("org.locationtech.jts.geom.Geometry");
+        } else if (type instanceof ReferenceType referenceType) {
+            AbstractClassDef target = referenceType.getReferred();
+            if (target != null) {
+                attr.setJavaType(target.getName());
+            }
+        } else if (type instanceof CompositionType compositionType) {
+            AbstractClassDef target = compositionType.getComponentType();
+            if (target != null) {
+                attr.setJavaType(target.getName());
+            }
+        } else if (type instanceof TextOIDType) {
+            attr.setJavaType("String");
         }
         
         // Unit
@@ -322,6 +363,36 @@ public class Ili2cModelReader {
                 attr.setUnit(numType.getUnit().getName());
             }
         }
+    }
+
+    private String resolveNumericJavaType(NumericType numType) {
+        boolean hasDecimal = hasDecimalDigits(numType.getMinimum())
+            || hasDecimalDigits(numType.getMaximum());
+        if (hasDecimal) {
+            return "java.math.BigDecimal";
+        }
+        if (numType.getMinimum() != null || numType.getMaximum() != null) {
+            return "Integer";
+        }
+        return "java.math.BigDecimal";
+    }
+
+    private boolean hasDecimalDigits(PrecisionDecimal value) {
+        return value != null && value.getAccuracy() > 0;
+    }
+
+    private String resolveFormattedJavaType(FormattedType formattedType) {
+        Domain baseDomain = formattedType.getDefinedBaseDomain();
+        if (baseDomain == PredefinedModel.getInstance().XmlDate) {
+            return "java.time.LocalDate";
+        }
+        if (baseDomain == PredefinedModel.getInstance().XmlDateTime) {
+            return "java.time.LocalDateTime";
+        }
+        if (baseDomain == PredefinedModel.getInstance().XmlTime) {
+            return "java.time.LocalTime";
+        }
+        return "String";
     }
     
     /**

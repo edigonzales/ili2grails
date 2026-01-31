@@ -185,7 +185,14 @@ CLASSES:
 TEXT + VARCHAR     → String
 XMLDate + DATE     → LocalDate
 COORD + GEOMETRY   → org.locationtech.jts.geom.Geometry
+NUMERIC 1..3       → Integer
+NUMERIC 1.00..3.55 → BigDecimal
 ```
+
+### Strukturen im Domain-Model
+- INTERLIS-Strukturen werden als eigene `STRUCTURE`-Klassen im Metamodell geführt.
+- In Domain-Modellen werden Struktur-Attribute als **eingebettete Value-Objects** oder
+  **kompositionale 1:1-Beziehungen** modelliert (abhängig vom Framework).
 
 ## Projektstruktur
 ```
