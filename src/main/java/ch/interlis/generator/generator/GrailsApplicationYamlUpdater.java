@@ -1,158 +1,98 @@
 package ch.interlis.generator.generator;
 
+import com.fasterxml.jackson.databind.MappingIterator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SequenceWriter;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+
 import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 class GrailsApplicationYamlUpdater {
+
+    private static final ObjectMapper YAML_MAPPER = new ObjectMapper(
+        new YAMLFactory().enable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+    );
 
     void ensureDevelopmentDataSourceUrl(Path applicationYamlPath, String jdbcUrl) throws IOException {
         if (!Files.exists(applicationYamlPath)) {
             return;
         }
         String resolvedJdbcUrl = jdbcUrl == null || jdbcUrl.isBlank() ? null : jdbcUrl;
-        List<String> lines = Files.readAllLines(applicationYamlPath, StandardCharsets.UTF_8);
-        List<String> updated = updateDevelopmentDataSource(lines, resolvedJdbcUrl);
-        if (updated != lines) {
-            Files.write(applicationYamlPath, updated, StandardCharsets.UTF_8);
+        List<Object> documents = readDocuments(applicationYamlPath);
+        boolean changed = updateDevelopmentDataSource(documents, resolvedJdbcUrl);
+        if (changed) {
+            writeDocuments(applicationYamlPath, documents);
         }
     }
 
-    private List<String> updateDevelopmentDataSource(List<String> lines, String jdbcUrl) {
-        int envIndex = findBlockStart(lines, "environments");
-        if (envIndex < 0) {
-            return lines;
+    private List<Object> readDocuments(Path applicationYamlPath) throws IOException {
+        List<Object> documents = new ArrayList<>();
+        try (Reader reader = Files.newBufferedReader(applicationYamlPath, StandardCharsets.UTF_8)) {
+            MappingIterator<Object> iterator = YAML_MAPPER.readerFor(Object.class).readValues(reader);
+            while (iterator.hasNext()) {
+                documents.add(iterator.next());
+            }
         }
-        int devIndex = findChildBlockStart(lines, envIndex, "development");
-        if (devIndex < 0) {
-            return lines;
+        return documents;
+    }
+
+    private void writeDocuments(Path applicationYamlPath, List<Object> documents) throws IOException {
+        try (Writer writer = Files.newBufferedWriter(applicationYamlPath, StandardCharsets.UTF_8);
+            SequenceWriter sequenceWriter = YAML_MAPPER.writer().writeValues(writer)) {
+            for (Object document : documents) {
+                sequenceWriter.write(document);
+            }
         }
-        int dataSourceIndex = findChildBlockStart(lines, devIndex, "dataSource");
-        if (dataSourceIndex < 0) {
-            return lines;
-        }
-        List<String> updated = new ArrayList<>(lines);
+    }
+
+    private boolean updateDevelopmentDataSource(List<Object> documents, String jdbcUrl) {
         boolean changed = false;
-        if (jdbcUrl != null) {
-            changed |= upsertDataSourceKey(updated, dataSourceIndex, "url", quoteYaml(jdbcUrl), null);
-        }
-        changed |= upsertDataSourceKey(updated, dataSourceIndex, "dbCreate", "none", "url");
-        if (!changed) {
-            return lines;
-        }
-        return updated;
-    }
-
-    private boolean upsertDataSourceKey(
-        List<String> lines,
-        int dataSourceIndex,
-        String key,
-        String value,
-        String insertAfterKey
-    ) {
-        int keyIndex = findChildKeyLine(lines, dataSourceIndex, key);
-        String indent = keyIndex >= 0
-            ? leadingWhitespace(lines.get(keyIndex))
-            : leadingWhitespace(lines.get(dataSourceIndex)) + "  ";
-        String updatedLine = indent + key + ": " + value;
-        if (keyIndex >= 0) {
-            if (lines.get(keyIndex).equals(updatedLine)) {
-                return false;
-            }
-            lines.set(keyIndex, updatedLine);
-            return true;
-        }
-        int insertionIndex = dataSourceIndex + 1;
-        if (insertAfterKey != null) {
-            int afterIndex = findChildKeyLine(lines, dataSourceIndex, insertAfterKey);
-            if (afterIndex >= 0) {
-                insertionIndex = afterIndex + 1;
-            }
-        }
-        lines.add(insertionIndex, updatedLine);
-        return true;
-    }
-
-    private int findBlockStart(List<String> lines, String key) {
-        for (int i = 0; i < lines.size(); i++) {
-            if (isBlockLine(lines.get(i), key)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private int findChildBlockStart(List<String> lines, int parentIndex, String key) {
-        int parentIndent = indentationLevel(lines.get(parentIndex));
-        for (int i = parentIndex + 1; i < lines.size(); i++) {
-            String line = lines.get(i);
-            if (line.isBlank()) {
+        for (Object document : documents) {
+            Map<String, Object> root = asMap(document);
+            if (root == null) {
                 continue;
             }
-            int indent = indentationLevel(line);
-            if (indent <= parentIndent) {
-                return -1;
-            }
-            if (isBlockLine(line, key)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private int findChildKeyLine(List<String> lines, int parentIndex, String key) {
-        int parentIndent = indentationLevel(lines.get(parentIndex));
-        for (int i = parentIndex + 1; i < lines.size(); i++) {
-            String line = lines.get(i);
-            if (line.isBlank()) {
+            Map<String, Object> environments = asMap(root.get("environments"));
+            if (environments == null) {
                 continue;
             }
-            int indent = indentationLevel(line);
-            if (indent <= parentIndent) {
-                return -1;
+            Map<String, Object> development = asMap(environments.get("development"));
+            if (development == null) {
+                continue;
             }
-            if (isKeyLine(line, key)) {
-                return i;
+            Map<String, Object> dataSource = asMap(development.get("dataSource"));
+            if (dataSource == null) {
+                continue;
+            }
+            if (jdbcUrl != null) {
+                if (!Objects.equals(jdbcUrl, dataSource.get("url"))) {
+                    dataSource.put("url", jdbcUrl);
+                    changed = true;
+                }
+            }
+            if (!Objects.equals("none", dataSource.get("dbCreate"))) {
+                dataSource.put("dbCreate", "none");
+                changed = true;
             }
         }
-        return -1;
+        return changed;
     }
 
-    private int indentationLevel(String line) {
-        return line.length() - line.stripLeading().length();
-    }
-
-    private String leadingWhitespace(String line) {
-        return line.substring(0, indentationLevel(line));
-    }
-
-    private String quoteYaml(String value) {
-        String escaped = value.replace("'", "''");
-        return "'" + escaped + "'";
-    }
-
-    private boolean isBlockLine(String line, String key) {
-        String trimmed = line.trim();
-        if (!trimmed.startsWith(key)) {
-            return false;
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
         }
-        String remainder = trimmed.substring(key.length()).stripLeading();
-        if (!remainder.startsWith(":")) {
-            return false;
-        }
-        String afterColon = remainder.substring(1).stripLeading();
-        return afterColon.isEmpty() || afterColon.startsWith("#");
-    }
-
-    private boolean isKeyLine(String line, String key) {
-        String trimmed = line.trim();
-        if (!trimmed.startsWith(key)) {
-            return false;
-        }
-        String remainder = trimmed.substring(key.length()).stripLeading();
-        return remainder.startsWith(":");
+        return null;
     }
 }
