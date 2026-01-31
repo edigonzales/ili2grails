@@ -13,6 +13,7 @@ public class GenerationConfig {
     private final String domainPackage;
     private final String controllerPackage;
     private final String enumPackage;
+    private final String jdbcUrl;
 
     private GenerationConfig(Builder builder) {
         this.outputDir = builder.outputDir;
@@ -20,6 +21,7 @@ public class GenerationConfig {
         this.domainPackage = builder.domainPackage;
         this.controllerPackage = builder.controllerPackage;
         this.enumPackage = builder.enumPackage;
+        this.jdbcUrl = builder.jdbcUrl;
     }
 
     public Path getOutputDir() {
@@ -42,6 +44,10 @@ public class GenerationConfig {
         return enumPackage;
     }
 
+    public String getJdbcUrl() {
+        return jdbcUrl;
+    }
+
     public static Builder builder(Path outputDir, String basePackage) {
         return new Builder(outputDir, basePackage);
     }
@@ -52,6 +58,7 @@ public class GenerationConfig {
         private String domainPackage;
         private String controllerPackage;
         private String enumPackage;
+        private String jdbcUrl;
 
         public Builder(Path outputDir, String basePackage) {
             this.outputDir = Objects.requireNonNull(outputDir, "outputDir");
@@ -59,6 +66,11 @@ public class GenerationConfig {
             this.domainPackage = basePackage;
             this.controllerPackage = basePackage;
             this.enumPackage = basePackage + ".enums";
+        }
+
+        public Builder jdbcUrl(String jdbcUrl) {
+            this.jdbcUrl = Objects.requireNonNull(jdbcUrl, "jdbcUrl");
+            return this;
         }
 
         public Builder domainPackage(String domainPackage) {
