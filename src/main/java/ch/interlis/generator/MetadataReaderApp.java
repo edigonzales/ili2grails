@@ -20,20 +20,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Demo-Anwendung zum Testen des Metadata-Readers.
- * 
- * Verwendung:
- *   java MetadataReaderApp <jdbcUrl> <modelFile> <modelName> <schema>
- * 
- * Beispiele:
- *   PostgreSQL:
- *     java MetadataReaderApp "jdbc:postgresql://localhost:5432/mydb?user=user&password=pass" \
- *                            model.ili MyModel public
- *   
- *   H2 (embedded):
- *     java MetadataReaderApp "jdbc:h2:./testdb" model.ili MyModel PUBLIC
- */
 public class MetadataReaderApp {
     
     public static void main(String[] args) {
@@ -91,7 +77,6 @@ public class MetadataReaderApp {
             
             System.out.println();
             System.out.println("===================================================");
-            System.out.println("Metadata is now available for code generation.");
             
         } catch (SQLException e) {
             System.err.println("Database error: " + e.getMessage());
@@ -166,6 +151,8 @@ public class MetadataReaderApp {
         }
         GenerationConfig config = builder.build();
         new GrailsCrudGenerator().generate(metadata, config);
+        System.out.println();
+        System.out.println("===================================================");
         System.out.println("Grails CRUD artifacts generated in: " + outputDir.toAbsolutePath());
     }
 
