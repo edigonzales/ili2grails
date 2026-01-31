@@ -23,7 +23,7 @@ import java.util.Map;
  * Demo-Anwendung zum Testen des Metadata-Readers.
  * 
  * Verwendung:
- *   java MetadataReaderApp <jdbcUrl> <modelFile> <modelName> [schema]
+ *   java MetadataReaderApp <jdbcUrl> <modelFile> <modelName> <schema>
  * 
  * Beispiele:
  *   PostgreSQL:
@@ -31,7 +31,7 @@ import java.util.Map;
  *                            model.ili MyModel public
  *   
  *   H2 (embedded):
- *     java MetadataReaderApp "jdbc:h2:./testdb" model.ili MyModel
+ *     java MetadataReaderApp "jdbc:h2:./testdb" model.ili MyModel PUBLIC
  */
 public class MetadataReaderApp {
     
@@ -58,7 +58,7 @@ public class MetadataReaderApp {
         System.out.println("JDBC URL:    " + options.jdbcUrl);
         System.out.println("Model File:  " + options.modelFilePath);
         System.out.println("Model Name:  " + options.modelName);
-        System.out.println("Schema:      " + (options.schema != null ? options.schema : "auto-detect"));
+        System.out.println("Schema:      " + options.schema);
         System.out.println();
         
         try (Connection conn = DriverManager.getConnection(options.jdbcUrl)) {
@@ -108,13 +108,13 @@ public class MetadataReaderApp {
     }
     
     private static void printUsage() {
-        System.out.println("Usage: MetadataReaderApp <jdbcUrl> <modelFile> <modelName> [schema] [options]");
+        System.out.println("Usage: MetadataReaderApp <jdbcUrl> <modelFile> <modelName> <schema> [options]");
         System.out.println();
         System.out.println("Arguments:");
         System.out.println("  jdbcUrl    - JDBC connection URL (e.g., jdbc:postgresql://localhost/db?user=u&password=p)");
         System.out.println("  modelFile  - Path to INTERLIS model file (.ili)");
         System.out.println("  modelName  - Name of the INTERLIS model to process");
-        System.out.println("  schema     - Database schema name (optional, will auto-detect if not specified)");
+        System.out.println("  schema     - Database schema name");
         System.out.println();
         System.out.println("Options:");
         System.out.println("  --grails-output <dir>             - Output directory for Grails CRUD artifacts");
@@ -129,10 +129,10 @@ public class MetadataReaderApp {
         System.out.println("                      models/DM01AVCH24LV95D.ili DM01AVCH24LV95D public");
         System.out.println();
         System.out.println("  H2 Database:");
-        System.out.println("    MetadataReaderApp \"jdbc:h2:./data/testdb\" models/Simple.ili SimpleModel");
+        System.out.println("    MetadataReaderApp \"jdbc:h2:./data/testdb\" models/Simple.ili SimpleModel PUBLIC");
         System.out.println();
         System.out.println("  Grails CRUD generation:");
-        System.out.println("    MetadataReaderApp \"jdbc:h2:./data/testdb\" models/Simple.ili SimpleModel \\");
+        System.out.println("    MetadataReaderApp \"jdbc:h2:./data/testdb\" models/Simple.ili SimpleModel PUBLIC \\");
         System.out.println("      --grails-output ./generated-grails --grails-package com.example");
     }
     
@@ -179,7 +179,7 @@ public class MetadataReaderApp {
             }
         }
 
-        if (positional.size() < 3 || positional.size() > 4) {
+        if (positional.size() < 4 || positional.size() > 4) {
             printUsage();
             return null;
         }
@@ -188,7 +188,7 @@ public class MetadataReaderApp {
         cliOptions.jdbcUrl = positional.get(0);
         cliOptions.modelFilePath = positional.get(1);
         cliOptions.modelName = positional.get(2);
-        cliOptions.schema = positional.size() > 3 ? positional.get(3) : null;
+        cliOptions.schema = positional.get(3);
         if (options.containsKey("--grails-output")) {
             cliOptions.grailsOutputDir = Path.of(options.get("--grails-output"));
         }

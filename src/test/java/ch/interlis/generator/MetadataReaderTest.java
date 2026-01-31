@@ -169,6 +169,14 @@ class MetadataReaderTest {
                 "  setting VARCHAR(1024)" +
                 ")"
             );
+
+            // t_ili2db_table_prop
+            stmt.execute(
+                "CREATE TABLE t_ili2db_table_prop (" +
+                "  tablename VARCHAR(255)," +
+                "  setting VARCHAR(255)" +
+                ")"
+            );
         }
     }
     
@@ -184,6 +192,13 @@ class MetadataReaderTest {
                 "('SimpleAddressModel.Addresses.Person', 'person')");
             stmt.execute("INSERT INTO t_ili2db_classname VALUES " +
                 "('SimpleAddressModel.Addresses.PersonAddress', 'personaddress')");
+
+            stmt.execute("INSERT INTO t_ili2db_table_prop VALUES " +
+                "('address', 'CLASS')");
+            stmt.execute("INSERT INTO t_ili2db_table_prop VALUES " +
+                "('person', 'CLASS')");
+            stmt.execute("INSERT INTO t_ili2db_table_prop VALUES " +
+                "('personaddress', 'ASSOCIATION')");
             
             // Address Attribute
             stmt.execute("INSERT INTO t_ili2db_attrname VALUES " +
