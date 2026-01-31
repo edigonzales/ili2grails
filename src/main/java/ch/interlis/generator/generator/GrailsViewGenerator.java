@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Generiert einfache GSP-Views für CRUD-Oberflächen.
@@ -107,18 +108,10 @@ public class GrailsViewGenerator {
             .append(attr.getName()).append("</label>\n");
 
         if (attr.getEnumType() != null) {
-            EnumMetadata enumMetadata = metadata.getEnums().get(attr.getEnumType());
-            if (enumMetadata != null) {
-                sb.append("        <g:select name=\"").append(name)
-                    .append("\" from=\"").append(enumMetadata.getSimpleName())
-                    .append(".values()\"/>\n");
-                sb.append("    </div>\n");
-                return sb.toString();
-            }
-            String enumTableClass = resolveEnumTableClass(attr);
+            List<EnumMetadata.EnumValue> enumValues = resolveEnumValues(attr, metadata);
             sb.append("        <g:select name=\"").append(name)
-                .append("\" from=\"${").append(enumTableClass)
-                .append(".list()}\" optionKey=\"ilicode\" optionValue=\"dispName\"/>\n");
+                .append("\" from=\"${").append(renderEnumOptions(enumValues))
+                .append("}\" optionKey=\"ilicode\" optionValue=\"dispName\"/>\n");
             sb.append("    </div>\n");
             return sb.toString();
         }
@@ -141,15 +134,41 @@ public class GrailsViewGenerator {
         return sb.toString();
     }
 
-    private String resolveEnumTableClass(AttributeMetadata attr) {
-        String enumType = attr.getEnumType();
-        if (enumType != null && !enumType.isBlank() && !"ENUM".equalsIgnoreCase(enumType)) {
-            int lastDot = enumType.lastIndexOf('.');
-            if (lastDot >= 0 && lastDot < enumType.length() - 1) {
-                enumType = enumType.substring(lastDot + 1);
-            }
-            return NameUtils.toUpperCamel(enumType);
+    private List<EnumMetadata.EnumValue> resolveEnumValues(AttributeMetadata attr, ModelMetadata metadata) {
+        if (!attr.getEnumValues().isEmpty()) {
+            return attr.getEnumValues();
         }
-        return NameUtils.toUpperCamel(attr.getName());
+        EnumMetadata enumMetadata = metadata.getEnums().get(attr.getEnumType());
+        if (enumMetadata != null && !enumMetadata.getValues().isEmpty()) {
+            return enumMetadata.getValues();
+        }
+        return List.of();
+    }
+
+    private String renderEnumOptions(List<EnumMetadata.EnumValue> enumValues) {
+        if (enumValues.isEmpty()) {
+            return "[]";
+        }
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (EnumMetadata.EnumValue value : enumValues) {
+            if (!first) {
+                sb.append(", ");
+            }
+            String iliCode = escapeGroovy(value.getIliCode());
+            String dispName = escapeGroovy(value.getDispName() != null ? value.getDispName() : value.getIliCode());
+            sb.append("[ilicode:'").append(iliCode)
+                .append("', dispName:'").append(dispName).append("']");
+            first = false;
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    private String escapeGroovy(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("'", "\\'");
     }
 }

@@ -59,7 +59,10 @@ class GrailsCrudGeneratorTest {
         assertThat(enumContent).contains("active, inactive");
 
         String createContent = Files.readString(createView);
-        assertThat(createContent).contains("<g:select name=\"status\" from=\"Status.values()\"/>");
+        assertThat(createContent).contains(
+            "<g:select name=\"status\" from=\"${[[ilicode:'active', dispName:'active'], "
+                + "[ilicode:'inactive', dispName:'inactive']]}\" optionKey=\"ilicode\" optionValue=\"dispName\"/>"
+        );
         assertThat(createContent).contains("<g:datePicker name=\"birthDate\" precision=\"day\"/>");
     }
 
@@ -73,6 +76,10 @@ class GrailsCrudGeneratorTest {
         AttributeMetadata status = new AttributeMetadata("status");
         status.setEnumType("ENUM");
         status.setColumnName("status");
+        status.addEnumValue(new EnumMetadata.EnumValue("active", 0));
+        EnumMetadata.EnumValue inactive = new EnumMetadata.EnumValue("inactive", 1);
+        inactive.setDispName("Inactive");
+        status.addEnumValue(inactive);
         person.addAttribute(status);
         metadata.addClass(person);
 
@@ -88,7 +95,8 @@ class GrailsCrudGeneratorTest {
         Path createView = outputDir.resolve("grails-app/views/person/create.gsp");
         String createContent = Files.readString(createView);
         assertThat(createContent).contains(
-            "<g:select name=\"status\" from=\"${Status.list()}\" optionKey=\"ilicode\" optionValue=\"dispName\"/>"
+            "<g:select name=\"status\" from=\"${[[ilicode:'active', dispName:'active'], "
+                + "[ilicode:'inactive', dispName:'Inactive']]}\" optionKey=\"ilicode\" optionValue=\"dispName\"/>"
         );
     }
 

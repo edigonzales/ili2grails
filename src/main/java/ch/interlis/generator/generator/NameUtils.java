@@ -33,17 +33,6 @@ final class NameUtils {
         return sb.toString();
     }
 
-    static String toUpperCamel(String value) {
-        if (value == null || value.isBlank()) {
-            return value;
-        }
-        String lowerCamel = toLowerCamel(value);
-        if (lowerCamel == null || lowerCamel.isBlank()) {
-            return lowerCamel;
-        }
-        return uppercaseFirst(lowerCamel);
-    }
-
     static String pluralize(String value) {
         if (value == null || value.isBlank()) {
             return value;

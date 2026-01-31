@@ -29,9 +29,11 @@ public class Ili2dbMetadataReader {
     private static final String ATTR_TARGET_COLUMN = "target";
     private static final String ATTR_ILINAME_REF = "a." + ATTR_ILINAME_COLUMN;
     private static final String ATTR_OWNER_REF = "a." + ATTR_OWNER_COLUMN;
+    private static final String ENUM_DOMAIN_TAG = "ch.ehi.ili2db.enumDomain";
     
     private final Connection connection;
     private String schemaName;
+    private final Map<String, List<EnumMetadata.EnumValue>> enumValueCache = new HashMap<>();
     
     public Ili2dbMetadataReader(Connection connection, String schemaName) {
         this.connection = Objects.requireNonNull(connection, "connection");
@@ -155,6 +157,7 @@ public class Ili2dbMetadataReader {
             .filter(name -> !name.isBlank())
             .distinct()
             .toList();
+        Map<EnumColumnKey, EnumDomainInfo> enumDomains = loadEnumDomains();
         String whereClause = buildAttributeWhereClause(prefixes.size(), tableNames.size());
         String sql = buildQuery(String.format(
             "SELECT " + ATTR_ILINAME_REF + ", a.sqlname, a.%s AS owner, a.%s AS target " +
@@ -214,6 +217,13 @@ public class Ili2dbMetadataReader {
                     
                     // Datenbank-Typ und weitere Infos aus DB-Schema holen
                     enrichAttributeFromDbSchema(attrMetadata, classMetadata.getTableName(), sqlName);
+
+                    EnumDomainInfo enumDomain = enumDomains.get(new EnumColumnKey(classMetadata.getTableName(), sqlName));
+                    if (enumDomain != null) {
+                        attrMetadata.setEnumType(enumDomain.enumIliName());
+                        List<EnumMetadata.EnumValue> values = loadEnumValues(enumDomain.enumTableName());
+                        values.forEach(attrMetadata::addEnumValue);
+                    }
                     
                     classMetadata.addAttribute(attrMetadata);
                     
@@ -222,6 +232,92 @@ public class Ili2dbMetadataReader {
                 }
             }
         }
+    }
+
+    private Map<EnumColumnKey, EnumDomainInfo> loadEnumDomains() throws SQLException {
+        ColumnPropColumns columns = resolveColumnPropColumns();
+        if (columns == null) {
+            return Collections.emptyMap();
+        }
+        String sql = buildQuery(String.format(
+            "SELECT cp.%s AS owner, cp.%s AS columnname, cp.setting AS enumIliName, cn.sqlname AS enumTable " +
+                "FROM {schema}.t_ili2db_column_prop cp " +
+                "LEFT JOIN {schema}.t_ili2db_classname cn ON cp.setting = cn.iliname " +
+                "WHERE cp.tag = ?",
+            columns.ownerColumn(),
+            columns.columnColumn()
+        ));
+        Map<EnumColumnKey, EnumDomainInfo> enumDomains = new HashMap<>();
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, ENUM_DOMAIN_TAG);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    String owner = rs.getString("owner");
+                    String columnName = rs.getString("columnname");
+                    String enumIliName = rs.getString("enumIliName");
+                    String enumTable = rs.getString("enumTable");
+                    if (owner == null || columnName == null || enumIliName == null || enumTable == null) {
+                        continue;
+                    }
+                    enumDomains.put(new EnumColumnKey(owner, columnName),
+                        new EnumDomainInfo(enumIliName, enumTable));
+                }
+            }
+        } catch (SQLException e) {
+            logger.warn("Could not read enum domains from column properties", e);
+        }
+        return enumDomains;
+    }
+
+    private ColumnPropColumns resolveColumnPropColumns() throws SQLException {
+        String sql = buildQuery("SELECT * FROM {schema}.t_ili2db_column_prop WHERE 1=0");
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            ResultSetMetaData meta = rs.getMetaData();
+            String ownerColumn = findColumn(meta, "colowner", "tablename");
+            String columnColumn = findColumn(meta, "columnname", "sqlname");
+            if (ownerColumn == null || columnColumn == null) {
+                logger.warn("Could not determine column owner/column name fields in t_ili2db_column_prop.");
+                return null;
+            }
+            return new ColumnPropColumns(ownerColumn, columnColumn);
+        }
+    }
+
+    private List<EnumMetadata.EnumValue> loadEnumValues(String enumTableName) {
+        if (enumTableName == null || enumTableName.isBlank()) {
+            return List.of();
+        }
+        return enumValueCache.computeIfAbsent(enumTableName, this::readEnumTableValues);
+    }
+
+    private List<EnumMetadata.EnumValue> readEnumTableValues(String enumTableName) {
+        List<EnumMetadata.EnumValue> values = new ArrayList<>();
+        String sql = buildQuery("SELECT * FROM {schema}." + enumTableName);
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            ResultSetMetaData meta = rs.getMetaData();
+            String iliCodeColumn = findColumn(meta, "ilicode");
+            String dispNameColumn = findColumn(meta, "dispname");
+            String seqColumn = findColumn(meta, "seq");
+            while (rs.next()) {
+                String iliCode = iliCodeColumn != null ? rs.getString(iliCodeColumn) : null;
+                if (iliCode == null) {
+                    continue;
+                }
+                int seq = seqColumn != null ? rs.getInt(seqColumn) : values.size();
+                EnumMetadata.EnumValue value = new EnumMetadata.EnumValue(iliCode, seq);
+                String dispName = dispNameColumn != null ? rs.getString(dispNameColumn) : null;
+                if (dispName == null || dispName.isBlank()) {
+                    dispName = iliCode;
+                }
+                value.setDispName(dispName);
+                values.add(value);
+            }
+        } catch (SQLException e) {
+            logger.warn("Could not read enum table values from {}", enumTableName, e);
+        }
+        return values;
     }
     
     /**
@@ -431,14 +527,11 @@ public class Ili2dbMetadataReader {
     }
     
     private void applyColumnProperty(AttributeMetadata attr, String tag, String setting) {
-        if (setting != null && "ENUM".equalsIgnoreCase(setting.trim())) {
-            attr.setEnumType("ENUM");
-        }
         switch (tag) {
             case "ch.ehi.ili2db.unit":
                 attr.setUnit(setting);
                 break;
-            case "ch.ehi.ili2db.enumDomain":
+            case ENUM_DOMAIN_TAG:
                 attr.setEnumType(setting);
                 break;
             case "ch.ehi.ili2db.dispName":
@@ -671,5 +764,14 @@ public class Ili2dbMetadataReader {
             return classMetadata.getName();
         }
         return target;
+    }
+
+    private record EnumColumnKey(String owner, String columnName) {
+    }
+
+    private record EnumDomainInfo(String enumIliName, String enumTableName) {
+    }
+
+    private record ColumnPropColumns(String ownerColumn, String columnColumn) {
     }
 }
