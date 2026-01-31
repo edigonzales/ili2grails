@@ -33,12 +33,8 @@ public class Ili2dbMetadataReader {
     private final Connection connection;
     private String schemaName;
     
-    public Ili2dbMetadataReader(Connection connection) {
-        this.connection = connection;
-    }
-    
     public Ili2dbMetadataReader(Connection connection, String schemaName) {
-        this.connection = connection;
+        this.connection = Objects.requireNonNull(connection, "connection");
         this.schemaName = schemaName;
     }
     
@@ -50,10 +46,7 @@ public class Ili2dbMetadataReader {
         
         ModelMetadata metadata = new ModelMetadata(modelName);
         
-        // Schema ermitteln falls nicht gesetzt
-        if (schemaName == null) {
-            schemaName = detectSchema();
-        }
+        ensureSchemaName();
         metadata.setSchemaName(schemaName);
         
         // Settings lesen
@@ -80,24 +73,6 @@ public class Ili2dbMetadataReader {
             metadata.getClasses().size(), metadata.getEnums().size());
         
         return metadata;
-    }
-    
-    /**
-     * Erkennt das Schema, in dem die ili2db-Tabellen liegen.
-     */
-    private String detectSchema() throws SQLException {
-        String sql = "SELECT table_schema FROM information_schema.tables " +
-                     "WHERE table_name = 't_ili2db_classname' LIMIT 1";
-        
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            if (rs.next()) {
-                return rs.getString(1);
-            }
-        } catch (SQLException e) {
-            logger.warn("Could not detect schema, using 'public'", e);
-        }
-        return "public";
     }
     
     /**
@@ -128,8 +103,12 @@ public class Ili2dbMetadataReader {
     private void readClasses(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
         List<String> prefixes = buildModelPrefixes(metadata, modelNames);
         String sql = buildQuery(
-            "SELECT iliname, sqlname FROM {schema}.t_ili2db_classname " +
-            "WHERE " + buildLikeClause("iliname", prefixes.size()) + " ORDER BY iliname"
+            "SELECT tp.tablename, tp.setting, c.iliname " +
+            "FROM {schema}.t_ili2db_table_prop tp " +
+            "LEFT JOIN {schema}.t_ili2db_classname c " +
+            "  ON upper(tp.tablename) = upper(c.sqlname) " +
+            "WHERE " + buildLikeClause("c.iliname", prefixes.size()) + " " +
+            "ORDER BY c.iliname"
         );
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
@@ -137,20 +116,29 @@ public class Ili2dbMetadataReader {
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
+                    String tableName = rs.getString("tablename");
+                    String setting = rs.getString("setting");
                     String iliName = rs.getString("iliname");
-                    String sqlName = rs.getString("sqlname");
-                    
+                    Optional<ClassMetadata.ClassKind> kind = mapClassKind(setting);
+                    if (kind.isEmpty()) {
+                        if (setting != null && !setting.isBlank()) {
+                            logger.debug("Skipping table {} with unsupported type {}", tableName, setting);
+                        }
+                        continue;
+                    }
+                    if (iliName == null || iliName.isBlank()) {
+                        logger.warn("Skipping table {} because no ili name mapping was found.", tableName);
+                        continue;
+                    }
+
                     ClassMetadata classMetadata = new ClassMetadata(iliName);
-                    classMetadata.setTableName(sqlName);
-                    classMetadata.setSqlName(schemaName + "." + sqlName);
-                    
-                    // Typ bestimmen (CLASS, STRUCTURE, ASSOCIATION)
-                    // Das kann später aus dem ili2c-Modell verfeinert werden
-                    classMetadata.setKind(ClassMetadata.ClassKind.CLASS);
-                    
+                    classMetadata.setTableName(tableName);
+                    classMetadata.setSqlName(schemaName + "." + tableName);
+                    classMetadata.setKind(kind.get());
+
                     metadata.addClass(classMetadata);
-                    
-                    logger.debug("Found class: {} -> {}", iliName, sqlName);
+
+                    logger.debug("Found class: {} -> {} ({})", iliName, tableName, setting);
                 }
             }
         }
@@ -161,10 +149,17 @@ public class Ili2dbMetadataReader {
      */
     private void readAttributes(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
         List<String> prefixes = buildModelPrefixes(metadata, modelNames);
+        List<String> tableNames = metadata.getAllClasses().stream()
+            .map(ClassMetadata::getTableName)
+            .filter(Objects::nonNull)
+            .filter(name -> !name.isBlank())
+            .distinct()
+            .toList();
+        String whereClause = buildAttributeWhereClause(prefixes.size(), tableNames.size());
         String sql = buildQuery(String.format(
             "SELECT " + ATTR_ILINAME_REF + ", a.sqlname, a.%s AS owner, a.%s AS target " +
             "FROM {schema}.t_ili2db_attrname a " +
-            "WHERE " + buildAttributeLikeClause(prefixes.size()) + " " +
+            "WHERE " + whereClause + " " +
             "ORDER BY a.%s, a.sqlname",
             ATTR_OWNER_COLUMN,
             ATTR_TARGET_COLUMN,
@@ -172,7 +167,7 @@ public class Ili2dbMetadataReader {
         ));
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            bindAttributePrefixes(pstmt, prefixes);
+            bindAttributeFilters(pstmt, prefixes, tableNames);
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -187,6 +182,11 @@ public class Ili2dbMetadataReader {
                         classMetadata = metadata.getClass(owner);
                         if (classMetadata != null) {
                             ownerClassName = owner;
+                        } else {
+                            classMetadata = findClassByTableName(metadata, owner);
+                            if (classMetadata != null) {
+                                ownerClassName = classMetadata.getName();
+                            }
                         }
                     }
                     if (classMetadata == null) {
@@ -208,7 +208,8 @@ public class Ili2dbMetadataReader {
                     // Ist es eine Beziehung (FK)?
                     if (target != null && !target.isEmpty()) {
                         attrMetadata.setForeignKey(true);
-                        attrMetadata.setReferencedClass(target);
+                        String resolvedTarget = resolveTargetClass(metadata, target);
+                        attrMetadata.setReferencedClass(resolvedTarget);
                     }
                     
                     // Datenbank-Typ und weitere Infos aus DB-Schema holen
@@ -489,9 +490,9 @@ public class Ili2dbMetadataReader {
         }
     }
 
-    private String buildAttributeLikeClause(int paramCount) {
+    private String buildAttributeWhereClause(int prefixCount, int tableCount) {
         StringBuilder builder = new StringBuilder("(");
-        for (int i = 0; i < paramCount; i++) {
+        for (int i = 0; i < prefixCount; i++) {
             if (i > 0) {
                 builder.append(" OR ");
             }
@@ -502,14 +503,28 @@ public class Ili2dbMetadataReader {
                 .append(" LIKE ?)");
         }
         builder.append(")");
+        if (tableCount > 0) {
+            builder.append(" OR (");
+            for (int i = 0; i < tableCount; i++) {
+                if (i > 0) {
+                    builder.append(" OR ");
+                }
+                builder.append(ATTR_OWNER_REF).append(" = ?");
+            }
+            builder.append(")");
+        }
         return builder.toString();
     }
 
-    private void bindAttributePrefixes(PreparedStatement pstmt, List<String> prefixes) throws SQLException {
+    private void bindAttributeFilters(PreparedStatement pstmt, List<String> prefixes, List<String> tableNames)
+            throws SQLException {
         int index = 1;
         for (String prefix : prefixes) {
             pstmt.setString(index++, prefix);
             pstmt.setString(index++, prefix);
+        }
+        for (String tableName : tableNames) {
+            pstmt.setString(index++, tableName);
         }
     }
 
@@ -615,5 +630,43 @@ public class Ili2dbMetadataReader {
             return false;
         }
         return content.matches("(?s).*TYPE\\s+MODEL.*");
+    }
+
+    private void ensureSchemaName() {
+        if (schemaName == null || schemaName.isBlank()) {
+            throw new IllegalArgumentException("schemaName must be provided for ili2db metadata lookup.");
+        }
+    }
+
+    private Optional<ClassMetadata.ClassKind> mapClassKind(String setting) {
+        if (setting == null) {
+            return Optional.empty();
+        }
+        switch (setting.trim().toUpperCase(Locale.ROOT)) {
+            case "CLASS":
+                return Optional.of(ClassMetadata.ClassKind.CLASS);
+            case "STRUCTURE":
+                return Optional.of(ClassMetadata.ClassKind.STRUCTURE);
+            case "ASSOCIATION":
+                return Optional.of(ClassMetadata.ClassKind.ASSOCIATION);
+            case "ENUM":
+                return Optional.empty();
+            default:
+                return Optional.empty();
+        }
+    }
+
+    private String resolveTargetClass(ModelMetadata metadata, String target) {
+        if (target == null || target.isBlank()) {
+            return target;
+        }
+        if (metadata.getClass(target) != null) {
+            return target;
+        }
+        ClassMetadata classMetadata = findClassByTableName(metadata, target);
+        if (classMetadata != null) {
+            return classMetadata.getName();
+        }
+        return target;
     }
 }
