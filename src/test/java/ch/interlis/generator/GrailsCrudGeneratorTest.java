@@ -63,6 +63,35 @@ class GrailsCrudGeneratorTest {
         assertThat(createContent).contains("<g:datePicker name=\"birthDate\" precision=\"day\"/>");
     }
 
+    @Test
+    void rendersEnumTableSelectWhenEnumTypeIsMarked(@TempDir Path tempDir) throws Exception {
+        ModelMetadata metadata = new ModelMetadata("SampleModel");
+
+        ClassMetadata person = new ClassMetadata("SampleModel.Person");
+        person.setTableName("person_tbl");
+        person.addAttribute(primaryKeyAttribute("id", "t_id"));
+        AttributeMetadata status = new AttributeMetadata("status");
+        status.setEnumType("ENUM");
+        status.setColumnName("status");
+        person.addAttribute(status);
+        metadata.addClass(person);
+
+        Path outputDir = tempDir.resolve("generated-grails-app");
+        GenerationConfig config = GenerationConfig.builder(outputDir, "com.example")
+            .domainPackage("com.example.domain")
+            .controllerPackage("com.example.controller")
+            .enumPackage("com.example.enums")
+            .build();
+
+        new GrailsCrudGenerator().generate(metadata, config);
+
+        Path createView = outputDir.resolve("grails-app/views/person/create.gsp");
+        String createContent = Files.readString(createView);
+        assertThat(createContent).contains(
+            "<g:select name=\"status\" from=\"${Status.list()}\" optionKey=\"ilicode\" optionValue=\"dispName\"/>"
+        );
+    }
+
     private ModelMetadata buildSampleMetadata() {
         ModelMetadata metadata = new ModelMetadata("SampleModel");
 

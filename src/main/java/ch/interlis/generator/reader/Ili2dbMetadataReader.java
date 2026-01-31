@@ -431,6 +431,9 @@ public class Ili2dbMetadataReader {
     }
     
     private void applyColumnProperty(AttributeMetadata attr, String tag, String setting) {
+        if (setting != null && "ENUM".equalsIgnoreCase(setting.trim())) {
+            attr.setEnumType("ENUM");
+        }
         switch (tag) {
             case "ch.ehi.ili2db.unit":
                 attr.setUnit(setting);

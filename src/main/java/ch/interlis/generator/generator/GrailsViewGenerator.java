@@ -115,6 +115,12 @@ public class GrailsViewGenerator {
                 sb.append("    </div>\n");
                 return sb.toString();
             }
+            String enumTableClass = resolveEnumTableClass(attr);
+            sb.append("        <g:select name=\"").append(name)
+                .append("\" from=\"${").append(enumTableClass)
+                .append(".list()}\" optionKey=\"ilicode\" optionValue=\"dispName\"/>\n");
+            sb.append("    </div>\n");
+            return sb.toString();
         }
 
         String javaType = attr.getJavaType();
@@ -133,5 +139,17 @@ public class GrailsViewGenerator {
         }
         sb.append("    </div>\n");
         return sb.toString();
+    }
+
+    private String resolveEnumTableClass(AttributeMetadata attr) {
+        String enumType = attr.getEnumType();
+        if (enumType != null && !enumType.isBlank() && !"ENUM".equalsIgnoreCase(enumType)) {
+            int lastDot = enumType.lastIndexOf('.');
+            if (lastDot >= 0 && lastDot < enumType.length() - 1) {
+                enumType = enumType.substring(lastDot + 1);
+            }
+            return NameUtils.toUpperCamel(enumType);
+        }
+        return NameUtils.toUpperCamel(attr.getName());
     }
 }
