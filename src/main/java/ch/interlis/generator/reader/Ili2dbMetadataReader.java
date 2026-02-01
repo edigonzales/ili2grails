@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Liest Metadaten aus den ili2db Metatabellen einer Datenbank.
@@ -37,7 +39,7 @@ public class Ili2dbMetadataReader {
     
     public Ili2dbMetadataReader(Connection connection, String schemaName) {
         this.connection = Objects.requireNonNull(connection, "connection");
-        this.schemaName = schemaName;
+        this.schemaName = normalizeSchemaName(schemaName);
     }
     
     /**
@@ -48,7 +50,6 @@ public class Ili2dbMetadataReader {
         
         ModelMetadata metadata = new ModelMetadata(modelName);
         
-        ensureSchemaName();
         metadata.setSchemaName(schemaName);
         
         // Settings lesen
@@ -135,7 +136,7 @@ public class Ili2dbMetadataReader {
 
                     ClassMetadata classMetadata = new ClassMetadata(iliName);
                     classMetadata.setTableName(tableName);
-                    classMetadata.setSqlName(schemaName + "." + tableName);
+                    classMetadata.setSqlName(qualifyTableName(tableName));
                     classMetadata.setKind(kind.get());
 
                     metadata.addClass(classMetadata);
@@ -218,7 +219,9 @@ public class Ili2dbMetadataReader {
                     // Datenbank-Typ und weitere Infos aus DB-Schema holen
                     enrichAttributeFromDbSchema(attrMetadata, classMetadata.getTableName(), sqlName);
 
-                    EnumDomainInfo enumDomain = enumDomains.get(new EnumColumnKey(classMetadata.getTableName(), sqlName));
+                    EnumDomainInfo enumDomain = enumDomains.get(
+                        EnumColumnKey.normalized(classMetadata.getTableName(), sqlName)
+                    );
                     if (enumDomain != null) {
                         attrMetadata.setEnumType(enumDomain.enumIliName());
                         List<EnumMetadata.EnumValue> values = loadEnumValues(enumDomain.enumTableName());
@@ -259,7 +262,7 @@ public class Ili2dbMetadataReader {
                     if (owner == null || columnName == null || enumIliName == null || enumTable == null) {
                         continue;
                     }
-                    enumDomains.put(new EnumColumnKey(owner, columnName),
+                    enumDomains.put(EnumColumnKey.normalized(owner, columnName),
                         new EnumDomainInfo(enumIliName, enumTable));
                 }
             }
@@ -323,69 +326,117 @@ public class Ili2dbMetadataReader {
     /**
      * Holt zusätzliche Informationen über ein Attribut aus dem DB-Schema.
      */
-    private void enrichAttributeFromDbSchema(AttributeMetadata attr, String tableName, String columnName) 
-            throws SQLException {
-        String sql =
-            "SELECT column_name, data_type, is_nullable, character_maximum_length, " +
-            "       numeric_precision, numeric_scale, type_name " +
-            "FROM information_schema.columns " +
-            "WHERE upper(table_schema) = upper(?) " +
-            "  AND upper(table_name) = upper(?) " +
-            "  AND upper(column_name) = upper(?)";
+    private void enrichAttributeFromDbSchema(AttributeMetadata attr, String tableName, String columnName)
+        throws SQLException {
+        ColumnInfo columnInfo = resolveColumnInfo(tableName, columnName);
+        if (columnInfo == null) {
+            return;
+        }
 
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, schemaName);
-            pstmt.setString(2, tableName);
-            pstmt.setString(3, columnName);
+        String resolvedType = resolveDbType(columnInfo.dataType(), columnInfo.typeName());
+        attr.setDbType(resolvedType);
+        if (columnInfo.nullable() != null) {
+            attr.setMandatory(ResultSetMetaData.columnNoNulls == columnInfo.nullable());
+        }
+        Integer maxLength = columnInfo.columnSize();
+        if (maxLength != null && maxLength == 0) {
+            maxLength = null;
+        }
+        attr.setMaxLength(maxLength);
 
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    String dataType = rs.getString("data_type");
-                    String isNullable = rs.getString("is_nullable");
-                    Integer maxLength = rs.getInt("character_maximum_length");
+        if (columnInfo.typeName() != null && "GEOMETRY".equalsIgnoreCase(columnInfo.typeName())) {
+            attr.setGeometry(true);
+        }
+
+        attr.setPrimaryKey(isPrimaryKey(tableName, columnName));
+    }
+
+    private ColumnInfo resolveColumnInfo(String tableName, String columnName) throws SQLException {
+        if (isSqlite(connection)) {
+            ColumnInfo sqliteInfo = readSqliteColumnInfo(tableName, columnName);
+            if (sqliteInfo != null) {
+                return sqliteInfo;
+            }
+        }
+        DatabaseMetaData meta = connection.getMetaData();
+        ColumnInfo direct = findColumnInfo(meta, tableName, columnName, schemaName);
+        if (direct != null) {
+            return direct;
+        }
+        return findColumnInfo(meta, tableName, columnName, null);
+    }
+
+    private ColumnInfo findColumnInfo(DatabaseMetaData meta, String tableName, String columnName, String schema)
+        throws SQLException {
+        try (ResultSet rs = meta.getColumns(null, schema, tableName, null)) {
+            while (rs.next()) {
+                String resolvedTable = rs.getString("TABLE_NAME");
+                String resolvedColumn = rs.getString("COLUMN_NAME");
+                if (equalsIgnoreCase(resolvedTable, tableName) && equalsIgnoreCase(resolvedColumn, columnName)) {
+                    Integer dataType = rs.getInt("DATA_TYPE");
                     if (rs.wasNull()) {
-                        maxLength = null;
+                        dataType = null;
                     }
-
-                    String typeName = rs.getString("type_name");
-                    String resolvedType = resolveDbType(dataType, typeName);
-                    attr.setDbType(resolvedType);
-                    attr.setMandatory("NO".equals(isNullable));
-                    attr.setMaxLength(maxLength);
-
-                    if ("GEOMETRY".equalsIgnoreCase(typeName)) {
-                        attr.setGeometry(true);
+                    String typeName = rs.getString("TYPE_NAME");
+                    Integer nullable = rs.getInt("NULLABLE");
+                    if (rs.wasNull()) {
+                        nullable = null;
                     }
-
-                    attr.setPrimaryKey(isPrimaryKey(tableName, columnName));
+                    Integer size = rs.getInt("COLUMN_SIZE");
+                    if (rs.wasNull()) {
+                        size = null;
+                    }
+                    return new ColumnInfo(dataType, typeName, nullable, size);
                 }
             }
         }
+        return null;
     }
 
-    private String resolveDbType(String dataType, String typeName) {
-        if (dataType == null || dataType.isBlank()) {
-            return typeName;
-        }
-        if (typeName != null && !typeName.isBlank() && dataType.matches("\\d+")) {
-            return typeName;
-        }
-        if (dataType.matches("\\d+")) {
-            String mappedType = mapSqlTypeCode(dataType, typeName);
-            if (mappedType != null) {
-                return mappedType;
+    private ColumnInfo readSqliteColumnInfo(String tableName, String columnName) throws SQLException {
+        String escapedTable = tableName.replace("'", "''");
+        String sql = "PRAGMA table_info('" + escapedTable + "')";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                String name = rs.getString("name");
+                if (!equalsIgnoreCase(name, columnName)) {
+                    continue;
+                }
+                String typeName = rs.getString("type");
+                Integer nullable = rs.getInt("notnull") == 1
+                    ? ResultSetMetaData.columnNoNulls
+                    : ResultSetMetaData.columnNullable;
+                Integer columnSize = parseColumnSize(typeName);
+                return new ColumnInfo(null, typeName, nullable, columnSize);
             }
         }
-        return dataType;
+        return null;
     }
 
-    private String mapSqlTypeCode(String dataType, String typeName) {
-        int typeCode;
-        try {
-            typeCode = Integer.parseInt(dataType);
-        } catch (NumberFormatException e) {
+    private Integer parseColumnSize(String typeName) {
+        if (typeName == null) {
             return null;
         }
+        Matcher matcher = Pattern.compile("\\((\\d+)\\)").matcher(typeName);
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group(1));
+        }
+        return null;
+    }
+
+    private String resolveDbType(Integer dataType, String typeName) {
+        if (dataType == null) {
+            return typeName;
+        }
+        String mappedType = mapSqlTypeCode(dataType, typeName);
+        if (mappedType != null) {
+            return mappedType;
+        }
+        return typeName != null && !typeName.isBlank() ? typeName : dataType.toString();
+    }
+
+    private String mapSqlTypeCode(int typeCode, String typeName) {
         switch (typeCode) {
             case Types.CHAR:
             case Types.VARCHAR:
@@ -422,22 +473,29 @@ public class Ili2dbMetadataReader {
      * Prüft ob eine Spalte ein Primary Key ist.
      */
     private boolean isPrimaryKey(String tableName, String columnName) throws SQLException {
-        String sql =
-            "SELECT 1 FROM information_schema.key_column_usage " +
-            "WHERE table_schema = ? " +
-            "  AND upper(table_name) = upper(?) " +
-            "  AND upper(column_name) = upper(?) " +
-            "  AND constraint_name LIKE '%_pkey'";
-        
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, schemaName);
-            pstmt.setString(2, tableName);
-            pstmt.setString(3, columnName);
-            
-            try (ResultSet rs = pstmt.executeQuery()) {
-                return rs.next();
+        DatabaseMetaData meta = connection.getMetaData();
+        try (ResultSet rs = meta.getPrimaryKeys(null, schemaName, tableName)) {
+            while (rs.next()) {
+                String pkTable = rs.getString("TABLE_NAME");
+                String pkColumn = rs.getString("COLUMN_NAME");
+                if (equalsIgnoreCase(pkTable, tableName) && equalsIgnoreCase(pkColumn, columnName)) {
+                    return true;
+                }
             }
         }
+        if (schemaName == null || schemaName.isBlank()) {
+            return false;
+        }
+        try (ResultSet rs = meta.getPrimaryKeys(null, null, tableName)) {
+            while (rs.next()) {
+                String pkTable = rs.getString("TABLE_NAME");
+                String pkColumn = rs.getString("COLUMN_NAME");
+                if (equalsIgnoreCase(pkTable, tableName) && equalsIgnoreCase(pkColumn, columnName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     
     /**
@@ -510,7 +568,7 @@ public class Ili2dbMetadataReader {
     
     private ClassMetadata findClassByTableName(ModelMetadata metadata, String tableName) {
         for (ClassMetadata clazz : metadata.getAllClasses()) {
-            if (tableName.equals(clazz.getTableName())) {
+            if (equalsIgnoreCase(tableName, clazz.getTableName())) {
                 return clazz;
             }
         }
@@ -519,7 +577,7 @@ public class Ili2dbMetadataReader {
     
     private AttributeMetadata findAttributeByColumnName(ClassMetadata classMetadata, String columnName) {
         for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
-            if (columnName.equals(attr.getColumnName())) {
+            if (equalsIgnoreCase(columnName, attr.getColumnName())) {
                 return attr;
             }
         }
@@ -565,6 +623,9 @@ public class Ili2dbMetadataReader {
     }
     
     private String buildQuery(String template) {
+        if (schemaName == null || schemaName.isBlank()) {
+            return template.replace("{schema}.", "").replace("{schema}", "");
+        }
         return template.replace("{schema}", schemaName);
     }
 
@@ -728,10 +789,11 @@ public class Ili2dbMetadataReader {
         return content.matches("(?s).*TYPE\\s+MODEL.*");
     }
 
-    private void ensureSchemaName() {
-        if (schemaName == null || schemaName.isBlank()) {
-            throw new IllegalArgumentException("schemaName must be provided for ili2db metadata lookup.");
+    private String normalizeSchemaName(String schema) {
+        if (schema == null || schema.isBlank()) {
+            return null;
         }
+        return schema;
     }
 
     private Optional<ClassMetadata.ClassKind> mapClassKind(String setting) {
@@ -767,11 +829,40 @@ public class Ili2dbMetadataReader {
     }
 
     private record EnumColumnKey(String owner, String columnName) {
+        static EnumColumnKey normalized(String owner, String columnName) {
+            return new EnumColumnKey(normalize(owner), normalize(columnName));
+        }
+
+        private static String normalize(String value) {
+            return value == null ? null : value.toLowerCase(Locale.ROOT);
+        }
     }
 
     private record EnumDomainInfo(String enumIliName, String enumTableName) {
     }
 
     private record ColumnPropColumns(String ownerColumn, String columnColumn) {
+    }
+
+    private record ColumnInfo(Integer dataType, String typeName, Integer nullable, Integer columnSize) {
+    }
+
+    private boolean equalsIgnoreCase(String left, String right) {
+        if (left == null || right == null) {
+            return false;
+        }
+        return left.equalsIgnoreCase(right);
+    }
+
+    private String qualifyTableName(String tableName) {
+        if (schemaName == null || schemaName.isBlank()) {
+            return tableName;
+        }
+        return schemaName + "." + tableName;
+    }
+
+    private boolean isSqlite(Connection connection) throws SQLException {
+        String productName = connection.getMetaData().getDatabaseProductName();
+        return productName != null && productName.toLowerCase(Locale.ROOT).contains("sqlite");
     }
 }

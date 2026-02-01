@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.*;
 /**
  * Integration-Test für den MetadataReader.
  * 
- * Verwendet eine H2-Datenbank im Memory-Modus.
+ * Verwendet eine SQLite-Datenbank im Memory-Modus.
  */
 class MetadataReaderTest {
     
@@ -25,9 +25,8 @@ class MetadataReaderTest {
     
     @BeforeEach
     void setUp() throws Exception {
-        // H2 Memory-Datenbank
-        String dbName = "test_" + System.nanoTime();
-        connection = DriverManager.getConnection("jdbc:h2:mem:" + dbName);
+        // SQLite Memory-Datenbank
+        connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         
         // Modell-Datei
         modelFile = new File("test-models/SimpleAddressModel.ili");
@@ -47,13 +46,13 @@ class MetadataReaderTest {
     @Test
     void testReadMetadata_withoutModelFile() throws Exception {
         // Nur DB-Metadaten, ohne ili2c
-        MetadataReader reader = new MetadataReader(connection, null, "PUBLIC", null);
+        MetadataReader reader = new MetadataReader(connection, null, null, null);
         
         ModelMetadata metadata = reader.readMetadata("SimpleAddressModel");
         
         assertThat(metadata).isNotNull();
         assertThat(metadata.getModelName()).isEqualTo("SimpleAddressModel");
-        assertThat(metadata.getSchemaName()).isEqualTo("PUBLIC");
+        assertThat(metadata.getSchemaName()).isNull();
         
         // Prüfe Klassen
         assertThat(metadata.getClasses()).hasSize(3);
@@ -72,7 +71,7 @@ class MetadataReaderTest {
     
     @Test
     void testAttributeJavaTypeInference() throws Exception {
-        MetadataReader reader = new MetadataReader(connection, null, "PUBLIC", null);
+        MetadataReader reader = new MetadataReader(connection, null, null, null);
         ModelMetadata metadata = reader.readMetadata("SimpleAddressModel");
         
         ClassMetadata personClass = metadata.getClass("SimpleAddressModel.Addresses.Person");
@@ -89,7 +88,7 @@ class MetadataReaderTest {
     
     @Test
     void testRelationshipDetection() throws Exception {
-        MetadataReader reader = new MetadataReader(connection, null, "PUBLIC", null);
+        MetadataReader reader = new MetadataReader(connection, null, null, null);
         ModelMetadata metadata = reader.readMetadata("SimpleAddressModel");
         
         ClassMetadata personAddressClass = metadata.getClass("SimpleAddressModel.Addresses.PersonAddress");
@@ -107,7 +106,7 @@ class MetadataReaderTest {
                 "WHERE iliname = 'birthDate'");
         }
 
-        MetadataReader reader = new MetadataReader(connection, modelFile, "PUBLIC", null);
+        MetadataReader reader = new MetadataReader(connection, modelFile, null, null);
         ModelMetadata metadata = reader.readMetadata("SimpleAddressModel");
 
         ClassMetadata personClass = metadata.getClass("SimpleAddressModel.Addresses.Person");
@@ -231,7 +230,7 @@ class MetadataReaderTest {
             // Tabellen erstellen (für Schema-Analyse)
             stmt.execute(
                 "CREATE TABLE address (" +
-                "  t_id BIGINT PRIMARY KEY," +
+                "  t_id INTEGER PRIMARY KEY AUTOINCREMENT," +
                 "  astreet VARCHAR(100) NOT NULL," +
                 "  housenumber VARCHAR(10)," +
                 "  postalcode VARCHAR(10) NOT NULL" +
@@ -240,7 +239,7 @@ class MetadataReaderTest {
             
             stmt.execute(
                 "CREATE TABLE person (" +
-                "  t_id BIGINT PRIMARY KEY," +
+                "  t_id INTEGER PRIMARY KEY AUTOINCREMENT," +
                 "  firstname VARCHAR(50) NOT NULL," +
                 "  lastname VARCHAR(50) NOT NULL," +
                 "  birthdate DATE" +
@@ -249,9 +248,9 @@ class MetadataReaderTest {
             
             stmt.execute(
                 "CREATE TABLE personaddress (" +
-                "  t_id BIGINT PRIMARY KEY," +
-                "  person_id BIGINT," +
-                "  address_id BIGINT," +
+                "  t_id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "  person_id INTEGER," +
+                "  address_id INTEGER," +
                 "  FOREIGN KEY (person_id) REFERENCES person(t_id)," +
                 "  FOREIGN KEY (address_id) REFERENCES address(t_id)" +
                 ")"

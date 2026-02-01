@@ -22,6 +22,7 @@ class GrailsApplicationYamlUpdater {
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(
         new YAMLFactory().enable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     );
+    private static final String SQLITE_DIALECT = "org.hibernate.community.dialect.SQLiteDialect";
 
     void ensureDevelopmentDataSourceUrl(Path applicationYamlPath, String jdbcUrl) throws IOException {
         if (!Files.exists(applicationYamlPath)) {
@@ -30,6 +31,7 @@ class GrailsApplicationYamlUpdater {
         String resolvedJdbcUrl = jdbcUrl == null || jdbcUrl.isBlank() ? null : jdbcUrl;
         List<Object> documents = readDocuments(applicationYamlPath);
         boolean changed = updateDevelopmentDataSource(documents, resolvedJdbcUrl);
+        changed |= ensureHibernateDialect(documents);
         if (changed) {
             writeDocuments(applicationYamlPath, documents);
         }
@@ -82,6 +84,27 @@ class GrailsApplicationYamlUpdater {
             }
             if (!Objects.equals("none", dataSource.get("dbCreate"))) {
                 dataSource.put("dbCreate", "none");
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private boolean ensureHibernateDialect(List<Object> documents) {
+        boolean changed = false;
+        for (Object document : documents) {
+            Map<String, Object> root = asMap(document);
+            if (root == null) {
+                continue;
+            }
+            Map<String, Object> hibernate = asMap(root.get("hibernate"));
+            if (hibernate == null) {
+                hibernate = new java.util.LinkedHashMap<>();
+                root.put("hibernate", hibernate);
+                changed = true;
+            }
+            if (!Objects.equals(SQLITE_DIALECT, hibernate.get("dialect"))) {
+                hibernate.put("dialect", SQLITE_DIALECT);
                 changed = true;
             }
         }

@@ -9,24 +9,34 @@ import java.util.List;
 class GrailsBuildGradleUpdater {
 
     private static final String JTS_DEPENDENCY = "implementation \"org.locationtech.jts:jts-core:1.19.0\"";
+    private static final String SQLITE_JDBC_DEPENDENCY =
+        "implementation \"org.xerial:sqlite-jdbc:3.43.0.0\"";
+    private static final String SQLITE_DIALECT_DEPENDENCY =
+        "implementation \"org.hibernate.orm:hibernate-community-dialects:6.6.41.Final\"";
 
     void ensureJtsDependency(Path buildGradlePath) throws IOException {
         if (!Files.exists(buildGradlePath)) {
             return;
         }
         List<String> lines = Files.readAllLines(buildGradlePath, StandardCharsets.UTF_8);
-        if (containsJtsDependency(lines)) {
-            return;
+        List<String> updated = ensureDependencies(lines);
+        if (!updated.equals(lines)) {
+            Files.write(buildGradlePath, updated, StandardCharsets.UTF_8);
         }
-        List<String> updated = insertDependency(lines);
-        Files.write(buildGradlePath, updated, StandardCharsets.UTF_8);
     }
 
-    private boolean containsJtsDependency(List<String> lines) {
-        return lines.stream().anyMatch(line -> line.contains("org.locationtech.jts:jts-core"));
+    private List<String> ensureDependencies(List<String> lines) {
+        List<String> updated = new java.util.ArrayList<>(lines);
+        updated = insertDependencyIfMissing(updated, "org.locationtech.jts:jts-core", JTS_DEPENDENCY);
+        updated = insertDependencyIfMissing(updated, "org.xerial:sqlite-jdbc", SQLITE_JDBC_DEPENDENCY);
+        updated = insertDependencyIfMissing(updated, "hibernate-community-dialects", SQLITE_DIALECT_DEPENDENCY);
+        return updated;
     }
 
-    private List<String> insertDependency(List<String> lines) {
+    private List<String> insertDependencyIfMissing(List<String> lines, String marker, String dependency) {
+        if (lines.stream().anyMatch(line -> line.contains(marker))) {
+            return lines;
+        }
         int[] buildscriptRange = findBlockRange(lines, "buildscript", null);
         int[] dependenciesRange = findBlockRange(lines, "dependencies", buildscriptRange);
         if (dependenciesRange == null) {
@@ -34,7 +44,7 @@ class GrailsBuildGradleUpdater {
         }
         String indent = detectIndent(lines, dependenciesRange[0]);
         List<String> updated = new java.util.ArrayList<>(lines);
-        updated.add(dependenciesRange[1], indent + JTS_DEPENDENCY);
+        updated.add(dependenciesRange[1], indent + dependency);
         return updated;
     }
 
