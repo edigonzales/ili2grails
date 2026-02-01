@@ -144,6 +144,7 @@ Die Datenbank muss mit **ili2db** befüllt sein – inklusive Metatabellen. Der 
 - `t_ili2db_inheritance` (Vererbung)
 - `t_ili2db_trafo` (Transformationsstrategien)
 - `t_ili2db_column_prop` (Constraints/Properties)
+- Der Primary Key ist immer `t_id`/`T_id` und wird zusätzlich ergänzt, da er nicht in `t_ili2db_attrname` enthalten ist.
 
 ### 2) INTERLIS-Modell bereitstellen
 Die `.ili`-Datei muss die gleiche Modellversion widerspiegeln wie der ili2db-Import.
