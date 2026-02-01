@@ -1,3 +1,8 @@
+.project
+.classpath
+.settings/
+bin
+generated-grails
 .DS_Store
 
 # Compiled class file
