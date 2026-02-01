@@ -69,11 +69,12 @@ public class GrailsDomainGenerator {
             if (attr.isPrimaryKey()) {
                 continue;
             }
-            String propertyName = attr.getSqlName();//  NameUtils.toLowerCamel(attr.getName());
+            String propertyName = resolvePropertyName(attr);
             String type = resolveType(attr, metadata, config, imports);
             properties.add("    " + type + " " + propertyName);
 
-            if (attr.getColumnName() != null && !attr.getColumnName().equalsIgnoreCase(propertyName)) {
+            if (attr.getColumnName() != null
+                && (attr.isForeignKey() || !attr.getColumnName().equalsIgnoreCase(propertyName))) {
                 columnMappings.put(propertyName, attr.getColumnName());
             }
         }
@@ -102,6 +103,14 @@ public class GrailsDomainGenerator {
             sb.append("\n    static hasMany = [").append(hasManyBlock).append("]\n");
         }
 
+        Map<String, String> belongsTo = resolveBelongsTo(classMetadata, metadata);
+        if (!belongsTo.isEmpty()) {
+            String belongsToBlock = belongsTo.entrySet().stream()
+                .map(entry -> entry.getKey() + ": " + entry.getValue())
+                .collect(Collectors.joining(", "));
+            sb.append("\n    static belongsTo = [").append(belongsToBlock).append("]\n");
+        }
+
         sb.append("\n    static mapping = {\n");
         if (classMetadata.getTableName() != null) {
             sb.append("        table '").append(classMetadata.getTableName()).append("'\n");
@@ -128,7 +137,7 @@ public class GrailsDomainGenerator {
             if (attr.isPrimaryKey()) {
                 continue;
             }
-            String propertyName = attr.getSqlName();
+            String propertyName = resolvePropertyName(attr);
             List<String> constraintParts = new ArrayList<>();
             if (!attr.isMandatory()) {
                 constraintParts.add("nullable: true");
@@ -213,5 +222,31 @@ public class GrailsDomainGenerator {
             return true;
         }
         return "t_id".equalsIgnoreCase(attr.getName());
+    }
+
+    private Map<String, String> resolveBelongsTo(ClassMetadata classMetadata, ModelMetadata metadata) {
+        Map<String, String> belongsTo = new LinkedHashMap<>();
+        for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
+            if (!attr.isForeignKey() || attr.getReferencedClass() == null) {
+                continue;
+            }
+            String propertyName = resolvePropertyName(attr);
+            if (propertyName == null || propertyName.isBlank()) {
+                continue;
+            }
+            ClassMetadata referenced = metadata.getClass(attr.getReferencedClass());
+            String targetName = referenced != null ? referenced.getSimpleName()
+                : NameUtils.simpleType(attr.getReferencedClass());
+            belongsTo.put(propertyName, targetName);
+        }
+        return belongsTo;
+    }
+
+    private String resolvePropertyName(AttributeMetadata attr) {
+        String propertyName = attr.getSqlName();
+        if (propertyName == null || propertyName.isBlank()) {
+            propertyName = attr.getName();
+        }
+        return propertyName;
     }
 }

@@ -32,6 +32,7 @@ class GrailsApplicationYamlUpdater {
         String resolvedJdbcUrl = jdbcUrl == null || jdbcUrl.isBlank() ? null : jdbcUrl;
         List<Object> documents = readDocuments(applicationYamlPath);
         boolean changed = updateDevelopmentDataSource(documents, resolvedJdbcUrl);
+        changed |= removeRootDataSourceDriver(documents);
         changed |= ensureHibernateDialect(documents);
         if (changed) {
             writeDocuments(applicationYamlPath, documents);
@@ -89,6 +90,25 @@ class GrailsApplicationYamlUpdater {
             }
             if (!Objects.equals("none", dataSource.get("dbCreate"))) {
                 dataSource.put("dbCreate", "none");
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private boolean removeRootDataSourceDriver(List<Object> documents) {
+        boolean changed = false;
+        for (Object document : documents) {
+            Map<String, Object> root = asMap(document);
+            if (root == null) {
+                continue;
+            }
+            Map<String, Object> dataSource = asMap(root.get("dataSource"));
+            if (dataSource == null) {
+                continue;
+            }
+            if (H2_DRIVER.equals(dataSource.get("driverClassName"))) {
+                dataSource.remove("driverClassName");
                 changed = true;
             }
         }

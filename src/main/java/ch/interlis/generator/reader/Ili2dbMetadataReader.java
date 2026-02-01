@@ -634,7 +634,8 @@ public class Ili2dbMetadataReader {
                     );
                     rel.setSourceClass(classMetadata.getName());
                     rel.setTargetClass(attr.getReferencedClass());
-                    rel.setSourceAttribute(attr.getName());
+                    String sourceAttribute = attr.getSqlName() != null ? attr.getSqlName() : attr.getName();
+                    rel.setSourceAttribute(sourceAttribute);
                     rel.setTargetAttribute("T_Id"); // ili2db Standard
                     rel.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
                     rel.setMandatory(attr.isMandatory());
