@@ -15,6 +15,8 @@ class GrailsApplicationYamlUpdaterTest {
         Path yamlPath = tempDir.resolve("application.yml");
         Files.writeString(yamlPath, String.join("\n",
             "---",
+            "dataSource:",
+            "  driverClassName: org.h2.Driver",
             "environments:",
             "  development:",
             "    dataSource:",
