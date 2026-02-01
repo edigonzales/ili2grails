@@ -20,9 +20,9 @@ Kurzfassung für Installation und Start. Die ausführliche Benutzeranleitung ink
   public"
 ```
 
-**H2 (embedded):**
+**SQLite (GeoPackage):**
 ```bash
-./gradlew run --args="'jdbc:h2:./data/testdb' \
+./gradlew run --args="'jdbc:sqlite:./testdb.gpkg' \
   test-models/SimpleAddressModel.ili \
   SimpleAddressModel"
 ```
