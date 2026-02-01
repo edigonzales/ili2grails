@@ -17,8 +17,11 @@ VERSION "2024-01-27" =
     !! Address status
     DOMAIN
       AddressStatus = (
+        !!@ ili2db.dispName="aktiv"        
         active,
+        !!@ ili2db.dispName="nicht aktiv"        
         inactive,
+        !!@ ili2db.dispName="vorgeschlagen"        
         proposed
       );
 
@@ -40,9 +43,11 @@ VERSION "2024-01-27" =
 
     !! Person class
     CLASS Person =
-      !! First name
+      /** Vorname
+       */
       FirstName: MANDATORY TEXT*50;
-      !! Last name
+      /** Nachname
+       */      
       LastName: MANDATORY TEXT*50;
       !! Email address
       Email: TEXT*100;
