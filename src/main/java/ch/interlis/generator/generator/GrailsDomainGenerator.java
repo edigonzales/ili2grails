@@ -69,7 +69,7 @@ public class GrailsDomainGenerator {
             if (attr.isPrimaryKey()) {
                 continue;
             }
-            String propertyName = NameUtils.toLowerCamel(attr.getName());
+            String propertyName = attr.getSqlName();//  NameUtils.toLowerCamel(attr.getName());
             String type = resolveType(attr, metadata, config, imports);
             properties.add("    " + type + " " + propertyName);
 
@@ -110,6 +110,9 @@ public class GrailsDomainGenerator {
         if (requiresTIdMapping) {
             sb.append("        id column: 't_id'\n");
         }
+        
+        sb.append("        version false\n");
+        
         if (!columnMappings.isEmpty()) {
             sb.append("        columns {\n");
             columnMappings.forEach((propertyName, columnName) ->
@@ -125,7 +128,7 @@ public class GrailsDomainGenerator {
             if (attr.isPrimaryKey()) {
                 continue;
             }
-            String propertyName = NameUtils.toLowerCamel(attr.getName());
+            String propertyName = attr.getSqlName();
             List<String> constraintParts = new ArrayList<>();
             if (!attr.isMandatory()) {
                 constraintParts.add("nullable: true");

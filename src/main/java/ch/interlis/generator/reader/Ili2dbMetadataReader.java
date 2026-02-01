@@ -209,7 +209,7 @@ public class Ili2dbMetadataReader {
                     attrMetadata.setQualifiedName(qualifiedName);
                     attrMetadata.setColumnName(sqlName);
                     attrMetadata.setSqlName(sqlName);
-                    
+                                        
                     // Ist es eine Beziehung (FK)?
                     if (target != null && !target.isEmpty()) {
                         attrMetadata.setForeignKey(true);
