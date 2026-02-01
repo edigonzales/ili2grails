@@ -32,6 +32,7 @@ public class Ili2dbMetadataReader {
     private static final String ATTR_ILINAME_REF = "a." + ATTR_ILINAME_COLUMN;
     private static final String ATTR_OWNER_REF = "a." + ATTR_OWNER_COLUMN;
     private static final String ENUM_DOMAIN_TAG = "ch.ehi.ili2db.enumDomain";
+    private static final String PRIMARY_KEY_COLUMN = "t_id";
     
     private final Connection connection;
     private String schemaName;
@@ -235,6 +236,7 @@ public class Ili2dbMetadataReader {
                 }
             }
         }
+        ensurePrimaryKeyAttributes(metadata);
     }
 
     private Map<EnumColumnKey, EnumDomainInfo> loadEnumDomains() throws SQLException {
@@ -473,29 +475,50 @@ public class Ili2dbMetadataReader {
      * Prüft ob eine Spalte ein Primary Key ist.
      */
     private boolean isPrimaryKey(String tableName, String columnName) throws SQLException {
-        DatabaseMetaData meta = connection.getMetaData();
-        try (ResultSet rs = meta.getPrimaryKeys(null, schemaName, tableName)) {
-            while (rs.next()) {
-                String pkTable = rs.getString("TABLE_NAME");
-                String pkColumn = rs.getString("COLUMN_NAME");
-                if (equalsIgnoreCase(pkTable, tableName) && equalsIgnoreCase(pkColumn, columnName)) {
-                    return true;
+        return equalsIgnoreCase(PRIMARY_KEY_COLUMN, columnName);
+    }
+
+    private void ensurePrimaryKeyAttributes(ModelMetadata metadata) throws SQLException {
+        for (ClassMetadata classMetadata : metadata.getAllClasses()) {
+            String tableName = classMetadata.getTableName();
+            if (tableName == null || tableName.isBlank()) {
+                continue;
+            }
+            AttributeMetadata attribute = findAttributeByColumnName(classMetadata, PRIMARY_KEY_COLUMN);
+            if (attribute == null) {
+                attribute = findAttributeByName(classMetadata, PRIMARY_KEY_COLUMN);
+            }
+            if (attribute == null) {
+                attribute = new AttributeMetadata(PRIMARY_KEY_COLUMN);
+                attribute.setQualifiedName(classMetadata.getName() + "." + PRIMARY_KEY_COLUMN);
+                attribute.setColumnName(PRIMARY_KEY_COLUMN);
+                attribute.setSqlName(PRIMARY_KEY_COLUMN);
+                classMetadata.addAttribute(attribute);
+            } else {
+                if (attribute.getColumnName() == null) {
+                    attribute.setColumnName(PRIMARY_KEY_COLUMN);
+                }
+                if (attribute.getSqlName() == null && attribute.getColumnName() != null) {
+                    attribute.setSqlName(attribute.getColumnName());
+                }
+                if (attribute.getQualifiedName() == null && classMetadata.getName() != null) {
+                    attribute.setQualifiedName(classMetadata.getName() + "." + attribute.getName());
                 }
             }
-        }
-        if (schemaName == null || schemaName.isBlank()) {
-            return false;
-        }
-        try (ResultSet rs = meta.getPrimaryKeys(null, null, tableName)) {
-            while (rs.next()) {
-                String pkTable = rs.getString("TABLE_NAME");
-                String pkColumn = rs.getString("COLUMN_NAME");
-                if (equalsIgnoreCase(pkTable, tableName) && equalsIgnoreCase(pkColumn, columnName)) {
-                    return true;
-                }
+            attribute.setPrimaryKey(true);
+            if (attribute.getColumnName() != null) {
+                enrichAttributeFromDbSchema(attribute, tableName, attribute.getColumnName());
             }
         }
-        return false;
+    }
+
+    private AttributeMetadata findAttributeByName(ClassMetadata classMetadata, String attributeName) {
+        for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
+            if (equalsIgnoreCase(attributeName, attr.getName())) {
+                return attr;
+            }
+        }
+        return null;
     }
     
     /**

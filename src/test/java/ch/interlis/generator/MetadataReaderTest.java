@@ -61,6 +61,11 @@ class MetadataReaderTest {
         assertThat(addressClass).isNotNull();
         assertThat(addressClass.getTableName()).isEqualTo("address");
         assertThat(addressClass.getAllAttributes()).hasSizeGreaterThan(0);
+
+        AttributeMetadata addressPrimaryKey = addressClass.getAttribute("t_id");
+        assertThat(addressPrimaryKey).isNotNull();
+        assertThat(addressPrimaryKey.getColumnName()).isEqualTo("t_id");
+        assertThat(addressPrimaryKey.isPrimaryKey()).isTrue();
         
         // Prüfe Attribute
         AttributeMetadata streetAttr = addressClass.getAttribute("street");
