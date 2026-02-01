@@ -43,6 +43,7 @@ class GrailsCrudGeneratorTest {
         assertThat(domainContent).contains("package com.example.domain");
         assertThat(domainContent).contains("class Person");
         assertThat(domainContent).contains("table 'person_tbl'");
+        assertThat(domainContent).contains("id column: 't_id'");
         assertThat(domainContent).contains("firstName column: 'first_name'");
         assertThat(domainContent).contains("firstName maxSize: 40");
         assertThat(domainContent).contains("status nullable: true");
@@ -98,6 +99,33 @@ class GrailsCrudGeneratorTest {
             "<g:select name=\"status\" from=\"${[[ilicode:'active', dispName:'active'], "
                 + "[ilicode:'inactive', dispName:'Inactive']]}\" optionKey=\"ilicode\" optionValue=\"dispName\"/>"
         );
+    }
+
+    @Test
+    void setsExplicitTIdMappingWhenNoIdAttributeExists(@TempDir Path tempDir) throws Exception {
+        ModelMetadata metadata = new ModelMetadata("SampleModel");
+        ClassMetadata log = new ClassMetadata("SampleModel.LogEntry");
+        log.setTableName("log_entry");
+
+        AttributeMetadata tId = new AttributeMetadata("tId");
+        tId.setColumnName("t_id");
+        tId.setJavaType("Long");
+        log.addAttribute(tId);
+        log.addAttribute(textAttribute("message", "message", 255, true));
+        metadata.addClass(log);
+
+        Path outputDir = tempDir.resolve("generated-grails-app");
+        GenerationConfig config = GenerationConfig.builder(outputDir, "com.example")
+            .domainPackage("com.example.domain")
+            .controllerPackage("com.example.controller")
+            .enumPackage("com.example.enums")
+            .build();
+
+        new GrailsCrudGenerator().generate(metadata, config);
+
+        Path domainFile = outputDir.resolve("grails-app/domain/com/example/domain/LogEntry.groovy");
+        String domainContent = Files.readString(domainFile);
+        assertThat(domainContent).contains("id column: 't_id'");
     }
 
     private ModelMetadata buildSampleMetadata() {
