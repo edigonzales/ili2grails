@@ -27,7 +27,7 @@ dependencies {
     // Database connectivity
     implementation 'org.postgresql:postgresql:42.7.1'
     implementation 'org.xerial:sqlite-jdbc:3.43.0.0'
-    implementation 'org.hibernate.orm:hibernate-community-dialects:6.6.41.Final'
+    implementation 'com.zsoltfabok:sqlite-dialect:1.0'
     
     // Logging
     implementation 'org.slf4j:slf4j-api:2.0.9'

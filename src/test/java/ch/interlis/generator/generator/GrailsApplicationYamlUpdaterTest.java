@@ -19,6 +19,7 @@ class GrailsApplicationYamlUpdaterTest {
             "  development:",
             "    dataSource:",
             "      url: jdbc:h2:mem:test",
+            "      driverClassName: org.h2.Driver",
             "      dbCreate: create-drop",
             "---",
             "hibernate:",
@@ -32,6 +33,7 @@ class GrailsApplicationYamlUpdaterTest {
         String updated = Files.readString(yamlPath);
         assertThat(updated).contains("jdbc:sqlite:./testdb.gpkg");
         assertThat(updated).contains("dbCreate: \"none\"");
-        assertThat(updated).contains("org.hibernate.community.dialect.SQLiteDialect");
+        assertThat(updated).contains("org.hibernate.dialect.SQLiteDialect");
+        assertThat(updated).doesNotContain("org.h2.Driver");
     }
 }

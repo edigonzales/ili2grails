@@ -22,7 +22,8 @@ class GrailsApplicationYamlUpdater {
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(
         new YAMLFactory().enable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     );
-    private static final String SQLITE_DIALECT = "org.hibernate.community.dialect.SQLiteDialect";
+    private static final String SQLITE_DIALECT = "org.hibernate.dialect.SQLiteDialect";
+    private static final String H2_DRIVER = "org.h2.Driver";
 
     void ensureDevelopmentDataSourceUrl(Path applicationYamlPath, String jdbcUrl) throws IOException {
         if (!Files.exists(applicationYamlPath)) {
@@ -81,6 +82,10 @@ class GrailsApplicationYamlUpdater {
                     dataSource.put("url", jdbcUrl);
                     changed = true;
                 }
+            }
+            if (H2_DRIVER.equals(dataSource.get("driverClassName"))) {
+                dataSource.remove("driverClassName");
+                changed = true;
             }
             if (!Objects.equals("none", dataSource.get("dbCreate"))) {
                 dataSource.put("dbCreate", "none");

@@ -134,7 +134,7 @@ cd /path/to/my-grails-app
 grails run-app
 ```
 Die SQLite-URL (und generell die DB-Verbindung) kommt aus der Grails-Konfiguration in `grails-app/conf/application.yml`
-(Property `dataSource.url` inkl. `driverClassName`, `username`, `password`).
+(Property `dataSource.url` inkl. `username`, `password`).
 
 ## Benutzeranleitung (Detail)
 ### 1) Datenbank vorbereiten
@@ -277,7 +277,7 @@ ili2grails/
 | ili2c-tool | 5.5.2 | INTERLIS-Tools |
 | PostgreSQL JDBC | 42.7.1 | PostgreSQL-Treiber |
 | SQLite JDBC | 3.43.0.0 | SQLite/GeoPackage-Treiber |
-| Hibernate Community Dialects | 6.6.41.Final | SQLite Dialekt |
+| sqlite-dialect | 1.0 | SQLite Dialekt |
 | SLF4J/Logback | 2.0.9/1.4.14 | Logging |
 | JUnit 5 | 5.10.1 | Testing |
 

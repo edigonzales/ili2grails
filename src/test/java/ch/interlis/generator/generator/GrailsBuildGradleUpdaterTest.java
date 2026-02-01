@@ -25,6 +25,6 @@ class GrailsBuildGradleUpdaterTest {
         String updated = Files.readString(buildGradle);
         assertThat(updated).contains("org.locationtech.jts:jts-core");
         assertThat(updated).contains("org.xerial:sqlite-jdbc:3.43.0.0");
-        assertThat(updated).contains("hibernate-community-dialects:6.6.41.Final");
+        assertThat(updated).contains("com.zsoltfabok:sqlite-dialect:1.0");
     }
 }
