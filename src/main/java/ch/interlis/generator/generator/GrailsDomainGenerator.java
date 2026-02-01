@@ -52,8 +52,20 @@ public class GrailsDomainGenerator {
         Set<String> imports = new LinkedHashSet<>();
         List<String> properties = new ArrayList<>();
         Map<String, String> columnMappings = new LinkedHashMap<>();
+        boolean hasIdAttribute = false;
+        boolean hasPrimaryKeyTId = false;
+        boolean hasTIdColumn = false;
 
         for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
+            if ("id".equalsIgnoreCase(attr.getName())) {
+                hasIdAttribute = true;
+            }
+            if (isTIdColumn(attr)) {
+                hasTIdColumn = true;
+                if (attr.isPrimaryKey()) {
+                    hasPrimaryKeyTId = true;
+                }
+            }
             if (attr.isPrimaryKey()) {
                 continue;
             }
@@ -93,6 +105,10 @@ public class GrailsDomainGenerator {
         sb.append("\n    static mapping = {\n");
         if (classMetadata.getTableName() != null) {
             sb.append("        table '").append(classMetadata.getTableName()).append("'\n");
+        }
+        boolean requiresTIdMapping = hasPrimaryKeyTId || (!hasIdAttribute && hasTIdColumn);
+        if (requiresTIdMapping) {
+            sb.append("        id column: 't_id'\n");
         }
         if (!columnMappings.isEmpty()) {
             sb.append("        columns {\n");
@@ -186,5 +202,13 @@ public class GrailsDomainGenerator {
             return false;
         }
         return value.matches("-?\\d+(\\.\\d+)?");
+    }
+
+    private boolean isTIdColumn(AttributeMetadata attr) {
+        String columnName = attr.getColumnName();
+        if (columnName != null && columnName.equalsIgnoreCase("t_id")) {
+            return true;
+        }
+        return "t_id".equalsIgnoreCase(attr.getName());
     }
 }
