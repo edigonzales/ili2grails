@@ -1,6 +1,6 @@
 # INTERLIS CRUD Generator – Metadata Reader
 
-Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und einem INTERLIS-Modell und baut daraus ein internes Metamodell auf. Dieses Metamodell ist die Grundlage für spätere Code-Generatoren (z. B. Grails Domains).
+Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und einem INTERLIS-Modell, baut daraus ein internes Metamodell auf und liefert zusätzlich eine **Beispielimplementierung für Grails** (Domains, Enums). Die Software bleibt jedoch im Kern **software- und framework-agnostisch** – das Metamodell dient als Basis für weitere Generatoren und Integrationen.
 
 ## Inhalt
 - [Ziel & Funktionsumfang](#ziel--funktionsumfang)
@@ -18,7 +18,7 @@ Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und e
 - [Weitere Dokumente](#weitere-dokumente)
 
 ## Ziel & Funktionsumfang
-Der Metadata Reader liefert ein vollständiges, framework-agnostisches **Metamodell**:
+Der Metadata Reader liefert ein vollständiges, framework-agnostisches **Metamodell** und stellt eine **Grails-Beispielimplementierung** bereit:
 - Klassen/Tabellen, Attribute/Spalten, Constraints
 - Beziehungen (FK, Associations) und Vererbung
 - Enumerationen inkl. Reihenfolge und Erweiterbarkeit
@@ -30,7 +30,7 @@ Die Metadaten kommen aus zwei Quellen:
 
 ## Voraussetzungen
 - **Java 17+**
-- Zugriff auf eine **ili2db**-Datenbank (PostgreSQL)
+- Zugriff auf eine **ili2db**-Datenbank (alle ili2db-Flavours sind grundsätzlich möglich; **getestet ist aktuell nur ili2pg**). Die von Grails verwendete Hibernate-Version muss den Datenbank-Flavor unterstützen.
 - Eine passende **.ili**-Modelldatei
 - Für Grails-Ausgabe/Start: **Grails SDK** und ein Grails-Projekt
 
@@ -72,14 +72,11 @@ Weitere Optionen:
 - `--grails-init [appName]` (optional: erzeugt ein Grails-Projekt im Zielverzeichnis; mit `appName` wird ein Unterordner erstellt)
 - `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
-- `--grails-controller-package` (Default: Basis-Package)
 - `--grails-enum-package` (Default: `<Basis-Package>.enums`)
 
 ## Grails-Projekt starten
 Der Generator schreibt Artefakte in ein bestehendes Grails-Projekt (oder in ein neu erzeugtes). Die Dateien landen in:
 - `grails-app/domain/...` (Domains)
-- `grails-app/controllers/...` (Controller)
-- `grails-app/views/...` (GSPs)
 - `src/main/groovy/...` (Enums)
 
 ### 1) Grails-App erstellen (falls noch nicht vorhanden)
@@ -219,6 +216,7 @@ CLASSES:
 - Framework-agnostisch (Grails, Spring, etc.)
 - Erweiterbar für weitere Metadaten
 - Separiert von ili2db/ili2c-Implementierungen
+- Grails-Ausgabe als **Beispielimplementierung** (Domains/Enums), nicht als exklusives Ziel
 
 ### Typ-Inferenz (Beispiele)
 ```
