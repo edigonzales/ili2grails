@@ -26,7 +26,8 @@ public class GrailsCrudGenerator {
         buildGradleUpdater.ensureJtsDependency(config.getOutputDir().resolve("build.gradle"));
         applicationYamlUpdater.ensureDevelopmentDataSourceUrl(
             config.getOutputDir().resolve("grails-app/conf/application.yml"),
-            config.getJdbcUrl()
+            config.getJdbcUrl(),
+            config.getSchema()
         );
     }
 }

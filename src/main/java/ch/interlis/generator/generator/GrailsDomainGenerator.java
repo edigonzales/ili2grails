@@ -117,7 +117,7 @@ public class GrailsDomainGenerator {
         }
         boolean requiresTIdMapping = hasPrimaryKeyTId || (!hasIdAttribute && hasTIdColumn);
         if (requiresTIdMapping) {
-            sb.append("        id column: 't_id'\n");
+            sb.append("        id column: 't_id', generator: 'identity'\n");
         }
         
         sb.append("        version false\n");
