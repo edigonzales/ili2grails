@@ -96,7 +96,7 @@ Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch 
   public \
   --grails-output /path/to/my-grails-app \
   --grails-init my-grails-app \
-  --grails-version 5.3.2 \
+  --grails-version 7.0.6 \
   --grails-package ch.example.demo"
 ```
 Der Scaffold-Schritt wird blockiert, wenn im Zielverzeichnis bereits `build.gradle`, `settings.gradle` oder `grails-app/` vorhanden sind.
@@ -238,12 +238,7 @@ NUMERIC 1.00..3.55 → BigDecimal
 ```
 ili2grails/
 ├── README.md
-├── ARCHITECTURE.md
-├── QUICKSTART.md
-├── PROJECT_SUMMARY.md
-├── IMPLEMENTATION_REPORT.md
 ├── build.gradle
-├── demo.sh
 ├── src/main/java/ch/interlis/generator/
 │   ├── MetadataReaderApp.java
 │   ├── model/
@@ -256,19 +251,3 @@ ili2grails/
 ```bash
 ./gradlew test
 ```
-
-## Dependencies
-| Library | Version | Zweck |
-| --- | --- | --- |
-| ili2c-core | 5.5.2 | INTERLIS-Compiler |
-| ili2c-tool | 5.5.2 | INTERLIS-Tools |
-| PostgreSQL JDBC | 42.7.1 | PostgreSQL-Treiber |
-| SLF4J/Logback | 2.0.9/1.4.14 | Logging |
-| H2 | 2.2.224 | In-Memory-DB für Tests |
-| JUnit 5 | 5.10.1 | Testing |
-
-## Weitere Dokumente
-- [ARCHITECTURE.md](ARCHITECTURE.md) – technische Details, die nicht in den Schnellstart gehören
-- [QUICKSTART.md](QUICKSTART.md) – Kurzfassung der Installation
-- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) – kompakte Projektübersicht
-- [IMPLEMENTATION_REPORT.md](IMPLEMENTATION_REPORT.md) – Abschlussbericht
