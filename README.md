@@ -59,7 +59,7 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 ./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
-  public"
+  sa"
 ```
 
 **Parameter:**
@@ -73,6 +73,7 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 ./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
+  sa \
   --grails-output ./generated-grails \
   --grails-package ch.example.demo"
 ```
@@ -100,7 +101,7 @@ Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch 
 ./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
-  public \
+  sa \
   --grails-output ./generated-grails \
   --grails-init my-grails-app \
   --grails-version 7.0.6 \
