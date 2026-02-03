@@ -9,6 +9,8 @@ import java.util.List;
 class GrailsBuildGradleUpdater {
 
     private static final String JTS_DEPENDENCY = "implementation \"org.locationtech.jts:jts-core:1.19.0\"";
+    private static final String POSTGRES_JDBC_DEPENDENCY =
+        "implementation \"org.postgresql:postgresql:42.7.1\"";
 
     void ensureJtsDependency(Path buildGradlePath) throws IOException {
         if (!Files.exists(buildGradlePath)) {
@@ -24,6 +26,7 @@ class GrailsBuildGradleUpdater {
     private List<String> ensureDependencies(List<String> lines) {
         List<String> updated = new java.util.ArrayList<>(lines);
         updated = insertDependencyIfMissing(updated, "org.locationtech.jts:jts-core", JTS_DEPENDENCY);
+        updated = insertDependencyIfMissing(updated, "org.postgresql:postgresql", POSTGRES_JDBC_DEPENDENCY);
         return updated;
     }
 

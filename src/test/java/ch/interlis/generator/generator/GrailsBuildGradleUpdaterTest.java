@@ -24,6 +24,7 @@ class GrailsBuildGradleUpdaterTest {
 
         String updated = Files.readString(buildGradle);
         assertThat(updated).contains("org.locationtech.jts:jts-core");
+        assertThat(updated).contains("org.postgresql:postgresql:42.7.1");
         assertThat(updated).doesNotContain("sqlite-jdbc");
         assertThat(updated).doesNotContain("sqlite-dialect");
     }
