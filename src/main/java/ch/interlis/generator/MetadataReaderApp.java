@@ -110,6 +110,7 @@ public class MetadataReaderApp {
         System.out.println("  --grails-domain-package <package> - Package for domain classes (default: <base>)");
         System.out.println("  --grails-controller-package <package> - Package for controllers (default: <base>)");
         System.out.println("  --grails-enum-package <package>   - Package for enums (default: <base>.enums)");
+        System.out.println("  --grails-generate-all             - Run ./grailsw generate-all for each domain (requires --grails-init)");
         System.out.println();
         System.out.println("Examples:");
         System.out.println("  PostgreSQL:");
@@ -152,6 +153,9 @@ public class MetadataReaderApp {
         }
         GenerationConfig config = builder.build();
         new GrailsCrudGenerator().generate(metadata, config);
+        if (options.grailsGenerateAll) {
+            runGrailsGenerateAll(metadata, config, grailsProjectDir);
+        }
         System.out.println();
         System.out.println("===================================================");
         System.out.println("Grails CRUD artifacts generated in: " + grailsProjectDir.toAbsolutePath());
@@ -213,6 +217,9 @@ public class MetadataReaderApp {
                         return null;
                     }
                     break;
+                case "--grails-generate-all":
+                    cliOptions.grailsGenerateAll = true;
+                    break;
                 default:
                     System.err.println("Unknown option: " + arg);
                     printUsage();
@@ -236,6 +243,11 @@ public class MetadataReaderApp {
         }
         if (cliOptions.grailsVersion != null && !cliOptions.grailsInitRequested) {
             System.err.println("Option --grails-version requires --grails-init.");
+            printUsage();
+            return null;
+        }
+        if (cliOptions.grailsGenerateAll && !cliOptions.grailsInitRequested) {
+            System.err.println("Option --grails-generate-all requires --grails-init.");
             printUsage();
             return null;
         }
@@ -332,6 +344,34 @@ public class MetadataReaderApp {
         }
     }
 
+    private static void runGrailsGenerateAll(ModelMetadata metadata,
+                                             GenerationConfig config,
+                                             Path grailsProjectDir)
+        throws IOException, InterruptedException {
+        Path grailsWrapper = grailsProjectDir.resolve("grailsw");
+        if (!Files.exists(grailsWrapper)) {
+            throw new IllegalStateException("Grails wrapper not found at: " + grailsWrapper.toAbsolutePath());
+        }
+        List<String> domainClasses = metadata.getAllClasses().stream()
+            .filter(classMetadata -> !classMetadata.isAbstract())
+            .map(classMetadata -> config.getDomainPackage() + "." + classMetadata.getSimpleName())
+            .sorted()
+            .toList();
+        for (String domainClass : domainClasses) {
+            List<String> command = List.of("./grailsw", "generate-all", domainClass);
+            ProcessBuilder builder = new ProcessBuilder(command);
+            builder.directory(grailsProjectDir.toFile());
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new IOException("Grails generate-all failed (exit " + exitCode + ") for "
+                    + domainClass + ". Output:\n" + output);
+            }
+        }
+    }
+
     private static Path resolveWorkingDir(Path outputDir) {
         Path absoluteOutputDir = outputDir.toAbsolutePath().normalize();
         Path workingDir = absoluteOutputDir.getParent();
@@ -354,6 +394,7 @@ public class MetadataReaderApp {
         private String grailsDomainPackage;
         private String grailsControllerPackage;
         private String grailsEnumPackage;
+        private boolean grailsGenerateAll;
     }
 
     private static String formatSchema(String schema) {
