@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.*;
 /**
  * Integration-Test für den MetadataReader.
  * 
- * Verwendet eine SQLite-Datenbank im Memory-Modus.
+ * Verwendet eine H2-Datenbank im Memory-Modus.
  */
 class MetadataReaderTest {
     
@@ -25,8 +25,8 @@ class MetadataReaderTest {
     
     @BeforeEach
     void setUp() throws Exception {
-        // SQLite Memory-Datenbank
-        connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+        // H2 Memory-Datenbank
+        connection = DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
         
         // Modell-Datei
         modelFile = new File("test-models/SimpleAddressModel.ili");

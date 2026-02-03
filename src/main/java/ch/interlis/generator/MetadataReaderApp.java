@@ -100,7 +100,7 @@ public class MetadataReaderApp {
         System.out.println("  jdbcUrl    - JDBC connection URL (e.g., jdbc:postgresql://localhost/db?user=u&password=p)");
         System.out.println("  modelFile  - Path to INTERLIS model file (.ili)");
         System.out.println("  modelName  - Name of the INTERLIS model to process");
-        System.out.println("  schema     - Database schema name (optional, omit for SQLite)");
+        System.out.println("  schema     - Database schema name (optional, e.g., public)");
         System.out.println();
         System.out.println("Options:");
         System.out.println("  --grails-output <dir>             - Output directory for Grails CRUD artifacts");
@@ -116,11 +116,9 @@ public class MetadataReaderApp {
         System.out.println("    MetadataReaderApp \"jdbc:postgresql://localhost:5432/mydb?user=u&password=p\" \\");
         System.out.println("                      models/DM01AVCH24LV95D.ili DM01AVCH24LV95D public");
         System.out.println();
-        System.out.println("  SQLite (GeoPackage):");
-        System.out.println("    MetadataReaderApp \"jdbc:sqlite:./testdb.gpkg\" models/Simple.ili SimpleModel");
-        System.out.println();
         System.out.println("  Grails CRUD generation:");
-        System.out.println("    MetadataReaderApp \"jdbc:sqlite:./testdb.gpkg\" models/Simple.ili SimpleModel \\");
+        System.out.println("    MetadataReaderApp \"jdbc:postgresql://localhost:5432/mydb?user=u&password=p\" \\");
+        System.out.println("                      models/Simple.ili SimpleModel public \\");
         System.out.println("      --grails-output ./generated-grails --grails-package com.example");
     }
     
@@ -142,6 +140,7 @@ public class MetadataReaderApp {
         String basePackage = options.grailsBasePackage != null ? options.grailsBasePackage : "com.example";
         GenerationConfig.Builder builder = GenerationConfig.builder(grailsProjectDir, basePackage);
         builder.jdbcUrl(options.jdbcUrl);
+        builder.schema(options.schema);
         if (options.grailsDomainPackage != null) {
             builder.domainPackage(options.grailsDomainPackage);
         }

@@ -30,7 +30,7 @@ Die Metadaten kommen aus zwei Quellen:
 
 ## Voraussetzungen
 - **Java 17+**
-- Zugriff auf eine **ili2db**-Datenbank (PostgreSQL oder SQLite/GeoPackage)
+- Zugriff auf eine **ili2db**-Datenbank (PostgreSQL)
 - Eine passende **.ili**-Modelldatei
 - Für Grails-Ausgabe/Start: **Grails SDK** und ein Grails-Projekt
 
@@ -44,11 +44,6 @@ java -version
 ./gradlew build
 ```
 
-Optional: Demo-Skript mit eingebauter SQLite-DB:
-```bash
-./demo.sh
-```
-
 ## Schnellstart (CLI)
 **PostgreSQL:**
 ```bash
@@ -56,13 +51,6 @@ Optional: Demo-Skript mit eingebauter SQLite-DB:
   test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
   public"
-```
-
-**SQLite (GeoPackage):**
-```bash
-./gradlew run --args="'jdbc:sqlite:./testdb.gpkg' \
-  test-models/SimpleAddressModel.ili \
-  SimpleAddressModel"
 ```
 
 **Parameter:**
@@ -73,7 +61,7 @@ Optional: Demo-Skript mit eingebauter SQLite-DB:
 
 **Grails CRUD-Generierung (optional):**
 ```bash
-./gradlew run --args="'jdbc:sqlite:./testdb.gpkg' \
+./gradlew run --args="'jdbc:postgresql://localhost:5432/mydb?user=postgres&password=secret' \
   test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
   --grails-output ./generated-grails \
@@ -122,9 +110,8 @@ Der Scaffold-Schritt wird blockiert, wenn im Zielverzeichnis bereits `build.grad
   --grails-output /path/to/my-grails-app \
   --grails-package ch.example.demo"
 ```
-Hinweis: Der Generator ergänzt in `build.gradle` automatisch die JTS-Dependency sowie die SQLite-JDBC-
-und Hibernate-Dialekt-Abhängigkeiten, sobald eine Grails-App vorhanden ist.
-Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `development`-Datenbank auf die per CLI übergebene JDBC-URL und stellt `dbCreate` auf `none`.
+Hinweis: Der Generator ergänzt in `build.gradle` automatisch die JTS-Dependency, sobald eine Grails-App vorhanden ist.
+Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `development`-Datenbank auf die per CLI übergebene JDBC-URL, ergänzt `currentSchema` (falls gesetzt), stellt `dbCreate` auf `none` und setzt den PostgreSQL-Hibernate-Dialekt.
 
 ### 3) Grails-App starten
 ```bash
@@ -133,7 +120,7 @@ cd /path/to/my-grails-app
 # Alternativ:
 grails run-app
 ```
-Die SQLite-URL (und generell die DB-Verbindung) kommt aus der Grails-Konfiguration in `grails-app/conf/application.yml`
+Die DB-Verbindung kommt aus der Grails-Konfiguration in `grails-app/conf/application.yml`
 (Property `dataSource.url` inkl. `username`, `password`).
 
 ## Benutzeranleitung (Detail)
@@ -151,7 +138,6 @@ Die `.ili`-Datei muss die gleiche Modellversion widerspiegeln wie der ili2db-Imp
 
 ### 3) Programm starten
 Nutzen Sie die Beispiele aus dem Schnellstart. Bei Bedarf kann das Schema explizit gesetzt werden (z. B. `public`).
-Für SQLite/GeoPackage entfällt der Schema-Parameter.
 
 ### 4) Ergebnis interpretieren
 Die Ausgabe zeigt:
@@ -277,9 +263,8 @@ ili2grails/
 | ili2c-core | 5.5.2 | INTERLIS-Compiler |
 | ili2c-tool | 5.5.2 | INTERLIS-Tools |
 | PostgreSQL JDBC | 42.7.1 | PostgreSQL-Treiber |
-| SQLite JDBC | 3.43.0.0 | SQLite/GeoPackage-Treiber |
-| sqlite-dialect | 1.0 | SQLite Dialekt |
 | SLF4J/Logback | 2.0.9/1.4.14 | Logging |
+| H2 | 2.2.224 | In-Memory-DB für Tests |
 | JUnit 5 | 5.10.1 | Testing |
 
 ## Weitere Dokumente

@@ -22,17 +22,17 @@ class GrailsApplicationYamlUpdater {
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(
         new YAMLFactory().enable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     );
-    private static final String SQLITE_DIALECT = "org.hibernate.dialect.SQLiteDialect";
+    private static final String POSTGRES_DIALECT = "org.hibernate.dialect.PostgreSQLDialect";
     private static final String H2_DRIVER = "org.h2.Driver";
-
-    void ensureDevelopmentDataSourceUrl(Path applicationYamlPath, String jdbcUrl) throws IOException {
+    void ensureDevelopmentDataSourceUrl(Path applicationYamlPath, String jdbcUrl, String schema) throws IOException {
         if (!Files.exists(applicationYamlPath)) {
             return;
         }
         String resolvedJdbcUrl = jdbcUrl == null || jdbcUrl.isBlank() ? null : jdbcUrl;
         List<Object> documents = readDocuments(applicationYamlPath);
-        boolean changed = updateDevelopmentDataSource(documents, resolvedJdbcUrl);
+        boolean changed = updateDevelopmentDataSource(documents, resolvedJdbcUrl, schema);
         changed |= removeRootDataSourceDriver(documents);
+        changed |= removeRootDataSourceCredentials(documents);
         changed |= ensureHibernateDialect(documents);
         if (changed) {
             writeDocuments(applicationYamlPath, documents);
@@ -59,7 +59,7 @@ class GrailsApplicationYamlUpdater {
         }
     }
 
-    private boolean updateDevelopmentDataSource(List<Object> documents, String jdbcUrl) {
+    private boolean updateDevelopmentDataSource(List<Object> documents, String jdbcUrl, String schema) {
         boolean changed = false;
         for (Object document : documents) {
             Map<String, Object> root = asMap(document);
@@ -79,8 +79,9 @@ class GrailsApplicationYamlUpdater {
                 continue;
             }
             if (jdbcUrl != null) {
-                if (!Objects.equals(jdbcUrl, dataSource.get("url"))) {
-                    dataSource.put("url", jdbcUrl);
+                String resolvedJdbcUrl = appendCurrentSchema(jdbcUrl, schema);
+                if (!Objects.equals(resolvedJdbcUrl, dataSource.get("url"))) {
+                    dataSource.put("url", resolvedJdbcUrl);
                     changed = true;
                 }
             }
@@ -128,12 +129,44 @@ class GrailsApplicationYamlUpdater {
                 root.put("hibernate", hibernate);
                 changed = true;
             }
-            if (!Objects.equals(SQLITE_DIALECT, hibernate.get("dialect"))) {
-                hibernate.put("dialect", SQLITE_DIALECT);
+            if (!Objects.equals(POSTGRES_DIALECT, hibernate.get("dialect"))) {
+                hibernate.put("dialect", POSTGRES_DIALECT);
                 changed = true;
             }
         }
         return changed;
+    }
+
+    private boolean removeRootDataSourceCredentials(List<Object> documents) {
+        boolean changed = false;
+        for (Object document : documents) {
+            Map<String, Object> root = asMap(document);
+            if (root == null) {
+                continue;
+            }
+            Map<String, Object> dataSource = asMap(root.get("dataSource"));
+            if (dataSource == null) {
+                continue;
+            }
+            if (dataSource.remove("username") != null) {
+                changed = true;
+            }
+            if (dataSource.remove("password") != null) {
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private String appendCurrentSchema(String jdbcUrl, String schema) {
+        if (jdbcUrl == null || schema == null || schema.isBlank()) {
+            return jdbcUrl;
+        }
+        if (jdbcUrl.contains("currentSchema=")) {
+            return jdbcUrl;
+        }
+        char separator = jdbcUrl.contains("?") ? '&' : '?';
+        return jdbcUrl + separator + "currentSchema=" + schema;
     }
 
     @SuppressWarnings("unchecked")

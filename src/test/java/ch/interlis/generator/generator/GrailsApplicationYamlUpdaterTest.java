@@ -17,6 +17,8 @@ class GrailsApplicationYamlUpdaterTest {
             "---",
             "dataSource:",
             "  driverClassName: org.h2.Driver",
+            "  username: sa",
+            "  password: sa",
             "environments:",
             "  development:",
             "    dataSource:",
@@ -30,12 +32,18 @@ class GrailsApplicationYamlUpdaterTest {
         ));
 
         GrailsApplicationYamlUpdater updater = new GrailsApplicationYamlUpdater();
-        updater.ensureDevelopmentDataSourceUrl(yamlPath, "jdbc:sqlite:./testdb.gpkg");
+        updater.ensureDevelopmentDataSourceUrl(
+            yamlPath,
+            "jdbc:postgresql://localhost:5432/testdb",
+            "public"
+        );
 
         String updated = Files.readString(yamlPath);
-        assertThat(updated).contains("jdbc:sqlite:./testdb.gpkg");
+        assertThat(updated).contains("jdbc:postgresql://localhost:5432/testdb?currentSchema=public");
         assertThat(updated).contains("dbCreate: \"none\"");
-        assertThat(updated).contains("org.hibernate.dialect.SQLiteDialect");
+        assertThat(updated).contains("org.hibernate.dialect.PostgreSQLDialect");
+        assertThat(updated).doesNotContain("username: \"sa\"");
+        assertThat(updated).doesNotContain("password: \"sa\"");
         assertThat(updated).doesNotContain("org.h2.Driver");
     }
 }
