@@ -46,8 +46,17 @@ java -version
 
 ## Schnellstart (CLI)
 **PostgreSQL:**
+
 ```bash
-./gradlew run --args="'jdbc:postgresql://localhost:5432/mydb?user=postgres&password=secret' \
+docker compose up
+```
+
+```bash
+java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr postgres --dbpwd secret --defaultSrsCode 2056 --createFk --nameByTopic --strokeArcs --smart2Inheritance --createEnumTabs --modeldir test-models --models SimpleAddressModel --dbschema sa --schemaimport
+```
+
+```bash
+./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
   public"
@@ -61,7 +70,7 @@ java -version
 
 **Grails CRUD-Generierung (optional):**
 ```bash
-./gradlew run --args="'jdbc:postgresql://localhost:5432/mydb?user=postgres&password=secret' \
+./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
   --grails-output ./generated-grails \
@@ -87,28 +96,25 @@ grails create-app my-grails-app
 
 Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch keine Grails-Struktur vorhanden ist (bei `appName` wird ein Unterordner erzeugt):
 ```bash
-./gradlew run --args="'jdbc:postgresql://localhost:5432/mydb?user=postgres&password=secret' \
+./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
   public \
-  --grails-output /path/to/my-grails-app \
+  --grails-output ./generated-grails \
   --grails-init my-grails-app \
   --grails-version 7.0.6 \
   --grails-package ch.example.demo"
 ```
 Der Scaffold-Schritt wird blockiert, wenn im Zielverzeichnis bereits `build.gradle`, `settings.gradle` oder `grails-app/` vorhanden sind.
 
-### 2) CRUD-Artefakte generieren
-```bash
-./gradlew run --args="'jdbc:postgresql://localhost:5432/mydb?user=postgres&password=secret' \
-  test-models/SimpleAddressModel.ili \
-  SimpleAddressModel \
-  public \
-  --grails-output /path/to/my-grails-app \
-  --grails-package ch.example.demo"
-```
 Hinweis: Der Generator ergänzt in `build.gradle` automatisch die JTS-Dependency, sobald eine Grails-App vorhanden ist.
 Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `development`-Datenbank auf die per CLI übergebene JDBC-URL, ergänzt `currentSchema` (falls gesetzt), stellt `dbCreate` auf `none` und setzt den PostgreSQL-Hibernate-Dialekt.
+
+### 2) CRUD-Artefakte generieren
+```bash
+./grailsw generate-all Address
+./grailsw generate-all Person
+```
 
 ### 3) Grails-App starten
 ```bash
