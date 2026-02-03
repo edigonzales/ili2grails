@@ -1,6 +1,6 @@
 package ch.interlis.generator.reader;
 
-import ch.interlis.ili2c.Ili2c;
+import ch.interlis.ili2c.Ili2cException;
 import ch.interlis.ili2c.Ili2cFailure;
 import ch.interlis.ili2c.Ili2cSettings;
 import ch.interlis.ili2c.config.Configuration;
@@ -11,6 +11,7 @@ import ch.interlis.ili2c.metamodel.AreaType;
 import ch.interlis.ili2c.metamodel.AttributeDef;
 import ch.interlis.ili2c.metamodel.CoordType;
 import ch.interlis.ili2c.metamodel.Domain;
+import ch.interlis.ili2c.metamodel.Element;
 import ch.interlis.ili2c.metamodel.EnumerationType;
 import ch.interlis.ili2c.metamodel.FormattedType;
 import ch.interlis.ili2c.metamodel.LineType;
@@ -36,6 +37,7 @@ import ch.interlis.ili2c.metamodel.TransferDescription;
 import ch.interlis.ili2c.metamodel.Type;
 import ch.interlis.ili2c.metamodel.TypeAlias;
 import ch.interlis.generator.model.*;
+import ch.interlis.ilirepository.IliManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,41 +57,46 @@ import java.util.stream.Collectors;
 public class Ili2cModelReader {
     
     private static final Logger logger = LoggerFactory.getLogger(Ili2cModelReader.class);
+    private static final List<String> DEFAULT_MODEL_REPOSITORIES = List.of("https://models.interlis.ch/");
     
     private final File modelFile;
     private final List<String> modelDirs;
     private TransferDescription td;
     
     public Ili2cModelReader(File modelFile) {
-        this.modelFile = modelFile;
-        this.modelDirs = new ArrayList<>();
-        // Standard INTERLIS-Repository
-        this.modelDirs.add("https://models.interlis.ch/");
+        this(modelFile, null);
     }
     
     public Ili2cModelReader(File modelFile, List<String> modelDirs) {
         this.modelFile = modelFile;
-        this.modelDirs = new ArrayList<>(modelDirs);
-        if (!this.modelDirs.contains("https://models.interlis.ch/")) {
-            this.modelDirs.add("https://models.interlis.ch/");
-        }
+        this.modelDirs = modelDirs != null ? new ArrayList<>(modelDirs) : null;
     }
     
     /**
      * Kompiliert das INTERLIS-Modell und erstellt eine TransferDescription.
      */
-    public TransferDescription compileModel() throws Ili2cFailure {
-        logger.info("Compiling INTERLIS model: {}", modelFile.getAbsolutePath());
-        
+    public TransferDescription compileModel(String modelName) throws Ili2cFailure {
+        if (modelFile != null && modelFile.exists()) {
+            return compileModelFromFile();
+        }
+        return compileModelFromRepository(modelName);
+    }
+
+    private TransferDescription compileModelFromFile() throws Ili2cFailure {
+        if (modelFile == null) {
+            throw new Ili2cFailure("Model file is not set");
+        }
+        logger.info("Compiling INTERLIS model from file: {}", modelFile.getAbsolutePath());
+
         Configuration config = new Configuration();
-        
+
         // Modell-Datei hinzufügen
         FileEntry fileEntry = new FileEntry(
-            modelFile.getAbsolutePath(), 
+            modelFile.getAbsolutePath(),
             FileEntryKind.ILIMODELFILE
         );
         config.addFileEntry(fileEntry);
-        
+
         Ili2cSettings set = new Ili2cSettings();
         ch.interlis.ili2c.Main.setDefaultIli2cPathMap(set);
         String repos = resolveModelRepositories();
@@ -98,17 +105,62 @@ public class Ili2cModelReader {
         } else {
             set.setIlidirs(Ili2cSettings.DEFAULT_ILIDIRS);
         }
-        
+
         config.setAutoCompleteModelList(true);
         config.setGenerateWarnings(true);
-        
+
         // Kompilieren
         td = ch.interlis.ili2c.Main.runCompiler(config, set, null);
-        
+
         if (td == null) {
             throw new Ili2cFailure("Failed to compile INTERLIS model");
         }
-        
+
+        logger.info("Model compilation successful");
+        return td;
+    }
+
+    private TransferDescription compileModelFromRepository(String modelName) throws Ili2cFailure {
+        if (modelName == null || modelName.isBlank()) {
+            throw new IllegalArgumentException("modelName");
+        }
+        List<String> repositories = resolveModelRepositoriesList();
+        logger.info("Compiling INTERLIS model from repositories: {} (model: {})",
+            repositories, modelName);
+
+        IliManager iliManager = new IliManager();
+        if (!repositories.isEmpty()) {
+            iliManager.setRepositories(repositories.toArray(new String[0]));
+        }
+
+        ArrayList<String> models = new ArrayList<>();
+        models.add(modelName);
+
+        Configuration config;
+        try {
+            config = iliManager.getConfig(models, 0.0);
+        } catch (Ili2cException e) {
+            throw new Ili2cFailure("Failed to resolve model from repositories: " + modelName, e);
+        }
+
+        config.setAutoCompleteModelList(true);
+        config.setGenerateWarnings(true);
+
+        Ili2cSettings set = new Ili2cSettings();
+        ch.interlis.ili2c.Main.setDefaultIli2cPathMap(set);
+        String repos = resolveModelRepositories();
+        if (repos != null && !repos.isBlank()) {
+            set.setIlidirs(repos);
+        } else {
+            set.setIlidirs(Ili2cSettings.DEFAULT_ILIDIRS);
+        }
+
+        td = ch.interlis.ili2c.Main.runCompiler(config, set, null);
+
+        if (td == null) {
+            throw new Ili2cFailure("Failed to compile INTERLIS model from repositories");
+        }
+
         logger.info("Model compilation successful");
         return td;
     }
@@ -118,12 +170,12 @@ public class Ili2cModelReader {
      */
     public ModelMetadata readMetadata(String modelName) throws Ili2cFailure {
         if (td == null) {
-            compileModel();
+            compileModel(modelName);
         }
         
         logger.info("Reading metadata from ili2c model: {}", modelName);
         
-        Model model = td.getLastModel();
+        Model model = resolveModel(td, modelName);
         if (model == null) {
             throw new IllegalArgumentException("Model not found: " + modelName);
         }
@@ -462,13 +514,35 @@ public class Ili2cModelReader {
     }
 
     private String resolveModelRepositories() {
-        if (modelDirs == null || modelDirs.isEmpty()) {
+        List<String> repos = resolveModelRepositoriesList();
+        if (repos.isEmpty()) {
             return null;
         }
-        return modelDirs.stream()
+        return repos.stream()
             .filter(Objects::nonNull)
             .map(String::trim)
             .filter(dir -> !dir.isEmpty())
             .collect(Collectors.joining(";"));
+    }
+
+    private List<String> resolveModelRepositoriesList() {
+        List<String> repos = (modelDirs == null || modelDirs.isEmpty())
+            ? DEFAULT_MODEL_REPOSITORIES
+            : modelDirs;
+        return repos.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(dir -> !dir.isEmpty())
+            .collect(Collectors.toList());
+    }
+
+    private Model resolveModel(TransferDescription td, String modelName) {
+        if (modelName != null && !modelName.isBlank()) {
+            Element element = td.getElement(modelName);
+            if (element instanceof Model) {
+                return (Model) element;
+            }
+        }
+        return td.getLastModel();
     }
 }

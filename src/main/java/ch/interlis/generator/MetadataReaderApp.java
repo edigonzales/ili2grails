@@ -23,7 +23,7 @@ import java.util.Objects;
 public class MetadataReaderApp {
     
     public static void main(String[] args) {
-        if (args.length < 3) {
+        if (args.length < 2) {
             printUsage();
             System.exit(1);
         }
@@ -33,19 +33,24 @@ public class MetadataReaderApp {
             System.exit(1);
         }
 
-        File modelFile = new File(options.modelFilePath);
-        
-        if (!modelFile.exists()) {
+        File modelFile = options.modelFilePath != null ? new File(options.modelFilePath) : null;
+        if (modelFile != null && !modelFile.exists()) {
             System.err.println("Model file not found: " + options.modelFilePath);
             System.exit(1);
         }
+
+        List<String> modelRepositories = options.modelRepositories != null
+            && !options.modelRepositories.isEmpty()
+            ? options.modelRepositories
+            : getDefaultModelDirs();
         
         System.out.println("INTERLIS CRUD Generator - Metadata Reader");
         System.out.println("========================================");
         System.out.println("JDBC URL:    " + options.jdbcUrl);
-        System.out.println("Model File:  " + options.modelFilePath);
+        System.out.println("Model File:  " + (modelFile != null ? modelFile.getAbsolutePath() : "(repository lookup)"));
         System.out.println("Model Name:  " + options.modelName);
         System.out.println("Schema:      " + formatSchema(options.schema));
+        System.out.println("Model Repos: " + String.join(", ", modelRepositories));
         System.out.println();
         
         try (Connection conn = DriverManager.getConnection(options.jdbcUrl)) {
@@ -57,7 +62,7 @@ public class MetadataReaderApp {
                 conn, 
                 modelFile, 
                 options.schema,
-                getDefaultModelDirs()
+                modelRepositories
             );
             
             // Metadaten lesen
@@ -94,15 +99,19 @@ public class MetadataReaderApp {
     }
     
     private static void printUsage() {
-        System.out.println("Usage: MetadataReaderApp <jdbcUrl> <modelFile> <modelName> [schema] [options]");
+        System.out.println("Usage:");
+        System.out.println("  MetadataReaderApp <jdbcUrl> <modelFile> <modelName> [schema] [options]");
+        System.out.println("  MetadataReaderApp <jdbcUrl> <modelName> [schema] [options]");
         System.out.println();
         System.out.println("Arguments:");
         System.out.println("  jdbcUrl    - JDBC connection URL (e.g., jdbc:postgresql://localhost/db?user=u&password=p)");
-        System.out.println("  modelFile  - Path to INTERLIS model file (.ili)");
+        System.out.println("  modelFile  - Path to INTERLIS model file (.ili) (optional; if omitted, repositories are used)");
         System.out.println("  modelName  - Name of the INTERLIS model to process");
         System.out.println("  schema     - Database schema name (optional, e.g., public)");
         System.out.println();
         System.out.println("Options:");
+        System.out.println("  --model-file <file>               - Explicit model file path (overrides positional model file)");
+        System.out.println("  --model-repos <r1;r2>             - Repository list (e.g., https://models.interlis.ch/;file:/repo)");
         System.out.println("  --grails-output <dir>             - Output directory for Grails CRUD artifacts");
         System.out.println("  --grails-init [appName]           - Initialize a Grails app in the output directory");
         System.out.println("  --grails-version <x.y>            - Grails version for --grails-init");
@@ -117,6 +126,10 @@ public class MetadataReaderApp {
         System.out.println("    MetadataReaderApp \"jdbc:postgresql://localhost:5432/mydb?user=u&password=p\" \\");
         System.out.println("                      models/DM01AVCH24LV95D.ili DM01AVCH24LV95D public");
         System.out.println();
+        System.out.println("  Repository lookup:");
+        System.out.println("    MetadataReaderApp \"jdbc:postgresql://localhost:5432/mydb?user=u&password=p\" \\");
+        System.out.println("                      DM01AVCH24LV95D public --model-repos https://models.interlis.ch/");
+        System.out.println();
         System.out.println("  Grails CRUD generation:");
         System.out.println("    MetadataReaderApp \"jdbc:postgresql://localhost:5432/mydb?user=u&password=p\" \\");
         System.out.println("                      models/Simple.ili SimpleModel public \\");
@@ -125,8 +138,8 @@ public class MetadataReaderApp {
     
     private static List<String> getDefaultModelDirs() {
         return Arrays.asList(
-            "http://models.interlis.ch/",
-            "http://models.geo.admin.ch/"
+            "https://models.interlis.ch/",
+            "https://models.geo.admin.ch/"
         );
     }
 
@@ -164,6 +177,7 @@ public class MetadataReaderApp {
     private static CliOptions parseArgs(String[] args) {
         List<String> positional = new ArrayList<>();
         CliOptions cliOptions = new CliOptions();
+        cliOptions.modelRepositories = new ArrayList<>();
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
@@ -185,6 +199,19 @@ public class MetadataReaderApp {
                         return null;
                     }
                     cliOptions.grailsOutputDir = Path.of(outputValue);
+                    break;
+                case "--model-file":
+                    cliOptions.modelFilePath = readOptionValue(args, arg, ++i);
+                    if (cliOptions.modelFilePath == null) {
+                        return null;
+                    }
+                    break;
+                case "--model-repos":
+                    String repoValue = readOptionValue(args, arg, ++i);
+                    if (repoValue == null) {
+                        return null;
+                    }
+                    cliOptions.modelRepositories.addAll(splitRepositories(repoValue));
                     break;
                 case "--grails-version":
                     String versionValue = readOptionValue(args, arg, ++i);
@@ -227,15 +254,52 @@ public class MetadataReaderApp {
             }
         }
 
-        if (positional.size() < 3 || positional.size() > 4) {
+        if (positional.size() < 2 || positional.size() > 4) {
             printUsage();
             return null;
         }
 
         cliOptions.jdbcUrl = positional.get(0);
-        cliOptions.modelFilePath = positional.get(1);
-        cliOptions.modelName = positional.get(2);
-        cliOptions.schema = positional.size() > 3 ? positional.get(3) : null;
+        if (cliOptions.modelFilePath != null) {
+            if (positional.size() < 2 || positional.size() > 3) {
+                printUsage();
+                return null;
+            }
+            if (positional.size() > 1 && looksLikeModelFile(positional.get(1))) {
+                System.err.println("When --model-file is set, do not pass the model file as a positional argument.");
+                printUsage();
+                return null;
+            }
+            cliOptions.modelName = positional.get(1);
+            cliOptions.schema = positional.size() > 2 ? positional.get(2) : null;
+        } else if (positional.size() == 2) {
+            cliOptions.modelName = positional.get(1);
+        } else if (positional.size() == 3) {
+            String second = positional.get(1);
+            if (looksLikeModelFile(second)) {
+                cliOptions.modelFilePath = second;
+                cliOptions.modelName = positional.get(2);
+            } else {
+                cliOptions.modelName = second;
+                cliOptions.schema = positional.get(2);
+            }
+        } else {
+            String second = positional.get(1);
+            if (!looksLikeModelFile(second)) {
+                System.err.println("Second argument must be a model file when 4 positional arguments are used.");
+                printUsage();
+                return null;
+            }
+            cliOptions.modelFilePath = second;
+            cliOptions.modelName = positional.get(2);
+            cliOptions.schema = positional.get(3);
+        }
+
+        if (cliOptions.modelName == null || cliOptions.modelName.isBlank()) {
+            System.err.println("Model name is required.");
+            printUsage();
+            return null;
+        }
         if (cliOptions.grailsInitRequested && cliOptions.grailsOutputDir == null) {
             System.err.println("Option --grails-init requires --grails-output.");
             printUsage();
@@ -386,6 +450,7 @@ public class MetadataReaderApp {
         private String modelFilePath;
         private String modelName;
         private String schema;
+        private List<String> modelRepositories;
         private Path grailsOutputDir;
         private boolean grailsInitRequested;
         private String grailsInitAppName;
@@ -402,5 +467,26 @@ public class MetadataReaderApp {
             return "(none)";
         }
         return schema;
+    }
+
+    private static boolean looksLikeModelFile(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        if (value.endsWith(".ili")) {
+            return true;
+        }
+        File candidate = new File(value);
+        return candidate.isFile();
+    }
+
+    private static List<String> splitRepositories(String repoValue) {
+        if (repoValue == null || repoValue.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(repoValue.split("[,;]"))
+            .map(String::trim)
+            .filter(value -> !value.isEmpty())
+            .toList();
     }
 }

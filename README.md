@@ -31,7 +31,7 @@ Die Metadaten kommen aus zwei Quellen:
 ## Voraussetzungen
 - **Java 17+**
 - Zugriff auf eine **ili2db**-Datenbank (alle ili2db-Flavours sind grundsätzlich möglich; **getestet ist aktuell nur ili2pg**). Die von Grails verwendete Hibernate-Version muss den Datenbank-Flavor unterstützen.
-- Eine passende **.ili**-Modelldatei
+- Eine passende **.ili**-Modelldatei **oder** Zugriff auf ein INTERLIS-Repository (z. B. models.interlis.ch)
 - Für Grails-Ausgabe/Start: **Grails SDK** und ein Grails-Projekt
 
 Prüfen:
@@ -57,28 +57,44 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 
 ```bash
 ./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
-  test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
-  sa"
+  sa \
+  --model-file test-models/SimpleAddressModel.ili"
 ```
 
-**Parameter:**
+**Repository-Lookup (nur Modellname, Datei wird aus Repos geholt):**
+```bash
+./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+  DM01AVCH24LV95D \
+  public \
+  --model-repos https://models.interlis.ch/"
+```
+
+**Parameter (lokale Datei):**
 1. JDBC-URL (inkl. User/Passwort)
 2. Pfad zur `.ili`-Datei
 3. INTERLIS-Modellname
 4. (Optional) DB-Schema
 
+**Parameter (Repository-Lookup):**
+1. JDBC-URL (inkl. User/Passwort)
+2. INTERLIS-Modellname
+3. (Optional) DB-Schema
+4. (Optional) `--model-repos` (Repository-Liste)
+
 **Grails CRUD-Generierung (optional):**
 ```bash
 ./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
-  test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
   sa \
+  --model-file test-models/SimpleAddressModel.ili \
   --grails-output ./generated-grails \
   --grails-package ch.example.demo"
 ```
 
 Weitere Optionen:
+- `--model-file <file>` (optional: explizite `.ili`-Datei statt positionaler Angabe)
+- `--model-repos <r1;r2>` (optional: Repository-Liste für die Modellauflösung)
 - `--grails-init [appName]` (optional: erzeugt ein Grails-Projekt im Zielverzeichnis; mit `appName` wird ein Unterordner erstellt)
 - `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
@@ -99,9 +115,9 @@ grails create-app my-grails-app
 Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch keine Grails-Struktur vorhanden ist (bei `appName` wird ein Unterordner erzeugt):
 ```bash
 ./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
-  test-models/SimpleAddressModel.ili \
   SimpleAddressModel \
   sa \
+  --model-file test-models/SimpleAddressModel.ili \
   --grails-output ./generated-grails \
   --grails-init my-grails-app \
   --grails-version 7.0.6 \
@@ -140,7 +156,9 @@ Die Datenbank muss mit **ili2db** befüllt sein – inklusive Metatabellen. Der 
 - Der Primary Key ist immer `t_id`/`T_id` und wird zusätzlich ergänzt, da er nicht in `t_ili2db_attrname` enthalten ist.
 
 ### 2) INTERLIS-Modell bereitstellen
-Die `.ili`-Datei muss die gleiche Modellversion widerspiegeln wie der ili2db-Import.
+Entweder eine lokale `.ili`-Datei angeben **oder** das Modell via Repository auflösen.  
+Bei Repository-Lookup muss der Modellname die gleiche Modellversion widerspiegeln wie der ili2db-Import.  
+Repositories können mit `--model-repos` gesetzt werden (Standard: models.interlis.ch).
 
 ### 3) Programm starten
 Nutzen Sie die Beispiele aus dem Schnellstart. Bei Bedarf kann das Schema explizit gesetzt werden (z. B. `public`).
@@ -183,6 +201,18 @@ public class ExampleUsage {
         conn.close();
     }
 }
+```
+
+**Repository-Lookup (ohne lokale Datei):**
+```java
+MetadataReader reader = new MetadataReader(
+    conn,
+    null,
+    "public",
+    List.of("https://models.interlis.ch/")
+);
+
+ModelMetadata metadata = reader.readMetadata("DM01AVCH24LV95D");
 ```
 
 ## Ausgabe verstehen

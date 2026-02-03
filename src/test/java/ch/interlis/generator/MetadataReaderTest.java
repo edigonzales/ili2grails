@@ -2,14 +2,19 @@ package ch.interlis.generator;
 
 import ch.interlis.generator.metadata.MetadataReader;
 import ch.interlis.generator.model.*;
+import ch.interlis.ili2c.MakeIliModelsXml2;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -72,6 +77,26 @@ class MetadataReaderTest {
         assertThat(streetAttr).isNotNull();
         assertThat(streetAttr.getColumnName()).isEqualTo("astreet");
         assertThat(streetAttr.isMandatory()).isTrue();
+    }
+
+    @Test
+    void testReadMetadata_withRepositoryLookup() throws Exception {
+        Path repoDir = Files.createTempDirectory("ili-repo");
+        Path modelTarget = repoDir.resolve("SimpleAddressModel.ili");
+        Files.copy(Path.of("test-models/SimpleAddressModel.ili"),
+            modelTarget,
+            StandardCopyOption.REPLACE_EXISTING);
+
+        MakeIliModelsXml2 generator = new MakeIliModelsXml2();
+        generator.mymain(new String[]{repoDir.toString()});
+
+        MetadataReader reader = new MetadataReader(connection, null, null, List.of(repoDir.toString()));
+        ModelMetadata metadata = reader.readMetadata("SimpleAddressModel");
+
+        assertThat(metadata.getIliVersion()).isNotNull();
+        assertThat(metadata.getAllEnums())
+            .extracting(EnumMetadata::getName)
+            .contains("SimpleAddressModel.Addresses.AddressStatus");
     }
     
     @Test

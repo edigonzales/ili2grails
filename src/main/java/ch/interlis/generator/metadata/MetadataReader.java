@@ -53,12 +53,13 @@ public class MetadataReader {
         ModelMetadata metadata = ili2dbReader.readMetadata(modelName);
         
         // ili2c Modell lesen (Semantische Anreicherung)
-        if (modelFile != null && modelFile.exists()) {
+        boolean hasModelFile = modelFile != null && modelFile.exists();
+        boolean hasModelRepositories = modelDirs != null && !modelDirs.isEmpty();
+        if (hasModelFile || hasModelRepositories) {
             logger.info("Enriching with ili2c model information");
             enrichFromIli2cModel(metadata, modelName);
         } else {
-            logger.warn("No model file provided or file does not exist. " +
-                       "Skipping ili2c enrichment.");
+            logger.warn("No model file or repositories provided. Skipping ili2c enrichment.");
         }
         
         // Nachbearbeitung
@@ -75,9 +76,7 @@ public class MetadataReader {
     private void enrichFromIli2cModel(ModelMetadata metadata, String modelName) 
             throws Ili2cFailure {
         
-        Ili2cModelReader ili2cReader = modelDirs != null ? 
-            new Ili2cModelReader(modelFile, modelDirs) : 
-            new Ili2cModelReader(modelFile);
+        Ili2cModelReader ili2cReader = new Ili2cModelReader(modelFile, modelDirs);
         
         ModelMetadata ili2cMetadata = ili2cReader.readMetadata(modelName);
         
