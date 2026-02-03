@@ -1,18 +1,11 @@
 #!/bin/bash
-# Beispiel-Script zum Testen des Metadata-Readers mit SQLite/GeoPackage
+# Beispiel-Script zum Testen des Metadata-Readers mit PostgreSQL
 
 echo "INTERLIS Metadata Reader - Demo"
 echo "================================"
 echo ""
 
-DB_FILE="./testdb.gpkg"
-JDBC_URL="jdbc:sqlite:${DB_FILE}"
-
-if [ ! -f "${DB_FILE}" ]; then
-  echo "SQLite-DB nicht gefunden: ${DB_FILE}"
-  echo "Bitte stelle sicher, dass testdb.gpkg im Repo liegt."
-  exit 1
-fi
+JDBC_URL="${JDBC_URL:-jdbc:postgresql://localhost:5432/mydb?user=postgres&password=secret}"
 
 echo "1. Metadata lesen..."
 echo ""
@@ -25,5 +18,4 @@ echo ""
 echo "================================"
 echo "Demo abgeschlossen!"
 echo ""
-echo "Die SQLite-Datenbank liegt in: ${DB_FILE}"
-echo "Sie können sie mit einem GeoPackage-/SQLite-Client öffnen."
+echo "Verwendete JDBC-URL: ${JDBC_URL}"

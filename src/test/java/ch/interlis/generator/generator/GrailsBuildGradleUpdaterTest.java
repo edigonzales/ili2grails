@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GrailsBuildGradleUpdaterTest {
 
     @Test
-    void addsSqliteDependenciesWhenMissing(@TempDir Path tempDir) throws Exception {
+    void addsJtsDependencyWhenMissing(@TempDir Path tempDir) throws Exception {
         Path buildGradle = tempDir.resolve("build.gradle");
         Files.writeString(buildGradle, String.join("\n",
             "dependencies {",
@@ -24,7 +24,7 @@ class GrailsBuildGradleUpdaterTest {
 
         String updated = Files.readString(buildGradle);
         assertThat(updated).contains("org.locationtech.jts:jts-core");
-        assertThat(updated).contains("org.xerial:sqlite-jdbc:3.43.0.0");
-        assertThat(updated).contains("com.zsoltfabok:sqlite-dialect:1.0");
+        assertThat(updated).doesNotContain("sqlite-jdbc");
+        assertThat(updated).doesNotContain("sqlite-dialect");
     }
 }

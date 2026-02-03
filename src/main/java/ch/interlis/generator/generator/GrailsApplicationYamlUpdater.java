@@ -22,8 +22,10 @@ class GrailsApplicationYamlUpdater {
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(
         new YAMLFactory().enable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     );
-    private static final String SQLITE_DIALECT = "org.hibernate.dialect.SQLiteDialect";
+    private static final String POSTGRES_DIALECT = "org.hibernate.dialect.PostgreSQLDialect";
     private static final String H2_DRIVER = "org.h2.Driver";
+    private static final String DEFAULT_USERNAME = "edit";
+    private static final String DEFAULT_PASSWORD = "secret";
 
     void ensureDevelopmentDataSourceUrl(Path applicationYamlPath, String jdbcUrl) throws IOException {
         if (!Files.exists(applicationYamlPath)) {
@@ -33,6 +35,7 @@ class GrailsApplicationYamlUpdater {
         List<Object> documents = readDocuments(applicationYamlPath);
         boolean changed = updateDevelopmentDataSource(documents, resolvedJdbcUrl);
         changed |= removeRootDataSourceDriver(documents);
+        changed |= ensureRootDataSourceCredentials(documents);
         changed |= ensureHibernateDialect(documents);
         if (changed) {
             writeDocuments(applicationYamlPath, documents);
@@ -128,8 +131,33 @@ class GrailsApplicationYamlUpdater {
                 root.put("hibernate", hibernate);
                 changed = true;
             }
-            if (!Objects.equals(SQLITE_DIALECT, hibernate.get("dialect"))) {
-                hibernate.put("dialect", SQLITE_DIALECT);
+            if (!Objects.equals(POSTGRES_DIALECT, hibernate.get("dialect"))) {
+                hibernate.put("dialect", POSTGRES_DIALECT);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private boolean ensureRootDataSourceCredentials(List<Object> documents) {
+        boolean changed = false;
+        for (Object document : documents) {
+            Map<String, Object> root = asMap(document);
+            if (root == null) {
+                continue;
+            }
+            Map<String, Object> dataSource = asMap(root.get("dataSource"));
+            if (dataSource == null) {
+                dataSource = new java.util.LinkedHashMap<>();
+                root.put("dataSource", dataSource);
+                changed = true;
+            }
+            if (!Objects.equals(DEFAULT_USERNAME, dataSource.get("username"))) {
+                dataSource.put("username", DEFAULT_USERNAME);
+                changed = true;
+            }
+            if (!Objects.equals(DEFAULT_PASSWORD, dataSource.get("password"))) {
+                dataSource.put("password", DEFAULT_PASSWORD);
                 changed = true;
             }
         }

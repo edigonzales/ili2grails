@@ -9,10 +9,6 @@ import java.util.List;
 class GrailsBuildGradleUpdater {
 
     private static final String JTS_DEPENDENCY = "implementation \"org.locationtech.jts:jts-core:1.19.0\"";
-    private static final String SQLITE_JDBC_DEPENDENCY =
-        "implementation \"org.xerial:sqlite-jdbc:3.43.0.0\"";
-    private static final String SQLITE_DIALECT_DEPENDENCY =
-        "implementation \"com.zsoltfabok:sqlite-dialect:1.0\"";
 
     void ensureJtsDependency(Path buildGradlePath) throws IOException {
         if (!Files.exists(buildGradlePath)) {
@@ -28,8 +24,6 @@ class GrailsBuildGradleUpdater {
     private List<String> ensureDependencies(List<String> lines) {
         List<String> updated = new java.util.ArrayList<>(lines);
         updated = insertDependencyIfMissing(updated, "org.locationtech.jts:jts-core", JTS_DEPENDENCY);
-        updated = insertDependencyIfMissing(updated, "org.xerial:sqlite-jdbc", SQLITE_JDBC_DEPENDENCY);
-        updated = insertDependencyIfMissing(updated, "com.zsoltfabok:sqlite-dialect", SQLITE_DIALECT_DEPENDENCY);
         return updated;
     }
 

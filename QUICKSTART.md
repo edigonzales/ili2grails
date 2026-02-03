@@ -20,11 +20,4 @@ Kurzfassung für Installation und Start. Die ausführliche Benutzeranleitung ink
   public"
 ```
 
-**SQLite (GeoPackage):**
-```bash
-./gradlew run --args="'jdbc:sqlite:./testdb.gpkg' \
-  test-models/SimpleAddressModel.ili \
-  SimpleAddressModel"
-```
-
 Weitere Details: [README.md](README.md)
