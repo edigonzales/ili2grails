@@ -10,7 +10,7 @@ class GrailsBuildGradleUpdater {
 
     private static final String JTS_DEPENDENCY = "implementation \"org.locationtech.jts:jts-core:1.19.0\"";
     private static final String POSTGRES_JDBC_DEPENDENCY =
-        "implementation \"org.postgresql:postgresql:42.7.1\"";
+        "implementation \"org.postgresql:postgresql:42.7.7\"";
 
     void ensureJtsDependency(Path buildGradlePath) throws IOException {
         if (!Files.exists(buildGradlePath)) {
