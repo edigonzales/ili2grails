@@ -21,8 +21,8 @@ public class GrailsCrudGenerator {
         Files.createDirectories(config.getOutputDir());
         enumGenerator.generate(metadata, config);
         domainGenerator.generate(metadata, config);
-        controllerGenerator.generate(metadata, config);
-        viewGenerator.generate(metadata, config);
+        //controllerGenerator.generate(metadata, config);
+        //viewGenerator.generate(metadata, config);
         buildGradleUpdater.ensureJtsDependency(config.getOutputDir().resolve("build.gradle"));
         applicationYamlUpdater.ensureDevelopmentDataSourceUrl(
             config.getOutputDir().resolve("grails-app/conf/application.yml"),
