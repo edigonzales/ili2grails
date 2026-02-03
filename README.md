@@ -82,6 +82,7 @@ Weitere Optionen:
 - `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
 - `--grails-enum-package` (Default: `<Basis-Package>.enums`)
+- `--grails-generate-all` (nur mit `--grails-init`, ruft `./grailsw generate-all` für jede Domain auf)
 
 ## Grails-Projekt starten
 Der Generator schreibt Artefakte in ein bestehendes Grails-Projekt (oder in ein neu erzeugtes). Die Dateien landen in:
@@ -115,6 +116,7 @@ Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `develo
 ./grailsw generate-all Address
 ./grailsw generate-all Person
 ```
+Alternativ kann `--grails-generate-all` verwendet werden, um diesen Schritt automatisch für alle generierten Domains auszuführen.
 
 ### 3) Grails-App starten
 ```bash
