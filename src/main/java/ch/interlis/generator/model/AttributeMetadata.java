@@ -19,6 +19,8 @@ public class AttributeMetadata {
     private boolean isPrimaryKey;
     private boolean isForeignKey;
     private boolean isGeometry;
+    private Integer geometrySrid;
+    private String geometryKind;
     private String documentation;
     
     // Constraints
@@ -204,6 +206,22 @@ public class AttributeMetadata {
     public void setGeometry(boolean geometry) {
         isGeometry = geometry;
     }
+
+    public Integer getGeometrySrid() {
+        return geometrySrid;
+    }
+
+    public void setGeometrySrid(Integer geometrySrid) {
+        this.geometrySrid = geometrySrid;
+    }
+
+    public String getGeometryKind() {
+        return geometryKind;
+    }
+
+    public void setGeometryKind(String geometryKind) {
+        this.geometryKind = geometryKind;
+    }
     
     public String getDocumentation() {
         return documentation;
@@ -295,6 +313,8 @@ public class AttributeMetadata {
                 ", mandatory=" + mandatory +
                 ", isPrimaryKey=" + isPrimaryKey +
                 ", isForeignKey=" + isForeignKey +
+                ", geometrySrid=" + geometrySrid +
+                ", geometryKind='" + geometryKind + '\'' +
                 '}';
     }
 }

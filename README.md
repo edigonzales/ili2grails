@@ -99,6 +99,9 @@ Weitere Optionen:
 - `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
 - `--grails-enum-package` (Default: `<Basis-Package>.enums`)
+- `--grails-ui-theme <default|carbon>` (Default: `default`)
+- `--grails-map-editor <none|openlayers>` (Default: `openlayers` bei `carbon`, sonst `none`)
+- `--grails-default-srid <int>` (Default: `2056`)
 - `--grails-generate-all` (nur mit `--grails-init`, ruft `./grailsw generate-all` für jede Domain auf)
 
 ## Grails-Projekt starten
@@ -127,6 +130,7 @@ Der Scaffold-Schritt wird blockiert, wenn im Zielverzeichnis bereits `build.grad
 
 Hinweis: Der Generator ergänzt in `build.gradle` automatisch die JTS-Dependency, sobald eine Grails-App vorhanden ist.
 Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `development`-Datenbank auf die per CLI übergebene JDBC-URL, ergänzt `currentSchema` (falls gesetzt), stellt `dbCreate` auf `none` und setzt den PostgreSQL-Hibernate-Dialekt.
+Ist Geometrie aktiviert (Map-Editor `openlayers` oder Geometrie-Felder im Modell), ergänzt der Generator zusätzlich `hibernate-spatial`, setzt den Spatial-Dialekt und schreibt `interlis.geometry.defaultSrid`.
 
 ### 2) CRUD-Artefakte generieren
 ```bash
@@ -134,6 +138,13 @@ Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `develo
 ./grailsw generate-all Person
 ```
 Alternativ kann `--grails-generate-all` verwendet werden, um diesen Schritt automatisch für alle generierten Domains auszuführen.
+Wenn `--grails-ui-theme carbon` gesetzt ist, kopiert der Generator vor `generate-all` automatisch das Overlay (Scaffolding-Templates, Layout, Assets) nach:
+- `src/main/templates/scaffolding`
+- `grails-app/views/layouts/main.gsp`
+- `grails-app/assets/javascripts/ili-geometry-editor.js`
+- `grails-app/assets/stylesheets/ili-modern.css`
+
+Der Ablauf ist damit: `--grails-init` → Overlay kopieren → Domains/Enums schreiben → optional `generate-all`.
 
 ### 3) Grails-App starten
 ```bash
@@ -265,6 +276,12 @@ COORD + GEOMETRY   → org.locationtech.jts.geom.Geometry
 NUMERIC 1..3       → Integer
 NUMERIC 1.00..3.55 → BigDecimal
 ```
+
+### Modernes SSR-Scaffolding und Geometrie-Editing
+- Mit `--grails-ui-theme carbon` werden moderne SSR-Scaffolding-Templates verwendet (kein SPA-Zwang).
+- Mit `--grails-map-editor openlayers` erhalten Scaffold-`create/edit/show` bei Geometrie-Attributen eine Webkarte.
+- Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt.
+- Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen (ohne Snapping/Topologieprüfung).
 
 ### Strukturen im Domain-Model
 - INTERLIS-Strukturen werden als eigene `STRUCTURE`-Klassen im Metamodell geführt.

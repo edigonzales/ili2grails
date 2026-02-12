@@ -23,11 +23,16 @@ public class GrailsCrudGenerator {
         domainGenerator.generate(metadata, config);
         //controllerGenerator.generate(metadata, config);
         //viewGenerator.generate(metadata, config);
-        buildGradleUpdater.ensureJtsDependency(config.getOutputDir().resolve("build.gradle"));
+        buildGradleUpdater.ensureDependencies(
+            config.getOutputDir().resolve("build.gradle"),
+            config.isGeometryEnabled()
+        );
         applicationYamlUpdater.ensureDevelopmentDataSourceUrl(
             config.getOutputDir().resolve("grails-app/conf/application.yml"),
             config.getJdbcUrl(),
-            config.getSchema()
+            config.getSchema(),
+            config.isGeometryEnabled(),
+            config.getDefaultSrid()
         );
     }
 }

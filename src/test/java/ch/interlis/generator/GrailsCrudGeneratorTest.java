@@ -30,14 +30,10 @@ class GrailsCrudGeneratorTest {
         new GrailsCrudGenerator().generate(metadata, config);
 
         Path domainFile = outputDir.resolve("grails-app/domain/com/example/domain/Person.groovy");
-        Path controllerFile = outputDir.resolve("grails-app/controllers/com/example/controller/PersonController.groovy");
         Path enumFile = outputDir.resolve("src/main/groovy/com/example/enums/Status.groovy");
-        Path createView = outputDir.resolve("grails-app/views/person/create.gsp");
 
         assertThat(domainFile).exists();
-        assertThat(controllerFile).exists();
         assertThat(enumFile).exists();
-        assertThat(createView).exists();
 
         String domainContent = Files.readString(domainFile);
         assertThat(domainContent).contains("package com.example.domain");
@@ -49,56 +45,44 @@ class GrailsCrudGeneratorTest {
         assertThat(domainContent).contains("status nullable: true");
         assertThat(domainContent).contains("static hasMany = [personAddresses: PersonAddress]");
 
-        String controllerContent = Files.readString(controllerFile);
-        assertThat(controllerContent).contains("package com.example.controller");
-        assertThat(controllerContent).contains("import com.example.domain.Person");
-        assertThat(controllerContent).contains("static scaffold = Person");
-
         String enumContent = Files.readString(enumFile);
         assertThat(enumContent).contains("package com.example.enums");
         assertThat(enumContent).contains("enum Status");
         assertThat(enumContent).contains("active, inactive");
-
-        String createContent = Files.readString(createView);
-        assertThat(createContent).contains(
-            "<g:select name=\"status\" from=\"${[[ilicode:'active', dispName:'active'], "
-                + "[ilicode:'inactive', dispName:'inactive']]}\" optionKey=\"ilicode\" optionValue=\"dispName\"/>"
-        );
-        assertThat(createContent).contains("<g:datePicker name=\"birthDate\" precision=\"day\"/>");
     }
 
     @Test
-    void rendersEnumTableSelectWhenEnumTypeIsMarked(@TempDir Path tempDir) throws Exception {
+    void rendersGeometryMetaWhenGeometryFieldIsPresent(@TempDir Path tempDir) throws Exception {
         ModelMetadata metadata = new ModelMetadata("SampleModel");
 
-        ClassMetadata person = new ClassMetadata("SampleModel.Person");
-        person.setTableName("person_tbl");
-        person.addAttribute(primaryKeyAttribute("id", "t_id"));
-        AttributeMetadata status = new AttributeMetadata("status");
-        status.setEnumType("ENUM");
-        status.setColumnName("status");
-        status.addEnumValue(new EnumMetadata.EnumValue("active", 0));
-        EnumMetadata.EnumValue inactive = new EnumMetadata.EnumValue("inactive", 1);
-        inactive.setDispName("Inactive");
-        status.addEnumValue(inactive);
-        person.addAttribute(status);
-        metadata.addClass(person);
+        ClassMetadata address = new ClassMetadata("SampleModel.Address");
+        address.setTableName("address_tbl");
+        address.addAttribute(primaryKeyAttribute("id", "t_id"));
+
+        AttributeMetadata geometry = new AttributeMetadata("position");
+        geometry.setColumnName("position");
+        geometry.setGeometry(true);
+        geometry.setGeometryKind("POINT");
+        geometry.setGeometrySrid(2056);
+        geometry.setJavaType("org.locationtech.jts.geom.Geometry");
+        address.addAttribute(geometry);
+        metadata.addClass(address);
 
         Path outputDir = tempDir.resolve("generated-grails-app");
         GenerationConfig config = GenerationConfig.builder(outputDir, "com.example")
             .domainPackage("com.example.domain")
             .controllerPackage("com.example.controller")
             .enumPackage("com.example.enums")
+            .geometryEnabled(true)
             .build();
 
         new GrailsCrudGenerator().generate(metadata, config);
 
-        Path createView = outputDir.resolve("grails-app/views/person/create.gsp");
-        String createContent = Files.readString(createView);
-        assertThat(createContent).contains(
-            "<g:select name=\"status\" from=\"${[[ilicode:'active', dispName:'active'], "
-                + "[ilicode:'inactive', dispName:'Inactive']]}\" optionKey=\"ilicode\" optionValue=\"dispName\"/>"
-        );
+        Path domainFile = outputDir.resolve("grails-app/domain/com/example/domain/Address.groovy");
+        String domainContent = Files.readString(domainFile);
+        assertThat(domainContent).contains("Geometry position");
+        assertThat(domainContent).contains("static final Map<String, Map<String, Object>> geometryMeta");
+        assertThat(domainContent).contains("position: [srid: 2056, kind: 'POINT']");
     }
 
     @Test

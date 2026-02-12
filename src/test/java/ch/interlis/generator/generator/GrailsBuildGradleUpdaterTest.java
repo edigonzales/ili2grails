@@ -24,8 +24,27 @@ class GrailsBuildGradleUpdaterTest {
 
         String updated = Files.readString(buildGradle);
         assertThat(updated).contains("org.locationtech.jts:jts-core");
-        assertThat(updated).contains("org.postgresql:postgresql:42.7.1");
+        assertThat(updated).contains("org.postgresql:postgresql:42.7.7");
         assertThat(updated).doesNotContain("sqlite-jdbc");
         assertThat(updated).doesNotContain("sqlite-dialect");
+        assertThat(updated).doesNotContain("hibernate-spatial");
+    }
+
+    @Test
+    void addsSpatialDependencyWhenGeometryIsEnabled(@TempDir Path tempDir) throws Exception {
+        Path buildGradle = tempDir.resolve("build.gradle");
+        Files.writeString(buildGradle, String.join("\n",
+            "dependencies {",
+            "    implementation \"org.grails:grails-core:7.0.6\"",
+            "    implementation \"org.hibernate.orm:hibernate-spatial\"",
+            "}",
+            ""
+        ));
+
+        new GrailsBuildGradleUpdater().ensureDependencies(buildGradle, true);
+
+        String updated = Files.readString(buildGradle);
+        assertThat(updated).contains("org.hibernate:hibernate-spatial:5.6.15.Final");
+        assertThat(updated).doesNotContain("org.hibernate.orm:hibernate-spatial");
     }
 }

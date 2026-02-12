@@ -21,7 +21,7 @@ class GrailsCrudGeneratorTest {
     Path tempDir;
 
     @Test
-    void generatesDomainsControllersAndViews() throws IOException {
+    void generatesDomainsAndEnums() throws IOException {
         ModelMetadata metadata = sampleMetadata();
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example")
             .build();
@@ -30,17 +30,10 @@ class GrailsCrudGeneratorTest {
         generator.generate(metadata, config);
 
         Path domainDir = tempDir.resolve("grails-app/domain/com/example");
-        Path controllerDir = tempDir.resolve("grails-app/controllers/com/example");
         Path enumDir = tempDir.resolve("src/main/groovy/com/example/enums");
-        Path viewDir = tempDir.resolve("grails-app/views/address");
 
         assertThat(domainDir.resolve("Address.groovy")).exists();
-        assertThat(controllerDir.resolve("AddressController.groovy")).exists();
         assertThat(enumDir.resolve("Status.groovy")).exists();
-        assertThat(viewDir.resolve("create.gsp")).exists();
-        assertThat(viewDir.resolve("edit.gsp")).exists();
-        assertThat(viewDir.resolve("list.gsp")).exists();
-        assertThat(viewDir.resolve("show.gsp")).exists();
 
         String domainContent = Files.readString(domainDir.resolve("Address.groovy"));
         assertThat(domainContent).contains("class Address");

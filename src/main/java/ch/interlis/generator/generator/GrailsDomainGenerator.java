@@ -52,6 +52,7 @@ public class GrailsDomainGenerator {
         Set<String> imports = new LinkedHashSet<>();
         List<String> properties = new ArrayList<>();
         Map<String, String> columnMappings = new LinkedHashMap<>();
+        Map<String, AttributeMetadata> geometryAttributes = new LinkedHashMap<>();
         boolean hasIdAttribute = false;
         boolean hasPrimaryKeyTId = false;
         boolean hasTIdColumn = false;
@@ -72,6 +73,9 @@ public class GrailsDomainGenerator {
             String propertyName = resolvePropertyName(attr);
             String type = resolveType(attr, metadata, config, imports);
             properties.add("    " + type + " " + propertyName);
+            if (attr.isGeometry()) {
+                geometryAttributes.put(propertyName, attr);
+            }
 
             if (attr.getColumnName() != null
                 && (attr.isForeignKey() || !attr.getColumnName().equalsIgnoreCase(propertyName))) {
@@ -89,6 +93,18 @@ public class GrailsDomainGenerator {
 
         for (String property : properties) {
             sb.append(property).append("\n");
+        }
+
+        if (!geometryAttributes.isEmpty()) {
+            sb.append("\n    static final Map<String, Map<String, Object>> geometryMeta = [\n");
+            String geometryMetaBlock = geometryAttributes.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> "        " + entry.getKey() + ": [srid: "
+                    + renderSrid(entry.getValue())
+                    + ", kind: '" + renderGeometryKind(entry.getValue()) + "']")
+                .collect(Collectors.joining(",\n"));
+            sb.append(geometryMetaBlock).append("\n");
+            sb.append("    ]\n");
         }
 
         List<ClassMetadata> ownedBy = incomingRelations.getOrDefault(classMetadata.getName(), List.of());
@@ -222,6 +238,19 @@ public class GrailsDomainGenerator {
             return true;
         }
         return "t_id".equalsIgnoreCase(attr.getName());
+    }
+
+    private String renderSrid(AttributeMetadata attributeMetadata) {
+        Integer geometrySrid = attributeMetadata.getGeometrySrid();
+        return geometrySrid == null ? "null" : Integer.toString(geometrySrid);
+    }
+
+    private String renderGeometryKind(AttributeMetadata attributeMetadata) {
+        String geometryKind = attributeMetadata.getGeometryKind();
+        if (geometryKind == null || geometryKind.isBlank()) {
+            return "GEOMETRY";
+        }
+        return geometryKind.toUpperCase();
     }
 
     private Map<String, String> resolveBelongsTo(ClassMetadata classMetadata, ModelMetadata metadata) {

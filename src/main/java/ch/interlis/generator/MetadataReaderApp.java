@@ -2,6 +2,7 @@ package ch.interlis.generator;
 
 import ch.interlis.generator.generator.GenerationConfig;
 import ch.interlis.generator.generator.GrailsCrudGenerator;
+import ch.interlis.generator.generator.GrailsTemplateOverlayInstaller;
 import ch.interlis.generator.metadata.MetadataReader;
 import ch.interlis.generator.metadata.MetadataPrinter;
 import ch.interlis.generator.model.ModelMetadata;
@@ -119,6 +120,9 @@ public class MetadataReaderApp {
         System.out.println("  --grails-domain-package <package> - Package for domain classes (default: <base>)");
         System.out.println("  --grails-controller-package <package> - Package for controllers (default: <base>)");
         System.out.println("  --grails-enum-package <package>   - Package for enums (default: <base>.enums)");
+        System.out.println("  --grails-ui-theme <default|carbon> - UI theme for scaffold templates (default: default)");
+        System.out.println("  --grails-map-editor <none|openlayers> - Map editor mode (default: openlayers with carbon, else none)");
+        System.out.println("  --grails-default-srid <int>       - Default SRID for geometry binding/config (default: 2056)");
         System.out.println("  --grails-generate-all             - Run ./grailsw generate-all for each domain (requires --grails-init)");
         System.out.println();
         System.out.println("Examples:");
@@ -152,9 +156,18 @@ public class MetadataReaderApp {
         }
 
         String basePackage = options.grailsBasePackage != null ? options.grailsBasePackage : "com.example";
+        String uiTheme = resolveUiTheme(options);
+        String mapEditor = resolveMapEditor(options, uiTheme);
+        int defaultSrid = options.grailsDefaultSrid != null ? options.grailsDefaultSrid : 2056;
+        boolean geometryEnabled = hasGeometryAttributes(metadata)
+            || GenerationConfig.MAP_EDITOR_OPENLAYERS.equals(mapEditor);
         GenerationConfig.Builder builder = GenerationConfig.builder(grailsProjectDir, basePackage);
         builder.jdbcUrl(options.jdbcUrl);
         builder.schema(options.schema);
+        builder.uiTheme(uiTheme);
+        builder.mapEditor(mapEditor);
+        builder.defaultSrid(defaultSrid);
+        builder.geometryEnabled(geometryEnabled);
         if (options.grailsDomainPackage != null) {
             builder.domainPackage(options.grailsDomainPackage);
         }
@@ -165,6 +178,8 @@ public class MetadataReaderApp {
             builder.enumPackage(options.grailsEnumPackage);
         }
         GenerationConfig config = builder.build();
+
+        new GrailsTemplateOverlayInstaller().install(grailsProjectDir, config);
         new GrailsCrudGenerator().generate(metadata, config);
         if (options.grailsGenerateAll) {
             runGrailsGenerateAll(metadata, config, grailsProjectDir);
@@ -244,6 +259,31 @@ public class MetadataReaderApp {
                         return null;
                     }
                     break;
+                case "--grails-ui-theme":
+                    cliOptions.grailsUiTheme = readOptionValue(args, arg, ++i);
+                    if (cliOptions.grailsUiTheme == null) {
+                        return null;
+                    }
+                    break;
+                case "--grails-map-editor":
+                    cliOptions.grailsMapEditor = readOptionValue(args, arg, ++i);
+                    if (cliOptions.grailsMapEditor == null) {
+                        return null;
+                    }
+                    break;
+                case "--grails-default-srid":
+                    String sridValue = readOptionValue(args, arg, ++i);
+                    if (sridValue == null) {
+                        return null;
+                    }
+                    try {
+                        cliOptions.grailsDefaultSrid = Integer.parseInt(sridValue);
+                    } catch (NumberFormatException e) {
+                        System.err.println("Option --grails-default-srid expects an integer value.");
+                        printUsage();
+                        return null;
+                    }
+                    break;
                 case "--grails-generate-all":
                     cliOptions.grailsGenerateAll = true;
                     break;
@@ -312,6 +352,21 @@ public class MetadataReaderApp {
         }
         if (cliOptions.grailsGenerateAll && !cliOptions.grailsInitRequested) {
             System.err.println("Option --grails-generate-all requires --grails-init.");
+            printUsage();
+            return null;
+        }
+        if (cliOptions.grailsUiTheme != null && !isSupportedUiTheme(cliOptions.grailsUiTheme)) {
+            System.err.println("Unsupported value for --grails-ui-theme: " + cliOptions.grailsUiTheme);
+            printUsage();
+            return null;
+        }
+        if (cliOptions.grailsMapEditor != null && !isSupportedMapEditor(cliOptions.grailsMapEditor)) {
+            System.err.println("Unsupported value for --grails-map-editor: " + cliOptions.grailsMapEditor);
+            printUsage();
+            return null;
+        }
+        if (cliOptions.grailsDefaultSrid != null && cliOptions.grailsDefaultSrid <= 0) {
+            System.err.println("Option --grails-default-srid must be greater than zero.");
             printUsage();
             return null;
         }
@@ -445,6 +500,39 @@ public class MetadataReaderApp {
         return workingDir;
     }
 
+    private static String resolveUiTheme(CliOptions options) {
+        if (options.grailsUiTheme == null || options.grailsUiTheme.isBlank()) {
+            return GenerationConfig.UI_THEME_DEFAULT;
+        }
+        return options.grailsUiTheme;
+    }
+
+    private static String resolveMapEditor(CliOptions options, String uiTheme) {
+        if (options.grailsMapEditor != null && !options.grailsMapEditor.isBlank()) {
+            return options.grailsMapEditor;
+        }
+        if (GenerationConfig.UI_THEME_CARBON.equals(uiTheme)) {
+            return GenerationConfig.MAP_EDITOR_OPENLAYERS;
+        }
+        return GenerationConfig.MAP_EDITOR_NONE;
+    }
+
+    private static boolean hasGeometryAttributes(ModelMetadata metadata) {
+        return metadata.getAllClasses().stream()
+            .flatMap(clazz -> clazz.getAllAttributes().stream())
+            .anyMatch(attributeMetadata -> attributeMetadata.isGeometry());
+    }
+
+    private static boolean isSupportedUiTheme(String uiTheme) {
+        return GenerationConfig.UI_THEME_DEFAULT.equals(uiTheme)
+            || GenerationConfig.UI_THEME_CARBON.equals(uiTheme);
+    }
+
+    private static boolean isSupportedMapEditor(String mapEditor) {
+        return GenerationConfig.MAP_EDITOR_NONE.equals(mapEditor)
+            || GenerationConfig.MAP_EDITOR_OPENLAYERS.equals(mapEditor);
+    }
+
     private static class CliOptions {
         private String jdbcUrl;
         private String modelFilePath;
@@ -459,6 +547,9 @@ public class MetadataReaderApp {
         private String grailsDomainPackage;
         private String grailsControllerPackage;
         private String grailsEnumPackage;
+        private String grailsUiTheme;
+        private String grailsMapEditor;
+        private Integer grailsDefaultSrid;
         private boolean grailsGenerateAll;
     }
 

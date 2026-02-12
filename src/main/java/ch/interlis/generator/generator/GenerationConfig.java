@@ -8,6 +8,11 @@ import java.util.Objects;
  */
 public class GenerationConfig {
 
+    public static final String UI_THEME_DEFAULT = "default";
+    public static final String UI_THEME_CARBON = "carbon";
+    public static final String MAP_EDITOR_NONE = "none";
+    public static final String MAP_EDITOR_OPENLAYERS = "openlayers";
+
     private final Path outputDir;
     private final String basePackage;
     private final String domainPackage;
@@ -15,6 +20,10 @@ public class GenerationConfig {
     private final String enumPackage;
     private final String jdbcUrl;
     private final String schema;
+    private final String uiTheme;
+    private final String mapEditor;
+    private final Integer defaultSrid;
+    private final boolean geometryEnabled;
 
     private GenerationConfig(Builder builder) {
         this.outputDir = builder.outputDir;
@@ -24,6 +33,10 @@ public class GenerationConfig {
         this.enumPackage = builder.enumPackage;
         this.jdbcUrl = builder.jdbcUrl;
         this.schema = builder.schema;
+        this.uiTheme = builder.uiTheme;
+        this.mapEditor = builder.mapEditor;
+        this.defaultSrid = builder.defaultSrid;
+        this.geometryEnabled = builder.geometryEnabled;
     }
 
     public Path getOutputDir() {
@@ -54,6 +67,22 @@ public class GenerationConfig {
         return schema;
     }
 
+    public String getUiTheme() {
+        return uiTheme;
+    }
+
+    public String getMapEditor() {
+        return mapEditor;
+    }
+
+    public Integer getDefaultSrid() {
+        return defaultSrid;
+    }
+
+    public boolean isGeometryEnabled() {
+        return geometryEnabled;
+    }
+
     public static Builder builder(Path outputDir, String basePackage) {
         return new Builder(outputDir, basePackage);
     }
@@ -66,6 +95,10 @@ public class GenerationConfig {
         private String enumPackage;
         private String jdbcUrl;
         private String schema;
+        private String uiTheme;
+        private String mapEditor;
+        private Integer defaultSrid;
+        private boolean geometryEnabled;
 
         public Builder(Path outputDir, String basePackage) {
             this.outputDir = Objects.requireNonNull(outputDir, "outputDir");
@@ -73,6 +106,10 @@ public class GenerationConfig {
             this.domainPackage = basePackage;
             this.controllerPackage = basePackage;
             this.enumPackage = basePackage + ".enums";
+            this.uiTheme = UI_THEME_DEFAULT;
+            this.mapEditor = MAP_EDITOR_NONE;
+            this.defaultSrid = 2056;
+            this.geometryEnabled = false;
         }
 
         public Builder jdbcUrl(String jdbcUrl) {
@@ -97,6 +134,26 @@ public class GenerationConfig {
 
         public Builder enumPackage(String enumPackage) {
             this.enumPackage = enumPackage;
+            return this;
+        }
+
+        public Builder uiTheme(String uiTheme) {
+            this.uiTheme = Objects.requireNonNull(uiTheme, "uiTheme");
+            return this;
+        }
+
+        public Builder mapEditor(String mapEditor) {
+            this.mapEditor = Objects.requireNonNull(mapEditor, "mapEditor");
+            return this;
+        }
+
+        public Builder defaultSrid(Integer defaultSrid) {
+            this.defaultSrid = Objects.requireNonNull(defaultSrid, "defaultSrid");
+            return this;
+        }
+
+        public Builder geometryEnabled(boolean geometryEnabled) {
+            this.geometryEnabled = geometryEnabled;
             return this;
         }
 

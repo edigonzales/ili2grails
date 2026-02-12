@@ -46,4 +46,33 @@ class GrailsApplicationYamlUpdaterTest {
         assertThat(updated).doesNotContain("password: \"sa\"");
         assertThat(updated).doesNotContain("org.h2.Driver");
     }
+
+    @Test
+    void enablesSpatialDialectAndDefaultSrid(@TempDir Path tempDir) throws Exception {
+        Path yamlPath = tempDir.resolve("application.yml");
+        Files.writeString(yamlPath, String.join("\n",
+            "---",
+            "environments:",
+            "  development:",
+            "    dataSource:",
+            "      url: jdbc:h2:mem:test",
+            "      dbCreate: create-drop",
+            "hibernate:",
+            "  dialect: org.hibernate.dialect.H2Dialect",
+            ""
+        ));
+
+        GrailsApplicationYamlUpdater updater = new GrailsApplicationYamlUpdater();
+        updater.ensureDevelopmentDataSourceUrl(
+            yamlPath,
+            "jdbc:postgresql://localhost:5432/testdb",
+            "public",
+            true,
+            2056
+        );
+
+        String updated = Files.readString(yamlPath);
+        assertThat(updated).contains("org.hibernate.spatial.dialect.postgis.PostgisDialect");
+        assertThat(updated).contains("defaultSrid: 2056");
+    }
 }

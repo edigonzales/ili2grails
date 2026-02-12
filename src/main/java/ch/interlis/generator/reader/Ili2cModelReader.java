@@ -385,14 +385,21 @@ public class Ili2cModelReader {
             attr.setJavaType("Object");
         } else if (type instanceof CoordType || type instanceof MultiCoordType) {
             attr.setGeometry(true);
+            attr.setGeometryKind("POINT");
             attr.setJavaType("org.locationtech.jts.geom.Geometry");
         } else if (type instanceof LineType || type instanceof PolylineType || 
                    type instanceof SurfaceType || type instanceof AreaType) {
             attr.setGeometry(true);
+            attr.setGeometryKind(type instanceof SurfaceType || type instanceof AreaType ? "POLYGON" : "LINESTRING");
             attr.setJavaType("org.locationtech.jts.geom.Geometry");
         } else if (type instanceof MultiPolylineType || type instanceof MultiSurfaceType
                    || type instanceof MultiAreaType) {
             attr.setGeometry(true);
+            if (type instanceof MultiSurfaceType || type instanceof MultiAreaType) {
+                attr.setGeometryKind("POLYGON");
+            } else {
+                attr.setGeometryKind("LINESTRING");
+            }
             attr.setJavaType("org.locationtech.jts.geom.Geometry");
         } else if (type instanceof ReferenceType referenceType) {
             AbstractClassDef target = referenceType.getReferred();

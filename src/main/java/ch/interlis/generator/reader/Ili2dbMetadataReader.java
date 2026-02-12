@@ -348,9 +348,107 @@ public class Ili2dbMetadataReader {
 
         if (columnInfo.typeName() != null && "GEOMETRY".equalsIgnoreCase(columnInfo.typeName())) {
             attr.setGeometry(true);
+            String resolvedGeometryKind = resolveGeometryKind(tableName, columnName);
+            if (resolvedGeometryKind != null && !resolvedGeometryKind.isBlank()) {
+                attr.setGeometryKind(resolvedGeometryKind);
+            } else if (attr.getGeometryKind() == null || attr.getGeometryKind().isBlank()) {
+                attr.setGeometryKind("GEOMETRY");
+            }
+            attr.setGeometrySrid(resolveGeometrySrid(tableName, columnName));
         }
 
         attr.setPrimaryKey(isPrimaryKey(tableName, columnName));
+    }
+
+    private Integer resolveGeometrySrid(String tableName, String columnName) {
+        try {
+            if (!isPostgreSql(connection)) {
+                return null;
+            }
+            String resolvedSchema = schemaName;
+            if (resolvedSchema == null || resolvedSchema.isBlank()) {
+                resolvedSchema = "public";
+            }
+            String sql = "SELECT Find_SRID(?, ?, ?)";
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setString(1, resolvedSchema);
+                stmt.setString(2, tableName);
+                stmt.setString(3, columnName);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        int srid = rs.getInt(1);
+                        if (!rs.wasNull() && srid > 0) {
+                            return srid;
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logger.debug("Could not resolve SRID for {}.{} ({})", tableName, columnName, schemaName, e);
+        }
+        return null;
+    }
+
+    private String resolveGeometryKind(String tableName, String columnName) {
+        try {
+            if (!isPostgreSql(connection)) {
+                return null;
+            }
+            String resolvedSchema = schemaName;
+            if (resolvedSchema == null || resolvedSchema.isBlank()) {
+                resolvedSchema = "public";
+            }
+
+            String sqlWithSchema =
+                "SELECT type FROM geometry_columns " +
+                    "WHERE lower(f_table_schema) = lower(?) " +
+                    "AND lower(f_table_name) = lower(?) " +
+                    "AND lower(f_geometry_column) = lower(?)";
+            try (PreparedStatement stmt = connection.prepareStatement(sqlWithSchema)) {
+                stmt.setString(1, resolvedSchema);
+                stmt.setString(2, tableName);
+                stmt.setString(3, columnName);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        return normalizeGeometryKind(rs.getString(1));
+                    }
+                }
+            }
+
+            String sqlWithoutSchema =
+                "SELECT type FROM geometry_columns " +
+                    "WHERE lower(f_table_name) = lower(?) " +
+                    "AND lower(f_geometry_column) = lower(?)";
+            try (PreparedStatement stmt = connection.prepareStatement(sqlWithoutSchema)) {
+                stmt.setString(1, tableName);
+                stmt.setString(2, columnName);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        return normalizeGeometryKind(rs.getString(1));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logger.debug("Could not resolve geometry kind for {}.{} ({})", tableName, columnName, schemaName, e);
+        }
+        return null;
+    }
+
+    private String normalizeGeometryKind(String rawKind) {
+        if (rawKind == null || rawKind.isBlank()) {
+            return null;
+        }
+        String normalized = rawKind.toUpperCase(Locale.ROOT);
+        if (normalized.contains("POINT")) {
+            return "POINT";
+        }
+        if (normalized.contains("LINE")) {
+            return "LINESTRING";
+        }
+        if (normalized.contains("POLYGON") || normalized.contains("SURFACE") || normalized.contains("AREA")) {
+            return "POLYGON";
+        }
+        return "GEOMETRY";
     }
 
     private ColumnInfo resolveColumnInfo(String tableName, String columnName) throws SQLException {
@@ -888,5 +986,10 @@ public class Ili2dbMetadataReader {
     private boolean isSqlite(Connection connection) throws SQLException {
         String productName = connection.getMetaData().getDatabaseProductName();
         return productName != null && productName.toLowerCase(Locale.ROOT).contains("sqlite");
+    }
+
+    private boolean isPostgreSql(Connection connection) throws SQLException {
+        String productName = connection.getMetaData().getDatabaseProductName();
+        return productName != null && productName.toLowerCase(Locale.ROOT).contains("postgresql");
     }
 }

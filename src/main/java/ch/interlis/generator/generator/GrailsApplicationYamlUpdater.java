@@ -23,8 +23,18 @@ class GrailsApplicationYamlUpdater {
         new YAMLFactory().enable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     );
     private static final String POSTGRES_DIALECT = "org.hibernate.dialect.PostgreSQLDialect";
+    private static final String POSTGIS_DIALECT = "org.hibernate.spatial.dialect.postgis.PostgisDialect";
     private static final String H2_DRIVER = "org.h2.Driver";
+
     void ensureDevelopmentDataSourceUrl(Path applicationYamlPath, String jdbcUrl, String schema) throws IOException {
+        ensureDevelopmentDataSourceUrl(applicationYamlPath, jdbcUrl, schema, false, 2056);
+    }
+
+    void ensureDevelopmentDataSourceUrl(Path applicationYamlPath,
+                                        String jdbcUrl,
+                                        String schema,
+                                        boolean geometryEnabled,
+                                        Integer defaultSrid) throws IOException {
         if (!Files.exists(applicationYamlPath)) {
             return;
         }
@@ -33,7 +43,10 @@ class GrailsApplicationYamlUpdater {
         boolean changed = updateDevelopmentDataSource(documents, resolvedJdbcUrl, schema);
         changed |= removeRootDataSourceDriver(documents);
         changed |= removeRootDataSourceCredentials(documents);
-        changed |= ensureHibernateDialect(documents);
+        changed |= ensureHibernateDialect(documents, geometryEnabled);
+        if (geometryEnabled) {
+            changed |= ensureGeometryDefaults(documents, defaultSrid);
+        }
         if (changed) {
             writeDocuments(applicationYamlPath, documents);
         }
@@ -116,8 +129,9 @@ class GrailsApplicationYamlUpdater {
         return changed;
     }
 
-    private boolean ensureHibernateDialect(List<Object> documents) {
+    private boolean ensureHibernateDialect(List<Object> documents, boolean geometryEnabled) {
         boolean changed = false;
+        String targetDialect = geometryEnabled ? POSTGIS_DIALECT : POSTGRES_DIALECT;
         for (Object document : documents) {
             Map<String, Object> root = asMap(document);
             if (root == null) {
@@ -129,10 +143,37 @@ class GrailsApplicationYamlUpdater {
                 root.put("hibernate", hibernate);
                 changed = true;
             }
-            if (!Objects.equals(POSTGRES_DIALECT, hibernate.get("dialect"))) {
-                hibernate.put("dialect", POSTGRES_DIALECT);
+            if (!Objects.equals(targetDialect, hibernate.get("dialect"))) {
+                hibernate.put("dialect", targetDialect);
                 changed = true;
             }
+        }
+        return changed;
+    }
+
+    private boolean ensureGeometryDefaults(List<Object> documents, Integer defaultSrid) {
+        boolean changed = false;
+        for (Object document : documents) {
+            Map<String, Object> root = asMap(document);
+            if (root == null) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> interlis = (Map<String, Object>) root.computeIfAbsent(
+                "interlis",
+                key -> new java.util.LinkedHashMap<String, Object>()
+            );
+            @SuppressWarnings("unchecked")
+            Map<String, Object> geometry = (Map<String, Object>) interlis.computeIfAbsent(
+                "geometry",
+                key -> new java.util.LinkedHashMap<String, Object>()
+            );
+            int resolvedSrid = defaultSrid != null ? defaultSrid : 2056;
+            if (!Objects.equals(resolvedSrid, geometry.get("defaultSrid"))) {
+                geometry.put("defaultSrid", resolvedSrid);
+                changed = true;
+            }
+            return changed;
         }
         return changed;
     }

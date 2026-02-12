@@ -11,22 +11,42 @@ class GrailsBuildGradleUpdater {
     private static final String JTS_DEPENDENCY = "implementation \"org.locationtech.jts:jts-core:1.19.0\"";
     private static final String POSTGRES_JDBC_DEPENDENCY =
         "implementation \"org.postgresql:postgresql:42.7.7\"";
+    private static final String HIBERNATE_SPATIAL_DEPENDENCY =
+        "implementation \"org.hibernate:hibernate-spatial:5.6.15.Final\"";
 
     void ensureJtsDependency(Path buildGradlePath) throws IOException {
+        ensureDependencies(buildGradlePath, false);
+    }
+
+    void ensureDependencies(Path buildGradlePath, boolean geometryEnabled) throws IOException {
         if (!Files.exists(buildGradlePath)) {
             return;
         }
         List<String> lines = Files.readAllLines(buildGradlePath, StandardCharsets.UTF_8);
-        List<String> updated = ensureDependencies(lines);
+        List<String> updated = ensureDependencies(lines, geometryEnabled);
         if (!updated.equals(lines)) {
             Files.write(buildGradlePath, updated, StandardCharsets.UTF_8);
         }
     }
 
-    private List<String> ensureDependencies(List<String> lines) {
-        List<String> updated = new java.util.ArrayList<>(lines);
+    private List<String> ensureDependencies(List<String> lines, boolean geometryEnabled) {
+        List<String> updated = removeLegacySpatialDependency(lines);
         updated = insertDependencyIfMissing(updated, "org.locationtech.jts:jts-core", JTS_DEPENDENCY);
         updated = insertDependencyIfMissing(updated, "org.postgresql:postgresql", POSTGRES_JDBC_DEPENDENCY);
+        if (geometryEnabled) {
+            updated = insertDependencyIfMissing(updated, "org.hibernate:hibernate-spatial", HIBERNATE_SPATIAL_DEPENDENCY);
+        }
+        return updated;
+    }
+
+    private List<String> removeLegacySpatialDependency(List<String> lines) {
+        List<String> updated = new java.util.ArrayList<>();
+        for (String line : lines) {
+            if (line.contains("org.hibernate.orm:hibernate-spatial")) {
+                continue;
+            }
+            updated.add(line);
+        }
         return updated;
     }
 
