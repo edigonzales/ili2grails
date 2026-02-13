@@ -9,59 +9,83 @@
 <div id="content" role="main" class="ili-page ili-page-show">
     <section class="ili-page-header">
         <div>
-            <h1 class="ili-page-title"><g:message code="default.show.label" args="[entityName]" /></h1>
-            <p class="ili-page-subtitle">Details der Entität inklusive Geometrie.</p>
+            <h1 class="ili-page-title"><g:message code="default.show.label" args="[entityName]" /> #\${this.${propertyName}?.id}</h1>
+            <p class="ili-page-subtitle">Detailansicht mit Geometrie und sicheren Destruktiv-Aktionen.</p>
         </div>
         <div class="ili-page-actions">
-            <g:link class="bx--btn bx--btn--tertiary" aria-label="List" action="index">
-                <g:message code="default.list.label" args="[entityName]" />
+            <g:link class="ili-link-btn" action="index">
+                <bx-btn kind="tertiary"><g:message code="default.list.label" args="[entityName]" /></bx-btn>
             </g:link>
-            <g:link class="bx--btn bx--btn--secondary" aria-label="Create" action="create">
-                <g:message code="default.new.label" args="[entityName]" />
+            <g:link class="ili-link-btn" action="create">
+                <bx-btn kind="secondary"><g:message code="default.new.label" args="[entityName]" /></bx-btn>
+            </g:link>
+            <g:link class="ili-link-btn" action="edit" resource="\${this.${propertyName}}" controller="\${controllerName}">
+                <bx-btn kind="primary"><g:message code="default.button.edit.label" default="Edit" /></bx-btn>
             </g:link>
         </div>
     </section>
 
     <g:if test="\${flash.message}">
-        <div class="bx--inline-notification bx--inline-notification--info" role="status">
-            <div class="bx--inline-notification__text-wrapper">\${flash.message}</div>
-        </div>
+        <bx-inline-notification kind="info" title="Hinweis" subtitle="\${flash.message}"></bx-inline-notification>
     </g:if>
 
-    <section class="bx--tile ili-tile">
-        <f:display bean="${propertyName}" listClass="container" listItemClass="row mb-3" labelClass="form-label col-sm-3 text-sm-end" valueClass="col-sm-9" except="\${geometryFields ?: []}" />
+    <div class="ili-split-layout \${geometryFields ? 'ili-split-with-map' : 'ili-split-single'}">
+        <section class="ili-form-column">
+            <g:render template="show-details" model="\${[
+                detailColumns: detailColumns,
+                detailValues: detailValues
+            ]}"/>
+        </section>
+
+        <g:if test="\${geometryFields}">
+            <aside class="ili-map-column">
+                <g:render template="geometry-panel" model="\${[
+                    geometryFields: geometryFields,
+                    geometryValues: geometryValues,
+                    geometryKinds: geometryKinds,
+                    geometrySrids: geometrySrids,
+                    geometryMode: 'view'
+                ]}"/>
+            </aside>
+        </g:if>
+    </div>
+
+    <section class="bx--tile ili-danger-zone">
+        <header class="ili-danger-zone-head">
+            <h2 class="ili-section-title">Danger Zone</h2>
+            <bx-tag type="red">Destruktiv</bx-tag>
+        </header>
+        <p>Das Löschen ist endgültig und kann nicht rückgängig gemacht werden.</p>
+        <bx-btn kind="danger" data-delete-open="delete-modal-${propertyName}">
+            \${message(code: 'default.button.delete.label', default: 'Delete')}
+        </bx-btn>
     </section>
 
-    <g:if test="\${geometryFields}">
-        <section class="bx--tile ili-tile ili-geometry-section">
-            <h2 class="ili-section-title">Geometrie</h2>
-            <g:each in="\${geometryFields}" var="geomField">
-                <article class="ili-geometry-tile">
-                    <header class="ili-geometry-header">
-                        <strong>\${geomField}</strong>
-                        <span class="bx--tag bx--tag--cool-gray">\${geometryKinds?.get(geomField) ?: 'GEOMETRY'}</span>
-                    </header>
-                    <div class="ili-geometry-editor"
-                         data-geometry-field="\${geomField}"
-                         data-geometry-kind="\${geometryKinds?.get(geomField) ?: 'GEOMETRY'}"
-                         data-geometry-srid="\${geometrySrids?.get(geomField) ?: ''}"
-                         data-geometry-mode="view">
-                        <input type="hidden" class="js-geometry-wkt" value="\${geometryValues?.get(geomField) ?: ''}"/>
-                        <div class="ili-geometry-map"></div>
-                    </div>
-                </article>
-            </g:each>
-        </section>
-    </g:if>
-
-    <g:form resource="\${this.${propertyName}}" controller="\${controllerName}" method="DELETE" class="ili-form-actions">
-        <g:link class="bx--btn bx--btn--secondary" action="edit" resource="\${this.${propertyName}}" controller="\${controllerName}">
-            <g:message code="default.button.edit.label" default="Edit" />
-        </g:link>
-        <button class="bx--btn bx--btn--danger" type="submit" onclick="return confirm('\${message(code: 'default.button.delete.confirm.message', default: 'Are you sure?')}');">
-            \${message(code: 'default.button.delete.label', default: 'Delete')}
-        </button>
+    <g:form resource="\${this.${propertyName}}"
+            controller="\${controllerName}"
+            method="DELETE"
+            id="delete-form-${propertyName}"
+            class="ili-hidden-delete-form">
+        <button type="submit" class="ili-native-submit js-delete-submit">Delete</button>
     </g:form>
+
+    <bx-modal id="delete-modal-${propertyName}" data-delete-modal>
+        <bx-modal-header>
+            <bx-modal-label>Danger Zone</bx-modal-label>
+            <bx-modal-heading>Objekt wirklich löschen?</bx-modal-heading>
+        </bx-modal-header>
+        <bx-modal-body>
+            <p>Diese Aktion löscht den Datensatz dauerhaft.</p>
+        </bx-modal-body>
+        <bx-modal-footer>
+            <bx-modal-footer-button kind="secondary" data-modal-close>Abbrechen</bx-modal-footer-button>
+            <bx-modal-footer-button kind="danger"
+                                    data-delete-confirm="true"
+                                    data-delete-form="delete-form-${propertyName}">
+                Löschen
+            </bx-modal-footer-button>
+        </bx-modal-footer>
+    </bx-modal>
 </div>
 </body>
 </html>

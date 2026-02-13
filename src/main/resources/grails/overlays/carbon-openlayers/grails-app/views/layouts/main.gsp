@@ -6,7 +6,10 @@
     <title><g:layoutTitle default="INTERLIS CRUD"/></title>
     <asset:link rel="icon" href="favicon.ico" type="image/x-ico"/>
 
-    <link rel="stylesheet" href="https://unpkg.com/carbon-components@10/css/carbon-components.min.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/carbon-components@10/css/carbon-components.min.css"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css"/>
 
     <asset:stylesheet src="application.css"/>
@@ -15,35 +18,45 @@
 </head>
 
 <body class="bx--body">
-<header class="bx--header" role="banner" aria-label="INTERLIS CRUD">
-    <a class="bx--skip-to-content" href="#main-content">Skip to content</a>
-    <a class="bx--header__name" href="${request.contextPath}/" title="Home">
-        <span class="bx--header__name--prefix">INTERLIS</span>&nbsp;CRUD
-    </a>
-</header>
+<a class="bx--skip-to-content" href="#main-content">Skip to content</a>
 
-<main id="main-content" class="bx--content ili-main-content" role="main">
-    <div class="bx--grid">
-        <div class="bx--row">
-            <div class="bx--col-lg-16">
-                <g:layoutBody/>
-            </div>
-        </div>
+<bx-header aria-label="INTERLIS CRUD" class="ili-shell-header">
+    <bx-header-menu-button
+        button-label-active="Navigation schliessen"
+        button-label-inactive="Navigation öffnen"
+        collapse-mode="responsive"
+        usage-mode="header-nav">
+    </bx-header-menu-button>
+    <bx-header-name href="${request.contextPath}/" prefix="INTERLIS">CRUD</bx-header-name>
+    <bx-header-nav aria-label="Hauptnavigation">
+        <bx-header-nav-item href="https://www.interlis.ch">INTERLIS</bx-header-nav-item>
+        <bx-header-nav-item href="https://grails.org">Grails</bx-header-nav-item>
+        <bx-header-nav-item href="https://openlayers.org">OpenLayers</bx-header-nav-item>
+        <bx-header-menu menu-label="App switcher" trigger-content="Domains">
+            <bx-header-menu-item href="https://www.interlis.ch">INTERLIS</bx-header-menu-item>
+            <bx-header-menu-item href="https://grails.org">Grails</bx-header-menu-item>
+            <bx-header-menu-item href="https://openlayers.org">OpenLayers</bx-header-menu-item>
+        </bx-header-menu>
+    </bx-header-nav>
+</bx-header>
+
+<bx-side-nav aria-label="Seitennavigation" collapse-mode="responsive" usage-mode="header-nav">
+    <bx-side-nav-items>
+        <bx-side-nav-link href="https://www.interlis.ch">INTERLIS</bx-side-nav-link>
+        <bx-side-nav-link href="https://grails.org">Grails</bx-side-nav-link>
+        <bx-side-nav-link href="https://openlayers.org">OpenLayers</bx-side-nav-link>
+    </bx-side-nav-items>
+</bx-side-nav>
+
+<main id="main-content" class="ili-main-content" role="main">
+    <div class="ili-main-grid">
+        <g:layoutBody/>
     </div>
 </main>
 
-<footer class="ili-footer" role="contentinfo">
-    <div class="bx--grid">
-        <div class="bx--row">
-            <div class="bx--col-lg-16">
-                <small>Generated with ili2grails</small>
-            </div>
-        </div>
-    </div>
-</footer>
-
 <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ol@v9.2.4/dist/ol.js"></script>
+<asset:javascript src="ili-carbon-wc-bundle.js"/>
 <asset:javascript src="application.js"/>
 </body>
 </html>

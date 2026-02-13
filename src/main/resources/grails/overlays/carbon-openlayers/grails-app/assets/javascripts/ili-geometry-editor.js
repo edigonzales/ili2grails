@@ -89,6 +89,11 @@
         return null;
     }
 
+    function dispatchWktEvents(input) {
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
     function setupInteractionState(map, source, resolveDrawType, mode) {
         var drawInteraction = null;
         var modifyInteraction = null;
@@ -142,6 +147,13 @@
         };
     }
 
+    function resizeMapSoon(map, source) {
+        window.setTimeout(function() {
+            map.updateSize();
+            fitToFeatures(map, source);
+        }, 80);
+    }
+
     function initEditor(editor) {
         var wktInput = editor.querySelector(".js-geometry-wkt");
         var mapElement = editor.querySelector(".ili-geometry-map");
@@ -179,6 +191,7 @@
             var features = source.getFeatures();
             if (!features.length) {
                 wktInput.value = "";
+                dispatchWktEvents(wktInput);
                 return;
             }
             var geometry = features[0].getGeometry().clone();
@@ -186,6 +199,7 @@
                 geometry.transform(viewProjection, dataProjection);
             }
             wktInput.value = format.writeGeometry(geometry);
+            dispatchWktEvents(wktInput);
         }
 
         function readInitialWkt() {
@@ -276,7 +290,75 @@
             }
         }
 
+        editor.addEventListener("ili:geometry-panel-visible", function() {
+            resizeMapSoon(map, source);
+        });
+
         readInitialWkt();
+        resizeMapSoon(map, source);
+    }
+
+    function setupTabPanels(root) {
+        var tabContainers = root.querySelectorAll(".js-geometry-tabs");
+        tabContainers.forEach(function(tabs) {
+            var panelHost = tabs.closest(".ili-map-panel");
+            if (!panelHost) {
+                return;
+            }
+            var panels = panelHost.querySelectorAll(".js-geometry-tab-panel");
+            var tabItems = tabs.querySelectorAll("bx-tab");
+            if (!panels.length || !tabItems.length) {
+                return;
+            }
+
+            function activate(value) {
+                if (!value) {
+                    return;
+                }
+                panels.forEach(function(panel) {
+                    var active = panel.dataset.geometryPanel === value;
+                    panel.classList.toggle("is-active", active);
+                    panel.hidden = !active;
+                    if (active) {
+                        panel.querySelectorAll(".ili-geometry-editor").forEach(function(editor) {
+                            editor.dispatchEvent(new CustomEvent("ili:geometry-panel-visible", { bubbles: true }));
+                        });
+                    }
+                });
+                tabItems.forEach(function(tab) {
+                    if (tab.getAttribute("value") === value) {
+                        tab.setAttribute("selected", "");
+                    } else {
+                        tab.removeAttribute("selected");
+                    }
+                });
+            }
+
+            function selectedValueFromTabs() {
+                var selected = tabs.querySelector("bx-tab[selected]");
+                if (selected) {
+                    return selected.getAttribute("value");
+                }
+                if (tabItems.length) {
+                    return tabItems[0].getAttribute("value");
+                }
+                return null;
+            }
+
+            tabs.addEventListener("click", function(event) {
+                var tab = event.target.closest("bx-tab");
+                if (!tab) {
+                    return;
+                }
+                activate(tab.getAttribute("value"));
+            });
+
+            tabs.addEventListener("bx-tabs-selected", function() {
+                activate(selectedValueFromTabs());
+            });
+
+            activate(selectedValueFromTabs());
+        });
     }
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -286,5 +368,6 @@
         }
         var editors = document.querySelectorAll(".ili-geometry-editor");
         editors.forEach(initEditor);
+        setupTabPanels(document);
     });
 })();

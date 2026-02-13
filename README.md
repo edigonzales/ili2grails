@@ -282,6 +282,19 @@ NUMERIC 1.00..3.55 → BigDecimal
 - Mit `--grails-map-editor openlayers` erhalten Scaffold-`create/edit/show` bei Geometrie-Attributen eine Webkarte.
 - Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt.
 - Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen (ohne Snapping/Topologieprüfung).
+- Carbon Web Components werden als progressive Enhancement eingebunden (SSR bleibt führend).
+- Carbon Web Components werden als lokales Bundle (`ili-carbon-wc-bundle.js`) ausgeliefert, um
+  Browser-Probleme mit CDN-ESM-Folgeimports (z. B. CORS/MIME/Module-Resolution) zu vermeiden.
+- `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
+  links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
+- Bei mehreren Geometriefeldern wird rechts ein Tab-Panel pro Feld gerendert.
+- `show` nutzt ebenfalls das Split-Layout und eine separate Danger-Zone mit Confirm-Modal vor `DELETE`.
+- `index` rendert ohne Paging/Search/Bulk als Carbon Web Components Tabelle mit Row-Actions.
+- Unsaved-Changes werden in `create/edit` als Badge + `beforeunload`-Warnung signalisiert.
+
+#### UX-Grenzen dieser Iteration
+- Kein Paging, keine Freitextsuche und keine Bulk-Actions.
+- All-Rows-Index ist für moderate Datenmengen gedacht; bei sehr großen Tabellen kann die Ladezeit steigen.
 
 ### Strukturen im Domain-Model
 - INTERLIS-Strukturen werden als eigene `STRUCTURE`-Klassen im Metamodell geführt.

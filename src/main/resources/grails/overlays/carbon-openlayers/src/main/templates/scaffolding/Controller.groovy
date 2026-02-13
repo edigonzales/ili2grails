@@ -3,6 +3,8 @@
 import grails.validation.ValidationException
 import org.locationtech.jts.io.WKTReader
 
+import java.time.temporal.TemporalAccessor
+
 import static org.springframework.http.HttpStatus.*
 
 class ${className}Controller {
@@ -11,9 +13,14 @@ class ${className}Controller {
 
     static allowedMethods = [save: "POST", update: "PUT", delete: "DELETE"]
 
-    def index(Integer max) {
-        params.max = Math.min(max ?: 10, 100)
-        respond ${propertyName}Service.list(params), model:[${propertyName}Count: ${propertyName}Service.count()]
+    def index() {
+        List<${className}> records = ${propertyName}Service.list([:])
+        List<String> columns = tableColumns()
+        respond records, model: [
+            ${propertyName}Count: records.size(),
+            tableColumns: columns,
+            tableRows: tableRows(records, columns)
+        ]
     }
 
     def show(Long id) {
@@ -22,7 +29,10 @@ class ${className}Controller {
             notFound()
             return
         }
-        respond ${propertyName}, model: geometryModel(${propertyName})
+        Map<String, Object> model = [:]
+        model.putAll(geometryModel(${propertyName}))
+        model.putAll(detailModel(${propertyName}))
+        respond ${propertyName}, model: model
     }
 
     def create() {
@@ -121,6 +131,63 @@ class ${className}Controller {
             }
             '*'{ render status: NOT_FOUND }
         }
+    }
+
+    private Map<Object, Map<String, String>> tableRows(List<${className}> records, List<String> columns) {
+        Map<Object, Map<String, String>> rows = [:]
+        records.each { ${className} entity ->
+            Map<String, String> values = [:]
+            columns.each { String column ->
+                values[column] = renderFieldValue(entity?."\${column}")
+            }
+            rows[entity?.id] = values
+        }
+        return rows
+    }
+
+    private Map<String, Object> detailModel(${className} instance) {
+        List<String> columns = tableColumns()
+        Map<String, String> values = [:]
+        columns.each { String column ->
+            values[column] = renderFieldValue(instance?."\${column}")
+        }
+        return [
+            detailColumns: columns,
+            detailValues: values
+        ]
+    }
+
+    private List<String> tableColumns() {
+        Map<String, Object> constrained = (${className}.constrainedProperties ?: [:]) as Map<String, Object>
+        List<String> columns = constrained.keySet().collect { it.toString() }
+        Set<String> excluded = new LinkedHashSet<>(geometryFields())
+        excluded.add("version")
+        columns = columns.findAll { String column -> !excluded.contains(column) }
+        if (columns.remove("id")) {
+            columns.add(0, "id")
+        }
+        return columns
+    }
+
+    private String renderFieldValue(Object value) {
+        if (value == null) {
+            return ""
+        }
+        if (value instanceof Enum) {
+            return ((Enum) value).name()
+        }
+        if (value instanceof TemporalAccessor) {
+            return value.toString()
+        }
+        if (value instanceof Date) {
+            return value.format("yyyy-MM-dd HH:mm:ss")
+        }
+        if (value instanceof Collection) {
+            return ((Collection) value).collect { Object item -> item?.toString() ?: "" }
+                .findAll { String item -> item != null && !item.isBlank() }
+                .join(", ")
+        }
+        return value.toString()
     }
 
     private void bindGeometryFromParams(${className} instance) {
