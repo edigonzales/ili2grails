@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title><g:layoutTitle default="INTERLIS CRUD"/></title>
+    <title><g:layoutTitle default="INTERLIS CRUD GENERATOR"/></title>
     <asset:link rel="icon" href="favicon.ico" type="image/x-ico"/>
 
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -19,32 +19,32 @@
 
 <body class="bx--body">
 <a class="bx--skip-to-content" href="#main-content">Skip to content</a>
+<g:set var="viewMenuEntries"
+       value="${grailsApplication.controllerClasses
+           .findAll { it.logicalPropertyName && it.logicalPropertyName != 'urlMappings' }
+           .collect { [controller: it.logicalPropertyName, label: it.shortName?.replace('Controller', '')] }
+           .sort { it.label?.toLowerCase() }}"/>
 
-<bx-header aria-label="INTERLIS CRUD" class="ili-shell-header">
+<bx-header aria-label="INTERLIS CRUD GENERATOR" class="ili-shell-header">
     <bx-header-menu-button
         button-label-active="Navigation schliessen"
         button-label-inactive="Navigation öffnen"
         collapse-mode="responsive"
         usage-mode="header-nav">
     </bx-header-menu-button>
-    <bx-header-name href="${request.contextPath}/" prefix="INTERLIS">CRUD</bx-header-name>
-    <bx-header-nav aria-label="Hauptnavigation">
-        <bx-header-nav-item href="https://www.interlis.ch">INTERLIS</bx-header-nav-item>
-        <bx-header-nav-item href="https://grails.org">Grails</bx-header-nav-item>
-        <bx-header-nav-item href="https://openlayers.org">OpenLayers</bx-header-nav-item>
-        <bx-header-menu menu-label="App switcher" trigger-content="Domains">
-            <bx-header-menu-item href="https://www.interlis.ch">INTERLIS</bx-header-menu-item>
-            <bx-header-menu-item href="https://grails.org">Grails</bx-header-menu-item>
-            <bx-header-menu-item href="https://openlayers.org">OpenLayers</bx-header-menu-item>
-        </bx-header-menu>
-    </bx-header-nav>
+    <bx-header-name href="${request.contextPath}/">INTERLIS CRUD GENERATOR</bx-header-name>
 </bx-header>
 
 <bx-side-nav aria-label="Seitennavigation" collapse-mode="responsive" usage-mode="header-nav">
     <bx-side-nav-items>
-        <bx-side-nav-link href="https://www.interlis.ch">INTERLIS</bx-side-nav-link>
-        <bx-side-nav-link href="https://grails.org">Grails</bx-side-nav-link>
-        <bx-side-nav-link href="https://openlayers.org">OpenLayers</bx-side-nav-link>
+        <g:if test="${viewMenuEntries}">
+            <g:each in="${viewMenuEntries}" var="entry">
+                <bx-side-nav-link href="${createLink(controller: entry.controller, action: 'index')}">${entry.label}</bx-side-nav-link>
+            </g:each>
+        </g:if>
+        <g:else>
+            <bx-side-nav-link href="${request.contextPath}/">Home</bx-side-nav-link>
+        </g:else>
     </bx-side-nav-items>
 </bx-side-nav>
 
