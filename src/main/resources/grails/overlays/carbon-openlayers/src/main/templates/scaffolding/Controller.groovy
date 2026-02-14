@@ -259,12 +259,12 @@ class ${className}Controller {
     }
 
     private List<String> geometryFields() {
-        Map<String, Map<String, Object>> meta = (${className}.geometryMeta ?: [:]) as Map<String, Map<String, Object>>
+        Map<String, Map<String, Object>> meta = getGeometryMeta()
         return meta.keySet().collect { it.toString() }.sort()
     }
 
     private Integer geometrySrid(String field) {
-        Map<String, Map<String, Object>> meta = (${className}.geometryMeta ?: [:]) as Map<String, Map<String, Object>>
+        Map<String, Map<String, Object>> meta = getGeometryMeta()
         Object configuredSrid = meta[field]?.get("srid")
         if (configuredSrid instanceof Number) {
             return ((Number) configuredSrid).intValue()
@@ -273,7 +273,7 @@ class ${className}Controller {
     }
 
     private String geometryKind(String field) {
-        Map<String, Map<String, Object>> meta = (${className}.geometryMeta ?: [:]) as Map<String, Map<String, Object>>
+        Map<String, Map<String, Object>> meta = getGeometryMeta()
         Object configuredKind = meta[field]?.get("kind")
         return configuredKind != null ? configuredKind.toString() : "GEOMETRY"
     }
@@ -300,5 +300,13 @@ class ${className}Controller {
             return "GEOMETRY"
         }
         return normalized
+    }
+
+    private Map<String, Map<String, Object>> getGeometryMeta() {
+        try {
+            return (${className}.geometryMeta ?: [:]) as Map<String, Map<String, Object>>
+        } catch (MissingPropertyException e) {
+            return [:]
+        }
     }
 }
