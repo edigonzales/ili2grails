@@ -22,7 +22,7 @@ class GrailsTemplateOverlayInstallerTest {
         ));
 
         GenerationConfig config = GenerationConfig.builder(projectDir, "com.example")
-            .uiTheme(GenerationConfig.UI_THEME_CARBON)
+            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
             .mapEditor(GenerationConfig.MAP_EDITOR_OPENLAYERS)
             .build();
 
@@ -39,41 +39,42 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_geometry-panel.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_show-details.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/views/layouts/main.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-wc-bundle.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js")).exists();
-        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).exists();
+        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-wc-bundle.js")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js")).doesNotExist();
 
         String updatedApplicationJs = Files.readString(applicationJs);
         assertThat(updatedApplicationJs).contains("//= require ili-geometry-editor.js");
         assertThat(updatedApplicationJs).contains("//= require ili-form-ux.js");
-        assertThat(updatedApplicationJs).contains("//= require ili-carbon-input-bridge.js");
+        assertThat(updatedApplicationJs).doesNotContain("//= require ili-carbon-input-bridge.js");
         assertThat(updatedApplicationJs.indexOf("//= require ili-geometry-editor.js"))
             .isEqualTo(updatedApplicationJs.lastIndexOf("//= require ili-geometry-editor.js"));
         assertThat(updatedApplicationJs.indexOf("//= require ili-form-ux.js"))
             .isEqualTo(updatedApplicationJs.lastIndexOf("//= require ili-form-ux.js"));
-        assertThat(updatedApplicationJs.indexOf("//= require ili-carbon-input-bridge.js"))
-            .isEqualTo(updatedApplicationJs.lastIndexOf("//= require ili-carbon-input-bridge.js"));
 
         String indexTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/index.gsp"));
-        assertThat(indexTemplate).contains("bx-table");
-        assertThat(indexTemplate).contains("bx-table-header-cell");
+        assertThat(indexTemplate).contains("<table class=\"table");
         assertThat(indexTemplate).contains("data-row-delete");
+        assertThat(indexTemplate).doesNotContain("bx-table");
 
         String formTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_form.gsp"));
         assertThat(formTemplate).contains("ili-split-layout");
         assertThat(formTemplate).contains("data-unsaved-badge");
-        assertThat(formTemplate).contains("js-carbon-bridge");
+        assertThat(formTemplate).doesNotContain("js-carbon-bridge");
 
         String showTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/show.gsp"));
         assertThat(showTemplate).contains("Danger Zone");
         assertThat(showTemplate).contains("data-delete-open");
-        assertThat(showTemplate).contains("bx-modal");
+        assertThat(showTemplate).contains("modal fade");
+        assertThat(showTemplate).doesNotContain("bx-modal");
 
         String layoutTemplate = Files.readString(projectDir.resolve("grails-app/views/layouts/main.gsp"));
-        assertThat(layoutTemplate).contains("<asset:javascript src=\"ili-carbon-wc-bundle.js\"/>");
-        assertThat(layoutTemplate).doesNotContain("script type=\"module\"");
+        assertThat(layoutTemplate).contains("bootstrap@5.3.3");
+        assertThat(layoutTemplate).contains("navbar-toggler");
+        assertThat(layoutTemplate).doesNotContain("ili-carbon-wc-bundle.js");
+        assertThat(layoutTemplate).doesNotContain("<bx-header");
 
         String controllerTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/Controller.groovy"));
         assertThat(controllerTemplate).contains("def index()");
@@ -92,5 +93,36 @@ class GrailsTemplateOverlayInstallerTest {
         new GrailsTemplateOverlayInstaller().install(projectDir, config);
 
         assertThat(projectDir.resolve("src/main/templates/scaffolding/Controller.groovy")).doesNotExist();
+    }
+
+    @Test
+    void removesLegacyCarbonArtifactsWhenInstallingBootstrapOverlay(@TempDir Path tempDir) throws Exception {
+        Path projectDir = tempDir.resolve("my-grails-app");
+        Path legacyBundle = projectDir.resolve("grails-app/assets/javascripts/ili-carbon-wc-bundle.js");
+        Path legacyBridge = projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js");
+        Path applicationJs = projectDir.resolve("grails-app/assets/javascripts/application.js");
+
+        Files.createDirectories(legacyBundle.getParent());
+        Files.writeString(legacyBundle, "legacy bundle");
+        Files.writeString(legacyBridge, "legacy bridge");
+        Files.writeString(applicationJs, String.join("\n",
+            "//= require ili-carbon-input-bridge.js",
+            "//= require_self",
+            ""
+        ));
+
+        GenerationConfig config = GenerationConfig.builder(projectDir, "com.example")
+            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+            .build();
+
+        new GrailsTemplateOverlayInstaller().install(projectDir, config);
+
+        assertThat(legacyBundle).doesNotExist();
+        assertThat(legacyBridge).doesNotExist();
+
+        String updatedApplicationJs = Files.readString(applicationJs);
+        assertThat(updatedApplicationJs).doesNotContain("//= require ili-carbon-input-bridge.js");
+        assertThat(updatedApplicationJs).contains("//= require ili-geometry-editor.js");
+        assertThat(updatedApplicationJs).contains("//= require ili-form-ux.js");
     }
 }

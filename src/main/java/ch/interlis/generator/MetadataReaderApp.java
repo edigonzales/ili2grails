@@ -120,8 +120,8 @@ public class MetadataReaderApp {
         System.out.println("  --grails-domain-package <package> - Package for domain classes (default: <base>)");
         System.out.println("  --grails-controller-package <package> - Package for controllers (default: <base>)");
         System.out.println("  --grails-enum-package <package>   - Package for enums (default: <base>.enums)");
-        System.out.println("  --grails-ui-theme <default|carbon> - UI theme for scaffold templates (default: default)");
-        System.out.println("  --grails-map-editor <none|openlayers> - Map editor mode (default: openlayers with carbon, else none)");
+        System.out.println("  --grails-ui-theme <default|bootstrap> - UI theme for scaffold templates (default: default)");
+        System.out.println("  --grails-map-editor <none|openlayers> - Map editor mode (default: openlayers with bootstrap, else none)");
         System.out.println("  --grails-default-srid <int>       - Default SRID for geometry binding/config (default: 2056)");
         System.out.println("  --grails-generate-all             - Run ./grailsw generate-all for each domain (requires --grails-init)");
         System.out.println();
@@ -511,7 +511,7 @@ public class MetadataReaderApp {
         if (options.grailsMapEditor != null && !options.grailsMapEditor.isBlank()) {
             return options.grailsMapEditor;
         }
-        if (GenerationConfig.UI_THEME_CARBON.equals(uiTheme)) {
+        if (GenerationConfig.UI_THEME_BOOTSTRAP.equals(uiTheme)) {
             return GenerationConfig.MAP_EDITOR_OPENLAYERS;
         }
         return GenerationConfig.MAP_EDITOR_NONE;
@@ -525,7 +525,7 @@ public class MetadataReaderApp {
 
     private static boolean isSupportedUiTheme(String uiTheme) {
         return GenerationConfig.UI_THEME_DEFAULT.equals(uiTheme)
-            || GenerationConfig.UI_THEME_CARBON.equals(uiTheme);
+            || GenerationConfig.UI_THEME_BOOTSTRAP.equals(uiTheme);
     }
 
     private static boolean isSupportedMapEditor(String mapEditor) {

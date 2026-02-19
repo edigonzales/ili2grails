@@ -1,29 +1,22 @@
 :root {
     --ili-page-max-width: 1600px;
-    --ili-border: #dde1e6;
-    --ili-subtle: #525252;
-    --ili-bg: #ffffff;
+    --ili-border: #dee2e6;
+    --ili-subtle: #6c757d;
+    --ili-bg: #f8f9fa;
     --ili-danger-bg: #fff1f1;
-    --ili-action-ink: #161616;
-    --ili-action-bg: transparent;
-    --ili-action-border: #e0e0e0;
-    --ili-action-hover: #f4f4f4;
-    --ili-table-border: #c6c6c6;
+    --ili-action-ink: #212529;
+    --ili-action-bg: #ffffff;
+    --ili-action-border: #dee2e6;
+    --ili-action-hover: #f8f9fa;
 }
 
-.bx--body,
-body,
-input,
-select,
-textarea,
-button {
-    font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+body {
+    background: var(--ili-bg);
 }
 
 .ili-main-content {
     min-height: calc(100vh - 4rem);
-    padding: 4.75rem 1.5rem 2rem;
-    background: var(--ili-bg);
+    padding: 5rem 1rem 1.5rem;
 }
 
 .ili-main-grid {
@@ -62,10 +55,6 @@ button {
     flex-wrap: wrap;
 }
 
-.ili-link-btn {
-    text-decoration: none;
-}
-
 .ili-unsaved-badge[hidden] {
     display: none;
 }
@@ -73,7 +62,7 @@ button {
 .ili-error-list {
     margin: 0;
     padding: 0.9rem 1.25rem;
-    border-left: 3px solid #da1e28;
+    border-left: 3px solid #dc3545;
     background: #fff1f1;
 }
 
@@ -103,7 +92,7 @@ button {
 
 .ili-map-column {
     position: sticky;
-    top: 6.5rem;
+    top: 5.5rem;
 }
 
 .ili-form-tile,
@@ -118,12 +107,11 @@ button {
 .ili-table-tile {
     border: 0;
     box-shadow: none;
-    padding: 0 !important;
     background: transparent;
 }
 
 .ili-native-form-host {
-    padding: 0.75rem 0;
+    padding: 0.25rem 0;
 }
 
 .ili-native-grid {
@@ -136,11 +124,6 @@ button {
     gap: 0.35rem;
 }
 
-.ili-carbon-field-host {
-    margin-bottom: 0.35rem;
-}
-
-.ili-native-label-hidden,
 .ili-native-field-hidden,
 .ili-native-submit {
     position: absolute !important;
@@ -161,8 +144,11 @@ button {
 
 .ili-map-panel {
     display: grid;
-    gap: 1rem;
-    padding: 1rem;
+}
+
+.ili-map-panel .card-body {
+    display: grid;
+    gap: 0.75rem;
 }
 
 .ili-map-panel-head {
@@ -215,6 +201,7 @@ button {
 }
 
 .ili-geometry-type-label {
+    margin-bottom: 0;
     color: var(--ili-subtle);
     font-size: 0.875rem;
 }
@@ -222,7 +209,7 @@ button {
 .ili-geometry-map {
     width: 100%;
     min-height: 340px;
-    border: 1px solid #c6c6c6;
+    border: 1px solid var(--ili-border);
     background: #ffffff;
 }
 
@@ -246,16 +233,18 @@ button {
 
 .ili-definition-row dd {
     margin: 0;
-    color: #161616;
+    color: #212529;
     overflow-wrap: anywhere;
 }
 
 .ili-danger-zone {
     background: var(--ili-danger-bg);
     border-color: #f1c7c9;
+}
+
+.ili-danger-zone .card-body {
     display: grid;
     gap: 0.75rem;
-    padding: 1rem;
 }
 
 .ili-danger-zone-head {
@@ -273,15 +262,15 @@ button {
 
 .ili-table-wrap {
     overflow-x: auto;
-    /*border: 1px solid var(--ili-table-border);*/
     background: #ffffff;
+    border-radius: 0.5rem;
 }
 
 .ili-row-actions {
     display: inline-flex;
     align-items: center;
     border: 1px solid var(--ili-action-border);
-    border-radius: 0.25rem;
+    border-radius: 0.375rem;
     overflow: hidden;
     background: var(--ili-action-bg);
 }
@@ -319,28 +308,18 @@ button {
     background: var(--ili-action-hover);
 }
 
-.ili-icon-action:focus {
-    outline: 2px solid #0f62fe;
+.ili-icon-action:focus-visible {
+    outline: 2px solid #0d6efd;
     outline-offset: -2px;
 }
 
 .ili-icon-action-danger {
-    color: var(--ili-action-ink);
+    color: #842029;
 }
 
-.ili-empty-state {
-    padding: 1.25rem;
+.ili-empty-state .card-body {
     display: grid;
     gap: 0.75rem;
-}
-
-.ili-empty-state h2,
-.ili-empty-state p {
-    margin: 0;
-}
-
-bx-inline-notification {
-    width: 100%;
 }
 
 @media (max-width: 1100px) {
@@ -355,7 +334,7 @@ bx-inline-notification {
 
 @media (max-width: 768px) {
     .ili-main-content {
-        padding: 5.5rem 0.9rem 1.2rem;
+        padding: 4.8rem 0.75rem 1rem;
     }
 
     .ili-page-title {

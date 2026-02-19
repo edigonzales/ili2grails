@@ -14,48 +14,48 @@
             <p class="ili-page-subtitle">Alle Datensätze serverseitig geladen, ohne Paging/Search/Bulk.</p>
         </div>
         <div class="ili-page-actions">
-            <g:link class="ili-link-btn" action="create">
-                <bx-btn kind="primary"><g:message code="default.new.label" args="[entityName]" /></bx-btn>
+            <g:link action="create" class="btn btn-primary">
+                <g:message code="default.new.label" args="[entityName]" />
             </g:link>
-            <bx-tag type="cool-gray">Count: \${${propertyName}Count ?: 0}</bx-tag>
+            <span class="badge text-bg-secondary">Count: \${${propertyName}Count ?: 0}</span>
         </div>
     </section>
 
     <g:if test="\${flash.message}">
-        <bx-inline-notification kind="info" title="Hinweis" subtitle="\${flash.message}"></bx-inline-notification>
+        <div class="alert alert-info" role="status">\${flash.message}</div>
     </g:if>
 
     <g:if test="\${rows.isEmpty()}">
-        <section class="bx--tile ili-empty-state">
-            <h2>Noch keine Daten</h2>
-            <p>Erstelle den ersten Datensatz für \${entityName}.</p>
-            <g:link class="ili-link-btn" action="create">
-                <bx-btn kind="primary"><g:message code="default.new.label" args="[entityName]" /></bx-btn>
-            </g:link>
+        <section class="card ili-empty-state">
+            <div class="card-body">
+                <h2 class="h5 mb-2">Noch keine Daten</h2>
+                <p class="mb-3">Erstelle den ersten Datensatz für \${entityName}.</p>
+                <g:link action="create" class="btn btn-primary">
+                    <g:message code="default.new.label" args="[entityName]" />
+                </g:link>
+            </div>
         </section>
     </g:if>
 
     <g:else>
-        <section class="bx--tile ili-table-tile">
+        <section class="card ili-table-tile">
             <div class="ili-table-wrap">
-                <bx-table size="lg" zebra>
-                    <bx-table-head>
-                        <bx-table-header-row>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
                             <g:each in="\${tableColumns ?: []}" var="tableColumn">
-                                <bx-table-header-cell>
-                                    \${message(code: '${propertyName}.' + tableColumn + '.label', default: tableColumn)}
-                                </bx-table-header-cell>
+                                <th scope="col">\${message(code: '${propertyName}.' + tableColumn + '.label', default: tableColumn)}</th>
                             </g:each>
-                            <bx-table-header-cell>Actions</bx-table-header-cell>
-                        </bx-table-header-row>
-                    </bx-table-head>
-                    <bx-table-body>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                         <g:each in="\${rows}" var="row">
-                            <bx-table-row>
+                            <tr>
                                 <g:each in="\${tableColumns ?: []}" var="tableColumn">
-                                    <bx-table-cell>\${tableRows?.get(row?.id)?.get(tableColumn) ?: '-'}</bx-table-cell>
+                                    <td>\${tableRows?.get(row?.id)?.get(tableColumn) ?: '-'}</td>
                                 </g:each>
-                                <bx-table-cell>
+                                <td class="text-end">
                                     <div class="ili-row-actions">
                                         <g:link class="ili-icon-action" action="show" id="\${row?.id}" title="Anzeigen" aria-label="Anzeigen">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
@@ -83,11 +83,11 @@
                                             <button type="submit" class="ili-native-submit js-delete-submit">Delete</button>
                                         </g:form>
                                     </div>
-                                </bx-table-cell>
-                            </bx-table-row>
+                                </td>
+                            </tr>
                         </g:each>
-                    </bx-table-body>
-                </bx-table>
+                    </tbody>
+                </table>
             </div>
         </section>
     </g:else>

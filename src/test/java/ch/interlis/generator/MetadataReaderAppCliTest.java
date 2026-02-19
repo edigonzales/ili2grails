@@ -15,24 +15,24 @@ class MetadataReaderAppCliTest {
             "jdbc:postgresql://localhost:5432/test",
             "SimpleModel",
             "--grails-output", "generated",
-            "--grails-ui-theme", "carbon",
+            "--grails-ui-theme", "bootstrap",
             "--grails-map-editor", "openlayers",
             "--grails-default-srid", "2056"
         );
 
         assertThat(cliOptions).isNotNull();
-        assertThat(readField(cliOptions, "grailsUiTheme")).isEqualTo("carbon");
+        assertThat(readField(cliOptions, "grailsUiTheme")).isEqualTo("bootstrap");
         assertThat(readField(cliOptions, "grailsMapEditor")).isEqualTo("openlayers");
         assertThat(readField(cliOptions, "grailsDefaultSrid")).isEqualTo(2056);
     }
 
     @Test
-    void rejectsInvalidUiTheme() throws Exception {
+    void rejectsRemovedCarbonUiTheme() throws Exception {
         Object cliOptions = parseArgs(
             "jdbc:postgresql://localhost:5432/test",
             "SimpleModel",
             "--grails-output", "generated",
-            "--grails-ui-theme", "modernish"
+            "--grails-ui-theme", "carbon"
         );
         assertThat(cliOptions).isNull();
     }
@@ -44,11 +44,11 @@ class MetadataReaderAppCliTest {
             "SimpleModel",
             "--grails-output", "generated"
         );
-        Object carbonOptions = parseArgs(
+        Object bootstrapOptions = parseArgs(
             "jdbc:postgresql://localhost:5432/test",
             "SimpleModel",
             "--grails-output", "generated",
-            "--grails-ui-theme", "carbon"
+            "--grails-ui-theme", "bootstrap"
         );
 
         Method resolveUiTheme = MetadataReaderApp.class.getDeclaredMethod("resolveUiTheme", defaultOptions.getClass());
@@ -63,13 +63,13 @@ class MetadataReaderAppCliTest {
         String defaultTheme = (String) resolveUiTheme.invoke(null, defaultOptions);
         String defaultMapEditor = (String) resolveMapEditor.invoke(null, defaultOptions, defaultTheme);
 
-        String carbonTheme = (String) resolveUiTheme.invoke(null, carbonOptions);
-        String carbonMapEditor = (String) resolveMapEditor.invoke(null, carbonOptions, carbonTheme);
+        String bootstrapTheme = (String) resolveUiTheme.invoke(null, bootstrapOptions);
+        String bootstrapMapEditor = (String) resolveMapEditor.invoke(null, bootstrapOptions, bootstrapTheme);
 
         assertThat(defaultTheme).isEqualTo("default");
         assertThat(defaultMapEditor).isEqualTo("none");
-        assertThat(carbonTheme).isEqualTo("carbon");
-        assertThat(carbonMapEditor).isEqualTo("openlayers");
+        assertThat(bootstrapTheme).isEqualTo("bootstrap");
+        assertThat(bootstrapMapEditor).isEqualTo("openlayers");
     }
 
     private Object parseArgs(String... args) throws Exception {

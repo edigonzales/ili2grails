@@ -9,7 +9,7 @@ import java.util.Objects;
 public class GenerationConfig {
 
     public static final String UI_THEME_DEFAULT = "default";
-    public static final String UI_THEME_CARBON = "carbon";
+    public static final String UI_THEME_BOOTSTRAP = "bootstrap";
     public static final String MAP_EDITOR_NONE = "none";
     public static final String MAP_EDITOR_OPENLAYERS = "openlayers";
 

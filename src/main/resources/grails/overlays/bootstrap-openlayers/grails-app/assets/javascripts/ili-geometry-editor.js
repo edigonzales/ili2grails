@@ -306,8 +306,8 @@
                 return;
             }
             var panels = panelHost.querySelectorAll(".js-geometry-tab-panel");
-            var tabItems = tabs.querySelectorAll("bx-tab");
-            if (!panels.length || !tabItems.length) {
+            var tabButtons = tabs.querySelectorAll(".js-geometry-tab-btn");
+            if (!panels.length || !tabButtons.length) {
                 return;
             }
 
@@ -325,36 +325,36 @@
                         });
                     }
                 });
-                tabItems.forEach(function(tab) {
-                    if (tab.getAttribute("value") === value) {
-                        tab.setAttribute("selected", "");
+                tabButtons.forEach(function(tabButton) {
+                    var active = tabButton.getAttribute("data-geometry-tab-target") === value;
+                    tabButton.classList.toggle("active", active);
+                    tabButton.setAttribute("aria-selected", active ? "true" : "false");
+                    if (active) {
+                        tabButton.removeAttribute("tabindex");
                     } else {
-                        tab.removeAttribute("selected");
+                        tabButton.setAttribute("tabindex", "-1");
                     }
                 });
             }
 
             function selectedValueFromTabs() {
-                var selected = tabs.querySelector("bx-tab[selected]");
+                var selected = tabs.querySelector(".js-geometry-tab-btn.active");
                 if (selected) {
-                    return selected.getAttribute("value");
+                    return selected.getAttribute("data-geometry-tab-target");
                 }
-                if (tabItems.length) {
-                    return tabItems[0].getAttribute("value");
+                if (tabButtons.length) {
+                    return tabButtons[0].getAttribute("data-geometry-tab-target");
                 }
                 return null;
             }
 
             tabs.addEventListener("click", function(event) {
-                var tab = event.target.closest("bx-tab");
-                if (!tab) {
+                var tabButton = event.target.closest(".js-geometry-tab-btn");
+                if (!tabButton) {
                     return;
                 }
-                activate(tab.getAttribute("value"));
-            });
-
-            tabs.addEventListener("bx-tabs-selected", function() {
-                activate(selectedValueFromTabs());
+                event.preventDefault();
+                activate(tabButton.getAttribute("data-geometry-tab-target"));
             });
 
             activate(selectedValueFromTabs());

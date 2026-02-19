@@ -99,8 +99,8 @@ Weitere Optionen:
 - `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
 - `--grails-enum-package` (Default: `<Basis-Package>.enums`)
-- `--grails-ui-theme <default|carbon>` (Default: `default`)
-- `--grails-map-editor <none|openlayers>` (Default: `openlayers` bei `carbon`, sonst `none`)
+- `--grails-ui-theme <default|bootstrap>` (Default: `default`)
+- `--grails-map-editor <none|openlayers>` (Default: `openlayers` bei `bootstrap`, sonst `none`)
 - `--grails-default-srid <int>` (Default: `2056`)
 - `--grails-generate-all` (nur mit `--grails-init`, ruft `./grailsw generate-all` für jede Domain auf)
 
@@ -138,13 +138,15 @@ Ist Geometrie aktiviert (Map-Editor `openlayers` oder Geometrie-Felder im Modell
 ./grailsw generate-all Person
 ```
 Alternativ kann `--grails-generate-all` verwendet werden, um diesen Schritt automatisch für alle generierten Domains auszuführen.
-Wenn `--grails-ui-theme carbon` gesetzt ist, kopiert der Generator vor `generate-all` automatisch das Overlay (Scaffolding-Templates, Layout, Assets) nach:
+Wenn `--grails-ui-theme bootstrap` gesetzt ist, kopiert der Generator vor `generate-all` automatisch das Overlay (Scaffolding-Templates, Layout, Assets) nach:
 - `src/main/templates/scaffolding`
 - `grails-app/views/layouts/main.gsp`
 - `grails-app/assets/javascripts/ili-geometry-editor.js`
+- `grails-app/assets/javascripts/ili-form-ux.js`
 - `grails-app/assets/stylesheets/ili-modern.css`
 
 Der Ablauf ist damit: `--grails-init` → Overlay kopieren → Domains/Enums schreiben → optional `generate-all`.
+Hinweis: `--grails-ui-theme carbon` wird nicht mehr unterstützt und muss auf `bootstrap` umgestellt werden.
 
 ### 3) Grails-App starten
 ```bash
@@ -278,18 +280,16 @@ NUMERIC 1.00..3.55 → BigDecimal
 ```
 
 ### Modernes SSR-Scaffolding und Geometrie-Editing
-- Mit `--grails-ui-theme carbon` werden moderne SSR-Scaffolding-Templates verwendet (kein SPA-Zwang).
+- Mit `--grails-ui-theme bootstrap` werden moderne SSR-Scaffolding-Templates verwendet (kein SPA-Zwang).
 - Mit `--grails-map-editor openlayers` erhalten Scaffold-`create/edit/show` bei Geometrie-Attributen eine Webkarte.
 - Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt.
 - Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen (ohne Snapping/Topologieprüfung).
-- Carbon Web Components werden als progressive Enhancement eingebunden (SSR bleibt führend).
-- Carbon Web Components werden als lokales Bundle (`ili-carbon-wc-bundle.js`) ausgeliefert, um
-  Browser-Probleme mit CDN-ESM-Folgeimports (z. B. CORS/MIME/Module-Resolution) zu vermeiden.
+- Die Oberfläche nutzt Bootstrap 5.3 mit Standardkomponenten (Navbar mit Hamburger-Menü, Alerts, Tabellen, Modal).
 - `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
   links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
 - Bei mehreren Geometriefeldern wird rechts ein Tab-Panel pro Feld gerendert.
 - `show` nutzt ebenfalls das Split-Layout und eine separate Danger-Zone mit Confirm-Modal vor `DELETE`.
-- `index` rendert ohne Paging/Search/Bulk als Carbon Web Components Tabelle mit Row-Actions.
+- `index` rendert ohne Paging/Search/Bulk als Bootstrap-Tabelle mit Row-Actions.
 - Unsaved-Changes werden in `create/edit` als Badge + `beforeunload`-Warnung signalisiert.
 
 #### UX-Grenzen dieser Iteration

@@ -146,37 +146,32 @@
         });
     }
 
+    function hideModal(modalElement) {
+        if (!modalElement || !window.bootstrap || !bootstrap.Modal) {
+            return;
+        }
+        var modal = bootstrap.Modal.getInstance(modalElement) || bootstrap.Modal.getOrCreateInstance(modalElement);
+        modal.hide();
+    }
+
     function initDeleteModal() {
         document.addEventListener("click", function(event) {
-            var openAction = event.target.closest("[data-delete-open]");
-            if (openAction) {
-                event.preventDefault();
-                var modalId = openAction.getAttribute("data-delete-open");
-                var modal = modalId ? document.getElementById(modalId) : null;
-                if (modal) {
-                    modal.open = true;
-                }
+            var confirmAction = event.target.closest("[data-delete-confirm]");
+            if (!confirmAction) {
                 return;
             }
-
-            var confirmAction = event.target.closest("[data-delete-confirm]");
-            if (confirmAction) {
-                event.preventDefault();
-                var formId = confirmAction.getAttribute("data-delete-form");
-                var form = formId ? document.getElementById(formId) : null;
-                var modalHost = confirmAction.closest("[data-delete-modal]");
-                if (modalHost) {
-                    modalHost.open = false;
-                }
-                if (!form) {
-                    return;
-                }
-                var submit = form.querySelector(".js-delete-submit");
-                if (submit) {
-                    submit.click();
-                } else {
-                    form.submit();
-                }
+            event.preventDefault();
+            var formId = confirmAction.getAttribute("data-delete-form");
+            var form = formId ? document.getElementById(formId) : null;
+            hideModal(confirmAction.closest(".modal"));
+            if (!form) {
+                return;
+            }
+            var submit = form.querySelector(".js-delete-submit");
+            if (submit) {
+                submit.click();
+            } else {
+                form.submit();
             }
         });
     }
