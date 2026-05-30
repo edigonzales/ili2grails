@@ -112,13 +112,29 @@ public final class TargetNameRegistry {
         return names.getOrDefault(attributeKey(attribute), toLowerCamelIdentifier(rawPropertyBase(attribute)));
     }
 
+    public String relationshipPropertyName(RelationshipMetadata relationship) {
+        if (relationship == null) {
+            return "value";
+        }
+        if (relationship.getTargetRoleName() != null && !relationship.getTargetRoleName().isBlank()) {
+            return toLowerCamelIdentifier(relationship.getTargetRoleName());
+        }
+        if (relationship.getSourceAttribute() != null && !relationship.getSourceAttribute().isBlank()) {
+            return toLowerCamelIdentifier(relationship.getSourceAttribute());
+        }
+        if (relationship.getSourceRoleName() != null && !relationship.getSourceRoleName().isBlank()) {
+            return toLowerCamelIdentifier(relationship.getSourceRoleName());
+        }
+        return toLowerCamelIdentifier(simpleSegment(relationship.getName()));
+    }
+
     public String collectionPropertyName(RelationshipMetadata relationship) {
         if (relationship == null) {
             return "items";
         }
         return collectionPropertyNames.getOrDefault(
             relationshipKey(relationship),
-            NameUtils.pluralize(toLowerCamelIdentifier(className(relationship.getSourceClass())))
+            rawCollectionPropertyName(relationship)
         );
     }
 
@@ -272,11 +288,12 @@ public final class TargetNameRegistry {
     private Map<String, String> resolveCollectionPropertyNames() {
         Map<String, String> resolved = new HashMap<>();
         Map<String, List<RelationshipMetadata>> byTarget = metadata.getAllRelationships().stream()
-            .filter(relationship -> relationship.getType() == RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .filter(relationship -> relationship.getType() == RelationshipMetadata.RelationType.MANY_TO_ONE
+                || relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE)
             .filter(relationship -> relationship.getTargetClass() != null)
             .sorted(relationshipComparator())
             .collect(Collectors.groupingBy(
-                RelationshipMetadata::getTargetClass,
+                this::collectionOwnerKey,
                 LinkedHashMap::new,
                 Collectors.toList()
             ));
@@ -308,18 +325,38 @@ public final class TargetNameRegistry {
 
     private List<String> collectionNameCandidates(RelationshipMetadata relationship, String base, int index) {
         List<String> candidates = new ArrayList<>();
+        boolean composition = relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE;
         if (relationship.getTargetRoleName() != null) {
-            candidates.add(NameUtils.pluralize(toLowerCamelIdentifier(relationship.getTargetRoleName())));
+            String roleName = toLowerCamelIdentifier(relationship.getTargetRoleName());
+            candidates.add(composition ? roleName : NameUtils.pluralize(roleName));
         }
         if (relationship.getSourceAttribute() != null) {
-            candidates.add(NameUtils.pluralize(toLowerCamelIdentifier(relationship.getSourceAttribute())));
+            String attributeName = toLowerCamelIdentifier(relationship.getSourceAttribute());
+            candidates.add(composition ? attributeName : NameUtils.pluralize(attributeName));
         }
         candidates.add(base + index);
         return candidates;
     }
 
     private String rawCollectionPropertyName(RelationshipMetadata relationship) {
+        if (relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE
+            && relationship.getSourceAttribute() != null
+            && !relationship.getSourceAttribute().isBlank()) {
+            return toLowerCamelIdentifier(relationship.getSourceAttribute());
+        }
+        if (relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE
+            && relationship.getTargetRoleName() != null
+            && !relationship.getTargetRoleName().isBlank()) {
+            return toLowerCamelIdentifier(relationship.getTargetRoleName());
+        }
         return NameUtils.pluralize(toLowerCamelIdentifier(className(relationship.getSourceClass())));
+    }
+
+    private String collectionOwnerKey(RelationshipMetadata relationship) {
+        if (relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE) {
+            return relationship.getSourceClass();
+        }
+        return relationship.getTargetClass();
     }
 
     private String targetContext(AttributeMetadata attribute) {

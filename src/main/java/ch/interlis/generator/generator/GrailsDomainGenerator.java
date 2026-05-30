@@ -4,14 +4,12 @@ import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
-import ch.interlis.generator.model.RelationshipMetadata;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -36,30 +34,27 @@ public class GrailsDomainGenerator {
             .resolve(NameUtils.packageToPath(config.getDomainPackage()));
         Files.createDirectories(baseDir);
 
-        Map<String, List<RelationshipMetadata>> incomingRelationships = indexIncomingRelations(metadata);
-
-        for (ClassMetadata classMetadata : metadata.getAllClasses()) {
-            if (classMetadata.isAbstract()) {
-                continue;
-            }
-            String content = renderDomain(classMetadata, metadata, config, registry, incomingRelationships);
+        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
+        for (ClassMetadata classMetadata : mapper.generatedClasses()) {
+            GrailsRelationshipMapper.DomainMapping mapping = mapper.map(classMetadata);
+            String content = renderDomain(classMetadata, mapping, metadata, config, registry);
             Path target = baseDir.resolve(registry.className(classMetadata) + ".groovy");
             Files.writeString(target, content, StandardCharsets.UTF_8);
         }
     }
 
     private String renderDomain(ClassMetadata classMetadata,
+                                GrailsRelationshipMapper.DomainMapping mapping,
                                 ModelMetadata metadata,
                                 GenerationConfig config,
-                                TargetNameRegistry registry,
-                                Map<String, List<RelationshipMetadata>> incomingRelations) {
+                                TargetNameRegistry registry) {
         String className = registry.className(classMetadata);
         String packageName = config.getDomainPackage();
 
         Set<String> imports = new LinkedHashSet<>();
         List<String> properties = new ArrayList<>();
         Map<String, String> columnMappings = new LinkedHashMap<>();
-        Map<String, AttributeMetadata> geometryAttributes = new LinkedHashMap<>();
+        Map<String, GrailsRelationshipMapper.DomainProperty> geometryAttributes = new LinkedHashMap<>();
         boolean hasIdAttribute = false;
         boolean hasPrimaryKeyTId = false;
         boolean hasTIdColumn = false;
@@ -74,19 +69,21 @@ public class GrailsDomainGenerator {
                     hasPrimaryKeyTId = true;
                 }
             }
-            if (attr.isPrimaryKey()) {
-                continue;
-            }
-            String propertyName = registry.propertyName(classMetadata, attr);
-            String type = resolveType(attr, metadata, config, registry, imports);
-            properties.add("    " + type + " " + propertyName);
-            if (attr.isGeometry()) {
-                geometryAttributes.put(propertyName, attr);
+        }
+
+        for (GrailsRelationshipMapper.DomainProperty property : mapping.properties()) {
+            addImport(property, metadata, config, registry, imports);
+            properties.add("    " + property.type() + " " + property.name());
+            if (property.geometry()) {
+                geometryAttributes.put(property.name(), property);
             }
 
-            if (attr.getColumnName() != null
-                && (attr.isForeignKey() || !attr.getColumnName().equalsIgnoreCase(propertyName))) {
-                columnMappings.put(propertyName, attr.getColumnName());
+            AttributeMetadata attribute = property.attribute();
+            if (property.columnName() != null
+                && (attribute == null
+                || attribute.isForeignKey()
+                || !property.columnName().equalsIgnoreCase(property.name()))) {
+                columnMappings.put(property.name(), property.columnName());
             }
         }
 
@@ -114,26 +111,16 @@ public class GrailsDomainGenerator {
             sb.append("    ]\n");
         }
 
-        List<RelationshipMetadata> ownedBy = incomingRelations.getOrDefault(classMetadata.getName(), List.of());
-        if (!ownedBy.isEmpty()) {
-            String hasManyBlock = ownedBy.stream()
-                .sorted(relationshipComparator(registry))
-                .map(relationship -> {
-                    String propName = registry.collectionPropertyName(relationship);
-                    ClassMetadata source = metadata.getClass(relationship.getSourceClass());
-                    String sourceClassName = source != null
-                        ? registry.className(source)
-                        : registry.className(relationship.getSourceClass());
-                    return propName + ": " + sourceClassName;
-                })
+        if (!mapping.collections().isEmpty()) {
+            String hasManyBlock = mapping.collections().stream()
+                .map(collection -> collection.name() + ": " + collection.type())
                 .collect(Collectors.joining(", "));
             sb.append("\n    static hasMany = [").append(hasManyBlock).append("]\n");
         }
 
-        Map<String, String> belongsTo = resolveBelongsTo(classMetadata, metadata, registry);
-        if (!belongsTo.isEmpty()) {
-            String belongsToBlock = belongsTo.entrySet().stream()
-                .map(entry -> entry.getKey() + ": " + entry.getValue())
+        if (!mapping.belongsTo().isEmpty()) {
+            String belongsToBlock = mapping.belongsTo().stream()
+                .map(ownership -> ownership.name() + ": " + ownership.type())
                 .collect(Collectors.joining(", "));
             sb.append("\n    static belongsTo = [").append(belongsToBlock).append("]\n");
         }
@@ -160,27 +147,23 @@ public class GrailsDomainGenerator {
         sb.append("    }\n");
 
         sb.append("\n    static constraints = {\n");
-        for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
-            if (attr.isPrimaryKey()) {
-                continue;
-            }
-            String propertyName = registry.propertyName(classMetadata, attr);
+        for (GrailsRelationshipMapper.DomainProperty property : mapping.properties()) {
             List<String> constraintParts = new ArrayList<>();
-            if (!attr.isMandatory()) {
+            if (property.nullable()) {
                 constraintParts.add("nullable: true");
             }
-            if (attr.getMaxLength() != null) {
-                constraintParts.add("maxSize: " + attr.getMaxLength());
+            if (property.maxLength() != null) {
+                constraintParts.add("maxSize: " + property.maxLength());
             }
-            if (isNumeric(attr.getMinValue())) {
-                constraintParts.add("min: " + attr.getMinValue());
+            if (isNumeric(property.minValue())) {
+                constraintParts.add("min: " + property.minValue());
             }
-            if (isNumeric(attr.getMaxValue())) {
-                constraintParts.add("max: " + attr.getMaxValue());
+            if (isNumeric(property.maxValue())) {
+                constraintParts.add("max: " + property.maxValue());
             }
             if (!constraintParts.isEmpty()) {
                 sb.append("        ")
-                    .append(propertyName)
+                    .append(property.name())
                     .append(" ")
                     .append(String.join(", ", constraintParts))
                     .append("\n");
@@ -192,49 +175,32 @@ public class GrailsDomainGenerator {
         return sb.toString();
     }
 
-    private Map<String, List<RelationshipMetadata>> indexIncomingRelations(ModelMetadata metadata) {
-        Map<String, List<RelationshipMetadata>> incoming = new LinkedHashMap<>();
-        for (RelationshipMetadata rel : metadata.getAllRelationships()) {
-            if (rel.getType() == RelationshipMetadata.RelationType.MANY_TO_ONE
-                && isGeneratedDomainClass(metadata, rel.getSourceClass())
-                && isGeneratedDomainClass(metadata, rel.getTargetClass())) {
-                incoming.computeIfAbsent(rel.getTargetClass(), key -> new ArrayList<>())
-                    .add(rel);
-            }
+    private void addImport(GrailsRelationshipMapper.DomainProperty property,
+                           ModelMetadata metadata,
+                           GenerationConfig config,
+                           TargetNameRegistry registry,
+                           Set<String> imports) {
+        AttributeMetadata attribute = property.attribute();
+        if (attribute == null) {
+            return;
         }
-        return incoming;
-    }
-
-    private String resolveType(AttributeMetadata attr,
-                               ModelMetadata metadata,
-                               GenerationConfig config,
-                               TargetNameRegistry registry,
-                               Set<String> imports) {
-        if (attr.getEnumType() != null) {
-            EnumMetadata enumMetadata = metadata.getEnums().get(attr.getEnumType());
-            if (enumMetadata != null) {
-                String enumName = registry.enumName(enumMetadata);
-                imports.add(config.getEnumPackage() + "." + enumName);
-                return enumName;
+        if (attribute.getEnumType() != null) {
+            EnumMetadata enumMetadata = metadata.getEnums().get(attribute.getEnumType());
+            if (enumMetadata != null && property.type().equals(registry.enumName(enumMetadata))) {
+                imports.add(config.getEnumPackage() + "." + property.type());
+                return;
             }
         }
 
-        if (attr.isForeignKey() && attr.getReferencedClass() != null) {
-            ClassMetadata referenced = metadata.getClass(attr.getReferencedClass());
-            if (referenced != null && !referenced.isAbstract()) {
-                return registry.className(referenced);
-            }
-        }
-
-        String javaType = attr.getJavaType();
-        String simpleType = NameUtils.simpleType(javaType);
-        if (javaType != null && javaType.contains(".")) {
+        String javaType = attribute.getJavaType();
+        if (javaType != null
+            && javaType.contains(".")
+            && property.type().equals(NameUtils.simpleType(javaType))) {
             String packageName = javaType.substring(0, javaType.lastIndexOf('.'));
             if (!packageName.startsWith("java.lang")) {
                 imports.add(javaType);
             }
         }
-        return simpleType;
     }
 
     private boolean isNumeric(String value) {
@@ -252,54 +218,16 @@ public class GrailsDomainGenerator {
         return "t_id".equalsIgnoreCase(attr.getName());
     }
 
-    private String renderSrid(AttributeMetadata attributeMetadata) {
-        Integer geometrySrid = attributeMetadata.getGeometrySrid();
+    private String renderSrid(GrailsRelationshipMapper.DomainProperty property) {
+        Integer geometrySrid = property.geometrySrid();
         return geometrySrid == null ? "null" : Integer.toString(geometrySrid);
     }
 
-    private String renderGeometryKind(AttributeMetadata attributeMetadata) {
-        String geometryKind = attributeMetadata.getGeometryKind();
+    private String renderGeometryKind(GrailsRelationshipMapper.DomainProperty property) {
+        String geometryKind = property.geometryKind();
         if (geometryKind == null || geometryKind.isBlank()) {
             return "GEOMETRY";
         }
         return geometryKind.toUpperCase();
-    }
-
-    private Map<String, String> resolveBelongsTo(ClassMetadata classMetadata,
-                                                 ModelMetadata metadata,
-                                                 TargetNameRegistry registry) {
-        Map<String, String> belongsTo = new LinkedHashMap<>();
-        for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
-            if (!attr.isForeignKey() || attr.getReferencedClass() == null) {
-                continue;
-            }
-            if (!isGeneratedDomainClass(metadata, attr.getReferencedClass())) {
-                continue;
-            }
-            String propertyName = registry.propertyName(classMetadata, attr);
-            if (propertyName == null || propertyName.isBlank()) {
-                continue;
-            }
-            ClassMetadata referenced = metadata.getClass(attr.getReferencedClass());
-            String targetName = referenced != null ? registry.className(referenced)
-                : registry.className(attr.getReferencedClass());
-            belongsTo.put(propertyName, targetName);
-        }
-        return belongsTo;
-    }
-
-    private boolean isGeneratedDomainClass(ModelMetadata metadata, String className) {
-        if (className == null) {
-            return false;
-        }
-        ClassMetadata classMetadata = metadata.getClass(className);
-        return classMetadata != null && !classMetadata.isAbstract();
-    }
-
-    private Comparator<RelationshipMetadata> relationshipComparator(TargetNameRegistry registry) {
-        return Comparator
-            .comparing((RelationshipMetadata relationship) -> registry.collectionPropertyName(relationship))
-            .thenComparing(RelationshipMetadata::getSourceClass, Comparator.nullsLast(String::compareTo))
-            .thenComparing(RelationshipMetadata::getName, Comparator.nullsLast(String::compareTo));
     }
 }

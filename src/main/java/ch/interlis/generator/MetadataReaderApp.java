@@ -2,6 +2,7 @@ package ch.interlis.generator;
 
 import ch.interlis.generator.generator.GenerationConfig;
 import ch.interlis.generator.generator.GrailsCrudGenerator;
+import ch.interlis.generator.generator.GrailsRelationshipMapper;
 import ch.interlis.generator.generator.GrailsTemplateOverlayInstaller;
 import ch.interlis.generator.generator.TargetNameRegistry;
 import ch.interlis.generator.metadata.MetadataJsonWriter;
@@ -488,8 +489,8 @@ public class MetadataReaderApp {
             throw new IllegalStateException("Grails wrapper not found at: " + grailsWrapper.toAbsolutePath());
         }
         TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
-        List<String> domainClasses = metadata.getAllClasses().stream()
-            .filter(classMetadata -> !classMetadata.isAbstract())
+        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
+        List<String> domainClasses = mapper.generatedClasses().stream()
             .map(classMetadata -> config.getDomainPackage() + "." + registry.className(classMetadata))
             .sorted()
             .toList();

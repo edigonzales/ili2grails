@@ -289,6 +289,15 @@ CLASSES:
 - Beim Merge gewinnen ili2db-Namen für die physische DB-Struktur und ili2c-Felder für fachliche Semantik.
 - Unbounded Cardinality wird in Java und JSON als `-1` ausgegeben.
 
+### Grails Relationship-/Structure-Mapping
+- Grails nutzt eine interne `GrailsRelationshipMapper`-Schicht statt roher Relationship-Listen.
+- `CLASS` und `ASSOCIATION` werden generiert, wenn sie nicht abstrakt sind.
+- `STRUCTURE` wird nur als Domain generiert, wenn sie physisch gemappt ist (`tableName`/`sqlName`) oder Ziel einer `COMPOSITION_ATTRIBUTE` ist.
+- Normale `ILI2DB_FK`- und `REFERENCE_ATTRIBUTE`-Beziehungen werden als typisierte Properties ausgegeben, erzeugen aber kein automatisches `belongsTo`.
+- `COMPOSITION_ATTRIBUTE` erzeugt bei `max > 1` oder `max = -1` ein `hasMany`; bei `max = 1` eine einfache Ziel-Property.
+- `belongsTo` wird nur für physisch vorhandene Composition-FKs ausgegeben. Der Generator erfindet dafür keine synthetischen DB-Spalten.
+- `ASSOCIATION_ROLE` wird in v1 als Property auf der Association-Domain modelliert; inverse `hasMany` auf den Zielklassen bleibt bewusst aus.
+
 ### Target-Naming
 - Zielnamen bleiben Generator-spezifisch und werden nicht in die Core-IR geschrieben.
 - Grails verwendet `TargetNameRegistry` als zentrale Naming-Policy für Domain-Klassen, Enums, Properties, Relationen, Controller und View-Pfade.
@@ -325,8 +334,10 @@ NUMERIC 1.00..3.55 → BigDecimal
 
 ### Strukturen im Domain-Model
 - INTERLIS-Strukturen werden als eigene `STRUCTURE`-Klassen im Metamodell geführt.
-- In Domain-Modellen werden Struktur-Attribute als **eingebettete Value-Objects** oder
-  **kompositionale 1:1-Beziehungen** modelliert (abhängig vom Framework).
+- In Grails v1 werden Structures konservativ nur dann als Domain ausgegeben, wenn sie
+  physisch gemappt sind oder durch eine Composition tatsächlich gebraucht werden.
+- Ungenutzte, nicht persistierbare Structures bleiben im Core-Metamodell sichtbar, werden
+  aber nicht als Grails-Domain geschrieben.
 
 ### Aktuelle Grenzen
 - Getesteter Primärpfad ist weiterhin PostgreSQL/PostGIS mit ili2pg; andere ili2db-Flavours sind nicht als produktiv validiert.
@@ -357,3 +368,16 @@ aus `test-models/VSADSSMINI_2020_2_d_LV95-20251129.ili` wird zuerst mit ili2c
 validiert; danach werden auch die daraus generierten Grails-Target-Dateien kompiliert.
 Ist ein externes Modell-Repository nicht erreichbar, wird dieser Großmodell-Test sauber
 übersprungen.
+
+Optional kann zusätzlich eine echte temporäre Grails-App erzeugt und kompiliert werden:
+```bash
+./gradlew grailsRuntimeSmokeTest
+```
+
+Dieser Runtime-Smoke-Test benötigt eine lokale `grails`-CLI im `PATH`, erzeugt seine App
+in einem temporären Verzeichnis, kompiliert generierte Domains/Enums mit `compileGroovy`
+und prüft zusätzlich `grailsw generate-all` mit den Registry-Klassennamen. Die getestete
+Grails-Version ist standardmäßig `7.0.6` und kann überschrieben werden:
+```bash
+./gradlew grailsRuntimeSmokeTest -PgrailsSmokeVersion=7.0.6
+```

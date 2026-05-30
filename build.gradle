@@ -43,10 +43,34 @@ dependencies {
     testImplementation 'org.locationtech.jts:jts-core:1.19.0'
 }
 
+sourceSets {
+    grailsRuntimeSmokeTest {
+        java.srcDir 'src/grailsRuntimeSmokeTest/java'
+        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+        runtimeClasspath += output + compileClasspath
+    }
+}
+
+configurations {
+    grailsRuntimeSmokeTestImplementation.extendsFrom testImplementation
+    grailsRuntimeSmokeTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
 application {
     mainClass = 'ch.interlis.generator.MetadataReaderApp'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('grailsRuntimeSmokeTest', Test) {
+    description = 'Runs opt-in Grails runtime smoke tests against a temporary Grails app.'
+    group = 'verification'
+    testClassesDirs = sourceSets.grailsRuntimeSmokeTest.output.classesDirs
+    classpath = sourceSets.grailsRuntimeSmokeTest.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter tasks.named('test')
+    systemProperty 'grailsSmokeVersion', project.findProperty('grailsSmokeVersion') ?: '7.0.6'
+    outputs.upToDateWhen { false }
 }

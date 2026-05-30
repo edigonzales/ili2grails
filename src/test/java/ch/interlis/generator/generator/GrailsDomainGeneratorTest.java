@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GrailsDomainGeneratorTest {
 
     @Test
-    void rendersForeignKeyColumnAndBelongsTo(@TempDir Path tempDir) throws Exception {
+    void rendersForeignKeyColumnWithoutBelongsToForNormalReference(@TempDir Path tempDir) throws Exception {
         ModelMetadata metadata = new ModelMetadata("TestModel");
         ClassMetadata address = new ClassMetadata("TestModel.Address");
         address.setTableName("address");
@@ -46,7 +46,7 @@ class GrailsDomainGeneratorTest {
         String content = Files.readString(personDomain);
 
         assertThat(content).contains("Address address");
-        assertThat(content).contains("static belongsTo = [address: Address]");
+        assertThat(content).doesNotContain("static belongsTo");
         assertThat(content).contains("address column: 'address'");
         assertThat(content).doesNotContain("address_id");
     }

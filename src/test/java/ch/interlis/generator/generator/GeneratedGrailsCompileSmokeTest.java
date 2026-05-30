@@ -36,6 +36,14 @@ class GeneratedGrailsCompileSmokeTest {
         assertThat(workerDomain).doesNotContain("AbstractBase baseRef");
         assertThat(workerDomain).doesNotContain("belongsTo = [baseRef");
 
+        String topicADomain = Files.readString(domainDir.resolve("TopicAGebaeude.groovy"));
+        assertThat(topicADomain).contains("components: Component");
+        assertThat(topicADomain).doesNotContain("componentses");
+
+        String associationDomain = Files.readString(domainDir.resolve("GebaeudeLink.groovy"));
+        assertThat(associationDomain).contains("TopicAGebaeude source");
+        assertThat(associationDomain).contains("TopicBGebaeude target");
+
         GeneratedGroovyCompiler.compileGeneratedSources(tempDir);
     }
 
@@ -82,6 +90,44 @@ class GeneratedGrailsCompileSmokeTest {
         generatedRelationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
         generatedRelationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
         metadata.addRelationship(generatedRelationship);
+
+        ClassMetadata component = new ClassMetadata("TestModel.TopicA.Component");
+        component.setKind(ClassMetadata.ClassKind.STRUCTURE);
+        component.addAttribute(textAttribute("label", "label"));
+        metadata.addClass(component);
+
+        RelationshipMetadata composition = new RelationshipMetadata("TopicA_Gebaeude_components");
+        composition.setSourceClass(topicAGebaeude.getName());
+        composition.setTargetClass(component.getName());
+        composition.setSourceAttribute("Components");
+        composition.setType(RelationshipMetadata.RelationType.ONE_TO_MANY);
+        composition.setSemanticKind(RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE);
+        composition.setComposition(true);
+        composition.setCardinality(new RelationshipMetadata.Cardinality(1, 1, 0, -1));
+        metadata.addRelationship(composition);
+
+        ClassMetadata gebaeudeLink = new ClassMetadata("TestModel.TopicA.GebaeudeLink");
+        gebaeudeLink.setKind(ClassMetadata.ClassKind.ASSOCIATION);
+        gebaeudeLink.setTableName("gebaeude_link");
+        metadata.addClass(gebaeudeLink);
+
+        RelationshipMetadata sourceRole = new RelationshipMetadata("GebaeudeLink_Source");
+        sourceRole.setSourceClass(gebaeudeLink.getName());
+        sourceRole.setTargetClass(topicAGebaeude.getName());
+        sourceRole.setTargetRoleName("Source");
+        sourceRole.setType(RelationshipMetadata.RelationType.ASSOCIATION);
+        sourceRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
+        sourceRole.setMandatory(true);
+        metadata.addRelationship(sourceRole);
+
+        RelationshipMetadata targetRole = new RelationshipMetadata("GebaeudeLink_Target");
+        targetRole.setSourceClass(gebaeudeLink.getName());
+        targetRole.setTargetClass(topicBGebaeude.getName());
+        targetRole.setTargetRoleName("Target");
+        targetRole.setType(RelationshipMetadata.RelationType.ASSOCIATION);
+        targetRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
+        targetRole.setMandatory(true);
+        metadata.addRelationship(targetRole);
 
         ClassMetadata abstractBase = new ClassMetadata("TestModel.TopicA.AbstractBase");
         abstractBase.setAbstract(true);

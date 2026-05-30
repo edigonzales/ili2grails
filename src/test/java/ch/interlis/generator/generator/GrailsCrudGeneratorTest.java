@@ -81,7 +81,7 @@ class GrailsCrudGeneratorTest {
         assertThat(topicBDomain).contains("import com.example.enums.TopicBStatus");
         assertThat(topicBDomain).contains("TopicBStatus status");
         assertThat(topicBDomain).contains("TopicAGebaeude owner");
-        assertThat(topicBDomain).contains("static belongsTo = [owner: TopicAGebaeude]");
+        assertThat(topicBDomain).doesNotContain("static belongsTo");
     }
 
     private ModelMetadata sampleMetadata() {
