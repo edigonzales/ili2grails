@@ -1,5 +1,6 @@
 package ch.interlis.generator.generator;
 
+import ch.interlis.ili2c.Ili2cFailure;
 import ch.interlis.generator.metadata.MetadataReader;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;
@@ -54,6 +55,10 @@ class RealIli2dbSmokeTest {
 
     @Test
     void validatesCoreIrStructureCompositionAgainstRealIli2pgSchema() throws Exception {
+        Path jsonReport = REPORT_DIR.resolve("structure-composition-summary.json");
+        Path markdownReport = REPORT_DIR.resolve("structure-composition-summary.md");
+        deleteReports(jsonReport, markdownReport);
+
         RealSchemaMetadata realSchema = importAndReadMetadata(
             "CoreIrTestModel",
             CORE_IR_MODEL_FILE,
@@ -66,8 +71,18 @@ class RealIli2dbSmokeTest {
             .build();
         TargetNameRegistry registry = TargetNameRegistry.forMetadata(realSchema.metadata(), config);
         GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(realSchema.metadata(), config, registry);
-        StructureSummary summary = summarize(realSchema.modelName(), realSchema.schemaName(), realSchema.metadata(), mapper);
-        writeSummary(REPORT_DIR.resolve("structure-composition-summary.json"), summary);
+        StructureSummary summary = summarize(
+            realSchema.modelName(),
+            realSchema.schemaName(),
+            realSchema.metadata(),
+            registry,
+            mapper
+        );
+        writeSummary(
+            jsonReport,
+            markdownReport,
+            summary
+        );
 
         assertThat(summary.structureCount())
             .as("CoreIrTestModel should exercise STRUCTURE handling in a real ili2pg schema")
@@ -75,6 +90,13 @@ class RealIli2dbSmokeTest {
         assertThat(summary.compositionTargetCount())
             .as("CoreIrTestModel should exercise Composition targets")
             .isGreaterThan(0);
+        assertThat(summary.structures())
+            .as("CoreIrTestModel should expose a physical generated composition structure")
+            .anySatisfy(structure -> {
+                assertThat(structure.physical()).isTrue();
+                assertThat(structure.compositionTarget()).isTrue();
+                assertThat(structure.generated()).isTrue();
+            });
 
         structures(realSchema.metadata())
             .filter(this::hasPhysicalMapping)
@@ -103,6 +125,10 @@ class RealIli2dbSmokeTest {
 
     @Test
     void validatesVsadssminiLargeModelAgainstRealIli2pgSchema() throws Exception {
+        Path jsonReport = REPORT_DIR.resolve("vsadssmini-structure-composition-summary.json");
+        Path markdownReport = REPORT_DIR.resolve("vsadssmini-structure-composition-summary.md");
+        deleteReports(jsonReport, markdownReport);
+
         RealSchemaMetadata realSchema = importAndReadMetadata(
             "VSADSSMINI_2020_LV95",
             VSADSSMINI_MODEL_FILE,
@@ -115,13 +141,30 @@ class RealIli2dbSmokeTest {
             .build();
         TargetNameRegistry registry = TargetNameRegistry.forMetadata(realSchema.metadata(), config);
         GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(realSchema.metadata(), config, registry);
+        StructureSummary summary = summarize(
+            realSchema.modelName(),
+            realSchema.schemaName(),
+            realSchema.metadata(),
+            registry,
+            mapper
+        );
         writeSummary(
-            REPORT_DIR.resolve("vsadssmini-structure-composition-summary.json"),
-            summarize(realSchema.modelName(), realSchema.schemaName(), realSchema.metadata(), mapper)
+            jsonReport,
+            markdownReport,
+            summary
         );
 
         assertThat(realSchema.metadata().getAllClasses()).isNotEmpty();
         assertThat(realSchema.metadata().getAllRelationships()).isNotEmpty();
+        assertThat(summary.structureCount()).isZero();
+        assertThat(summary.compositionTargetCount()).isZero();
+        assertThat(summary.relationshipCounts())
+            .containsKeys(
+                RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE.name(),
+                RelationshipMetadata.SemanticKind.ILI2DB_FK.name()
+            );
+        assertThat(summary.notes())
+            .contains("No STRUCTURE or COMPOSITION_ATTRIBUTE entries found in real ili2pg metadata.");
         assertNoNamingCollisions(realSchema.metadata(), registry, mapper);
         new GrailsCrudGenerator().generate(realSchema.metadata(), config);
         GeneratedGroovyCompiler.compileGeneratedSources(config.getOutputDir());
@@ -146,7 +189,18 @@ class RealIli2dbSmokeTest {
             runIli2pgImport(ili2pgHome, modelName, schemaName);
             try (Connection connection = DriverManager.getConnection(JDBC_URL)) {
                 MetadataReader reader = new MetadataReader(connection, modelFile.toFile(), schemaName, MODEL_REPOSITORIES);
-                return new RealSchemaMetadata(modelName, schemaName, reader.readMetadata(modelName));
+                try {
+                    return new RealSchemaMetadata(modelName, schemaName, reader.readMetadata(modelName));
+                } catch (Ili2cFailure e) {
+                    if (!"VSADSSMINI_2020_LV95".equals(modelName)) {
+                        throw e;
+                    }
+                    throw new TestAbortedException(
+                        "ili2c enrichment skipped because external model repositories are unavailable: "
+                            + e.getMessage(),
+                        e
+                    );
+                }
             }
         } finally {
             try (Connection connection = DriverManager.getConnection(JDBC_URL)) {
@@ -278,6 +332,7 @@ class RealIli2dbSmokeTest {
     private StructureSummary summarize(String modelName,
                                        String schemaName,
                                        ModelMetadata metadata,
+                                       TargetNameRegistry registry,
                                        GrailsRelationshipMapper mapper) {
         Set<String> compositionTargets = metadata.getAllRelationships().stream()
             .filter(relationship -> relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE)
@@ -288,6 +343,52 @@ class RealIli2dbSmokeTest {
         long physicalStructures = structures.stream().filter(this::hasPhysicalMapping).count();
         long generatedStructures = structures.stream().filter(mapper::shouldGenerateClass).count();
         long nonGeneratedStructures = structures.size() - generatedStructures;
+        List<StructureEntry> structureEntries = structures.stream()
+            .sorted(Comparator.comparing(ClassMetadata::getName, Comparator.nullsLast(String::compareTo)))
+            .map(structure -> new StructureEntry(
+                structure.getName(),
+                structure.getKind() == null ? null : structure.getKind().name(),
+                structure.getTableName(),
+                structure.getSqlName(),
+                hasPhysicalMapping(structure),
+                compositionTargets.contains(structure.getName()),
+                mapper.shouldGenerateClass(structure),
+                structure.isAbstract()
+            ))
+            .toList();
+        List<CompositionRelationshipEntry> compositionRelationships = metadata.getAllRelationships().stream()
+            .filter(relationship -> relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE)
+            .sorted(Comparator
+                .comparing(RelationshipMetadata::getSourceClass, Comparator.nullsLast(String::compareTo))
+                .thenComparing(RelationshipMetadata::getTargetClass, Comparator.nullsLast(String::compareTo))
+                .thenComparing(RelationshipMetadata::getSourceAttribute, Comparator.nullsLast(String::compareTo))
+                .thenComparing(RelationshipMetadata::getName, Comparator.nullsLast(String::compareTo)))
+            .map(relationship -> new CompositionRelationshipEntry(
+                relationship.getSourceClass(),
+                relationship.getTargetClass(),
+                relationship.getSourceAttribute(),
+                relationship.getTargetRoleName(),
+                formatCardinality(relationship.getCardinality()),
+                relationship.isOrdered(),
+                relationship.isExternal(),
+                isGeneratedClass(metadata, mapper, relationship.getTargetClass())
+            ))
+            .toList();
+        List<GeneratedClassEntry> generatedClasses = mapper.generatedClasses().stream()
+            .sorted(Comparator.comparing(ClassMetadata::getName, Comparator.nullsLast(String::compareTo)))
+            .map(classMetadata -> new GeneratedClassEntry(
+                classMetadata.getName(),
+                registry.className(classMetadata)
+            ))
+            .toList();
+        List<SkippedStructureEntry> skippedStructures = structureEntries.stream()
+            .filter(structure -> !structure.generated())
+            .map(structure -> new SkippedStructureEntry(structure.name(), skippedReason(structure)))
+            .toList();
+        List<String> notes = new ArrayList<>();
+        if (structures.isEmpty() && compositionTargets.isEmpty()) {
+            notes.add("No STRUCTURE or COMPOSITION_ATTRIBUTE entries found in real ili2pg metadata.");
+        }
         Map<String, Long> relationshipCounts = metadata.getAllRelationships().stream()
             .collect(Collectors.groupingBy(
                 relationship -> relationship.getSemanticKind() == null
@@ -306,8 +407,41 @@ class RealIli2dbSmokeTest {
             generatedStructures,
             nonGeneratedStructures,
             compositionTargets,
-            relationshipCounts
+            relationshipCounts,
+            structureEntries,
+            compositionRelationships,
+            generatedClasses,
+            skippedStructures,
+            notes
         );
+    }
+
+    private boolean isGeneratedClass(ModelMetadata metadata, GrailsRelationshipMapper mapper, String className) {
+        ClassMetadata classMetadata = metadata.getClass(className);
+        return classMetadata != null && mapper.shouldGenerateClass(classMetadata);
+    }
+
+    private String skippedReason(StructureEntry structure) {
+        if (structure.abstractClass()) {
+            return "abstract";
+        }
+        if (!structure.physical() && !structure.compositionTarget()) {
+            return "nonPersistentUnused";
+        }
+        return "notTargeted";
+    }
+
+    private String formatCardinality(RelationshipMetadata.Cardinality cardinality) {
+        if (cardinality == null) {
+            return "";
+        }
+        return cardinality.getMinSource() + ".." + bound(cardinality.getMaxSource())
+            + " -> "
+            + cardinality.getMinTarget() + ".." + bound(cardinality.getMaxTarget());
+    }
+
+    private String bound(int value) {
+        return value == -1 ? "*" : Integer.toString(value);
     }
 
     private Stream<ClassMetadata> structures(ModelMetadata metadata) {
@@ -344,9 +478,15 @@ class RealIli2dbSmokeTest {
         }
     }
 
-    private void writeSummary(Path target, StructureSummary summary) throws IOException {
-        Files.createDirectories(target.getParent());
-        Files.writeString(target, summary.toJson(), StandardCharsets.UTF_8);
+    private void writeSummary(Path jsonTarget, Path markdownTarget, StructureSummary summary) throws IOException {
+        Files.createDirectories(jsonTarget.getParent());
+        Files.writeString(jsonTarget, summary.toJson(), StandardCharsets.UTF_8);
+        Files.writeString(markdownTarget, summary.toMarkdown(), StandardCharsets.UTF_8);
+    }
+
+    private void deleteReports(Path jsonTarget, Path markdownTarget) throws IOException {
+        Files.deleteIfExists(jsonTarget);
+        Files.deleteIfExists(markdownTarget);
     }
 
     private record RealSchemaMetadata(String modelName, String schemaName, ModelMetadata metadata) {
@@ -365,7 +505,12 @@ class RealIli2dbSmokeTest {
         long generatedStructureCount,
         long nonGeneratedStructureCount,
         Set<String> compositionTargetNames,
-        Map<String, Long> relationshipCounts
+        Map<String, Long> relationshipCounts,
+        List<StructureEntry> structures,
+        List<CompositionRelationshipEntry> compositionRelationships,
+        List<GeneratedClassEntry> generatedClasses,
+        List<SkippedStructureEntry> skippedStructures,
+        List<String> notes
     ) {
         String toJson() {
             return "{\n"
@@ -378,13 +523,114 @@ class RealIli2dbSmokeTest {
                 + "  \"generatedStructureCount\": " + generatedStructureCount + ",\n"
                 + "  \"nonGeneratedStructureCount\": " + nonGeneratedStructureCount + ",\n"
                 + "  \"compositionTargetNames\": " + stringArray(compositionTargetNames) + ",\n"
-                + "  \"relationshipCounts\": " + countObject(relationshipCounts) + "\n"
+                + "  \"relationshipCounts\": " + countObject(relationshipCounts) + ",\n"
+                + "  \"structures\": " + structureArray(structures) + ",\n"
+                + "  \"compositionRelationships\": " + compositionRelationshipArray(compositionRelationships) + ",\n"
+                + "  \"generatedClasses\": " + generatedClassArray(generatedClasses) + ",\n"
+                + "  \"skippedStructures\": " + skippedStructureArray(skippedStructures) + ",\n"
+                + "  \"notes\": " + stringList(notes) + "\n"
                 + "}\n";
+        }
+
+        String toMarkdown() {
+            StringBuilder builder = new StringBuilder();
+            builder.append("# Real ili2db Structure/Composition Inventory\n\n");
+            builder.append("- Model: `").append(modelName).append("`\n");
+            builder.append("- Schema: `").append(schemaName).append("`\n");
+            builder.append("- Classes: ").append(classCount).append("\n");
+            builder.append("- Structures: ").append(structureCount).append("\n");
+            builder.append("- Composition targets: ").append(compositionTargetCount).append("\n");
+            builder.append("- Generated structures: ").append(generatedStructureCount).append("\n\n");
+
+            if (!notes.isEmpty()) {
+                builder.append("## Notes\n\n");
+                notes.forEach(note -> builder.append("- ").append(note).append("\n"));
+                builder.append("\n");
+            }
+
+            builder.append("## Structures\n\n");
+            if (structures.isEmpty()) {
+                builder.append("No STRUCTURE entries found in real ili2pg metadata.\n\n");
+            } else {
+                builder.append("| Name | Table | Physical | Composition Target | Generated | Abstract |\n");
+                builder.append("|---|---|---:|---:|---:|---:|\n");
+                structures.forEach(structure -> builder
+                    .append("| `").append(structure.name()).append("` | `")
+                    .append(blank(structure.tableName())).append("` | ")
+                    .append(structure.physical()).append(" | ")
+                    .append(structure.compositionTarget()).append(" | ")
+                    .append(structure.generated()).append(" | ")
+                    .append(structure.abstractClass()).append(" |\n"));
+                builder.append("\n");
+            }
+
+            builder.append("## Composition Relationships\n\n");
+            if (compositionRelationships.isEmpty()) {
+                builder.append("No COMPOSITION_ATTRIBUTE relationships found in real ili2pg metadata.\n\n");
+            } else {
+                builder.append("| Source | Target | Attribute | Cardinality | Ordered | External | Generated Target |\n");
+                builder.append("|---|---|---|---|---:|---:|---:|\n");
+                compositionRelationships.forEach(relationship -> builder
+                    .append("| `").append(relationship.sourceClass()).append("` | `")
+                    .append(relationship.targetClass()).append("` | `")
+                    .append(blank(relationship.sourceAttribute())).append("` | `")
+                    .append(blank(relationship.cardinality())).append("` | ")
+                    .append(relationship.ordered()).append(" | ")
+                    .append(relationship.external()).append(" | ")
+                    .append(relationship.generatedTarget()).append(" |\n"));
+                builder.append("\n");
+            }
+
+            builder.append("## Generated Classes\n\n");
+            if (generatedClasses.isEmpty()) {
+                builder.append("No Grails target classes are generated.\n\n");
+            } else {
+                builder.append("| IR Name | Grails Target |\n");
+                builder.append("|---|---|\n");
+                generatedClasses.forEach(generatedClass -> builder
+                    .append("| `").append(generatedClass.name()).append("` | `")
+                    .append(generatedClass.targetName()).append("` |\n"));
+                builder.append("\n");
+            }
+
+            builder.append("## Skipped Structures\n\n");
+            if (skippedStructures.isEmpty()) {
+                builder.append("No structures were skipped.\n\n");
+            } else {
+                builder.append("| Name | Reason |\n");
+                builder.append("|---|---|\n");
+                skippedStructures.forEach(skipped -> builder
+                    .append("| `").append(skipped.name()).append("` | `")
+                    .append(skipped.reason()).append("` |\n"));
+                builder.append("\n");
+            }
+
+            builder.append("## Relationship Counts\n\n");
+            if (relationshipCounts.isEmpty()) {
+                builder.append("No relationships found.\n");
+            } else {
+                builder.append("| Kind | Count |\n");
+                builder.append("|---|---:|\n");
+                relationshipCounts.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> builder.append("| `")
+                        .append(entry.getKey())
+                        .append("` | ")
+                        .append(entry.getValue())
+                        .append(" |\n"));
+            }
+            return builder.toString();
         }
 
         private static String stringArray(Set<String> values) {
             return values.stream()
                 .sorted()
+                .map(value -> "\"" + escape(value) + "\"")
+                .collect(Collectors.joining(", ", "[", "]"));
+        }
+
+        private static String stringList(List<String> values) {
+            return values.stream()
                 .map(value -> "\"" + escape(value) + "\"")
                 .collect(Collectors.joining(", ", "[", "]"));
         }
@@ -396,11 +642,93 @@ class RealIli2dbSmokeTest {
                 .collect(Collectors.joining(", ", "{", "}"));
         }
 
+        private static String structureArray(List<StructureEntry> structures) {
+            return structures.stream()
+                .map(structure -> "{"
+                    + "\"name\": \"" + escape(structure.name()) + "\", "
+                    + "\"kind\": \"" + escape(structure.kind()) + "\", "
+                    + "\"tableName\": \"" + escape(structure.tableName()) + "\", "
+                    + "\"sqlName\": \"" + escape(structure.sqlName()) + "\", "
+                    + "\"physical\": " + structure.physical() + ", "
+                    + "\"compositionTarget\": " + structure.compositionTarget() + ", "
+                    + "\"generated\": " + structure.generated() + ", "
+                    + "\"abstract\": " + structure.abstractClass()
+                    + "}")
+                .collect(Collectors.joining(", ", "[", "]"));
+        }
+
+        private static String compositionRelationshipArray(List<CompositionRelationshipEntry> relationships) {
+            return relationships.stream()
+                .map(relationship -> "{"
+                    + "\"sourceClass\": \"" + escape(relationship.sourceClass()) + "\", "
+                    + "\"targetClass\": \"" + escape(relationship.targetClass()) + "\", "
+                    + "\"sourceAttribute\": \"" + escape(relationship.sourceAttribute()) + "\", "
+                    + "\"targetRoleName\": \"" + escape(relationship.targetRoleName()) + "\", "
+                    + "\"cardinality\": \"" + escape(relationship.cardinality()) + "\", "
+                    + "\"ordered\": " + relationship.ordered() + ", "
+                    + "\"external\": " + relationship.external() + ", "
+                    + "\"generatedTarget\": " + relationship.generatedTarget()
+                    + "}")
+                .collect(Collectors.joining(", ", "[", "]"));
+        }
+
+        private static String generatedClassArray(List<GeneratedClassEntry> generatedClasses) {
+            return generatedClasses.stream()
+                .map(generatedClass -> "{"
+                    + "\"name\": \"" + escape(generatedClass.name()) + "\", "
+                    + "\"targetName\": \"" + escape(generatedClass.targetName()) + "\""
+                    + "}")
+                .collect(Collectors.joining(", ", "[", "]"));
+        }
+
+        private static String skippedStructureArray(List<SkippedStructureEntry> skippedStructures) {
+            return skippedStructures.stream()
+                .map(skippedStructure -> "{"
+                    + "\"name\": \"" + escape(skippedStructure.name()) + "\", "
+                    + "\"reason\": \"" + escape(skippedStructure.reason()) + "\""
+                    + "}")
+                .collect(Collectors.joining(", ", "[", "]"));
+        }
+
+        private static String blank(String value) {
+            return value == null ? "" : value;
+        }
+
         private static String escape(String value) {
             if (value == null) {
                 return "";
             }
             return value.replace("\\", "\\\\").replace("\"", "\\\"");
         }
+    }
+
+    private record StructureEntry(
+        String name,
+        String kind,
+        String tableName,
+        String sqlName,
+        boolean physical,
+        boolean compositionTarget,
+        boolean generated,
+        boolean abstractClass
+    ) {
+    }
+
+    private record CompositionRelationshipEntry(
+        String sourceClass,
+        String targetClass,
+        String sourceAttribute,
+        String targetRoleName,
+        String cardinality,
+        boolean ordered,
+        boolean external,
+        boolean generatedTarget
+    ) {
+    }
+
+    private record GeneratedClassEntry(String name, String targetName) {
+    }
+
+    private record SkippedStructureEntry(String name, String reason) {
     }
 }

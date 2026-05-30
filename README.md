@@ -400,5 +400,8 @@ unter `/Users/stefan/apps/ili2pg-5.5.1`. Der Pfad kann überschrieben werden:
 
 Der Test importiert temporäre Schemas mit ili2pg, liest echte ili2db-Metatabellen,
 validiert Naming/Structure-/Composition-Mapping und schreibt Diagnose-Artefakte nach
-`build/reports/real-ili2db-smoke/`. Docker-, ili2pg- oder Repository-Probleme führen
-zu einem sauberen Skip statt zu einem roten Standard-Build.
+`build/reports/real-ili2db-smoke/`. Die Reports werden als maschinenlesbares JSON und
+als Markdown-Inventar geschrieben; enthalten sind Counts, Structures, Composition-
+Relationships, generierte Grails-Klassen, übersprungene Structures mit Grund und kurze
+Hinweise zu leeren Befunden. Docker-, ili2pg- oder Repository-Probleme führen zu einem
+sauberen Skip statt zu einem roten Standard-Build.
