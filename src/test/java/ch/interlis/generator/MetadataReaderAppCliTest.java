@@ -15,6 +15,7 @@ class MetadataReaderAppCliTest {
             "jdbc:postgresql://localhost:5432/test",
             "SimpleModel",
             "--grails-output", "generated",
+            "--metadata-json", "build/metadata/simple.json",
             "--grails-ui-theme", "bootstrap",
             "--grails-map-editor", "openlayers",
             "--grails-default-srid", "2056"
@@ -24,6 +25,8 @@ class MetadataReaderAppCliTest {
         assertThat(readField(cliOptions, "grailsUiTheme")).isEqualTo("bootstrap");
         assertThat(readField(cliOptions, "grailsMapEditor")).isEqualTo("openlayers");
         assertThat(readField(cliOptions, "grailsDefaultSrid")).isEqualTo(2056);
+        assertThat(readField(cliOptions, "metadataJsonPath").toString())
+            .isEqualTo("build/metadata/simple.json");
     }
 
     @Test

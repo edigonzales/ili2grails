@@ -8,7 +8,9 @@ import ch.interlis.ili2c.config.FileEntry;
 import ch.interlis.ili2c.config.FileEntryKind;
 import ch.interlis.ili2c.metamodel.AbstractClassDef;
 import ch.interlis.ili2c.metamodel.AreaType;
+import ch.interlis.ili2c.metamodel.AssociationDef;
 import ch.interlis.ili2c.metamodel.AttributeDef;
+import ch.interlis.ili2c.metamodel.Cardinality;
 import ch.interlis.ili2c.metamodel.CoordType;
 import ch.interlis.ili2c.metamodel.Domain;
 import ch.interlis.ili2c.metamodel.Element;
@@ -28,6 +30,7 @@ import ch.interlis.ili2c.metamodel.PredefinedModel;
 import ch.interlis.ili2c.metamodel.PrecisionDecimal;
 import ch.interlis.ili2c.metamodel.ReferenceType;
 import ch.interlis.ili2c.metamodel.CompositionType;
+import ch.interlis.ili2c.metamodel.RoleDef;
 import ch.interlis.ili2c.metamodel.SurfaceType;
 import ch.interlis.ili2c.metamodel.Table;
 import ch.interlis.ili2c.metamodel.TextType;
@@ -182,6 +185,7 @@ public class Ili2cModelReader {
         
         ModelMetadata metadata = new ModelMetadata(modelName);
         metadata.setIliVersion(model.getIliVersion());
+        metadata.setModelVersion(model.getModelVersion());
         
         // Topics durchgehen
         Set<String> processedTopics = new HashSet<>();
@@ -229,7 +233,7 @@ public class Ili2cModelReader {
 
             if (element instanceof Table) {
                 processClassDef(metadata, (AbstractClassDef<?>) element, processedClasses);
-            } else if (element instanceof ch.interlis.ili2c.metamodel.AssociationDef) {
+            } else if (element instanceof AssociationDef) {
                 processClassDef(metadata, (AbstractClassDef<?>) element, processedClasses);
             } else if (element instanceof Domain) {
                 processDomain(metadata, (Domain) element);
@@ -266,7 +270,7 @@ public class Ili2cModelReader {
         }
         
         // Typ setzen
-        if (classDef instanceof ch.interlis.ili2c.metamodel.AssociationDef) {
+        if (classDef instanceof AssociationDef) {
             classMetadata.setKind(ClassMetadata.ClassKind.ASSOCIATION);
         } else if (classDef instanceof Table table && !table.isIdentifiable()) {
             classMetadata.setKind(ClassMetadata.ClassKind.STRUCTURE);
@@ -293,15 +297,19 @@ public class Ili2cModelReader {
         while (attrIterator.hasNext()) {
             Object attribute = attrIterator.next();
             if (attribute instanceof AttributeDef attrDef) {
-                processAttribute(classMetadata, attrDef);
+                processAttribute(metadata, classMetadata, attrDef);
             }
+        }
+
+        if (classDef instanceof AssociationDef associationDef) {
+            processAssociationRoles(metadata, classMetadata, associationDef);
         }
     }
     
     /**
      * Verarbeitet ein Attribut.
      */
-    private void processAttribute(ClassMetadata classMetadata, AttributeDef attrDef) {
+    private void processAttribute(ModelMetadata metadata, ClassMetadata classMetadata, AttributeDef attrDef) {
         String attrName = attrDef.getName();
         String qualifiedName = attrDef.getScopedName(null);
         logger.debug("  Processing attribute: {}", attrName);
@@ -324,27 +332,34 @@ public class Ili2cModelReader {
         // Typ-Informationen
         Type type = attrDef.getDomain();
         if (type != null) {
-            processType(attrMetadata, attrDef, type);
+            processType(metadata, classMetadata, attrMetadata, attrDef, type);
         }
         
         // Mandatory
         if (attrDef.getCardinality() != null) {
             attrMetadata.setMandatory(attrDef.getCardinality().getMinimum() > 0);
+            attrMetadata.setCardinalityMin(toCardinalityBound(attrDef.getCardinality().getMinimum()));
+            attrMetadata.setCardinalityMax(toCardinalityBound(attrDef.getCardinality().getMaximum()));
         }
     }
     
     /**
      * Verarbeitet Typ-Informationen.
      */
-    private void processType(AttributeMetadata attr, AttributeDef attrDef, Type type) {
+    private void processType(ModelMetadata metadata,
+                             ClassMetadata classMetadata,
+                             AttributeMetadata attr,
+                             AttributeDef attrDef,
+                             Type type) {
         if (type instanceof TypeAlias) {
             // Alias auflösen
             Domain aliasing = ((TypeAlias) type).getAliasing();
             if (aliasing != null) {
+                attr.setDomainName(aliasing.getScopedName(null));
                 if (aliasing.getType() instanceof EnumerationType) {
                     attr.setEnumType(aliasing.getScopedName(null));
                 }
-                processType(attr, attrDef, aliasing.getType());
+                processType(metadata, classMetadata, attr, attrDef, aliasing.getType());
             }
             return;
         }
@@ -352,6 +367,11 @@ public class Ili2cModelReader {
         // INTERLIS-Typ setzen
         String typeName = type.getClass().getSimpleName();
         attr.setIliType(typeName);
+        attr.setOrdered(type.isOrdered());
+        if (type.getCardinality() != null) {
+            attr.setCardinalityMin(toCardinalityBound(type.getCardinality().getMinimum()));
+            attr.setCardinalityMax(toCardinalityBound(type.getCardinality().getMaximum()));
+        }
         
         if (type instanceof TextType) {
             TextType textType = (TextType) type;
@@ -405,11 +425,15 @@ public class Ili2cModelReader {
             AbstractClassDef target = referenceType.getReferred();
             if (target != null) {
                 attr.setJavaType(target.getName());
+                attr.setReferencedClass(target.getScopedName(null));
+                addReferenceRelationship(metadata, classMetadata, attr, attrDef, target, referenceType);
             }
         } else if (type instanceof CompositionType compositionType) {
             AbstractClassDef target = compositionType.getComponentType();
             if (target != null) {
                 attr.setJavaType(target.getName());
+                attr.setReferencedClass(target.getScopedName(null));
+                addCompositionRelationship(metadata, classMetadata, attr, attrDef, target, compositionType);
             }
         } else if (type instanceof TextOIDType) {
             attr.setJavaType("String");
@@ -422,6 +446,98 @@ public class Ili2cModelReader {
                 attr.setUnit(numType.getUnit().getName());
             }
         }
+    }
+
+    private void processAssociationRoles(ModelMetadata metadata,
+                                         ClassMetadata associationMetadata,
+                                         AssociationDef associationDef) {
+        Iterator<RoleDef> roles = associationDef.getRolesIterator();
+        while (roles.hasNext()) {
+            RoleDef role = roles.next();
+            AbstractClassDef destination = role.getDestination();
+            if (destination == null) {
+                continue;
+            }
+
+            RelationshipMetadata relationship = new RelationshipMetadata(
+                associationMetadata.getName() + "." + role.getName()
+            );
+            relationship.setSourceClass(associationMetadata.getName());
+            relationship.setTargetClass(destination.getScopedName(null));
+            relationship.setType(RelationshipMetadata.RelationType.ASSOCIATION);
+            relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
+            relationship.setSource("ili2c");
+            relationship.setAssociationName(associationDef.getScopedName(null));
+            relationship.setTargetRoleName(role.getName());
+            RoleDef oppositeRole = role.getOppEnd();
+            if (oppositeRole != null) {
+                relationship.setOppositeRoleName(oppositeRole.getName());
+                relationship.setSourceRoleName(oppositeRole.getName());
+            }
+            Cardinality cardinality = role.getCardinality();
+            relationship.setCardinality(toRelationshipCardinality(cardinality));
+            relationship.setMandatory(cardinality != null && cardinality.getMinimum() > 0);
+            relationship.setOrdered(role.isOrdered());
+            relationship.setExternal(role.isExternal());
+            relationship.setComposition(role.getKind() == RoleDef.Kind.eCOMPOSITE);
+
+            metadata.addRelationship(relationship);
+        }
+    }
+
+    private void addReferenceRelationship(ModelMetadata metadata,
+                                          ClassMetadata classMetadata,
+                                          AttributeMetadata attr,
+                                          AttributeDef attrDef,
+                                          AbstractClassDef target,
+                                          ReferenceType referenceType) {
+        RelationshipMetadata relationship = new RelationshipMetadata(
+            classMetadata.getName() + "." + attr.getName()
+        );
+        relationship.setSourceClass(classMetadata.getName());
+        relationship.setTargetClass(target.getScopedName(null));
+        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
+        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE);
+        relationship.setSource("ili2c");
+        relationship.setSourceAttribute(attr.getName());
+        relationship.setTargetRoleName(attr.getName());
+        relationship.setExternal(referenceType.isExternal());
+        Cardinality cardinality = attrDef.getCardinality();
+        relationship.setCardinality(toRelationshipCardinality(cardinality));
+        relationship.setMandatory(cardinality != null && cardinality.getMinimum() > 0);
+        metadata.addRelationship(relationship);
+    }
+
+    private void addCompositionRelationship(ModelMetadata metadata,
+                                            ClassMetadata classMetadata,
+                                            AttributeMetadata attr,
+                                            AttributeDef attrDef,
+                                            AbstractClassDef target,
+                                            CompositionType compositionType) {
+        RelationshipMetadata relationship = new RelationshipMetadata(
+            classMetadata.getName() + "." + attr.getName()
+        );
+        relationship.setSourceClass(classMetadata.getName());
+        relationship.setTargetClass(target.getScopedName(null));
+        relationship.setType(RelationshipMetadata.RelationType.ONE_TO_MANY);
+        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE);
+        relationship.setSource("ili2c");
+        relationship.setSourceAttribute(attr.getName());
+        relationship.setTargetRoleName(attr.getName());
+        relationship.setOrdered(compositionType.isOrdered());
+        relationship.setComposition(true);
+        Cardinality cardinality = compositionType.getCardinality() != null
+            ? compositionType.getCardinality()
+            : attrDef.getCardinality();
+        relationship.setCardinality(toRelationshipCardinality(cardinality));
+        relationship.setMandatory(cardinality != null && cardinality.getMinimum() > 0);
+        metadata.addRelationship(relationship);
+    }
+
+    private RelationshipMetadata.Cardinality toRelationshipCardinality(Cardinality cardinality) {
+        int minTarget = cardinality != null ? toCardinalityBound(cardinality.getMinimum()) : 0;
+        int maxTarget = cardinality != null ? toCardinalityBound(cardinality.getMaximum()) : 1;
+        return new RelationshipMetadata.Cardinality(1, 1, minTarget, maxTarget);
     }
 
     private String resolveNumericJavaType(NumericType numType) {
@@ -452,6 +568,16 @@ public class Ili2cModelReader {
             return "java.time.LocalTime";
         }
         return "String";
+    }
+
+    private int toCardinalityBound(long value) {
+        if (value == Cardinality.UNBOUND) {
+            return -1;
+        }
+        if (value > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        return (int) value;
     }
     
     /**

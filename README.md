@@ -20,7 +20,7 @@ Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und e
 ## Ziel & Funktionsumfang
 Der Metadata Reader liefert ein vollständiges, framework-agnostisches **Metamodell** und stellt eine **Grails-Beispielimplementierung** bereit:
 - Klassen/Tabellen, Attribute/Spalten, Constraints
-- Beziehungen (FK, Associations) und Vererbung
+- Beziehungen aus ili2db-FKs und ili2c-Semantik (Associations, Rollen, Reference, Composition)
 - Enumerationen inkl. Reihenfolge und Erweiterbarkeit
 - Dokumentation/Labels
 
@@ -95,6 +95,7 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 Weitere Optionen:
 - `--model-file <file>` (optional: explizite `.ili`-Datei statt positionaler Angabe)
 - `--model-repos <r1;r2>` (optional: Repository-Liste für die Modellauflösung)
+- `--metadata-json <file>` (optional: schreibt eine deterministische JSON-Ausgabe der Core-IR)
 - `--grails-init [appName]` (optional: erzeugt ein Grails-Projekt im Zielverzeichnis; mit `appName` wird ein Unterordner erstellt)
 - `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
@@ -180,7 +181,18 @@ Nutzen Sie die Beispiele aus dem Schnellstart. Bei Bedarf kann das Schema expliz
 Die Ausgabe zeigt:
 - Modellname, Schema, Versionsinfos
 - Klassen und Attribute inkl. Typen, Constraints, Enums
-- Beziehungen (FK/Association)
+- Beziehungen mit Quelle/Semantik (`ILI2DB_FK`, `REFERENCE_ATTRIBUTE`, `COMPOSITION_ATTRIBUTE`, `ASSOCIATION_ROLE`)
+
+Optional kann die kanonische IR als JSON geschrieben werden:
+```bash
+./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+  SimpleAddressModel \
+  sa \
+  --model-file test-models/SimpleAddressModel.ili \
+  --metadata-json build/metadata/SimpleAddressModel.json"
+```
+
+Die JSON-Ausgabe ist stabil sortiert und eignet sich für Golden-Tests und weitere Generatoren.
 
 ## Programmatische Nutzung
 ```java
@@ -266,9 +278,24 @@ CLASSES:
 
 ### Metamodell-Prinzipien
 - Framework-agnostisch (Grails, Spring, etc.)
-- Erweiterbar für weitere Metadaten
+- Core-first: `ModelMetadata` ist die kanonische IR, Grails ist nur ein Target
+- Erweiterbar für weitere Metadaten und Generatoren
 - Separiert von ili2db/ili2c-Implementierungen
 - Grails-Ausgabe als **Beispielimplementierung** (Domains/Enums), nicht als exklusives Ziel
+
+### Relationship-Semantik
+- ili2db-Beziehungen liefern physische Namen: FK-Spalten, Zielspalten und Tabellenmapping.
+- ili2c-Beziehungen liefern fachliche Semantik: Association-Rollen, Kardinalitäten, `ORDERED`, `EXTERNAL`, Reference- und Composition-Attribute.
+- Beim Merge gewinnen ili2db-Namen für die physische DB-Struktur und ili2c-Felder für fachliche Semantik.
+- Unbounded Cardinality wird in Java und JSON als `-1` ausgegeben.
+
+### Target-Naming
+- Zielnamen bleiben Generator-spezifisch und werden nicht in die Core-IR geschrieben.
+- Grails verwendet `TargetNameRegistry` als zentrale Naming-Policy für Domain-Klassen, Enums, Properties, Relationen, Controller und View-Pfade.
+- Eindeutige INTERLIS-SimpleNames bleiben unverändert. Bei Kollisionen wird deterministisch mit Topic-/Modell-Kontext präfixiert, z. B. `TopicGebaeude`.
+- Java/Groovy-Keywords und ungültige Zeichen werden stabil normalisiert, damit erzeugte Groovy-Klassen kompilierbar bleiben.
+- Enum-Konstanten werden ebenfalls als gültige, eindeutige Groovy-Identifier ausgegeben.
+- `--grails-generate-all` nutzt dieselbe Registry wie die Domain-Dateien und ruft dadurch die kollisionsfreien Grails-Klassennamen auf.
 
 ### Typ-Inferenz (Beispiele)
 ```
@@ -301,6 +328,11 @@ NUMERIC 1.00..3.55 → BigDecimal
 - In Domain-Modellen werden Struktur-Attribute als **eingebettete Value-Objects** oder
   **kompositionale 1:1-Beziehungen** modelliert (abhängig vom Framework).
 
+### Aktuelle Grenzen
+- Getesteter Primärpfad ist weiterhin PostgreSQL/PostGIS mit ili2pg; andere ili2db-Flavours sind nicht als produktiv validiert.
+- Grails-CRUD nutzt weiterhin Grails-Scaffolding/Template-Overlay; das Core-Metamodell soll davon unabhängig bleiben.
+- Produktive Credential-Konfiguration sollte über Umgebungsvariablen oder Grails/Spring-Konfiguration erfolgen; die CLI-Beispiele enthalten Zugangsdaten nur für lokale Demos.
+
 ## Projektstruktur
 ```
 ili2grails/
@@ -318,3 +350,10 @@ ili2grails/
 ```bash
 ./gradlew test
 ```
+
+Die Tests enthalten gezielte Naming-Kollisionsfälle und kompilieren generierte
+Grails-Domains/Enums mit dem Standalone-Groovy-Compiler. `VSADSSMINI_2020_LV95`
+aus `test-models/VSADSSMINI_2020_2_d_LV95-20251129.ili` wird zuerst mit ili2c
+validiert; danach werden auch die daraus generierten Grails-Target-Dateien kompiliert.
+Ist ein externes Modell-Repository nicht erreichbar, wird dieser Großmodell-Test sauber
+übersprungen.

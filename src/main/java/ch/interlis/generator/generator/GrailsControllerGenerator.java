@@ -14,6 +14,12 @@ import java.nio.file.Path;
 public class GrailsControllerGenerator {
 
     public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
+        generate(metadata, config, TargetNameRegistry.forMetadata(metadata, config));
+    }
+
+    public void generate(ModelMetadata metadata,
+                         GenerationConfig config,
+                         TargetNameRegistry registry) throws IOException {
         Path baseDir = config.getOutputDir()
             .resolve("grails-app/controllers")
             .resolve(NameUtils.packageToPath(config.getControllerPackage()));
@@ -23,21 +29,24 @@ public class GrailsControllerGenerator {
             if (classMetadata.isAbstract()) {
                 continue;
             }
-            String content = renderController(classMetadata, config);
-            Path target = baseDir.resolve(classMetadata.getSimpleName() + "Controller.groovy");
+            String content = renderController(classMetadata, config, registry);
+            Path target = baseDir.resolve(registry.controllerName(classMetadata) + ".groovy");
             Files.writeString(target, content, StandardCharsets.UTF_8);
         }
     }
 
-    private String renderController(ClassMetadata classMetadata, GenerationConfig config) {
-        String className = classMetadata.getSimpleName();
+    private String renderController(ClassMetadata classMetadata,
+                                    GenerationConfig config,
+                                    TargetNameRegistry registry) {
+        String className = registry.className(classMetadata);
+        String controllerName = registry.controllerName(classMetadata);
         StringBuilder sb = new StringBuilder();
         sb.append("package ").append(config.getControllerPackage()).append("\n\n");
         if (!config.getDomainPackage().equals(config.getControllerPackage())) {
             sb.append("import ").append(config.getDomainPackage()).append(".")
                 .append(className).append("\n\n");
         }
-        sb.append("class ").append(className).append("Controller {\n");
+        sb.append("class ").append(controllerName).append(" {\n");
         sb.append("    static scaffold = ").append(className).append("\n");
         sb.append("}\n");
         return sb.toString();

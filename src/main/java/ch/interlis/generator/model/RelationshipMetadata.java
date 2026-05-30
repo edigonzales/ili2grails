@@ -9,10 +9,19 @@ public class RelationshipMetadata {
     private String sourceClass;
     private String targetClass;
     private RelationType type;
+    private SemanticKind semanticKind;
     private String sourceAttribute;         // FK-Spalte in source
     private String targetAttribute;         // Referenzierte Spalte in target (meist PK)
+    private String associationName;
+    private String sourceRoleName;
+    private String targetRoleName;
+    private String oppositeRoleName;
     private Cardinality cardinality;
     private boolean mandatory;
+    private boolean ordered;
+    private boolean external;
+    private boolean composition;
+    private String source;
     
     public enum RelationType {
         ONE_TO_ONE,
@@ -20,6 +29,13 @@ public class RelationshipMetadata {
         MANY_TO_ONE,
         MANY_TO_MANY,
         ASSOCIATION                         // INTERLIS Association Class
+    }
+
+    public enum SemanticKind {
+        ILI2DB_FK,
+        REFERENCE_ATTRIBUTE,
+        COMPOSITION_ATTRIBUTE,
+        ASSOCIATION_ROLE
     }
     
     public static class Cardinality {
@@ -49,6 +65,22 @@ public class RelationshipMetadata {
         
         public int getMaxTarget() {
             return maxTarget;
+        }
+
+        public void setMinSource(int minSource) {
+            this.minSource = minSource;
+        }
+
+        public void setMaxSource(int maxSource) {
+            this.maxSource = maxSource;
+        }
+
+        public void setMinTarget(int minTarget) {
+            this.minTarget = minTarget;
+        }
+
+        public void setMaxTarget(int maxTarget) {
+            this.maxTarget = maxTarget;
         }
         
         @Override
@@ -95,6 +127,14 @@ public class RelationshipMetadata {
     public void setType(RelationType type) {
         this.type = type;
     }
+
+    public SemanticKind getSemanticKind() {
+        return semanticKind;
+    }
+
+    public void setSemanticKind(SemanticKind semanticKind) {
+        this.semanticKind = semanticKind;
+    }
     
     public String getSourceAttribute() {
         return sourceAttribute;
@@ -110,6 +150,38 @@ public class RelationshipMetadata {
     
     public void setTargetAttribute(String targetAttribute) {
         this.targetAttribute = targetAttribute;
+    }
+
+    public String getAssociationName() {
+        return associationName;
+    }
+
+    public void setAssociationName(String associationName) {
+        this.associationName = associationName;
+    }
+
+    public String getSourceRoleName() {
+        return sourceRoleName;
+    }
+
+    public void setSourceRoleName(String sourceRoleName) {
+        this.sourceRoleName = sourceRoleName;
+    }
+
+    public String getTargetRoleName() {
+        return targetRoleName;
+    }
+
+    public void setTargetRoleName(String targetRoleName) {
+        this.targetRoleName = targetRoleName;
+    }
+
+    public String getOppositeRoleName() {
+        return oppositeRoleName;
+    }
+
+    public void setOppositeRoleName(String oppositeRoleName) {
+        this.oppositeRoleName = oppositeRoleName;
     }
     
     public Cardinality getCardinality() {
@@ -127,15 +199,53 @@ public class RelationshipMetadata {
     public void setMandatory(boolean mandatory) {
         this.mandatory = mandatory;
     }
+
+    public boolean isOrdered() {
+        return ordered;
+    }
+
+    public void setOrdered(boolean ordered) {
+        this.ordered = ordered;
+    }
+
+    public boolean isExternal() {
+        return external;
+    }
+
+    public void setExternal(boolean external) {
+        this.external = external;
+    }
+
+    public boolean isComposition() {
+        return composition;
+    }
+
+    public void setComposition(boolean composition) {
+        this.composition = composition;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
     
     @Override
     public String toString() {
         return "RelationshipMetadata{" +
                 "name='" + name + '\'' +
                 ", type=" + type +
+                ", semanticKind=" + semanticKind +
                 ", sourceClass='" + sourceClass + '\'' +
                 ", targetClass='" + targetClass + '\'' +
+                ", sourceRoleName='" + sourceRoleName + '\'' +
+                ", targetRoleName='" + targetRoleName + '\'' +
                 ", cardinality=" + cardinality +
+                ", ordered=" + ordered +
+                ", external=" + external +
+                ", composition=" + composition +
                 '}';
     }
 }

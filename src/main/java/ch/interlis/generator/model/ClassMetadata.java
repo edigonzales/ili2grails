@@ -9,6 +9,7 @@ public class ClassMetadata {
     
     private String name;                    // INTERLIS Klassenname (qualifiziert)
     private String simpleName;              // Einfacher Name ohne Topic/Model
+    private String topicName;               // Vollqualifizierter Topic-Name
     private String tableName;               // Datenbankname der Tabelle
     private String sqlName;                 // SQL-Name (mit Schema)
     private String documentation;           // Dokumentation aus dem Modell
@@ -32,6 +33,7 @@ public class ClassMetadata {
     public ClassMetadata(String name) {
         this.name = name;
         this.simpleName = extractSimpleName(name);
+        this.topicName = extractTopicName(name);
     }
     
     private String extractSimpleName(String qualifiedName) {
@@ -39,13 +41,21 @@ public class ClassMetadata {
         int lastDot = qualifiedName.lastIndexOf('.');
         return lastDot >= 0 ? qualifiedName.substring(lastDot + 1) : qualifiedName;
     }
+
+    private String extractTopicName(String qualifiedName) {
+        if (qualifiedName == null) return null;
+        int lastDot = qualifiedName.lastIndexOf('.');
+        return lastDot >= 0 ? qualifiedName.substring(0, lastDot) : null;
+    }
     
     public void addAttribute(AttributeMetadata attribute) {
         attributes.put(attribute.getName(), attribute);
     }
     
     public void addRelationship(RelationshipMetadata relationship) {
-        relationships.add(relationship);
+        if (relationships.stream().noneMatch(existing -> sameRelationship(existing, relationship))) {
+            relationships.add(relationship);
+        }
     }
     
     public void addLabel(String language, String label) {
@@ -81,10 +91,19 @@ public class ClassMetadata {
     public void setName(String name) {
         this.name = name;
         this.simpleName = extractSimpleName(name);
+        this.topicName = extractTopicName(name);
     }
     
     public String getSimpleName() {
         return simpleName;
+    }
+
+    public String getTopicName() {
+        return topicName;
+    }
+
+    public void setTopicName(String topicName) {
+        this.topicName = topicName;
     }
     
     public String getTableName() {
@@ -171,10 +190,20 @@ public class ClassMetadata {
     public String toString() {
         return "ClassMetadata{" +
                 "name='" + name + '\'' +
+                ", topicName='" + topicName + '\'' +
                 ", tableName='" + tableName + '\'' +
                 ", attributes=" + attributes.size() +
                 ", isAbstract=" + isAbstract +
                 ", kind=" + kind +
                 '}';
+    }
+
+    private boolean sameRelationship(RelationshipMetadata left, RelationshipMetadata right) {
+        return Objects.equals(left.getName(), right.getName())
+            && Objects.equals(left.getSourceClass(), right.getSourceClass())
+            && Objects.equals(left.getTargetClass(), right.getTargetClass())
+            && Objects.equals(left.getSourceAttribute(), right.getSourceAttribute())
+            && Objects.equals(left.getTargetRoleName(), right.getTargetRoleName())
+            && Objects.equals(left.getSemanticKind(), right.getSemanticKind());
     }
 }

@@ -13,6 +13,7 @@ public class AttributeMetadata {
     private String columnName;              // Datenbank-Spaltenname
     private String sqlName;                 // SQL-Name (falls abweichend)
     private String iliType;                 // INTERLIS-Typ (TEXT, COORD, etc.)
+    private String domainName;              // Benannter INTERLIS-Domain, falls vorhanden
     private String javaType;                // Gemappter Java-Typ
     private String dbType;                  // Datenbank-Typ
     private boolean mandatory;
@@ -27,6 +28,9 @@ public class AttributeMetadata {
     private Integer maxLength;
     private String minValue;
     private String maxValue;
+    private Integer cardinalityMin;
+    private Integer cardinalityMax;
+    private boolean ordered;
     private String enumType;                // Falls Enumeration
     private final java.util.List<EnumMetadata.EnumValue> enumValues = new java.util.ArrayList<>();
     private String unit;                    // Masseinheit
@@ -155,6 +159,14 @@ public class AttributeMetadata {
     public void setIliType(String iliType) {
         this.iliType = iliType;
     }
+
+    public String getDomainName() {
+        return domainName;
+    }
+
+    public void setDomainName(String domainName) {
+        this.domainName = domainName;
+    }
     
     public String getJavaType() {
         if (javaType == null) {
@@ -254,6 +266,30 @@ public class AttributeMetadata {
     public void setMaxValue(String maxValue) {
         this.maxValue = maxValue;
     }
+
+    public Integer getCardinalityMin() {
+        return cardinalityMin;
+    }
+
+    public void setCardinalityMin(Integer cardinalityMin) {
+        this.cardinalityMin = cardinalityMin;
+    }
+
+    public Integer getCardinalityMax() {
+        return cardinalityMax;
+    }
+
+    public void setCardinalityMax(Integer cardinalityMax) {
+        this.cardinalityMax = cardinalityMax;
+    }
+
+    public boolean isOrdered() {
+        return ordered;
+    }
+
+    public void setOrdered(boolean ordered) {
+        this.ordered = ordered;
+    }
     
     public String getEnumType() {
         return enumType;
@@ -309,8 +345,11 @@ public class AttributeMetadata {
                 "name='" + name + '\'' +
                 ", columnName='" + columnName + '\'' +
                 ", iliType='" + iliType + '\'' +
+                ", domainName='" + domainName + '\'' +
                 ", javaType='" + getJavaType() + '\'' +
                 ", mandatory=" + mandatory +
+                ", cardinality=" + cardinalityMin + ".." + cardinalityMax +
+                ", ordered=" + ordered +
                 ", isPrimaryKey=" + isPrimaryKey +
                 ", isForeignKey=" + isForeignKey +
                 ", geometrySrid=" + geometrySrid +

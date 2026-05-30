@@ -17,18 +17,24 @@ import java.util.List;
 public class GrailsViewGenerator {
 
     public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
+        generate(metadata, config, TargetNameRegistry.forMetadata(metadata, config));
+    }
+
+    public void generate(ModelMetadata metadata,
+                         GenerationConfig config,
+                         TargetNameRegistry registry) throws IOException {
         for (ClassMetadata classMetadata : metadata.getAllClasses()) {
             if (classMetadata.isAbstract()) {
                 continue;
             }
             Path baseDir = config.getOutputDir()
                 .resolve("grails-app/views")
-                .resolve(NameUtils.toLowerCamel(classMetadata.getSimpleName()));
+                .resolve(registry.viewPath(classMetadata));
             Files.createDirectories(baseDir);
-            writeView(baseDir.resolve("list.gsp"), renderList(classMetadata));
-            writeView(baseDir.resolve("show.gsp"), renderShow(classMetadata));
-            writeView(baseDir.resolve("create.gsp"), renderForm(classMetadata, metadata, "create"));
-            writeView(baseDir.resolve("edit.gsp"), renderForm(classMetadata, metadata, "edit"));
+            writeView(baseDir.resolve("list.gsp"), renderList(classMetadata, registry));
+            writeView(baseDir.resolve("show.gsp"), renderShow(classMetadata, registry));
+            writeView(baseDir.resolve("create.gsp"), renderForm(classMetadata, metadata, registry, "create"));
+            writeView(baseDir.resolve("edit.gsp"), renderForm(classMetadata, metadata, registry, "edit"));
         }
     }
 
@@ -36,11 +42,12 @@ public class GrailsViewGenerator {
         Files.writeString(path, content, StandardCharsets.UTF_8);
     }
 
-    private String renderList(ClassMetadata classMetadata) {
+    private String renderList(ClassMetadata classMetadata, TargetNameRegistry registry) {
+        String className = registry.className(classMetadata);
         StringBuilder sb = new StringBuilder();
         sb.append("<!doctype html>\n<html>\n<head>\n    <meta name=\"layout\" content=\"main\"/>\n")
-            .append("    <title>").append(classMetadata.getSimpleName()).append("</title>\n</head>\n<body>\n");
-        sb.append("<h1>").append(classMetadata.getSimpleName()).append("</h1>\n");
+            .append("    <title>").append(className).append("</title>\n</head>\n<body>\n");
+        sb.append("<h1>").append(className).append("</h1>\n");
         sb.append("<table>\n    <thead>\n        <tr>\n");
         for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
             if (attr.isPrimaryKey()) {
@@ -50,7 +57,7 @@ public class GrailsViewGenerator {
         }
         sb.append("        </tr>\n    </thead>\n    <tbody>\n");
         sb.append("    <g:each in=\"${")
-            .append(NameUtils.toLowerCamel(classMetadata.getSimpleName()))
+            .append(registry.viewPath(classMetadata))
             .append("List}\" var=\"item\">\n");
         sb.append("        <tr>\n");
         for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
@@ -58,7 +65,7 @@ public class GrailsViewGenerator {
                 continue;
             }
             sb.append("            <td>${item.")
-                .append(NameUtils.toLowerCamel(attr.getName())).append("}</td>\n");
+                .append(registry.propertyName(classMetadata, attr)).append("}</td>\n");
         }
         sb.append("        </tr>\n");
         sb.append("    </g:each>\n");
@@ -66,17 +73,18 @@ public class GrailsViewGenerator {
         return sb.toString();
     }
 
-    private String renderShow(ClassMetadata classMetadata) {
+    private String renderShow(ClassMetadata classMetadata, TargetNameRegistry registry) {
+        String className = registry.className(classMetadata);
         StringBuilder sb = new StringBuilder();
         sb.append("<!doctype html>\n<html>\n<head>\n    <meta name=\"layout\" content=\"main\"/>\n")
-            .append("    <title>").append(classMetadata.getSimpleName()).append("</title>\n</head>\n<body>\n");
-        sb.append("<h1>").append(classMetadata.getSimpleName()).append("</h1>\n");
+            .append("    <title>").append(className).append("</title>\n</head>\n<body>\n");
+        sb.append("<h1>").append(className).append("</h1>\n");
         sb.append("<dl>\n");
         for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
             if (attr.isPrimaryKey()) {
                 continue;
             }
-            String propertyName = NameUtils.toLowerCamel(attr.getName());
+            String propertyName = registry.propertyName(classMetadata, attr);
             sb.append("    <dt>").append(attr.getName()).append("</dt>\n");
             sb.append("    <dd>${").append(propertyName).append("}</dd>\n");
         }
@@ -84,24 +92,31 @@ public class GrailsViewGenerator {
         return sb.toString();
     }
 
-    private String renderForm(ClassMetadata classMetadata, ModelMetadata metadata, String action) {
+    private String renderForm(ClassMetadata classMetadata,
+                              ModelMetadata metadata,
+                              TargetNameRegistry registry,
+                              String action) {
+        String className = registry.className(classMetadata);
         StringBuilder sb = new StringBuilder();
         sb.append("<!doctype html>\n<html>\n<head>\n    <meta name=\"layout\" content=\"main\"/>\n")
-            .append("    <title>").append(classMetadata.getSimpleName()).append("</title>\n</head>\n<body>\n");
-        sb.append("<h1>").append(classMetadata.getSimpleName()).append("</h1>\n");
+            .append("    <title>").append(className).append("</title>\n</head>\n<body>\n");
+        sb.append("<h1>").append(className).append("</h1>\n");
         sb.append("<g:form action=\"").append(action).append("\">\n");
         for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
             if (attr.isPrimaryKey()) {
                 continue;
             }
-            sb.append(renderField(attr, metadata));
+            sb.append(renderField(classMetadata, attr, metadata, registry));
         }
         sb.append("    <button type=\"submit\">Save</button>\n</g:form>\n</body>\n</html>\n");
         return sb.toString();
     }
 
-    private String renderField(AttributeMetadata attr, ModelMetadata metadata) {
-        String name = NameUtils.toLowerCamel(attr.getName());
+    private String renderField(ClassMetadata classMetadata,
+                               AttributeMetadata attr,
+                               ModelMetadata metadata,
+                               TargetNameRegistry registry) {
+        String name = registry.propertyName(classMetadata, attr);
         StringBuilder sb = new StringBuilder();
         sb.append("    <div class=\"fieldcontain\">\n")
             .append("        <label for=\"").append(name).append("\">")

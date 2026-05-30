@@ -736,9 +736,18 @@ public class Ili2dbMetadataReader {
                     rel.setSourceAttribute(sourceAttribute);
                     rel.setTargetAttribute("T_Id"); // ili2db Standard
                     rel.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
+                    rel.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
+                    rel.setSource("ili2db");
+                    rel.setTargetRoleName(attr.getName());
+                    rel.setCardinality(new RelationshipMetadata.Cardinality(
+                        1,
+                        1,
+                        attr.isMandatory() ? 1 : 0,
+                        1
+                    ));
                     rel.setMandatory(attr.isMandatory());
-                    
-                    classMetadata.addRelationship(rel);
+
+                    metadata.addRelationship(rel);
                 }
             }
         }

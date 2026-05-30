@@ -1,0 +1,238 @@
+{
+  "modelName" : "CoreIrTestModel",
+  "modelVersion" : "2026-05-30",
+  "iliVersion" : "2.3",
+  "settings" : { },
+  "classes" : [ {
+    "name" : "CoreIrTestModel.Relations.Child",
+    "simpleName" : "Child",
+    "topicName" : "CoreIrTestModel.Relations",
+    "abstract" : false,
+    "kind" : "CLASS",
+    "labels" : { },
+    "attributes" : [ {
+      "name" : "Components",
+      "qualifiedName" : "CoreIrTestModel.Relations.Child.Components",
+      "iliType" : "CompositionType",
+      "javaType" : "Component",
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : -1,
+      "ordered" : true,
+      "enumValues" : [ ],
+      "referencedClass" : "CoreIrTestModel.Relations.Component",
+      "labels" : { }
+    }, {
+      "name" : "Score",
+      "qualifiedName" : "CoreIrTestModel.Relations.Child.Score",
+      "iliType" : "NumericType",
+      "javaType" : "Integer",
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "minValue" : "0",
+      "maxValue" : "100",
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
+  }, {
+    "name" : "CoreIrTestModel.Relations.Component",
+    "simpleName" : "Component",
+    "topicName" : "CoreIrTestModel.Relations",
+    "abstract" : false,
+    "kind" : "STRUCTURE",
+    "labels" : { },
+    "attributes" : [ {
+      "name" : "Label",
+      "qualifiedName" : "CoreIrTestModel.Relations.Component.Label",
+      "iliType" : "TextType",
+      "javaType" : "String",
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 40,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "enumValues" : [ ],
+      "labels" : { }
+    }, {
+      "name" : "ParentRef",
+      "qualifiedName" : "CoreIrTestModel.Relations.Component.ParentRef",
+      "iliType" : "ReferenceType",
+      "javaType" : "Parent",
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "enumValues" : [ ],
+      "referencedClass" : "CoreIrTestModel.Relations.Parent",
+      "labels" : { }
+    } ]
+  }, {
+    "name" : "CoreIrTestModel.Relations.Parent",
+    "simpleName" : "Parent",
+    "topicName" : "CoreIrTestModel.Relations",
+    "abstract" : false,
+    "kind" : "CLASS",
+    "labels" : { },
+    "attributes" : [ {
+      "name" : "Name",
+      "qualifiedName" : "CoreIrTestModel.Relations.Parent.Name",
+      "iliType" : "TextType",
+      "javaType" : "String",
+      "mandatory" : true,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 50,
+      "cardinalityMin" : 1,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "enumValues" : [ ],
+      "labels" : { }
+    }, {
+      "name" : "Status",
+      "qualifiedName" : "CoreIrTestModel.Relations.Parent.Status",
+      "iliType" : "EnumerationType",
+      "domainName" : "CoreIrTestModel.Status",
+      "javaType" : "String",
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "enumType" : "CoreIrTestModel.Status",
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
+  }, {
+    "name" : "CoreIrTestModel.Relations.ParentChild",
+    "simpleName" : "ParentChild",
+    "topicName" : "CoreIrTestModel.Relations",
+    "abstract" : false,
+    "kind" : "ASSOCIATION",
+    "labels" : { },
+    "attributes" : [ ]
+  } ],
+  "enums" : [ {
+    "name" : "CoreIrTestModel.Status",
+    "simpleName" : "Status",
+    "extendable" : true,
+    "values" : [ {
+      "iliCode" : "active",
+      "seq" : 0,
+      "labels" : { }
+    }, {
+      "iliCode" : "inactive",
+      "seq" : 1,
+      "labels" : { }
+    }, {
+      "iliCode" : "archived",
+      "seq" : 2,
+      "labels" : { }
+    }, {
+      "iliCode" : "soft",
+      "seq" : 3,
+      "labels" : { }
+    }, {
+      "iliCode" : "hard",
+      "seq" : 4,
+      "labels" : { }
+    } ]
+  } ],
+  "relationships" : [ {
+    "name" : "CoreIrTestModel.Relations.Child.Components",
+    "sourceClass" : "CoreIrTestModel.Relations.Child",
+    "targetClass" : "CoreIrTestModel.Relations.Component",
+    "type" : "ONE_TO_MANY",
+    "semanticKind" : "COMPOSITION_ATTRIBUTE",
+    "sourceAttribute" : "Components",
+    "targetRoleName" : "Components",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : -1
+    },
+    "mandatory" : false,
+    "ordered" : true,
+    "external" : false,
+    "composition" : true,
+    "source" : "ili2c"
+  }, {
+    "name" : "CoreIrTestModel.Relations.Component.ParentRef",
+    "sourceClass" : "CoreIrTestModel.Relations.Component",
+    "targetClass" : "CoreIrTestModel.Relations.Parent",
+    "type" : "MANY_TO_ONE",
+    "semanticKind" : "REFERENCE_ATTRIBUTE",
+    "sourceAttribute" : "ParentRef",
+    "targetRoleName" : "ParentRef",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : 1
+    },
+    "mandatory" : false,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c"
+  }, {
+    "name" : "CoreIrTestModel.Relations.ParentChild.Children",
+    "sourceClass" : "CoreIrTestModel.Relations.ParentChild",
+    "targetClass" : "CoreIrTestModel.Relations.Child",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "CoreIrTestModel.Relations.ParentChild",
+    "sourceRoleName" : "Owner",
+    "targetRoleName" : "Children",
+    "oppositeRoleName" : "Owner",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : -1
+    },
+    "mandatory" : false,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c"
+  }, {
+    "name" : "CoreIrTestModel.Relations.ParentChild.Owner",
+    "sourceClass" : "CoreIrTestModel.Relations.ParentChild",
+    "targetClass" : "CoreIrTestModel.Relations.Parent",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "CoreIrTestModel.Relations.ParentChild",
+    "sourceRoleName" : "Children",
+    "targetRoleName" : "Owner",
+    "oppositeRoleName" : "Children",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 1,
+      "maxTarget" : 1
+    },
+    "mandatory" : true,
+    "ordered" : false,
+    "external" : true,
+    "composition" : true,
+    "source" : "ili2c"
+  } ]
+}

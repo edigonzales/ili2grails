@@ -35,9 +35,11 @@ public class MetadataPrinter {
         out.println("Model Name:     " + metadata.getModelName());
         out.println("Schema:         " + metadata.getSchemaName());
         out.println("ILI Version:    " + metadata.getIliVersion());
+        out.println("Model Version:  " + metadata.getModelVersion());
         out.println("ili2db Version: " + metadata.getIli2dbVersion());
         out.println("Classes:        " + metadata.getClasses().size());
         out.println("Enumerations:   " + metadata.getEnums().size());
+        out.println("Relationships:  " + metadata.getAllRelationships().size());
         out.println("═══════════════════════════════════════════════════════════");
         out.println();
     }
@@ -55,6 +57,7 @@ public class MetadataPrinter {
         out.println();
         out.printf("■ %s%n", clazz.getName());
         out.printf("  Simple Name:  %s%n", clazz.getSimpleName());
+        out.printf("  Topic:        %s%n", clazz.getTopicName());
         out.printf("  Table:        %s%n", clazz.getTableName());
         out.printf("  Kind:         %s%n", clazz.getKind());
         out.printf("  Abstract:     %s%n", clazz.isAbstract());
@@ -102,6 +105,10 @@ public class MetadataPrinter {
         if (attr.getEnumType() != null) {
             out.printf("%s  → Enum: %s%n", indent, attr.getEnumType());
         }
+
+        if (attr.getDomainName() != null) {
+            out.printf("%s  → Domain: %s%n", indent, attr.getDomainName());
+        }
         
         if (attr.getUnit() != null) {
             out.printf("%s  → Unit: %s%n", indent, attr.getUnit());
@@ -111,6 +118,17 @@ public class MetadataPrinter {
             out.printf("%s  → Range: [%s .. %s]%n", indent, 
                 attr.getMinValue() != null ? attr.getMinValue() : "-∞",
                 attr.getMaxValue() != null ? attr.getMaxValue() : "+∞"
+            );
+        }
+
+        if (attr.getCardinalityMin() != null || attr.getCardinalityMax() != null) {
+            out.printf("%s  → Cardinality: %s..%s%s%n",
+                indent,
+                attr.getCardinalityMin() != null ? attr.getCardinalityMin() : 0,
+                attr.getCardinalityMax() != null && attr.getCardinalityMax() == -1
+                    ? "*"
+                    : attr.getCardinalityMax(),
+                attr.isOrdered() ? " ORDERED" : ""
             );
         }
     }
@@ -128,10 +146,23 @@ public class MetadataPrinter {
     }
     
     private void printRelationship(RelationshipMetadata rel, String indent) {
-        out.printf("%s→ %s [%s]%n", indent, rel.getTargetClass(), rel.getType());
+        out.printf("%s→ %s [%s/%s]%n", indent, rel.getTargetClass(), rel.getType(), rel.getSemanticKind());
         out.printf("%s  via: %s → %s%n", indent, rel.getSourceAttribute(), rel.getTargetAttribute());
+        if (rel.getTargetRoleName() != null || rel.getOppositeRoleName() != null) {
+            out.printf("%s  role: %s opposite: %s%n",
+                indent,
+                rel.getTargetRoleName(),
+                rel.getOppositeRoleName());
+        }
         if (rel.getCardinality() != null) {
             out.printf("%s  cardinality: %s%n", indent, rel.getCardinality());
+        }
+        if (rel.isOrdered() || rel.isExternal() || rel.isComposition()) {
+            out.printf("%s  flags: %s%s%s%n",
+                indent,
+                rel.isOrdered() ? "ORDERED " : "",
+                rel.isExternal() ? "EXTERNAL " : "",
+                rel.isComposition() ? "COMPOSITION" : "");
         }
     }
     

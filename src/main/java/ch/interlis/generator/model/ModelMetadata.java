@@ -12,7 +12,9 @@ public class ModelMetadata {
     private String schemaName;
     private Map<String, ClassMetadata> classes = new LinkedHashMap<>();
     private Map<String, EnumMetadata> enums = new LinkedHashMap<>();
+    private List<RelationshipMetadata> relationships = new ArrayList<>();
     private String iliVersion;
+    private String modelVersion;
     private Date importDate;
     
     // ili2db spezifische Informationen
@@ -30,6 +32,17 @@ public class ModelMetadata {
     public void addEnum(EnumMetadata enumMetadata) {
         enums.put(enumMetadata.getName(), enumMetadata);
     }
+
+    public void addRelationship(RelationshipMetadata relationship) {
+        Objects.requireNonNull(relationship, "relationship");
+        if (relationships.stream().noneMatch(existing -> sameRelationship(existing, relationship))) {
+            relationships.add(relationship);
+        }
+        ClassMetadata sourceClass = getClass(relationship.getSourceClass());
+        if (sourceClass != null) {
+            sourceClass.addRelationship(relationship);
+        }
+    }
     
     public ClassMetadata getClass(String name) {
         return classes.get(name);
@@ -41,6 +54,18 @@ public class ModelMetadata {
     
     public Collection<EnumMetadata> getAllEnums() {
         return enums.values();
+    }
+
+    public List<RelationshipMetadata> getAllRelationships() {
+        List<RelationshipMetadata> allRelationships = new ArrayList<>(relationships);
+        for (ClassMetadata classMetadata : classes.values()) {
+            for (RelationshipMetadata relationship : classMetadata.getRelationships()) {
+                if (allRelationships.stream().noneMatch(existing -> sameRelationship(existing, relationship))) {
+                    allRelationships.add(relationship);
+                }
+            }
+        }
+        return allRelationships;
     }
     
     // Getters and Setters
@@ -84,6 +109,14 @@ public class ModelMetadata {
     public void setIliVersion(String iliVersion) {
         this.iliVersion = iliVersion;
     }
+
+    public String getModelVersion() {
+        return modelVersion;
+    }
+
+    public void setModelVersion(String modelVersion) {
+        this.modelVersion = modelVersion;
+    }
     
     public Date getImportDate() {
         return importDate;
@@ -108,6 +141,14 @@ public class ModelMetadata {
     public void setSettings(Map<String, String> settings) {
         this.settings = settings;
     }
+
+    public List<RelationshipMetadata> getRelationships() {
+        return relationships;
+    }
+
+    public void setRelationships(List<RelationshipMetadata> relationships) {
+        this.relationships = relationships;
+    }
     
     @Override
     public String toString() {
@@ -116,7 +157,18 @@ public class ModelMetadata {
                 ", schemaName='" + schemaName + '\'' +
                 ", classes=" + classes.size() +
                 ", enums=" + enums.size() +
+                ", relationships=" + getAllRelationships().size() +
                 ", iliVersion='" + iliVersion + '\'' +
+                ", modelVersion='" + modelVersion + '\'' +
                 '}';
+    }
+
+    private boolean sameRelationship(RelationshipMetadata left, RelationshipMetadata right) {
+        return Objects.equals(left.getName(), right.getName())
+            && Objects.equals(left.getSourceClass(), right.getSourceClass())
+            && Objects.equals(left.getTargetClass(), right.getTargetClass())
+            && Objects.equals(left.getSourceAttribute(), right.getSourceAttribute())
+            && Objects.equals(left.getTargetRoleName(), right.getTargetRoleName())
+            && Objects.equals(left.getSemanticKind(), right.getSemanticKind());
     }
 }

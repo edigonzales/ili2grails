@@ -19,10 +19,11 @@ public class GrailsCrudGenerator {
 
     public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
         Files.createDirectories(config.getOutputDir());
-        enumGenerator.generate(metadata, config);
-        domainGenerator.generate(metadata, config);
-        //controllerGenerator.generate(metadata, config);
-        //viewGenerator.generate(metadata, config);
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
+        enumGenerator.generate(metadata, config, registry);
+        domainGenerator.generate(metadata, config, registry);
+        //controllerGenerator.generate(metadata, config, registry);
+        //viewGenerator.generate(metadata, config, registry);
         buildGradleUpdater.ensureDependencies(
             config.getOutputDir().resolve("build.gradle"),
             config.isGeometryEnabled()

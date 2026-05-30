@@ -15,6 +15,12 @@ import java.util.stream.Collectors;
 public class GrailsEnumGenerator {
 
     public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
+        generate(metadata, config, TargetNameRegistry.forMetadata(metadata, config));
+    }
+
+    public void generate(ModelMetadata metadata,
+                         GenerationConfig config,
+                         TargetNameRegistry registry) throws IOException {
         if (metadata.getAllEnums().isEmpty()) {
             return;
         }
@@ -24,21 +30,24 @@ public class GrailsEnumGenerator {
         Files.createDirectories(baseDir);
 
         for (EnumMetadata enumMetadata : metadata.getAllEnums()) {
-            String content = renderEnum(enumMetadata, config.getEnumPackage());
-            Path target = baseDir.resolve(enumMetadata.getSimpleName() + ".groovy");
+            String enumName = registry.enumName(enumMetadata);
+            String content = renderEnum(enumMetadata, config.getEnumPackage(), enumName, registry);
+            Path target = baseDir.resolve(enumName + ".groovy");
             Files.writeString(target, content, StandardCharsets.UTF_8);
         }
     }
 
-    private String renderEnum(EnumMetadata enumMetadata, String packageName) {
+    private String renderEnum(EnumMetadata enumMetadata,
+                              String packageName,
+                              String enumName,
+                              TargetNameRegistry registry) {
         String values = enumMetadata.getValues().stream()
-            .map(EnumMetadata.EnumValue::getIliCode)
-            .map(value -> value.replace('.', '_'))
+            .map(value -> registry.enumConstantName(enumMetadata, value))
             .collect(Collectors.joining(", "));
 
         StringBuilder sb = new StringBuilder();
         sb.append("package ").append(packageName).append("\n\n");
-        sb.append("enum ").append(enumMetadata.getSimpleName()).append(" {\n");
+        sb.append("enum ").append(enumName).append(" {\n");
         if (values.isEmpty()) {
             sb.append("}\n");
             return sb.toString();

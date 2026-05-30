@@ -1,0 +1,41 @@
+INTERLIS 2.3;
+
+MODEL CoreIrTestModel (en)
+AT "http://www.example.ch"
+VERSION "2026-05-30" =
+
+  DOMAIN
+    Status = (
+      active,
+      inactive,
+      archived (
+        soft,
+        hard
+      )
+    );
+
+  TOPIC Relations =
+
+    CLASS Parent =
+      Name: MANDATORY TEXT*50;
+      Status: CoreIrTestModel.Status;
+    END Parent;
+
+    STRUCTURE Component =
+      Label: TEXT*40;
+      ParentRef: REFERENCE TO Parent;
+    END Component;
+
+    CLASS Child =
+      Components: LIST {0..*} OF Component;
+      Score: 0 .. 100;
+    END Child;
+
+    ASSOCIATION ParentChild =
+      Owner (EXTERNAL) -<#> {1} Parent;
+      Children -- {0..*} Child;
+    END ParentChild;
+
+  END Relations;
+
+END CoreIrTestModel.

@@ -128,6 +128,42 @@ class MetadataReaderTest {
     }
 
     @Test
+    void testRelationshipMergeKeepsDbColumnsAndAddsIli2cSemantics() throws Exception {
+        MetadataReader reader = new MetadataReader(connection, modelFile, null, null);
+
+        ModelMetadata metadata = reader.readMetadata("SimpleAddressModel");
+
+        ClassMetadata personAddressClass = metadata.getClass("SimpleAddressModel.Addresses.PersonAddress");
+        assertThat(personAddressClass).isNotNull();
+        assertThat(personAddressClass.getRelationships()).hasSize(2);
+        assertThat(metadata.getAllRelationships())
+            .filteredOn(relationship -> relationship.getSourceClass()
+                .equals("SimpleAddressModel.Addresses.PersonAddress"))
+            .hasSize(2)
+            .allSatisfy(relationship -> {
+                assertThat(relationship.getSemanticKind())
+                    .isEqualTo(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
+                assertThat(relationship.getAssociationName())
+                    .isEqualTo("SimpleAddressModel.Addresses.PersonAddress");
+                assertThat(relationship.getSource()).isEqualTo("ili2db+ili2c");
+                assertThat(relationship.getTargetAttribute()).isEqualTo("T_Id");
+            });
+        assertThat(metadata.getAllRelationships())
+            .anySatisfy(relationship -> {
+                assertThat(relationship.getTargetRoleName()).isEqualTo("Person");
+                assertThat(relationship.getSourceAttribute()).isEqualTo("person_id");
+                assertThat(relationship.getCardinality().getMinTarget()).isZero();
+                assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(-1);
+            })
+            .anySatisfy(relationship -> {
+                assertThat(relationship.getTargetRoleName()).isEqualTo("Address");
+                assertThat(relationship.getSourceAttribute()).isEqualTo("address_id");
+                assertThat(relationship.getCardinality().getMinTarget()).isZero();
+                assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(1);
+            });
+    }
+
+    @Test
     void testQualifiedAttributeNameMerge() throws Exception {
         try (Statement stmt = connection.createStatement()) {
             stmt.execute("UPDATE t_ili2db_attrname " +

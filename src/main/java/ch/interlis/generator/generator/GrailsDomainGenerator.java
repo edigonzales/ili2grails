@@ -25,19 +25,25 @@ import java.util.stream.Collectors;
 public class GrailsDomainGenerator {
 
     public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
+        generate(metadata, config, TargetNameRegistry.forMetadata(metadata, config));
+    }
+
+    public void generate(ModelMetadata metadata,
+                         GenerationConfig config,
+                         TargetNameRegistry registry) throws IOException {
         Path baseDir = config.getOutputDir()
             .resolve("grails-app/domain")
             .resolve(NameUtils.packageToPath(config.getDomainPackage()));
         Files.createDirectories(baseDir);
 
-        Map<String, List<ClassMetadata>> incomingRelationships = indexIncomingRelations(metadata);
+        Map<String, List<RelationshipMetadata>> incomingRelationships = indexIncomingRelations(metadata);
 
         for (ClassMetadata classMetadata : metadata.getAllClasses()) {
             if (classMetadata.isAbstract()) {
                 continue;
             }
-            String content = renderDomain(classMetadata, metadata, config, incomingRelationships);
-            Path target = baseDir.resolve(classMetadata.getSimpleName() + ".groovy");
+            String content = renderDomain(classMetadata, metadata, config, registry, incomingRelationships);
+            Path target = baseDir.resolve(registry.className(classMetadata) + ".groovy");
             Files.writeString(target, content, StandardCharsets.UTF_8);
         }
     }
@@ -45,8 +51,9 @@ public class GrailsDomainGenerator {
     private String renderDomain(ClassMetadata classMetadata,
                                 ModelMetadata metadata,
                                 GenerationConfig config,
-                                Map<String, List<ClassMetadata>> incomingRelations) {
-        String className = classMetadata.getSimpleName();
+                                TargetNameRegistry registry,
+                                Map<String, List<RelationshipMetadata>> incomingRelations) {
+        String className = registry.className(classMetadata);
         String packageName = config.getDomainPackage();
 
         Set<String> imports = new LinkedHashSet<>();
@@ -70,8 +77,8 @@ public class GrailsDomainGenerator {
             if (attr.isPrimaryKey()) {
                 continue;
             }
-            String propertyName = resolvePropertyName(attr);
-            String type = resolveType(attr, metadata, config, imports);
+            String propertyName = registry.propertyName(classMetadata, attr);
+            String type = resolveType(attr, metadata, config, registry, imports);
             properties.add("    " + type + " " + propertyName);
             if (attr.isGeometry()) {
                 geometryAttributes.put(propertyName, attr);
@@ -107,19 +114,23 @@ public class GrailsDomainGenerator {
             sb.append("    ]\n");
         }
 
-        List<ClassMetadata> ownedBy = incomingRelations.getOrDefault(classMetadata.getName(), List.of());
+        List<RelationshipMetadata> ownedBy = incomingRelations.getOrDefault(classMetadata.getName(), List.of());
         if (!ownedBy.isEmpty()) {
             String hasManyBlock = ownedBy.stream()
-                .sorted(Comparator.comparing(ClassMetadata::getSimpleName))
-                .map(source -> {
-                    String propName = NameUtils.pluralize(NameUtils.toLowerCamel(source.getSimpleName()));
-                    return propName + ": " + source.getSimpleName();
+                .sorted(relationshipComparator(registry))
+                .map(relationship -> {
+                    String propName = registry.collectionPropertyName(relationship);
+                    ClassMetadata source = metadata.getClass(relationship.getSourceClass());
+                    String sourceClassName = source != null
+                        ? registry.className(source)
+                        : registry.className(relationship.getSourceClass());
+                    return propName + ": " + sourceClassName;
                 })
                 .collect(Collectors.joining(", "));
             sb.append("\n    static hasMany = [").append(hasManyBlock).append("]\n");
         }
 
-        Map<String, String> belongsTo = resolveBelongsTo(classMetadata, metadata);
+        Map<String, String> belongsTo = resolveBelongsTo(classMetadata, metadata, registry);
         if (!belongsTo.isEmpty()) {
             String belongsToBlock = belongsTo.entrySet().stream()
                 .map(entry -> entry.getKey() + ": " + entry.getValue())
@@ -153,7 +164,7 @@ public class GrailsDomainGenerator {
             if (attr.isPrimaryKey()) {
                 continue;
             }
-            String propertyName = resolvePropertyName(attr);
+            String propertyName = registry.propertyName(classMetadata, attr);
             List<String> constraintParts = new ArrayList<>();
             if (!attr.isMandatory()) {
                 constraintParts.add("nullable: true");
@@ -181,15 +192,14 @@ public class GrailsDomainGenerator {
         return sb.toString();
     }
 
-    private Map<String, List<ClassMetadata>> indexIncomingRelations(ModelMetadata metadata) {
-        Map<String, List<ClassMetadata>> incoming = new LinkedHashMap<>();
-        for (ClassMetadata source : metadata.getAllClasses()) {
-            for (RelationshipMetadata rel : source.getRelationships()) {
-                if (rel.getType() == RelationshipMetadata.RelationType.MANY_TO_ONE
-                    && rel.getTargetClass() != null) {
-                    incoming.computeIfAbsent(rel.getTargetClass(), key -> new ArrayList<>())
-                        .add(source);
-                }
+    private Map<String, List<RelationshipMetadata>> indexIncomingRelations(ModelMetadata metadata) {
+        Map<String, List<RelationshipMetadata>> incoming = new LinkedHashMap<>();
+        for (RelationshipMetadata rel : metadata.getAllRelationships()) {
+            if (rel.getType() == RelationshipMetadata.RelationType.MANY_TO_ONE
+                && isGeneratedDomainClass(metadata, rel.getSourceClass())
+                && isGeneratedDomainClass(metadata, rel.getTargetClass())) {
+                incoming.computeIfAbsent(rel.getTargetClass(), key -> new ArrayList<>())
+                    .add(rel);
             }
         }
         return incoming;
@@ -198,19 +208,21 @@ public class GrailsDomainGenerator {
     private String resolveType(AttributeMetadata attr,
                                ModelMetadata metadata,
                                GenerationConfig config,
+                               TargetNameRegistry registry,
                                Set<String> imports) {
         if (attr.getEnumType() != null) {
             EnumMetadata enumMetadata = metadata.getEnums().get(attr.getEnumType());
             if (enumMetadata != null) {
-                imports.add(config.getEnumPackage() + "." + enumMetadata.getSimpleName());
-                return enumMetadata.getSimpleName();
+                String enumName = registry.enumName(enumMetadata);
+                imports.add(config.getEnumPackage() + "." + enumName);
+                return enumName;
             }
         }
 
         if (attr.isForeignKey() && attr.getReferencedClass() != null) {
             ClassMetadata referenced = metadata.getClass(attr.getReferencedClass());
-            if (referenced != null) {
-                return referenced.getSimpleName();
+            if (referenced != null && !referenced.isAbstract()) {
+                return registry.className(referenced);
             }
         }
 
@@ -253,29 +265,41 @@ public class GrailsDomainGenerator {
         return geometryKind.toUpperCase();
     }
 
-    private Map<String, String> resolveBelongsTo(ClassMetadata classMetadata, ModelMetadata metadata) {
+    private Map<String, String> resolveBelongsTo(ClassMetadata classMetadata,
+                                                 ModelMetadata metadata,
+                                                 TargetNameRegistry registry) {
         Map<String, String> belongsTo = new LinkedHashMap<>();
         for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
             if (!attr.isForeignKey() || attr.getReferencedClass() == null) {
                 continue;
             }
-            String propertyName = resolvePropertyName(attr);
+            if (!isGeneratedDomainClass(metadata, attr.getReferencedClass())) {
+                continue;
+            }
+            String propertyName = registry.propertyName(classMetadata, attr);
             if (propertyName == null || propertyName.isBlank()) {
                 continue;
             }
             ClassMetadata referenced = metadata.getClass(attr.getReferencedClass());
-            String targetName = referenced != null ? referenced.getSimpleName()
-                : NameUtils.simpleType(attr.getReferencedClass());
+            String targetName = referenced != null ? registry.className(referenced)
+                : registry.className(attr.getReferencedClass());
             belongsTo.put(propertyName, targetName);
         }
         return belongsTo;
     }
 
-    private String resolvePropertyName(AttributeMetadata attr) {
-        String propertyName = attr.getSqlName();
-        if (propertyName == null || propertyName.isBlank()) {
-            propertyName = attr.getName();
+    private boolean isGeneratedDomainClass(ModelMetadata metadata, String className) {
+        if (className == null) {
+            return false;
         }
-        return propertyName;
+        ClassMetadata classMetadata = metadata.getClass(className);
+        return classMetadata != null && !classMetadata.isAbstract();
+    }
+
+    private Comparator<RelationshipMetadata> relationshipComparator(TargetNameRegistry registry) {
+        return Comparator
+            .comparing((RelationshipMetadata relationship) -> registry.collectionPropertyName(relationship))
+            .thenComparing(RelationshipMetadata::getSourceClass, Comparator.nullsLast(String::compareTo))
+            .thenComparing(RelationshipMetadata::getName, Comparator.nullsLast(String::compareTo));
     }
 }

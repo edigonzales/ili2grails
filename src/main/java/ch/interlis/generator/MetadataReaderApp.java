@@ -3,6 +3,8 @@ package ch.interlis.generator;
 import ch.interlis.generator.generator.GenerationConfig;
 import ch.interlis.generator.generator.GrailsCrudGenerator;
 import ch.interlis.generator.generator.GrailsTemplateOverlayInstaller;
+import ch.interlis.generator.generator.TargetNameRegistry;
+import ch.interlis.generator.metadata.MetadataJsonWriter;
 import ch.interlis.generator.metadata.MetadataReader;
 import ch.interlis.generator.metadata.MetadataPrinter;
 import ch.interlis.generator.model.ModelMetadata;
@@ -77,6 +79,12 @@ public class MetadataReaderApp {
             MetadataPrinter printer = new MetadataPrinter();
             printer.print(metadata);
 
+            if (options.metadataJsonPath != null) {
+                new MetadataJsonWriter().write(metadata, options.metadataJsonPath);
+                System.out.println("Metadata JSON written to: "
+                    + options.metadataJsonPath.toAbsolutePath().normalize());
+            }
+
             if (options.grailsOutputDir != null) {
                 generateGrailsCrud(metadata, options);
             }
@@ -113,6 +121,7 @@ public class MetadataReaderApp {
         System.out.println("Options:");
         System.out.println("  --model-file <file>               - Explicit model file path (overrides positional model file)");
         System.out.println("  --model-repos <r1;r2>             - Repository list (e.g., https://models.interlis.ch/;file:/repo)");
+        System.out.println("  --metadata-json <file>            - Write deterministic metadata IR JSON");
         System.out.println("  --grails-output <dir>             - Output directory for Grails CRUD artifacts");
         System.out.println("  --grails-init [appName]           - Initialize a Grails app in the output directory");
         System.out.println("  --grails-version <x.y>            - Grails version for --grails-init");
@@ -227,6 +236,13 @@ public class MetadataReaderApp {
                         return null;
                     }
                     cliOptions.modelRepositories.addAll(splitRepositories(repoValue));
+                    break;
+                case "--metadata-json":
+                    String metadataJsonValue = readOptionValue(args, arg, ++i);
+                    if (metadataJsonValue == null) {
+                        return null;
+                    }
+                    cliOptions.metadataJsonPath = Path.of(metadataJsonValue);
                     break;
                 case "--grails-version":
                     String versionValue = readOptionValue(args, arg, ++i);
@@ -471,9 +487,10 @@ public class MetadataReaderApp {
         if (!Files.exists(grailsWrapper)) {
             throw new IllegalStateException("Grails wrapper not found at: " + grailsWrapper.toAbsolutePath());
         }
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
         List<String> domainClasses = metadata.getAllClasses().stream()
             .filter(classMetadata -> !classMetadata.isAbstract())
-            .map(classMetadata -> config.getDomainPackage() + "." + classMetadata.getSimpleName())
+            .map(classMetadata -> config.getDomainPackage() + "." + registry.className(classMetadata))
             .sorted()
             .toList();
         for (String domainClass : domainClasses) {
@@ -539,6 +556,7 @@ public class MetadataReaderApp {
         private String modelName;
         private String schema;
         private List<String> modelRepositories;
+        private Path metadataJsonPath;
         private Path grailsOutputDir;
         private boolean grailsInitRequested;
         private String grailsInitAppName;
