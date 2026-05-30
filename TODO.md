@@ -12,4 +12,4 @@
 - Naming-Policy bei weiteren Targets wiederverwenden
 - Grails-Runtime-Smoke-Test optional in CI einbinden
 - Produktive DB-Konfiguration: JDBC-Credentials aus ENV/Grails/Spring-Properties statt Demo-URL ableiten
-- Zweites Target evaluieren: Django/GeoDjango erst nach stabiler Core-IR
+- Zweites Target evaluieren: Django/GeoDjango oder Vaadin als Realitätscheck für dokumentierte Core-IR

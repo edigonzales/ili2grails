@@ -283,11 +283,45 @@ CLASSES:
 - Separiert von ili2db/ili2c-Implementierungen
 - Grails-Ausgabe als **Beispielimplementierung** (Domains/Enums), nicht als exklusives Ziel
 
+### Core-IR / JSON-Vertrag
+Die Core-IR ist der stabile Vertrag zwischen Metadata Reader und Generator-Targets.
+Die JSON-Ausgabe von `--metadata-json` bildet diesen Vertrag deterministisch ab und
+wird über Golden-Tests abgesichert. Generatoren sollen aus dieser IR lesen und keine
+ili2db-/ili2c-spezifischen Details direkt nachbauen.
+
+**Kompatibilitätsregeln:**
+- Bestehende JSON-Feldnamen und Semantik bleiben kompatibel; Erweiterungen erfolgen additiv.
+- Fehlende optionale Felder bedeuten `unbekannt` oder `nicht vorhanden`, nicht automatisch `false`.
+- Reihenfolgen in JSON sind deterministisch sortiert; Generatoren sollen sich trotzdem fachlich an Namen/IDs orientieren.
+- Unbounded Cardinality wird in Java und JSON als `-1` ausgegeben.
+- Target-spezifische Namen, Packages, Controller- oder View-Pfade bleiben außerhalb der Core-IR und werden pro Target abgeleitet.
+
+| Objekt | Wichtigste Felder | Semantik / Herkunft | Stabilität |
+| --- | --- | --- | --- |
+| `ModelMetadata` | `modelName`, `schemaName`, `iliVersion`, `modelVersion`, `ili2dbVersion`, `settings`, `classes`, `enums`, `relationships` | Wurzel der IR; kombiniert ili2db-Mapping, ili2c-Semantik und Metadaten zum Import. | Stabiler Einstiegspunkt. Neue Top-Level-Felder nur additiv. |
+| `ClassMetadata` | `name`, `simpleName`, `topicName`, `tableName`, `sqlName`, `kind`, `abstract`, `baseClass`, `inheritanceStrategy`, `attributes`, `labels` | INTERLIS-Klasse, Structure oder Association plus physisches Tabellenmapping, falls vorhanden. | `name` ist die fachliche Identität; `tableName`/`sqlName` sind physische DB-Details. |
+| `AttributeMetadata` | `name`, `qualifiedName`, `columnName`, `sqlName`, `iliType`, `domainName`, `javaType`, `dbType`, `mandatory`, `geometry*`, `enumType`, `unit`, `referencedClass` | Attribut-/Spalten-IR mit Constraints, Typ- und Referenzinformationen. `javaType` ist ein pragmatischer aktueller Hilfstyp, kein langfristiger Core-Typvertrag. | Bestehende Felder bleiben; langfristig kann ein expliziter Core-Typ additiv ergänzt werden. |
+| `RelationshipMetadata` | `name`, `sourceClass`, `targetClass`, `type`, `semanticKind`, Rollen/FK-Felder, `cardinality`, Flags, Merge-Diagnostik | Beziehung als First-Class-IR aus ili2db-FK und/oder ili2c-Semantik. | `semanticKind` und Klassen-/Rollenfelder sind für Targets maßgeblich; Diagnosefelder erklären die Zusammenführung. |
+| `EnumMetadata` | `name`, `simpleName`, `extendable`, `baseEnum`, `values[].iliCode`, `dispName`, `seq`, `labels` | INTERLIS-Enumeration inkl. Reihenfolge, Erweiterbarkeit und Display-/Label-Daten. | `iliCode` und `seq` sind stabil für Generatoren; Ziel-Identifier werden target-spezifisch erzeugt. |
+
 ### Relationship-Semantik
 - ili2db-Beziehungen liefern physische Namen: FK-Spalten, Zielspalten und Tabellenmapping.
 - ili2c-Beziehungen liefern fachliche Semantik: Association-Rollen, Kardinalitäten, `ORDERED`, `EXTERNAL`, Reference- und Composition-Attribute.
 - Beim Merge gewinnen ili2db-Namen für die physische DB-Struktur und ili2c-Felder für fachliche Semantik.
 - Unbounded Cardinality wird in Java und JSON als `-1` ausgegeben.
+
+`semanticKind` beschreibt die fachliche Quelle der Beziehung:
+
+| `semanticKind` | Bedeutung | Target-Hinweis |
+| --- | --- | --- |
+| `ILI2DB_FK` | Physische FK-Beziehung aus ili2db-Metatabellen. | Für DB-Mapping und To-One-Properties verwenden, aber ohne ili2c-Semantik vorsichtig interpretieren. |
+| `REFERENCE_ATTRIBUTE` | INTERLIS `REFERENCE TO` aus ili2c. | Fachliche Referenz; physische Spalte kommt nur aus einem Merge mit ili2db. |
+| `COMPOSITION_ATTRIBUTE` | INTERLIS `BAG/LIST OF` Composition aus ili2c. | Kardinalität entscheidet über To-One vs. Collection; Composition kann Ziel-Structures generationserheblich machen. |
+| `ASSOCIATION_ROLE` | Rolle einer INTERLIS Association. | In v1 als Rolle auf der Association-Klasse interpretieren; inverse Collections und komplexe Association-Semantik bleiben bewusst konservativ. |
+
+Grenze: `ASSOCIATION_ROLE` bildet aktuell Rollen als Relationships ab. Für komplexe
+Associations kann später ein eigenes `AssociationMetadata` additiv ergänzt werden,
+ohne den bestehenden Relationship-Vertrag zu brechen.
 
 ### Core-IR Merge-Diagnostik
 Relationships enthalten zusätzlich Diagnosefelder, damit der Merge von ili2db- und
