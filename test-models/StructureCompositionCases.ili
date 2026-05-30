@@ -1,0 +1,45 @@
+INTERLIS 2.3;
+
+MODEL StructureCompositionCases (en)
+AT "http://www.example.ch"
+VERSION "2026-05-30" =
+
+  TOPIC Cases =
+    OID AS INTERLIS.UUIDOID;
+
+    CLASS Owner =
+      Name: MANDATORY TEXT*50;
+    END Owner;
+
+    STRUCTURE Part =
+      Label: MANDATORY TEXT*50;
+      OwnerRef: REFERENCE TO Owner;
+    END Part;
+
+    STRUCTURE Inspection =
+      Result: TEXT*80;
+    END Inspection;
+
+    STRUCTURE Attachment =
+      FileName: MANDATORY TEXT*100;
+    END Attachment;
+
+    CLASS Asset =
+      Name: MANDATORY TEXT*50;
+      Parts: LIST {0..*} OF Part;
+      MainInspection: BAG {1} OF Inspection;
+      OptionalAttachment: BAG {0..1} OF Attachment;
+    END Asset;
+
+    CLASS Document =
+      Title: MANDATORY TEXT*80;
+    END Document;
+
+    ASSOCIATION AssetDocument =
+      AssetRole -- {0..*} Asset;
+      DocumentRole -- {0..*} Document;
+    END AssetDocument;
+
+  END Cases;
+
+END StructureCompositionCases.

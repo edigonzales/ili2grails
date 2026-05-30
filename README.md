@@ -403,5 +403,7 @@ validiert Naming/Structure-/Composition-Mapping und schreibt Diagnose-Artefakte 
 `build/reports/real-ili2db-smoke/`. Die Reports werden als maschinenlesbares JSON und
 als Markdown-Inventar geschrieben; enthalten sind Counts, Structures, Composition-
 Relationships, generierte Grails-Klassen, übersprungene Structures mit Grund und kurze
-Hinweise zu leeren Befunden. Docker-, ili2pg- oder Repository-Probleme führen zu einem
-sauberen Skip statt zu einem roten Standard-Build.
+Hinweise zu leeren Befunden. `StructureCompositionCases` ist der deterministische lokale
+Structure-/Composition-Realtest ohne externe Modell-Repositories; `VSADSSMINI_2020_LV95`
+bleibt das große opportunistische Realmodell. Docker-, ili2pg- oder Repository-Probleme
+führen zu einem sauberen Skip statt zu einem roten Standard-Build.

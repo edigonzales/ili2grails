@@ -43,6 +43,9 @@ class RealIli2dbSmokeTest {
         "https://models.geo.admin.ch/"
     );
     private static final Path CORE_IR_MODEL_FILE = Path.of("test-models/CoreIrTestModel.ili");
+    private static final Path STRUCTURE_COMPOSITION_MODEL_FILE = Path.of(
+        "test-models/StructureCompositionCases.ili"
+    );
     private static final Path VSADSSMINI_MODEL_FILE = Path.of(
         "test-models/VSADSSMINI_2020_2_d_LV95-20251129.ili"
     );
@@ -114,6 +117,77 @@ class RealIli2dbSmokeTest {
         structures(realSchema.metadata())
             .filter(structure -> summary.compositionTargetNames().contains(structure.getName()))
             .filter(structure -> !structure.isAbstract())
+            .forEach(structure -> assertThat(mapper.shouldGenerateClass(structure))
+                .as("composition target should be generated: %s", structure.getName())
+                .isTrue());
+
+        assertNoNamingCollisions(realSchema.metadata(), registry, mapper);
+        new GrailsCrudGenerator().generate(realSchema.metadata(), config);
+        GeneratedGroovyCompiler.compileGeneratedSources(config.getOutputDir());
+    }
+
+    @Test
+    void validatesLocalStructureCompositionCasesAgainstRealIli2pgSchema() throws Exception {
+        Path jsonReport = REPORT_DIR.resolve("structure-composition-cases-summary.json");
+        Path markdownReport = REPORT_DIR.resolve("structure-composition-cases-summary.md");
+        deleteReports(jsonReport, markdownReport);
+
+        RealSchemaMetadata realSchema = importAndReadMetadata(
+            "StructureCompositionCases",
+            STRUCTURE_COMPOSITION_MODEL_FILE,
+            "rt_structcomp_"
+        );
+
+        GenerationConfig config = GenerationConfig.builder(tempDir.resolve("structure-composition-generated"), "com.example")
+            .domainPackage("com.example.domain")
+            .enumPackage("com.example.enums")
+            .build();
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(realSchema.metadata(), config);
+        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(realSchema.metadata(), config, registry);
+        StructureSummary summary = summarize(
+            realSchema.modelName(),
+            realSchema.schemaName(),
+            realSchema.metadata(),
+            registry,
+            mapper
+        );
+        writeSummary(
+            jsonReport,
+            markdownReport,
+            summary
+        );
+
+        assertThat(summary.structures())
+            .extracting(StructureEntry::name)
+            .contains(
+                "StructureCompositionCases.Cases.Attachment",
+                "StructureCompositionCases.Cases.Inspection",
+                "StructureCompositionCases.Cases.Part"
+            );
+        assertThat(summary.compositionRelationships())
+            .extracting(CompositionRelationshipEntry::sourceAttribute)
+            .contains("MainInspection", "OptionalAttachment", "Parts");
+        assertThat(summary.compositionRelationships())
+            .filteredOn(relationship -> "Parts".equals(relationship.sourceAttribute()))
+            .singleElement()
+            .satisfies(relationship -> {
+                assertThat(relationship.cardinality()).isEqualTo("1..1 -> 0..*");
+                assertThat(relationship.ordered()).isTrue();
+                assertThat(relationship.generatedTarget()).isTrue();
+            });
+        assertThat(summary.compositionRelationships())
+            .filteredOn(relationship -> !"Parts".equals(relationship.sourceAttribute()))
+            .allSatisfy(relationship -> assertThat(relationship.generatedTarget()).isTrue());
+        assertThat(summary.relationshipCounts())
+            .containsKeys(
+                RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE.name(),
+                RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE.name(),
+                RelationshipMetadata.SemanticKind.ILI2DB_FK.name(),
+                RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE.name()
+            );
+
+        structures(realSchema.metadata())
+            .filter(structure -> summary.compositionTargetNames().contains(structure.getName()))
             .forEach(structure -> assertThat(mapper.shouldGenerateClass(structure))
                 .as("composition target should be generated: %s", structure.getName())
                 .isTrue());
