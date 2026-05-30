@@ -383,11 +383,17 @@ ili2grails/
 ```
 
 Die Tests enthalten gezielte Naming-Kollisionsfälle und kompilieren generierte
-Grails-Domains/Enums mit dem Standalone-Groovy-Compiler. `VSADSSMINI_2020_LV95`
-aus `test-models/VSADSSMINI_2020_2_d_LV95-20251129.ili` wird zuerst mit ili2c
-validiert; danach werden auch die daraus generierten Grails-Target-Dateien kompiliert.
-Ist ein externes Modell-Repository nicht erreichbar, wird dieser Großmodell-Test sauber
-übersprungen.
+Grails-Domains/Enums mit dem Standalone-Groovy-Compiler. Zusätzlich vergleichen
+Generated-Output-Snapshots ausgewählte Domain-/Enum-Dateien für repräsentative
+Relationship-, Association- und Structure-/Composition-Fälle. Die Snapshots liegen
+unter `src/test/resources/grails-snapshots/` und sollen nur bei absichtlichen
+Generatoränderungen aktualisiert werden.
+
+`VSADSSMINI_2020_LV95` aus
+`test-models/VSADSSMINI_2020_2_d_LV95-20251129.ili` wird zuerst mit ili2c
+validiert; danach werden auch die daraus generierten Grails-Target-Dateien
+kompiliert. Ist ein externes Modell-Repository nicht erreichbar, wird dieser
+Großmodell-Test sauber übersprungen.
 
 Optional kann zusätzlich eine echte temporäre Grails-App erzeugt und kompiliert werden:
 ```bash
