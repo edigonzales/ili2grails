@@ -158,6 +158,11 @@ public class MetadataJsonWriter {
         dto.put("external", relationship.isExternal());
         dto.put("composition", relationship.isComposition());
         putIfNotNull(dto, "source", relationship.getSource());
+        putIfNotNull(dto, "physicalName", relationship.getPhysicalName());
+        putIfNotNull(dto, "semanticName", relationship.getSemanticName());
+        putIfNotNull(dto, "mergeReason", enumName(relationship.getMergeReason()));
+        putIfNotNull(dto, "mergeConfidence", enumName(relationship.getMergeConfidence()));
+        putIfNotNull(dto, "mergeToken", relationship.getMergeToken());
         return dto;
     }
 

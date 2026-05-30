@@ -467,6 +467,9 @@ public class Ili2cModelReader {
             relationship.setType(RelationshipMetadata.RelationType.ASSOCIATION);
             relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
             relationship.setSource("ili2c");
+            relationship.setSemanticName(relationship.getName());
+            relationship.setMergeReason(RelationshipMetadata.MergeReason.ILI2C_ONLY);
+            relationship.setMergeConfidence(RelationshipMetadata.MergeConfidence.NONE);
             relationship.setAssociationName(associationDef.getScopedName(null));
             relationship.setTargetRoleName(role.getName());
             RoleDef oppositeRole = role.getOppEnd();
@@ -499,6 +502,9 @@ public class Ili2cModelReader {
         relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
         relationship.setSemanticKind(RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE);
         relationship.setSource("ili2c");
+        relationship.setSemanticName(semanticAttributeName(classMetadata, attr));
+        relationship.setMergeReason(RelationshipMetadata.MergeReason.ILI2C_ONLY);
+        relationship.setMergeConfidence(RelationshipMetadata.MergeConfidence.NONE);
         relationship.setSourceAttribute(attr.getName());
         relationship.setTargetRoleName(attr.getName());
         relationship.setExternal(referenceType.isExternal());
@@ -522,6 +528,9 @@ public class Ili2cModelReader {
         relationship.setType(RelationshipMetadata.RelationType.ONE_TO_MANY);
         relationship.setSemanticKind(RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE);
         relationship.setSource("ili2c");
+        relationship.setSemanticName(semanticAttributeName(classMetadata, attr));
+        relationship.setMergeReason(RelationshipMetadata.MergeReason.ILI2C_ONLY);
+        relationship.setMergeConfidence(RelationshipMetadata.MergeConfidence.NONE);
         relationship.setSourceAttribute(attr.getName());
         relationship.setTargetRoleName(attr.getName());
         relationship.setOrdered(compositionType.isOrdered());
@@ -532,6 +541,13 @@ public class Ili2cModelReader {
         relationship.setCardinality(toRelationshipCardinality(cardinality));
         relationship.setMandatory(cardinality != null && cardinality.getMinimum() > 0);
         metadata.addRelationship(relationship);
+    }
+
+    private String semanticAttributeName(ClassMetadata classMetadata, AttributeMetadata attr) {
+        if (attr.getQualifiedName() != null && !attr.getQualifiedName().isBlank()) {
+            return attr.getQualifiedName();
+        }
+        return classMetadata.getName() + "." + attr.getName();
     }
 
     private RelationshipMetadata.Cardinality toRelationshipCardinality(Cardinality cardinality) {

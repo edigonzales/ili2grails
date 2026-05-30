@@ -289,6 +289,22 @@ CLASSES:
 - Beim Merge gewinnen ili2db-Namen für die physische DB-Struktur und ili2c-Felder für fachliche Semantik.
 - Unbounded Cardinality wird in Java und JSON als `-1` ausgegeben.
 
+### Core-IR Merge-Diagnostik
+Relationships enthalten zusätzlich Diagnosefelder, damit der Merge von ili2db- und
+ili2c-Informationen nachvollziehbar bleibt:
+
+| Feld | Bedeutung |
+| --- | --- |
+| `physicalName` | Physischer ili2db-Name, aktuell die FK-Spalte der DB-Beziehung. |
+| `semanticName` | Fachlicher ili2c-Name, z. B. Attribut- oder Rollenname inklusive Scope. |
+| `mergeReason` | Grund des aktuellen Zustands: `ILI2DB_ONLY`, `ILI2C_ONLY`, `EXACT_NAME`, `EXACT_SOURCE_ATTRIBUTE`, `EXACT_TARGET_ROLE` oder `NORMALIZED_TOKEN`. |
+| `mergeConfidence` | Einschätzung der Match-Qualität: `NONE`, `EXACT` oder `MEDIUM`. |
+| `mergeToken` | Normalisierter Token, der bei heuristischen Matches den Ausschlag gab. |
+
+`NORMALIZED_TOKEN` ist bewusst als mittlere Confidence markiert: dieser Pfad ist
+praktisch für reale ili2db-Spalten wie `person_id`, bleibt aber der kritischste
+Punkt für Debugging bei großen Modellen.
+
 ### Grails Relationship-/Structure-Mapping
 - Grails nutzt eine interne `GrailsRelationshipMapper`-Schicht statt roher Relationship-Listen.
 - `CLASS` und `ASSOCIATION` werden generiert, wenn sie nicht abstrakt sind.

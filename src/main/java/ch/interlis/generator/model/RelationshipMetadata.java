@@ -22,6 +22,11 @@ public class RelationshipMetadata {
     private boolean external;
     private boolean composition;
     private String source;
+    private String physicalName;
+    private String semanticName;
+    private MergeReason mergeReason;
+    private MergeConfidence mergeConfidence;
+    private String mergeToken;
     
     public enum RelationType {
         ONE_TO_ONE,
@@ -36,6 +41,21 @@ public class RelationshipMetadata {
         REFERENCE_ATTRIBUTE,
         COMPOSITION_ATTRIBUTE,
         ASSOCIATION_ROLE
+    }
+
+    public enum MergeReason {
+        ILI2DB_ONLY,
+        ILI2C_ONLY,
+        EXACT_NAME,
+        EXACT_SOURCE_ATTRIBUTE,
+        EXACT_TARGET_ROLE,
+        NORMALIZED_TOKEN
+    }
+
+    public enum MergeConfidence {
+        NONE,
+        EXACT,
+        MEDIUM
     }
     
     public static class Cardinality {
@@ -231,6 +251,46 @@ public class RelationshipMetadata {
     public void setSource(String source) {
         this.source = source;
     }
+
+    public String getPhysicalName() {
+        return physicalName;
+    }
+
+    public void setPhysicalName(String physicalName) {
+        this.physicalName = physicalName;
+    }
+
+    public String getSemanticName() {
+        return semanticName;
+    }
+
+    public void setSemanticName(String semanticName) {
+        this.semanticName = semanticName;
+    }
+
+    public MergeReason getMergeReason() {
+        return mergeReason;
+    }
+
+    public void setMergeReason(MergeReason mergeReason) {
+        this.mergeReason = mergeReason;
+    }
+
+    public MergeConfidence getMergeConfidence() {
+        return mergeConfidence;
+    }
+
+    public void setMergeConfidence(MergeConfidence mergeConfidence) {
+        this.mergeConfidence = mergeConfidence;
+    }
+
+    public String getMergeToken() {
+        return mergeToken;
+    }
+
+    public void setMergeToken(String mergeToken) {
+        this.mergeToken = mergeToken;
+    }
     
     @Override
     public String toString() {
@@ -246,6 +306,8 @@ public class RelationshipMetadata {
                 ", ordered=" + ordered +
                 ", external=" + external +
                 ", composition=" + composition +
+                ", mergeReason=" + mergeReason +
+                ", mergeConfidence=" + mergeConfidence +
                 '}';
     }
 }

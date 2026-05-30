@@ -125,6 +125,15 @@ class MetadataReaderTest {
         
         // Sollte 2 Beziehungen haben (zu Person und zu Address)
         assertThat(personAddressClass.getRelationships()).hasSizeGreaterThanOrEqualTo(1);
+        assertThat(personAddressClass.getRelationships())
+            .allSatisfy(relationship -> {
+                assertThat(relationship.getSource()).isEqualTo("ili2db");
+                assertThat(relationship.getPhysicalName()).isEqualTo(relationship.getSourceAttribute());
+                assertThat(relationship.getMergeReason())
+                    .isEqualTo(RelationshipMetadata.MergeReason.ILI2DB_ONLY);
+                assertThat(relationship.getMergeConfidence())
+                    .isEqualTo(RelationshipMetadata.MergeConfidence.NONE);
+            });
     }
 
     @Test
@@ -147,17 +156,27 @@ class MetadataReaderTest {
                     .isEqualTo("SimpleAddressModel.Addresses.PersonAddress");
                 assertThat(relationship.getSource()).isEqualTo("ili2db+ili2c");
                 assertThat(relationship.getTargetAttribute()).isEqualTo("T_Id");
+                assertThat(relationship.getMergeReason())
+                    .isEqualTo(RelationshipMetadata.MergeReason.NORMALIZED_TOKEN);
+                assertThat(relationship.getMergeConfidence())
+                    .isEqualTo(RelationshipMetadata.MergeConfidence.MEDIUM);
             });
         assertThat(metadata.getAllRelationships())
             .anySatisfy(relationship -> {
                 assertThat(relationship.getTargetRoleName()).isEqualTo("Person");
                 assertThat(relationship.getSourceAttribute()).isEqualTo("person_id");
+                assertThat(relationship.getPhysicalName()).isEqualTo("person_id");
+                assertThat(relationship.getSemanticName()).isEqualTo("SimpleAddressModel.Addresses.PersonAddress.Person");
+                assertThat(relationship.getMergeToken()).isEqualTo("person");
                 assertThat(relationship.getCardinality().getMinTarget()).isZero();
                 assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(-1);
             })
             .anySatisfy(relationship -> {
                 assertThat(relationship.getTargetRoleName()).isEqualTo("Address");
                 assertThat(relationship.getSourceAttribute()).isEqualTo("address_id");
+                assertThat(relationship.getPhysicalName()).isEqualTo("address_id");
+                assertThat(relationship.getSemanticName()).isEqualTo("SimpleAddressModel.Addresses.PersonAddress.Address");
+                assertThat(relationship.getMergeToken()).isEqualTo("address");
                 assertThat(relationship.getCardinality().getMinTarget()).isZero();
                 assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(1);
             });

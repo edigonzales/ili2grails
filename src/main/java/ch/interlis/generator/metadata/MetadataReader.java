@@ -253,12 +253,13 @@ public class MetadataReader {
     }
 
     private void mergeRelationship(ModelMetadata metadata, RelationshipMetadata ili2cRelationship) {
-        RelationshipMetadata existing = findMatchingRelationship(metadata, ili2cRelationship);
-        if (existing == null) {
+        RelationshipMatch match = findMatchingRelationship(metadata, ili2cRelationship);
+        if (match == null) {
             metadata.addRelationship(ili2cRelationship);
             return;
         }
 
+        RelationshipMetadata existing = match.relationship();
         if (ili2cRelationship.getType() != null) {
             existing.setType(ili2cRelationship.getType());
         }
@@ -285,32 +286,76 @@ public class MetadataReader {
         existing.setExternal(ili2cRelationship.isExternal());
         existing.setComposition(ili2cRelationship.isComposition());
         existing.setSource("ili2db+ili2c");
+        if (existing.getPhysicalName() == null && existing.getSourceAttribute() != null) {
+            existing.setPhysicalName(existing.getSourceAttribute());
+        }
+        if (ili2cRelationship.getSemanticName() != null) {
+            existing.setSemanticName(ili2cRelationship.getSemanticName());
+        } else if (ili2cRelationship.getName() != null) {
+            existing.setSemanticName(ili2cRelationship.getName());
+        }
+        existing.setMergeReason(match.reason());
+        existing.setMergeConfidence(match.confidence());
+        existing.setMergeToken(match.token());
     }
 
-    private RelationshipMetadata findMatchingRelationship(ModelMetadata metadata,
-                                                          RelationshipMetadata candidate) {
+    private RelationshipMatch findMatchingRelationship(ModelMetadata metadata,
+                                                       RelationshipMetadata candidate) {
         for (RelationshipMetadata existing : metadata.getRelationships()) {
             if (!Objects.equals(existing.getSourceClass(), candidate.getSourceClass())
                 || !Objects.equals(existing.getTargetClass(), candidate.getTargetClass())) {
                 continue;
             }
-            if (hasSharedRelationshipName(existing, candidate)) {
-                return existing;
+            RelationshipMatch match = matchRelationship(existing, candidate);
+            if (match != null) {
+                return match;
             }
         }
         return null;
     }
 
-    private boolean hasSharedRelationshipName(RelationshipMetadata existing,
-                                              RelationshipMetadata candidate) {
+    private RelationshipMatch matchRelationship(RelationshipMetadata existing,
+                                                RelationshipMetadata candidate) {
+        if (candidate.getName() != null && Objects.equals(existing.getName(), candidate.getName())) {
+            return new RelationshipMatch(
+                existing,
+                RelationshipMetadata.MergeReason.EXACT_NAME,
+                RelationshipMetadata.MergeConfidence.EXACT,
+                normalizeNameToken(candidate.getName())
+            );
+        }
+        if (candidate.getSourceAttribute() != null
+            && Objects.equals(existing.getSourceAttribute(), candidate.getSourceAttribute())) {
+            return new RelationshipMatch(
+                existing,
+                RelationshipMetadata.MergeReason.EXACT_SOURCE_ATTRIBUTE,
+                RelationshipMetadata.MergeConfidence.EXACT,
+                normalizeNameToken(candidate.getSourceAttribute())
+            );
+        }
+        if (candidate.getTargetRoleName() != null
+            && Objects.equals(existing.getTargetRoleName(), candidate.getTargetRoleName())) {
+            return new RelationshipMatch(
+                existing,
+                RelationshipMetadata.MergeReason.EXACT_TARGET_ROLE,
+                RelationshipMetadata.MergeConfidence.EXACT,
+                normalizeNameToken(candidate.getTargetRoleName())
+            );
+        }
+
         Set<String> existingNames = relationshipNameTokens(existing);
         Set<String> candidateNames = relationshipNameTokens(candidate);
         for (String candidateName : candidateNames) {
             if (existingNames.contains(candidateName)) {
-                return true;
+                return new RelationshipMatch(
+                    existing,
+                    RelationshipMetadata.MergeReason.NORMALIZED_TOKEN,
+                    RelationshipMetadata.MergeConfidence.MEDIUM,
+                    candidateName
+                );
             }
         }
-        return false;
+        return null;
     }
 
     private Set<String> relationshipNameTokens(RelationshipMetadata relationship) {
@@ -349,6 +394,14 @@ public class MetadataReader {
             .replace('-', '_')
             .toLowerCase(Locale.ROOT)
             .trim();
+    }
+
+    private record RelationshipMatch(
+        RelationshipMetadata relationship,
+        RelationshipMetadata.MergeReason reason,
+        RelationshipMetadata.MergeConfidence confidence,
+        String token
+    ) {
     }
     
     /**

@@ -738,6 +738,9 @@ public class Ili2dbMetadataReader {
                     rel.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
                     rel.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
                     rel.setSource("ili2db");
+                    rel.setPhysicalName(sourceAttribute);
+                    rel.setMergeReason(RelationshipMetadata.MergeReason.ILI2DB_ONLY);
+                    rel.setMergeConfidence(RelationshipMetadata.MergeConfidence.NONE);
                     rel.setTargetRoleName(attr.getName());
                     rel.setCardinality(new RelationshipMetadata.Cardinality(
                         1,

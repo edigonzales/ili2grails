@@ -172,7 +172,10 @@
     "ordered" : true,
     "external" : false,
     "composition" : true,
-    "source" : "ili2c"
+    "source" : "ili2c",
+    "semanticName" : "CoreIrTestModel.Relations.Child.Components",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
   }, {
     "name" : "CoreIrTestModel.Relations.Component.ParentRef",
     "sourceClass" : "CoreIrTestModel.Relations.Component",
@@ -191,7 +194,10 @@
     "ordered" : false,
     "external" : false,
     "composition" : false,
-    "source" : "ili2c"
+    "source" : "ili2c",
+    "semanticName" : "CoreIrTestModel.Relations.Component.ParentRef",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
   }, {
     "name" : "CoreIrTestModel.Relations.ParentChild.Children",
     "sourceClass" : "CoreIrTestModel.Relations.ParentChild",
@@ -212,7 +218,10 @@
     "ordered" : false,
     "external" : false,
     "composition" : false,
-    "source" : "ili2c"
+    "source" : "ili2c",
+    "semanticName" : "CoreIrTestModel.Relations.ParentChild.Children",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
   }, {
     "name" : "CoreIrTestModel.Relations.ParentChild.Owner",
     "sourceClass" : "CoreIrTestModel.Relations.ParentChild",
@@ -233,6 +242,9 @@
     "ordered" : false,
     "external" : true,
     "composition" : true,
-    "source" : "ili2c"
+    "source" : "ili2c",
+    "semanticName" : "CoreIrTestModel.Relations.ParentChild.Owner",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
   } ]
 }
