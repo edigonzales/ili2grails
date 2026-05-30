@@ -23,6 +23,7 @@ public class GrailsTemplateOverlayInstaller {
         "src/main/templates/scaffolding/index.gsp",
         "src/main/templates/scaffolding/_form.gsp",
         "src/main/templates/scaffolding/_geometry-panel.gsp",
+        "src/main/templates/scaffolding/_relationship-fields.gsp",
         "src/main/templates/scaffolding/_show-details.gsp",
         "grails-app/views/layouts/main.gsp",
         "grails-app/assets/javascripts/ili-geometry-editor.js",

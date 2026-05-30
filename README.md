@@ -323,6 +323,9 @@ NUMERIC 1.00..3.55 → BigDecimal
 - Die Oberfläche nutzt Bootstrap 5.3 mit Standardkomponenten (Navbar mit Hamburger-Menü, Alerts, Tabellen, Modal).
 - `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
   links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
+- Typisierte To-One-Relationships werden im Bootstrap-Overlay als serverseitige Selects gerendert.
+  Labels werden zur Laufzeit bevorzugt aus `name`, `bezeichnung`, `label`, `title`, danach `id`
+  abgeleitet.
 - Bei mehreren Geometriefeldern wird rechts ein Tab-Panel pro Feld gerendert.
 - `show` nutzt ebenfalls das Split-Layout und eine separate Danger-Zone mit Confirm-Modal vor `DELETE`.
 - `index` rendert ohne Paging/Search/Bulk als Bootstrap-Tabelle mit Row-Actions.
@@ -330,6 +333,7 @@ NUMERIC 1.00..3.55 → BigDecimal
 
 #### UX-Grenzen dieser Iteration
 - Kein Paging, keine Freitextsuche und keine Bulk-Actions.
+- Relationship-Selects laden aktuell alle Zielobjekte serverseitig; Autocomplete/Paging folgt später.
 - All-Rows-Index ist für moderate Datenmengen gedacht; bei sehr großen Tabellen kann die Ladezeit steigen.
 
 ### Strukturen im Domain-Model

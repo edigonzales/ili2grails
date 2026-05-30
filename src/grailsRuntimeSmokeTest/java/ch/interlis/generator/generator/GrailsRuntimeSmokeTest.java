@@ -59,15 +59,20 @@ class GrailsRuntimeSmokeTest {
     void generateAllUsesGeneratedDomainClassNamesAndCompiles() throws Exception {
         Path appDir = createGrailsApp();
         ModelMetadata metadata = simpleMetadata();
-        GenerationConfig config = grailsConfig(appDir, false);
+        GenerationConfig config = grailsConfig(appDir, false, true);
 
+        new GrailsTemplateOverlayInstaller().install(appDir, config);
         new GrailsCrudGenerator().generate(metadata, config);
 
         TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
-        ClassMetadata person = metadata.getClass("SmokeModel.People.Person");
-        String domainClass = DOMAIN_PACKAGE + "." + registry.className(person);
+        ClassMetadata personAddress = metadata.getClass("SmokeModel.People.PersonAddress");
+        String domainClass = DOMAIN_PACKAGE + "." + registry.className(personAddress);
 
         runCommand(appDir, List.of("./grailsw", "generate-all", domainClass));
+        Path generatedForm = appDir.resolve("grails-app/views")
+            .resolve(registry.viewPath(personAddress))
+            .resolve("_form.gsp");
+        assertThat(Files.readString(generatedForm)).contains("relationship-fields");
         runCommand(appDir, List.of("./gradlew", "compileGroovy"));
     }
 
@@ -82,13 +87,17 @@ class GrailsRuntimeSmokeTest {
     }
 
     private GenerationConfig grailsConfig(Path appDir, boolean geometryEnabled) {
+        return grailsConfig(appDir, geometryEnabled, geometryEnabled);
+    }
+
+    private GenerationConfig grailsConfig(Path appDir, boolean geometryEnabled, boolean bootstrapTheme) {
         return GenerationConfig.builder(appDir, BASE_PACKAGE)
             .domainPackage(DOMAIN_PACKAGE)
             .controllerPackage(BASE_PACKAGE)
             .enumPackage(ENUM_PACKAGE)
             .jdbcUrl(JDBC_URL)
             .schema("public")
-            .uiTheme(geometryEnabled ? GenerationConfig.UI_THEME_BOOTSTRAP : GenerationConfig.UI_THEME_DEFAULT)
+            .uiTheme(bootstrapTheme ? GenerationConfig.UI_THEME_BOOTSTRAP : GenerationConfig.UI_THEME_DEFAULT)
             .mapEditor(geometryEnabled ? GenerationConfig.MAP_EDITOR_OPENLAYERS : GenerationConfig.MAP_EDITOR_NONE)
             .geometryEnabled(geometryEnabled)
             .build();
@@ -222,10 +231,40 @@ class GrailsRuntimeSmokeTest {
 
     private ModelMetadata simpleMetadata() {
         ModelMetadata metadata = new ModelMetadata("SmokeModel");
+
         ClassMetadata person = new ClassMetadata("SmokeModel.People.Person");
         person.setTableName("person");
         person.addAttribute(textAttribute("firstName", "first_name"));
         metadata.addClass(person);
+
+        ClassMetadata address = new ClassMetadata("SmokeModel.Addresses.Address");
+        address.setTableName("address");
+        address.addAttribute(textAttribute("street", "street"));
+        metadata.addClass(address);
+
+        ClassMetadata personAddress = new ClassMetadata("SmokeModel.People.PersonAddress");
+        personAddress.setKind(ClassMetadata.ClassKind.ASSOCIATION);
+        personAddress.setTableName("person_address");
+        metadata.addClass(personAddress);
+
+        RelationshipMetadata personRole = new RelationshipMetadata("PersonAddress_Person");
+        personRole.setSourceClass(personAddress.getName());
+        personRole.setTargetClass(person.getName());
+        personRole.setTargetRoleName("Person");
+        personRole.setType(RelationshipMetadata.RelationType.ASSOCIATION);
+        personRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
+        personRole.setMandatory(true);
+        metadata.addRelationship(personRole);
+
+        RelationshipMetadata addressRole = new RelationshipMetadata("PersonAddress_Address");
+        addressRole.setSourceClass(personAddress.getName());
+        addressRole.setTargetClass(address.getName());
+        addressRole.setTargetRoleName("Address");
+        addressRole.setType(RelationshipMetadata.RelationType.ASSOCIATION);
+        addressRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
+        addressRole.setMandatory(true);
+        metadata.addRelationship(addressRole);
+
         return metadata;
     }
 

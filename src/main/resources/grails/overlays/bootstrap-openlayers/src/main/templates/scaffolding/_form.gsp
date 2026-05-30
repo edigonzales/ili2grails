@@ -43,8 +43,14 @@
                 <section class="card ili-form-tile">
                     <div class="card-body ili-native-form-host">
                         <fieldset class="form">
+                            <g:render template="relationship-fields" model="\${[
+                                relationshipFields: relationshipFields,
+                                relationshipOptions: relationshipOptions,
+                                relationshipValues: relationshipValues,
+                                relationshipRequired: relationshipRequired
+                            ]}"/>
                             <f:all bean="${propertyName}"
-                                   except="\${geometryFields ?: []}"
+                                   except="\${((geometryFields ?: []) + (relationshipFields ?: [])).unique()}"
                                    class="ili-native-grid"
                                    requiredClass="ili-field-row required mb-3"
                                    labelClass="form-label"

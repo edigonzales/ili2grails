@@ -37,6 +37,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/templates/scaffolding/index.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_form.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_geometry-panel.gsp")).exists();
+        assertThat(projectDir.resolve("src/main/templates/scaffolding/_relationship-fields.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_show-details.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/views/layouts/main.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js")).exists();
@@ -62,7 +63,14 @@ class GrailsTemplateOverlayInstallerTest {
         String formTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_form.gsp"));
         assertThat(formTemplate).contains("ili-split-layout");
         assertThat(formTemplate).contains("data-unsaved-badge");
+        assertThat(formTemplate).contains("template=\"relationship-fields\"");
+        assertThat(formTemplate).contains("relationshipFields ?: []");
         assertThat(formTemplate).doesNotContain("js-carbon-bridge");
+
+        String relationshipTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_relationship-fields.gsp"));
+        assertThat(relationshipTemplate).contains("form-select");
+        assertThat(relationshipTemplate).contains("relationshipOptions");
+        assertThat(relationshipTemplate).contains("relationshipRequired");
 
         String showTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/show.gsp"));
         assertThat(showTemplate).contains("Danger Zone");
@@ -79,6 +87,9 @@ class GrailsTemplateOverlayInstallerTest {
         String controllerTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/Controller.groovy"));
         assertThat(controllerTemplate).contains("def index()");
         assertThat(controllerTemplate).contains("list([:])");
+        assertThat(controllerTemplate).contains("relationshipModel");
+        assertThat(controllerTemplate).contains("relationshipOptions");
+        assertThat(controllerTemplate).contains("relationshipOptionLabel");
         assertThat(controllerTemplate).doesNotContain("params.max");
     }
 

@@ -6,9 +6,9 @@
 - Geometrien erfassen und nachführen
 - Welchen Einfluss hat smartXInheritance
 - Strukturen: produktive Persistenzstrategie für komplexe ili2db-Mappings weiter härten
-- Schöne Namen in Combobox
+- Relationship-Comboboxen: Autocomplete/Paging für große Zieltabellen
 - EnumAsId
-- Beziehungen: UI-, Combobox- und Cascade-Regeln auf Basis von Rollen/Kardinalitäten definieren
+- Beziehungen: Cascade-Regeln auf Basis von Rollen/Kardinalitäten definieren
 - Naming-Policy bei weiteren Targets wiederverwenden
 - Grails-Runtime-Smoke-Test optional in CI einbinden
 - Produktive DB-Konfiguration: JDBC-Credentials aus ENV/Grails/Spring-Properties statt Demo-URL ableiten

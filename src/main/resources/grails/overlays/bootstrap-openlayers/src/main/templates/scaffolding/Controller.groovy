@@ -31,6 +31,7 @@ class ${className}Controller {
         }
         Map<String, Object> model = [:]
         model.putAll(geometryModel(${propertyName}))
+        model.putAll(relationshipModel(${propertyName}))
         model.putAll(detailModel(${propertyName}))
         respond ${propertyName}, model: model
     }
@@ -38,7 +39,7 @@ class ${className}Controller {
     def create() {
         def ${propertyName} = new ${className}(params)
         bindGeometryFromParams(${propertyName})
-        respond ${propertyName}, model: geometryModel(${propertyName})
+        respond ${propertyName}, model: formModel(${propertyName})
     }
 
     def save(${className} ${propertyName}) {
@@ -49,14 +50,14 @@ class ${className}Controller {
 
         bindGeometryFromParams(${propertyName})
         if (${propertyName}.hasErrors()) {
-            respond ${propertyName}.errors, view:'create', model: geometryModel(${propertyName})
+            respond ${propertyName}.errors, view:'create', model: formModel(${propertyName})
             return
         }
 
         try {
             ${propertyName}Service.save(${propertyName})
         } catch (ValidationException e) {
-            respond ${propertyName}.errors, view:'create', model: geometryModel(${propertyName})
+            respond ${propertyName}.errors, view:'create', model: formModel(${propertyName})
             return
         }
 
@@ -75,7 +76,7 @@ class ${className}Controller {
             notFound()
             return
         }
-        respond ${propertyName}, model: geometryModel(${propertyName})
+        respond ${propertyName}, model: formModel(${propertyName})
     }
 
     def update(${className} ${propertyName}) {
@@ -86,14 +87,14 @@ class ${className}Controller {
 
         bindGeometryFromParams(${propertyName})
         if (${propertyName}.hasErrors()) {
-            respond ${propertyName}.errors, view:'edit', model: geometryModel(${propertyName})
+            respond ${propertyName}.errors, view:'edit', model: formModel(${propertyName})
             return
         }
 
         try {
             ${propertyName}Service.save(${propertyName})
         } catch (ValidationException e) {
-            respond ${propertyName}.errors, view:'edit', model: geometryModel(${propertyName})
+            respond ${propertyName}.errors, view:'edit', model: formModel(${propertyName})
             return
         }
 
@@ -131,6 +132,13 @@ class ${className}Controller {
             }
             '*'{ render status: NOT_FOUND }
         }
+    }
+
+    private Map<String, Object> formModel(${className} instance) {
+        Map<String, Object> model = [:]
+        model.putAll(geometryModel(instance))
+        model.putAll(relationshipModel(instance))
+        return model
     }
 
     private Map<Object, Map<String, String>> tableRows(List<${className}> records, List<String> columns) {
@@ -183,11 +191,156 @@ class ${className}Controller {
             return value.format("yyyy-MM-dd HH:mm:ss")
         }
         if (value instanceof Collection) {
-            return ((Collection) value).collect { Object item -> item?.toString() ?: "" }
+            return ((Collection) value).collect { Object item -> renderFieldValue(item) }
                 .findAll { String item -> item != null && !item.isBlank() }
                 .join(", ")
         }
+        String relationshipLabel = relationshipDisplayLabel(value)
+        if (relationshipLabel != null) {
+            return relationshipLabel
+        }
         return value.toString()
+    }
+
+    private Map<String, Object> relationshipModel(${className} instance) {
+        List<String> fields = relationshipFields()
+        Map<String, List<Map<String, String>>> options = [:]
+        Map<String, String> values = [:]
+        Map<String, Boolean> required = [:]
+
+        fields.each { String field ->
+            options[field] = relationshipOptions(field)
+            values[field] = selectedRelationshipId(instance, field)
+            required[field] = relationshipFieldRequired(field)
+        }
+
+        return [
+            relationshipFields: fields,
+            relationshipOptions: options,
+            relationshipValues: values,
+            relationshipRequired: required
+        ]
+    }
+
+    private List<String> relationshipFields() {
+        def domainClass = grailsApplication?.getDomainClass(${className}.name)
+        if (domainClass == null) {
+            return []
+        }
+        Set<String> excluded = new LinkedHashSet<>(geometryFields())
+        excluded.add("id")
+        excluded.add("version")
+        return domainClass.persistentProperties
+            .findAll { property -> isEditableRelationshipProperty(property, excluded) }
+            .collect { property -> property.name.toString() }
+            .sort()
+    }
+
+    private boolean isEditableRelationshipProperty(def property, Set<String> excluded) {
+        if (property == null || property.name == null || excluded.contains(property.name.toString())) {
+            return false
+        }
+        if (!property.isAssociation()) {
+            return false
+        }
+        if (property.isOneToMany() || property.isManyToMany()) {
+            return false
+        }
+        return property.type instanceof Class
+    }
+
+    private List<Map<String, String>> relationshipOptions(String field) {
+        Class targetType = relationshipTargetType(field)
+        if (targetType == null) {
+            return []
+        }
+        List<Object> records = targetType.list([sort: "id", order: "asc"]) as List<Object>
+        return records.collect { Object record ->
+            [
+                id: record?.id?.toString(),
+                label: relationshipOptionLabel(record)
+            ]
+        }.findAll { Map<String, String> option ->
+            option.id != null
+        }.sort { Map<String, String> left, Map<String, String> right ->
+            String leftLabel = left.label?.toLowerCase(Locale.ROOT) ?: ""
+            String rightLabel = right.label?.toLowerCase(Locale.ROOT) ?: ""
+            int labelCompare = leftLabel <=> rightLabel
+            labelCompare != 0 ? labelCompare : ((left.id ?: "") <=> (right.id ?: ""))
+        }
+    }
+
+    private Class relationshipTargetType(String field) {
+        def domainClass = grailsApplication?.getDomainClass(${className}.name)
+        def property = domainClass?.persistentProperties?.find { candidate ->
+            candidate.name?.toString() == field
+        }
+        return property?.type instanceof Class ? property.type : null
+    }
+
+    private String selectedRelationshipId(${className} instance, String field) {
+        if (instance == null || field == null) {
+            return null
+        }
+        Object selected = instance."\${field}"
+        return selected?.id?.toString()
+    }
+
+    private boolean relationshipFieldRequired(String field) {
+        Object constrained = (${className}.constrainedProperties ?: [:])?.get(field)
+        if (constrained == null) {
+            return false
+        }
+        try {
+            return constrained.hasProperty("nullable") != null && constrained.nullable == false
+        } catch (Exception ignored) {
+            return false
+        }
+    }
+
+    private String relationshipDisplayLabel(Object value) {
+        if (value == null || value instanceof CharSequence || value instanceof Number || value instanceof Boolean) {
+            return null
+        }
+        if (readDisplayProperty(value, "id") == null
+            && readDisplayProperty(value, "name") == null
+            && readDisplayProperty(value, "bezeichnung") == null
+            && readDisplayProperty(value, "label") == null
+            && readDisplayProperty(value, "title") == null) {
+            return null
+        }
+        return relationshipOptionLabel(value)
+    }
+
+    private String relationshipOptionLabel(Object value) {
+        if (value == null) {
+            return ""
+        }
+        for (String propertyName : ["name", "bezeichnung", "label", "title"]) {
+            Object propertyValue = readDisplayProperty(value, propertyName)
+            if (propertyValue != null && !propertyValue.toString().isBlank()) {
+                return propertyValue.toString()
+            }
+        }
+        Object id = readDisplayProperty(value, "id")
+        if (id != null) {
+            return id.toString()
+        }
+        return value.toString()
+    }
+
+    private Object readDisplayProperty(Object value, String propertyName) {
+        if (value == null || propertyName == null) {
+            return null
+        }
+        try {
+            if (value.hasProperty(propertyName) == null) {
+                return null
+            }
+            return value."\${propertyName}"
+        } catch (Exception ignored) {
+            return null
+        }
     }
 
     private void bindGeometryFromParams(${className} instance) {
