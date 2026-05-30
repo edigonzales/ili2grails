@@ -1,7 +1,7 @@
 package ch.interlis.generator;
 
-import ch.interlis.generator.generator.GenerationConfig;
-import ch.interlis.generator.generator.GrailsCrudGenerator;
+import ch.interlis.generator.grails.GenerationConfig;
+import ch.interlis.generator.grails.GrailsCrudGenerator;
 import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;

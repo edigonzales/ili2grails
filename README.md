@@ -1,6 +1,6 @@
 # INTERLIS CRUD Generator – Metadata Reader
 
-Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und einem INTERLIS-Modell, baut daraus ein internes Metamodell auf und liefert zusätzlich eine **Beispielimplementierung für Grails** (Domains, Enums). Die Software bleibt jedoch im Kern **software- und framework-agnostisch** – das Metamodell dient als Basis für weitere Generatoren und Integrationen.
+Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und einem INTERLIS-Modell, baut daraus ein internes Metamodell auf und liefert zusätzlich eine **Beispielimplementierung für Grails** (Domains, Enums). Ein kleiner Django/GeoDjango-Target-Spike validiert die Framework-Unabhängigkeit der Core-IR. Die Software bleibt jedoch im Kern **software- und framework-agnostisch** – das Metamodell dient als Basis für weitere Generatoren und Integrationen.
 
 ## Inhalt
 - [Ziel & Funktionsumfang](#ziel--funktionsumfang)
@@ -282,6 +282,7 @@ CLASSES:
 - Erweiterbar für weitere Metadaten und Generatoren
 - Separiert von ili2db/ili2c-Implementierungen
 - Grails-Ausgabe als **Beispielimplementierung** (Domains/Enums), nicht als exklusives Ziel
+- Django/GeoDjango-Ausgabe als **Target-Spike** zur Validierung der Core-IR, nicht als produktionsreife App-Generierung
 
 ### Core-IR / JSON-Vertrag
 Die Core-IR ist der stabile Vertrag zwischen Metadata Reader und Generator-Targets.
@@ -348,9 +349,18 @@ Punkt für Debugging bei großen Modellen.
 - `belongsTo` wird nur für physisch vorhandene Composition-FKs ausgegeben. Der Generator erfindet dafür keine synthetischen DB-Spalten.
 - `ASSOCIATION_ROLE` wird in v1 als Property auf der Association-Domain modelliert; inverse `hasMany` auf den Zielklassen bleibt bewusst aus.
 
+### Django/GeoDjango Target-Spike
+- Das Paket `ch.interlis.generator.django` erzeugt aktuell nur eine repräsentative `models.py` aus der Core-IR.
+- Der Spike liest ausschließlich `ModelMetadata`, `ClassMetadata`, `AttributeMetadata`, `RelationshipMetadata` und `EnumMetadata`; er greift nicht auf ili2db-/ili2c-Readerdetails zu.
+- Physisch gemergte ili2db-Klassen erhalten `db_table`, `managed = False` und FK-`db_column`-Informationen.
+- ili2c-only Geometrieattribute aktivieren GeoDjango (`django.contrib.gis.db.models`) und werden als `GeometryField` ausgegeben.
+- Structures und Compositions werden bewusst minimal als Django-Models, `ForeignKey` oder `ManyToManyField` abgebildet, um Core-IR-Grenzen sichtbar zu machen.
+- Der Spike hat keine CLI-Integration, keine Migrationsstrategie und keine Admin-/View-Generierung.
+
 ### Target-Naming
 - Zielnamen bleiben Generator-spezifisch und werden nicht in die Core-IR geschrieben.
-- Grails verwendet `TargetNameRegistry` als zentrale Naming-Policy für Domain-Klassen, Enums, Properties, Relationen, Controller und View-Pfade.
+- Grails verwendet `TargetNameRegistry` im Paket `ch.interlis.generator.grails` als zentrale Naming-Policy für Domain-Klassen, Enums, Properties, Relationen, Controller und View-Pfade.
+- Django verwendet eine separate Python/Django-Naming-Policy; Target-Namen bleiben auch dort außerhalb der Core-IR.
 - Eindeutige INTERLIS-SimpleNames bleiben unverändert. Bei Kollisionen wird deterministisch mit Topic-/Modell-Kontext präfixiert, z. B. `TopicGebaeude`.
 - Java/Groovy-Keywords und ungültige Zeichen werden stabil normalisiert, damit erzeugte Groovy-Klassen kompilierbar bleiben.
 - Enum-Konstanten werden ebenfalls als gültige, eindeutige Groovy-Identifier ausgegeben.
@@ -396,6 +406,7 @@ NUMERIC 1.00..3.55 → BigDecimal
 ### Aktuelle Grenzen
 - Getesteter Primärpfad ist weiterhin PostgreSQL/PostGIS mit ili2pg; andere ili2db-Flavours sind nicht als produktiv validiert.
 - Grails-CRUD nutzt weiterhin Grails-Scaffolding/Template-Overlay; das Core-Metamodell soll davon unabhängig bleiben.
+- Django/GeoDjango ist derzeit ein Target-Spike mit Snapshot-Abdeckung, aber ohne produktionsreife CLI- oder Runtime-Validierung.
 - Produktive Credential-Konfiguration sollte über Umgebungsvariablen oder Grails/Spring-Konfiguration erfolgen; die CLI-Beispiele enthalten Zugangsdaten nur für lokale Demos.
 
 ## Projektstruktur
@@ -405,6 +416,8 @@ ili2grails/
 ├── build.gradle
 ├── src/main/java/ch/interlis/generator/
 │   ├── MetadataReaderApp.java
+│   ├── django/
+│   ├── grails/
 │   ├── model/
 │   ├── reader/
 │   └── metadata/
@@ -419,9 +432,13 @@ ili2grails/
 Die Tests enthalten gezielte Naming-Kollisionsfälle und kompilieren generierte
 Grails-Domains/Enums mit dem Standalone-Groovy-Compiler. Zusätzlich vergleichen
 Generated-Output-Snapshots ausgewählte Domain-/Enum-Dateien für repräsentative
-Relationship-, Association- und Structure-/Composition-Fälle. Die Snapshots liegen
-unter `src/test/resources/grails-snapshots/` und sollen nur bei absichtlichen
-Generatoränderungen aktualisiert werden.
+Relationship-, Association- und Structure-/Composition-Fälle. Die Grails-Snapshots
+liegen unter `src/test/resources/grails-snapshots/`.
+
+Der Django/GeoDjango-Spike ist über `models.py`-Snapshots für gemergte ili2db-FKs,
+ili2c-only Geometry/Enums und Structure-/Composition-Fälle abgesichert. Diese
+Snapshots liegen unter `src/test/resources/django-snapshots/`. Snapshot-Updates
+sollen nur bei absichtlichen Generatoränderungen erfolgen.
 
 `VSADSSMINI_2020_LV95` aus
 `test-models/VSADSSMINI_2020_2_d_LV95-20251129.ili` wird zuerst mit ili2c

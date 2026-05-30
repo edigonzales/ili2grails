@@ -1,10 +1,10 @@
 package ch.interlis.generator;
 
-import ch.interlis.generator.generator.GenerationConfig;
-import ch.interlis.generator.generator.GrailsCrudGenerator;
-import ch.interlis.generator.generator.GrailsRelationshipMapper;
-import ch.interlis.generator.generator.GrailsTemplateOverlayInstaller;
-import ch.interlis.generator.generator.TargetNameRegistry;
+import ch.interlis.generator.grails.GenerationConfig;
+import ch.interlis.generator.grails.GrailsCrudGenerator;
+import ch.interlis.generator.grails.GrailsRelationshipMapper;
+import ch.interlis.generator.grails.GrailsTemplateOverlayInstaller;
+import ch.interlis.generator.grails.TargetNameRegistry;
 import ch.interlis.generator.metadata.MetadataJsonWriter;
 import ch.interlis.generator.metadata.MetadataReader;
 import ch.interlis.generator.metadata.MetadataPrinter;
