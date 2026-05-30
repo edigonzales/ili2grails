@@ -1,1 +1,6 @@
 rootProject.name = 'interlis-crud-generator'
+
+include 'core'
+include 'target-grails'
+include 'target-django'
+include 'cli'

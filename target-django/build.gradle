@@ -1,0 +1,12 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    api project(':core')
+
+    testImplementation testFixtures(project(':core'))
+    testImplementation "org.junit.jupiter:junit-jupiter:${rootProject.junitVersion}"
+    testImplementation "org.assertj:assertj-core:${rootProject.assertjVersion}"
+    testRuntimeOnly "com.h2database:h2:${rootProject.h2Version}"
+}

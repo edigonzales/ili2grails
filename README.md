@@ -56,7 +56,7 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 ```
 
 ```bash
-./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   SimpleAddressModel \
   sa \
   --model-file test-models/SimpleAddressModel.ili"
@@ -64,7 +64,7 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 
 **Repository-Lookup (nur Modellname, Datei wird aus Repos geholt):**
 ```bash
-./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   DM01AVCH24LV95D \
   public \
   --model-repos https://models.interlis.ch/"
@@ -84,7 +84,7 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 
 **Grails CRUD-Generierung (optional):**
 ```bash
-./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   SimpleAddressModel \
   sa \
   --model-file test-models/SimpleAddressModel.ili \
@@ -118,7 +118,7 @@ grails create-app my-grails-app
 
 Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch keine Grails-Struktur vorhanden ist (bei `appName` wird ein Unterordner erzeugt):
 ```bash
-./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   SimpleAddressModel \
   sa \
   --model-file test-models/SimpleAddressModel.ili \
@@ -185,7 +185,7 @@ Die Ausgabe zeigt:
 
 Optional kann die kanonische IR als JSON geschrieben werden:
 ```bash
-./gradlew run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   SimpleAddressModel \
   sa \
   --model-file test-models/SimpleAddressModel.ili \
@@ -414,15 +414,23 @@ NUMERIC 1.00..3.55 → BigDecimal
 ili2grails/
 ├── README.md
 ├── build.gradle
-├── src/main/java/ch/interlis/generator/
-│   ├── MetadataReaderApp.java
-│   ├── django/
-│   ├── grails/
-│   ├── model/
-│   ├── reader/
-│   └── metadata/
+├── settings.gradle
+├── core/
+│   └── src/main/java/ch/interlis/generator/{model,metadata,reader}/
+├── target-grails/
+│   └── src/main/java/ch/interlis/generator/grails/
+├── target-django/
+│   └── src/main/java/ch/interlis/generator/django/
+├── cli/
+│   └── src/main/java/ch/interlis/generator/MetadataReaderApp.java
 └── test-models/
 ```
+
+Die Gradle-Module bilden die Architekturgrenzen ab:
+- `core`: Core-IR, ili2db-/ili2c-Reader, Merge und JSON-Vertrag.
+- `target-grails`: Grails/GORM-Generator, Template-Overlay, Grails-spezifisches Naming und Grails-Smoke-Tests.
+- `target-django`: Django/GeoDjango-Spike gegen die Core-IR.
+- `cli`: Kommandozeilen-Orchestrierung und Application-Entry-Point.
 
 ## Tests
 ```bash
@@ -433,11 +441,11 @@ Die Tests enthalten gezielte Naming-Kollisionsfälle und kompilieren generierte
 Grails-Domains/Enums mit dem Standalone-Groovy-Compiler. Zusätzlich vergleichen
 Generated-Output-Snapshots ausgewählte Domain-/Enum-Dateien für repräsentative
 Relationship-, Association- und Structure-/Composition-Fälle. Die Grails-Snapshots
-liegen unter `src/test/resources/grails-snapshots/`.
+liegen unter `target-grails/src/test/resources/grails-snapshots/`.
 
 Der Django/GeoDjango-Spike ist über `models.py`-Snapshots für gemergte ili2db-FKs,
 ili2c-only Geometry/Enums und Structure-/Composition-Fälle abgesichert. Diese
-Snapshots liegen unter `src/test/resources/django-snapshots/`. Snapshot-Updates
+Snapshots liegen unter `target-django/src/test/resources/django-snapshots/`. Snapshot-Updates
 sollen nur bei absichtlichen Generatoränderungen erfolgen.
 
 `VSADSSMINI_2020_LV95` aus
@@ -448,7 +456,7 @@ Großmodell-Test sauber übersprungen.
 
 Optional kann zusätzlich eine echte temporäre Grails-App erzeugt und kompiliert werden:
 ```bash
-./gradlew grailsRuntimeSmokeTest
+./gradlew :target-grails:grailsRuntimeSmokeTest
 ```
 
 Dieser Runtime-Smoke-Test benötigt eine lokale `grails`-CLI im `PATH`, erzeugt seine App
@@ -456,19 +464,19 @@ in einem temporären Verzeichnis, kompiliert generierte Domains/Enums mit `compi
 und prüft zusätzlich `grailsw generate-all` mit den Registry-Klassennamen. Die getestete
 Grails-Version ist standardmäßig `7.0.6` und kann überschrieben werden:
 ```bash
-./gradlew grailsRuntimeSmokeTest -PgrailsSmokeVersion=7.0.6
+./gradlew :target-grails:grailsRuntimeSmokeTest -PgrailsSmokeVersion=7.0.6
 ```
 
 Für eine echte ili2pg/PostGIS-Validierung der Structure-/Composition-Abbildung gibt es
 einen weiteren opt-in Test:
 ```bash
-./gradlew realIli2dbSmokeTest
+./gradlew :target-grails:realIli2dbSmokeTest
 ```
 
 Dieser Test nutzt `docker-compose.yml` (`edit-db` auf Port `54321`) und das lokale ili2pg
 unter `/Users/stefan/apps/ili2pg-5.5.1`. Der Pfad kann überschrieben werden:
 ```bash
-./gradlew realIli2dbSmokeTest -Pili2pgHome=/path/to/ili2pg-5.5.1
+./gradlew :target-grails:realIli2dbSmokeTest -Pili2pgHome=/path/to/ili2pg-5.5.1
 ```
 
 Der Test importiert temporäre Schemas mit ili2pg, liest echte ili2db-Metatabellen,

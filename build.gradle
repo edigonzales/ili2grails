@@ -1,94 +1,43 @@
-plugins {
-    id 'java'
-    id 'application'
-}
-
 group = 'ch.interlis.generator'
 version = '1.0.0-SNAPSHOT'
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+ext {
+    ili2cVersion = '5.6.8'
+    ehibasicsVersion = '1.4.1'
+    ioxIliVersion = '1.24.4'
+    postgresVersion = '42.7.7'
+    slf4jVersion = '2.0.9'
+    logbackVersion = '1.4.14'
+    jacksonVersion = '2.16.1'
+    junitVersion = '5.10.1'
+    assertjVersion = '3.24.2'
+    h2Version = '2.2.224'
+    groovyVersion = '4.0.24'
+    jtsVersion = '1.19.0'
 }
 
-repositories {
-    mavenCentral()
-    maven {
-        url = uri('https://jars.interlis.ch/')
+allprojects {
+    group = rootProject.group
+    version = rootProject.version
+}
+
+subprojects {
+    repositories {
+        mavenCentral()
+        maven {
+            url = uri('https://jars.interlis.ch/')
+        }
     }
-}
 
-dependencies {
-    // ili2c - INTERLIS Compiler
-    implementation 'ch.interlis:ili2c-core:5.6.8'
-    implementation 'ch.interlis:ili2c-tool:5.6.8'
-    implementation 'ch.ehi:ehibasics:1.4.1'
-    implementation 'ch.interlis:iox-ili:1.24.4'
-    
-    // Database connectivity
-    implementation 'org.postgresql:postgresql:42.7.7'
-    
-    // Logging
-    implementation 'org.slf4j:slf4j-api:2.0.9'
-    implementation 'ch.qos.logback:logback-classic:1.4.14'
-    
-    // Utilities
-    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1'
-    
-    // Testing
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
-    testImplementation 'org.assertj:assertj-core:3.24.2'
-    testImplementation 'com.h2database:h2:2.2.224'
-    testImplementation 'org.apache.groovy:groovy:4.0.24'
-    testImplementation 'org.locationtech.jts:jts-core:1.19.0'
-}
+    pluginManager.withPlugin('java') {
+        java {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
 
-sourceSets {
-    grailsRuntimeSmokeTest {
-        java.srcDir 'src/grailsRuntimeSmokeTest/java'
-        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
-        runtimeClasspath += output + compileClasspath
+        tasks.withType(Test).configureEach {
+            useJUnitPlatform()
+            workingDir = rootProject.projectDir
+        }
     }
-    realIli2dbSmokeTest {
-        java.srcDir 'src/realIli2dbSmokeTest/java'
-        compileClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testRuntimeClasspath
-        runtimeClasspath += output + compileClasspath
-    }
-}
-
-configurations {
-    grailsRuntimeSmokeTestImplementation.extendsFrom testImplementation
-    grailsRuntimeSmokeTestRuntimeOnly.extendsFrom testRuntimeOnly
-    realIli2dbSmokeTestImplementation.extendsFrom testImplementation
-    realIli2dbSmokeTestRuntimeOnly.extendsFrom testRuntimeOnly
-}
-
-application {
-    mainClass = 'ch.interlis.generator.MetadataReaderApp'
-}
-
-tasks.named('test') {
-    useJUnitPlatform()
-}
-
-tasks.register('grailsRuntimeSmokeTest', Test) {
-    description = 'Runs opt-in Grails runtime smoke tests against a temporary Grails app.'
-    group = 'verification'
-    testClassesDirs = sourceSets.grailsRuntimeSmokeTest.output.classesDirs
-    classpath = sourceSets.grailsRuntimeSmokeTest.runtimeClasspath
-    useJUnitPlatform()
-    shouldRunAfter tasks.named('test')
-    systemProperty 'grailsSmokeVersion', project.findProperty('grailsSmokeVersion') ?: '7.0.6'
-    outputs.upToDateWhen { false }
-}
-
-tasks.register('realIli2dbSmokeTest', Test) {
-    description = 'Runs opt-in ili2pg/PostGIS smoke tests against the docker-compose edit-db.'
-    group = 'verification'
-    testClassesDirs = sourceSets.realIli2dbSmokeTest.output.classesDirs
-    classpath = sourceSets.realIli2dbSmokeTest.runtimeClasspath
-    useJUnitPlatform()
-    shouldRunAfter tasks.named('test')
-    systemProperty 'ili2pgHome', project.findProperty('ili2pgHome') ?: '/Users/stefan/apps/ili2pg-5.5.1'
-    outputs.upToDateWhen { false }
 }

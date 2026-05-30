@@ -1,0 +1,21 @@
+plugins {
+    id 'java-library'
+    id 'java-test-fixtures'
+}
+
+dependencies {
+    api "ch.interlis:ili2c-core:${rootProject.ili2cVersion}"
+
+    implementation "ch.interlis:ili2c-tool:${rootProject.ili2cVersion}"
+    implementation "ch.ehi:ehibasics:${rootProject.ehibasicsVersion}"
+    implementation "ch.interlis:iox-ili:${rootProject.ioxIliVersion}"
+    implementation "org.postgresql:postgresql:${rootProject.postgresVersion}"
+    implementation "org.slf4j:slf4j-api:${rootProject.slf4jVersion}"
+    implementation "ch.qos.logback:logback-classic:${rootProject.logbackVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-databind:${rootProject.jacksonVersion}"
+
+    testImplementation "org.junit.jupiter:junit-jupiter:${rootProject.junitVersion}"
+    testImplementation "org.assertj:assertj-core:${rootProject.assertjVersion}"
+    testRuntimeOnly "com.h2database:h2:${rootProject.h2Version}"
+    testFixturesRuntimeOnly "com.h2database:h2:${rootProject.h2Version}"
+}

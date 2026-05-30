@@ -1,0 +1,15 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    implementation project(':core')
+    implementation project(':target-grails')
+
+    testImplementation "org.junit.jupiter:junit-jupiter:${rootProject.junitVersion}"
+    testImplementation "org.assertj:assertj-core:${rootProject.assertjVersion}"
+}
+
+application {
+    mainClass = 'ch.interlis.generator.MetadataReaderApp'
+}
