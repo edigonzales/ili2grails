@@ -5,7 +5,7 @@
 - Vererbung
 - Geometrien erfassen und nachführen
 - Welchen Einfluss hat smartXInheritance
-- Strukturen: produktive Persistenzstrategie für komplexe ili2db-Mappings weiter härten
+- Strukturen: produktive Persistenzstrategie für komplexe ili2db-Mappings nach Real-Smoke weiter härten
 - Relationship-Comboboxen: Autocomplete/Paging für große Zieltabellen
 - EnumAsId
 - Beziehungen: Cascade-Regeln auf Basis von Rollen/Kardinalitäten definieren

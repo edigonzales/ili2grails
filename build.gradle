@@ -49,11 +49,18 @@ sourceSets {
         compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
         runtimeClasspath += output + compileClasspath
     }
+    realIli2dbSmokeTest {
+        java.srcDir 'src/realIli2dbSmokeTest/java'
+        compileClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testRuntimeClasspath
+        runtimeClasspath += output + compileClasspath
+    }
 }
 
 configurations {
     grailsRuntimeSmokeTestImplementation.extendsFrom testImplementation
     grailsRuntimeSmokeTestRuntimeOnly.extendsFrom testRuntimeOnly
+    realIli2dbSmokeTestImplementation.extendsFrom testImplementation
+    realIli2dbSmokeTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
 application {
@@ -72,5 +79,16 @@ tasks.register('grailsRuntimeSmokeTest', Test) {
     useJUnitPlatform()
     shouldRunAfter tasks.named('test')
     systemProperty 'grailsSmokeVersion', project.findProperty('grailsSmokeVersion') ?: '7.0.6'
+    outputs.upToDateWhen { false }
+}
+
+tasks.register('realIli2dbSmokeTest', Test) {
+    description = 'Runs opt-in ili2pg/PostGIS smoke tests against the docker-compose edit-db.'
+    group = 'verification'
+    testClassesDirs = sourceSets.realIli2dbSmokeTest.output.classesDirs
+    classpath = sourceSets.realIli2dbSmokeTest.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter tasks.named('test')
+    systemProperty 'ili2pgHome', project.findProperty('ili2pgHome') ?: '/Users/stefan/apps/ili2pg-5.5.1'
     outputs.upToDateWhen { false }
 }

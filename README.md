@@ -385,3 +385,20 @@ Grails-Version ist standardmäßig `7.0.6` und kann überschrieben werden:
 ```bash
 ./gradlew grailsRuntimeSmokeTest -PgrailsSmokeVersion=7.0.6
 ```
+
+Für eine echte ili2pg/PostGIS-Validierung der Structure-/Composition-Abbildung gibt es
+einen weiteren opt-in Test:
+```bash
+./gradlew realIli2dbSmokeTest
+```
+
+Dieser Test nutzt `docker-compose.yml` (`edit-db` auf Port `54321`) und das lokale ili2pg
+unter `/Users/stefan/apps/ili2pg-5.5.1`. Der Pfad kann überschrieben werden:
+```bash
+./gradlew realIli2dbSmokeTest -Pili2pgHome=/path/to/ili2pg-5.5.1
+```
+
+Der Test importiert temporäre Schemas mit ili2pg, liest echte ili2db-Metatabellen,
+validiert Naming/Structure-/Composition-Mapping und schreibt Diagnose-Artefakte nach
+`build/reports/real-ili2db-smoke/`. Docker-, ili2pg- oder Repository-Probleme führen
+zu einem sauberen Skip statt zu einem roten Standard-Build.
