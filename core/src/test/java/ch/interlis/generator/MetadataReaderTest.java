@@ -2,6 +2,7 @@ package ch.interlis.generator;
 
 import ch.interlis.generator.metadata.MetadataReader;
 import ch.interlis.generator.model.*;
+import ch.interlis.generator.testsupport.MetadataTestFixtures;
 import ch.interlis.ili2c.MakeIliModelsXml2;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -201,6 +202,32 @@ class MetadataReaderTest {
                     .isEqualTo(RelationshipMetadata.MergeConfidence.MEDIUM);
             });
         assertThat(association.getAllAttributes()).isEmpty();
+    }
+
+    @Test
+    void testExactSourceAttributeRelationshipMerge() throws Exception {
+        ModelMetadata metadata = MetadataTestFixtures.readMergedCoreIrReferenceMetadata();
+
+        assertThat(metadata.getAllRelationships())
+            .filteredOn(relationship -> "CoreIrTestModel.Relations.Component"
+                .equals(relationship.getSourceClass()))
+            .filteredOn(relationship -> "CoreIrTestModel.Relations.Parent"
+                .equals(relationship.getTargetClass()))
+            .singleElement()
+            .satisfies(relationship -> {
+                assertThat(relationship.getSource()).isEqualTo("ili2db+ili2c");
+                assertThat(relationship.getSemanticKind())
+                    .isEqualTo(RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE);
+                assertThat(relationship.getSourceAttribute()).isEqualTo("ParentRef");
+                assertThat(relationship.getPhysicalName()).isEqualTo("ParentRef");
+                assertThat(relationship.getSemanticName())
+                    .isEqualTo("CoreIrTestModel.Relations.Component.ParentRef");
+                assertThat(relationship.getMergeReason())
+                    .isEqualTo(RelationshipMetadata.MergeReason.EXACT_SOURCE_ATTRIBUTE);
+                assertThat(relationship.getMergeConfidence())
+                    .isEqualTo(RelationshipMetadata.MergeConfidence.EXACT);
+                assertThat(relationship.getMergeToken()).isEqualTo("parentref");
+            });
     }
 
     @Test

@@ -96,6 +96,7 @@ Weitere Optionen:
 - `--model-file <file>` (optional: explizite `.ili`-Datei statt positionaler Angabe)
 - `--model-repos <r1;r2>` (optional: Repository-Liste für die Modellauflösung)
 - `--metadata-json <file>` (optional: schreibt eine deterministische JSON-Ausgabe der Core-IR)
+- `--merge-report <dir>` (optional: schreibt Merge-Diagnostik für Relationships als Markdown und JSON)
 - `--grails-init [appName]` (optional: erzeugt ein Grails-Projekt im Zielverzeichnis; mit `appName` wird ein Unterordner erstellt)
 - `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
@@ -193,6 +194,18 @@ Optional kann die kanonische IR als JSON geschrieben werden:
 ```
 
 Die JSON-Ausgabe ist stabil sortiert und eignet sich für Golden-Tests und weitere Generatoren.
+
+Optional kann zusätzlich ein Merge-Report für Relationships geschrieben werden:
+```bash
+./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+  SimpleAddressModel \
+  sa \
+  --model-file test-models/SimpleAddressModel.ili \
+  --merge-report build/reports/metadata-merge"
+```
+
+Der Markdown-Report ist für manuelle Reviews gedacht. Der JSON-Report enthält dieselben
+Kategorien maschinenlesbar und eignet sich für automatisierte Checks.
 
 ## Programmatische Nutzung
 ```java

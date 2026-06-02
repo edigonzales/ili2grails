@@ -22,6 +22,15 @@ class Ili2cModelReaderTest {
         ModelMetadata metadata = reader.readMetadata("CoreIrTestModel");
 
         assertThat(metadata.getModelVersion()).isEqualTo("2026-05-30");
+        assertThat(metadata.getAllRelationships())
+            .allSatisfy(relationship -> {
+                assertThat(relationship.getSource()).isEqualTo("ili2c");
+                assertThat(relationship.getSemanticName()).isNotBlank();
+                assertThat(relationship.getMergeReason())
+                    .isEqualTo(RelationshipMetadata.MergeReason.ILI2C_ONLY);
+                assertThat(relationship.getMergeConfidence())
+                    .isEqualTo(RelationshipMetadata.MergeConfidence.NONE);
+            });
 
         ClassMetadata child = metadata.getClass("CoreIrTestModel.Relations.Child");
         assertThat(child).isNotNull();

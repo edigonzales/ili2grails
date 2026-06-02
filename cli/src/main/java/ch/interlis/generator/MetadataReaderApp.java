@@ -9,6 +9,10 @@ import ch.interlis.generator.metadata.MetadataJsonWriter;
 import ch.interlis.generator.metadata.MetadataReader;
 import ch.interlis.generator.metadata.MetadataPrinter;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.report.RelationshipMergeJsonWriter;
+import ch.interlis.generator.report.RelationshipMergeMarkdownWriter;
+import ch.interlis.generator.report.RelationshipMergeReport;
+import ch.interlis.generator.report.RelationshipMergeReporter;
 import ch.interlis.ili2c.Ili2cFailure;
 
 import java.io.File;
@@ -86,6 +90,10 @@ public class MetadataReaderApp {
                     + options.metadataJsonPath.toAbsolutePath().normalize());
             }
 
+            if (options.mergeReportDir != null) {
+                writeMergeReport(metadata, options);
+            }
+
             if (options.grailsOutputDir != null) {
                 generateGrailsCrud(metadata, options);
             }
@@ -123,6 +131,7 @@ public class MetadataReaderApp {
         System.out.println("  --model-file <file>               - Explicit model file path (overrides positional model file)");
         System.out.println("  --model-repos <r1;r2>             - Repository list (e.g., https://models.interlis.ch/;file:/repo)");
         System.out.println("  --metadata-json <file>            - Write deterministic metadata IR JSON");
+        System.out.println("  --merge-report <dir>              - Write relationship merge diagnostics Markdown and JSON");
         System.out.println("  --grails-output <dir>             - Output directory for Grails CRUD artifacts");
         System.out.println("  --grails-init [appName]           - Initialize a Grails app in the output directory");
         System.out.println("  --grails-version <x.y>            - Grails version for --grails-init");
@@ -199,6 +208,23 @@ public class MetadataReaderApp {
         System.out.println("Grails CRUD artifacts generated in: " + grailsProjectDir.toAbsolutePath());
     }
 
+    private static void writeMergeReport(ModelMetadata metadata, CliOptions options) throws IOException {
+        RelationshipMergeReport report = new RelationshipMergeReporter().create(metadata);
+        String reportName = metadata.getModelName() != null && !metadata.getModelName().isBlank()
+            ? metadata.getModelName()
+            : options.modelName;
+        Path markdownPath = options.mergeReportDir.resolve(reportName + ".md");
+        Path jsonPath = options.mergeReportDir.resolve(reportName + ".json");
+
+        new RelationshipMergeMarkdownWriter().write(report, markdownPath);
+        new RelationshipMergeJsonWriter().write(report, jsonPath);
+
+        System.out.println("Relationship merge report written to: "
+            + markdownPath.toAbsolutePath().normalize());
+        System.out.println("Relationship merge report JSON written to: "
+            + jsonPath.toAbsolutePath().normalize());
+    }
+
     private static CliOptions parseArgs(String[] args) {
         List<String> positional = new ArrayList<>();
         CliOptions cliOptions = new CliOptions();
@@ -244,6 +270,13 @@ public class MetadataReaderApp {
                         return null;
                     }
                     cliOptions.metadataJsonPath = Path.of(metadataJsonValue);
+                    break;
+                case "--merge-report":
+                    String mergeReportValue = readOptionValue(args, arg, ++i);
+                    if (mergeReportValue == null) {
+                        return null;
+                    }
+                    cliOptions.mergeReportDir = Path.of(mergeReportValue);
                     break;
                 case "--grails-version":
                     String versionValue = readOptionValue(args, arg, ++i);
@@ -558,6 +591,7 @@ public class MetadataReaderApp {
         private String schema;
         private List<String> modelRepositories;
         private Path metadataJsonPath;
+        private Path mergeReportDir;
         private Path grailsOutputDir;
         private boolean grailsInitRequested;
         private String grailsInitAppName;

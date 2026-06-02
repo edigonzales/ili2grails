@@ -16,6 +16,7 @@ class MetadataReaderAppCliTest {
             "SimpleModel",
             "--grails-output", "generated",
             "--metadata-json", "build/metadata/simple.json",
+            "--merge-report", "build/reports/metadata-merge",
             "--grails-ui-theme", "bootstrap",
             "--grails-map-editor", "openlayers",
             "--grails-default-srid", "2056"
@@ -27,6 +28,8 @@ class MetadataReaderAppCliTest {
         assertThat(readField(cliOptions, "grailsDefaultSrid")).isEqualTo(2056);
         assertThat(readField(cliOptions, "metadataJsonPath").toString())
             .isEqualTo("build/metadata/simple.json");
+        assertThat(readField(cliOptions, "mergeReportDir").toString())
+            .isEqualTo("build/reports/metadata-merge");
     }
 
     @Test
