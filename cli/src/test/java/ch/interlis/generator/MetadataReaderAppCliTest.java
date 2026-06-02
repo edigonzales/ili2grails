@@ -1,92 +1,253 @@
 package ch.interlis.generator;
 
+import ch.interlis.generator.django.DjangoGenerationConfig;
 import org.junit.jupiter.api.Test;
+import picocli.CommandLine;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MetadataReaderAppCliTest {
 
     @Test
-    void parsesNewGrailsOptions() throws Exception {
-        Object cliOptions = parseArgs(
+    void topLevelInvocationWithoutSubcommandIsRejected() {
+        CliResult result = execute();
+
+        assertThat(result.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(result.err()).contains("missing required subcommand");
+    }
+
+    @Test
+    void readAcceptsCommonMetadataOptions() {
+        CommandLine.ParseResult parseResult = parse(
+            "read",
             "jdbc:postgresql://localhost:5432/test",
             "SimpleModel",
-            "--grails-output", "generated",
+            "public",
+            "--model-file", "test-models/SimpleAddressModel.ili",
+            "--model-repos", "https://models.interlis.ch/;file:/repo",
             "--metadata-json", "build/metadata/simple.json",
-            "--merge-report", "build/reports/metadata-merge",
-            "--grails-ui-theme", "bootstrap",
-            "--grails-map-editor", "openlayers",
-            "--grails-default-srid", "2056"
+            "--merge-report", "build/reports/metadata-merge"
         );
 
-        assertThat(cliOptions).isNotNull();
-        assertThat(readField(cliOptions, "grailsUiTheme")).isEqualTo("bootstrap");
-        assertThat(readField(cliOptions, "grailsMapEditor")).isEqualTo("openlayers");
-        assertThat(readField(cliOptions, "grailsDefaultSrid")).isEqualTo(2056);
-        assertThat(readField(cliOptions, "metadataJsonPath").toString())
-            .isEqualTo("build/metadata/simple.json");
-        assertThat(readField(cliOptions, "mergeReportDir").toString())
-            .isEqualTo("build/reports/metadata-merge");
+        assertThat(parseResult.subcommand().commandSpec().name()).isEqualTo("read");
+        ReadCommand command = (ReadCommand) parseResult.subcommand().commandSpec().userObject();
+        MetadataCommandOptions options = readField(command, "metadataOptions");
+        assertThat(options.jdbcUrl()).isEqualTo("jdbc:postgresql://localhost:5432/test");
+        assertThat(options.modelName()).isEqualTo("SimpleModel");
+        assertThat(options.schema()).isEqualTo("public");
+        assertThat(options.modelFilePath()).isEqualTo(Path.of("test-models/SimpleAddressModel.ili"));
+        assertThat(options.metadataJsonPath()).isEqualTo(Path.of("build/metadata/simple.json"));
+        assertThat(options.mergeReportDir()).isEqualTo(Path.of("build/reports/metadata-merge"));
+        assertThat(options.modelRepositories()).containsExactly("https://models.interlis.ch/", "file:/repo");
     }
 
     @Test
-    void rejectsRemovedCarbonUiTheme() throws Exception {
-        Object cliOptions = parseArgs(
+    void generateRequiresAtLeastOneTarget() {
+        CliResult result = execute(
+            "generate",
             "jdbc:postgresql://localhost:5432/test",
-            "SimpleModel",
-            "--grails-output", "generated",
-            "--grails-ui-theme", "carbon"
+            "SimpleModel"
         );
-        assertThat(cliOptions).isNull();
+
+        assertThat(result.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(result.err()).contains("Missing required option: '--target");
     }
 
     @Test
-    void resolvesMapEditorDefaultsBasedOnTheme() throws Exception {
-        Object defaultOptions = parseArgs(
+    void repeatedTargetsParseInUserSpecifiedOrder() {
+        CommandLine.ParseResult parseResult = parse(
+            "generate",
             "jdbc:postgresql://localhost:5432/test",
             "SimpleModel",
-            "--grails-output", "generated"
+            "--target", "grails",
+            "--target", "django",
+            "--grails-output", "generated-grails",
+            "--django-output", "generated-django",
+            "--django-app", "simple_app"
         );
-        Object bootstrapOptions = parseArgs(
+
+        GenerateCommand command = (GenerateCommand) parseResult.subcommand().commandSpec().userObject();
+        List<CliTarget> targets = readField(command, "targets");
+        assertThat(targets)
+            .containsExactly(CliTarget.GRAILS, CliTarget.DJANGO);
+    }
+
+    @Test
+    void duplicateTargetsFailBeforeMetadataRead() {
+        CliResult result = execute(
+            "generate",
             "jdbc:postgresql://localhost:5432/test",
             "SimpleModel",
-            "--grails-output", "generated",
-            "--grails-ui-theme", "bootstrap"
+            "--target", "django",
+            "--target", "django",
+            "--django-output", "generated-django",
+            "--django-app", "simple_app"
         );
 
-        Method resolveUiTheme = MetadataReaderApp.class.getDeclaredMethod("resolveUiTheme", defaultOptions.getClass());
-        Method resolveMapEditor = MetadataReaderApp.class.getDeclaredMethod(
-            "resolveMapEditor",
-            defaultOptions.getClass(),
-            String.class
+        assertThat(result.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(result.err()).contains("Duplicate target selected: django");
+    }
+
+    @Test
+    void grailsTargetRequiresOutputDirectory() {
+        CliResult result = execute(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "grails"
         );
-        resolveUiTheme.setAccessible(true);
-        resolveMapEditor.setAccessible(true);
 
-        String defaultTheme = (String) resolveUiTheme.invoke(null, defaultOptions);
-        String defaultMapEditor = (String) resolveMapEditor.invoke(null, defaultOptions, defaultTheme);
-
-        String bootstrapTheme = (String) resolveUiTheme.invoke(null, bootstrapOptions);
-        String bootstrapMapEditor = (String) resolveMapEditor.invoke(null, bootstrapOptions, bootstrapTheme);
-
-        assertThat(defaultTheme).isEqualTo("default");
-        assertThat(defaultMapEditor).isEqualTo("none");
-        assertThat(bootstrapTheme).isEqualTo("bootstrap");
-        assertThat(bootstrapMapEditor).isEqualTo("openlayers");
+        assertThat(result.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(result.err()).contains("Option --grails-output is required for --target grails.");
     }
 
-    private Object parseArgs(String... args) throws Exception {
-        Method parseArgs = MetadataReaderApp.class.getDeclaredMethod("parseArgs", String[].class);
-        parseArgs.setAccessible(true);
-        return parseArgs.invoke(null, (Object) args);
+    @Test
+    void djangoTargetRequiresOutputDirectoryAndAppName() {
+        CliResult missingOutput = execute(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "django",
+            "--django-app", "simple_app"
+        );
+        CliResult missingApp = execute(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "django",
+            "--django-output", "generated-django"
+        );
+
+        assertThat(missingOutput.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(missingOutput.err()).contains("Option --django-output is required for --target django.");
+        assertThat(missingApp.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(missingApp.err()).contains("Option --django-app is required for --target django.");
     }
 
-    private Object readField(Object target, String fieldName) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        return field.get(target);
+    @Test
+    void djangoAppMustBePythonPackageSegment() {
+        CliResult result = execute(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "django",
+            "--django-output", "generated-django",
+            "--django-app", "simple-app"
+        );
+
+        assertThat(result.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(result.err()).contains("Option --django-app must be a valid Python package segment");
+    }
+
+    @Test
+    void targetSpecificOptionsWithoutMatchingTargetFail() {
+        CliResult grailsOptionWithoutGrails = execute(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "django",
+            "--django-output", "generated-django",
+            "--django-app", "simple_app",
+            "--grails-output", "generated-grails"
+        );
+        CliResult djangoOptionWithoutDjango = execute(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "grails",
+            "--grails-output", "generated-grails",
+            "--django-output", "generated-django"
+        );
+
+        assertThat(grailsOptionWithoutGrails.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(grailsOptionWithoutGrails.err()).contains("Grails options require --target grails.");
+        assertThat(djangoOptionWithoutDjango.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(djangoOptionWithoutDjango.err()).contains("Django options require --target django.");
+    }
+
+    @Test
+    void metadataJsonIsCommonOutputOptionForGenerate() {
+        CommandLine.ParseResult parseResult = parse(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "django",
+            "--django-output", "generated-django",
+            "--django-app", "simple_app",
+            "--metadata-json", "build/metadata/simple.json"
+        );
+
+        GenerateCommand command = (GenerateCommand) parseResult.subcommand().commandSpec().userObject();
+        MetadataCommandOptions options = readField(command, "metadataOptions");
+        assertThat(options.metadataJsonPath()).isEqualTo(Path.of("build/metadata/simple.json"));
+    }
+
+    @Test
+    void positionalModelFileIsRejected() {
+        CliResult result = execute(
+            "read",
+            "jdbc:postgresql://localhost:5432/test",
+            "test-models/SimpleAddressModel.ili"
+        );
+
+        assertThat(result.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(result.err()).contains("Model file must be passed with --model-file");
+    }
+
+    @Test
+    void djangoCliTargetBuildsConfigForModelsPyOutput() {
+        DjangoCliOptions options = parseDjangoOptions(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "django",
+            "--django-output", "generated-django",
+            "--django-app", "simple_app"
+        );
+
+        DjangoGenerationConfig config = new DjangoCliTarget(options).buildConfig();
+
+        assertThat(config.getOutputDir()).isEqualTo(Path.of("generated-django"));
+        assertThat(config.getAppName()).isEqualTo("simple_app");
+        assertThat(config.getModelsFile()).isEqualTo(Path.of("generated-django/simple_app/models.py"));
+    }
+
+    private CommandLine.ParseResult parse(String... args) {
+        return MetadataReaderApp.newCommandLine().parseArgs(args);
+    }
+
+    private CliResult execute(String... args) {
+        CommandLine commandLine = MetadataReaderApp.newCommandLine();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ByteArrayOutputStream err = new ByteArrayOutputStream();
+        commandLine.setOut(new PrintWriter(out, true));
+        commandLine.setErr(new PrintWriter(err, true));
+        int exitCode = commandLine.execute(args);
+        return new CliResult(exitCode, out.toString(), err.toString());
+    }
+
+    private DjangoCliOptions parseDjangoOptions(String... args) {
+        CommandLine.ParseResult parseResult = parse(args);
+        GenerateCommand command = (GenerateCommand) parseResult.subcommand().commandSpec().userObject();
+        return readField(command, "djangoOptions");
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T readField(Object target, String fieldName) {
+        try {
+            var field = target.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            return (T) field.get(target);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    private record CliResult(int exitCode, String out, String err) {
     }
 }

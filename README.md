@@ -1,6 +1,6 @@
 # INTERLIS CRUD Generator – Metadata Reader
 
-Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und einem INTERLIS-Modell, baut daraus ein internes Metamodell auf und liefert zusätzlich eine **Beispielimplementierung für Grails** (Domains, Enums). Ein kleiner Django/GeoDjango-Target-Spike validiert die Framework-Unabhängigkeit der Core-IR. Die Software bleibt jedoch im Kern **software- und framework-agnostisch** – das Metamodell dient als Basis für weitere Generatoren und Integrationen.
+Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und einem INTERLIS-Modell, baut daraus ein internes Metamodell auf und liefert zusätzlich eine **Beispielimplementierung für Grails** (Domains, Enums). Ein kleiner Django/GeoDjango-Target-Spike validiert die Framework-Unabhängigkeit der Core-IR und kann per CLI eine `models.py` erzeugen. Die Software bleibt jedoch im Kern **software- und framework-agnostisch** – das Metamodell dient als Basis für weitere Generatoren und Integrationen.
 
 ## Inhalt
 - [Ziel & Funktionsumfang](#ziel--funktionsumfang)
@@ -56,7 +56,8 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 ```
 
 ```bash
-./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="read \
+  'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   SimpleAddressModel \
   sa \
   --model-file test-models/SimpleAddressModel.ili"
@@ -64,7 +65,8 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 
 **Repository-Lookup (nur Modellname, Datei wird aus Repos geholt):**
 ```bash
-./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="read \
+  'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   DM01AVCH24LV95D \
   public \
   --model-repos https://models.interlis.ch/"
@@ -72,9 +74,9 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 
 **Parameter (lokale Datei):**
 1. JDBC-URL (inkl. User/Passwort)
-2. Pfad zur `.ili`-Datei
-3. INTERLIS-Modellname
-4. (Optional) DB-Schema
+2. INTERLIS-Modellname
+3. (Optional) DB-Schema
+4. `--model-file <file>` für die `.ili`-Datei
 
 **Parameter (Repository-Lookup):**
 1. JDBC-URL (inkl. User/Passwort)
@@ -84,16 +86,36 @@ java -jar ili2pg-5.5.1.jar --dbhost localhost:54321 --dbdatabase edit --dbusr po
 
 **Grails CRUD-Generierung (optional):**
 ```bash
-./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="generate \
+  'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   SimpleAddressModel \
   sa \
+  --target grails \
   --model-file test-models/SimpleAddressModel.ili \
   --grails-output ./generated-grails \
   --grails-package ch.example.demo"
 ```
 
+**Multi-Target-Generierung (Grails + Django `models.py`):**
+```bash
+./gradlew :cli:run --args="generate \
+  'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+  SimpleAddressModel \
+  sa \
+  --target grails \
+  --target django \
+  --model-file test-models/SimpleAddressModel.ili \
+  --metadata-json build/metadata/SimpleAddressModel.json \
+  --grails-output ./generated-grails \
+  --grails-package ch.example.demo \
+  --django-output ./generated-django \
+  --django-app simple_app"
+```
+
 Weitere Optionen:
-- `--model-file <file>` (optional: explizite `.ili`-Datei statt positionaler Angabe)
+- Subcommands: `read` liest/zeigt Metadaten, `generate` erzeugt ausgewählte Targets
+- `--target grails|django` (bei `generate`, wiederholbar; Targets laufen in der angegebenen Reihenfolge)
+- `--model-file <file>` (optional: explizite `.ili`-Datei)
 - `--model-repos <r1;r2>` (optional: Repository-Liste für die Modellauflösung)
 - `--metadata-json <file>` (optional: schreibt eine deterministische JSON-Ausgabe der Core-IR)
 - `--merge-report <dir>` (optional: schreibt Merge-Diagnostik für Relationships als Markdown und JSON)
@@ -105,6 +127,7 @@ Weitere Optionen:
 - `--grails-map-editor <none|openlayers>` (Default: `openlayers` bei `bootstrap`, sonst `none`)
 - `--grails-default-srid <int>` (Default: `2056`)
 - `--grails-generate-all` (nur mit `--grails-init`, ruft `./grailsw generate-all` für jede Domain auf)
+- `--django-output <dir>` und `--django-app <python_package>` (für `--target django`; schreibt `<dir>/<app>/models.py`)
 
 ## Grails-Projekt starten
 Der Generator schreibt Artefakte in ein bestehendes Grails-Projekt (oder in ein neu erzeugtes). Die Dateien landen in:
@@ -119,9 +142,11 @@ grails create-app my-grails-app
 
 Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch keine Grails-Struktur vorhanden ist (bei `appName` wird ein Unterordner erzeugt):
 ```bash
-./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="generate \
+  'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   SimpleAddressModel \
   sa \
+  --target grails \
   --model-file test-models/SimpleAddressModel.ili \
   --grails-output ./generated-grails \
   --grails-init my-grails-app \
@@ -186,7 +211,8 @@ Die Ausgabe zeigt:
 
 Optional kann die kanonische IR als JSON geschrieben werden:
 ```bash
-./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="read \
+  'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   SimpleAddressModel \
   sa \
   --model-file test-models/SimpleAddressModel.ili \
@@ -197,7 +223,8 @@ Die JSON-Ausgabe ist stabil sortiert und eignet sich für Golden-Tests und weite
 
 Optional kann zusätzlich ein Merge-Report für Relationships geschrieben werden:
 ```bash
-./gradlew :cli:run --args="'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
+./gradlew :cli:run --args="read \
+  'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa' \
   SimpleAddressModel \
   sa \
   --model-file test-models/SimpleAddressModel.ili \
@@ -393,7 +420,7 @@ Punkt für Debugging bei großen Modellen.
 - Physisch gemergte ili2db-Klassen erhalten `db_table`, `managed = False` und FK-`db_column`-Informationen.
 - ili2c-only Geometrieattribute aktivieren GeoDjango (`django.contrib.gis.db.models`) und werden als `GeometryField` ausgegeben.
 - Structures und Compositions werden bewusst minimal als Django-Models, `ForeignKey` oder `ManyToManyField` abgebildet, um Core-IR-Grenzen sichtbar zu machen.
-- Der Spike hat keine CLI-Integration, keine Migrationsstrategie und keine Admin-/View-Generierung.
+- Die CLI-Integration schreibt aktuell nur `<django-output>/<django-app>/models.py`; der Spike hat keine Migrationsstrategie und keine Admin-/View-Generierung.
 
 ### Target-Naming
 - Zielnamen bleiben Generator-spezifisch und werden nicht in die Core-IR geschrieben.
@@ -448,7 +475,7 @@ Punkt für Debugging bei großen Modellen.
 ### Aktuelle Grenzen
 - Getesteter Primärpfad ist weiterhin PostgreSQL/PostGIS mit ili2pg; andere ili2db-Flavours sind nicht als produktiv validiert.
 - Grails-CRUD nutzt weiterhin Grails-Scaffolding/Template-Overlay; das Core-Metamodell soll davon unabhängig bleiben.
-- Django/GeoDjango ist derzeit ein Target-Spike mit Snapshot-Abdeckung, aber ohne produktionsreife CLI- oder Runtime-Validierung.
+- Django/GeoDjango ist derzeit ein Target-Spike mit CLI-verdrahteter `models.py`-Ausgabe und Snapshot-Abdeckung, aber ohne produktionsreife Runtime-Validierung.
 - Produktive Credential-Konfiguration sollte über Umgebungsvariablen oder Grails/Spring-Konfiguration erfolgen; die CLI-Beispiele enthalten Zugangsdaten nur für lokale Demos.
 
 ## Projektstruktur

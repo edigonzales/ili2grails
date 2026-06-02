@@ -5,6 +5,8 @@ plugins {
 dependencies {
     implementation project(':core')
     implementation project(':target-grails')
+    implementation project(':target-django')
+    implementation "info.picocli:picocli:${rootProject.picocliVersion}"
 
     testImplementation "org.junit.jupiter:junit-jupiter:${rootProject.junitVersion}"
     testImplementation "org.assertj:assertj-core:${rootProject.assertjVersion}"
