@@ -1,6 +1,8 @@
 package ch.interlis.generator.grails;
 
 import ch.interlis.generator.model.AttributeMetadata;
+import ch.interlis.generator.model.AssociationMetadata;
+import ch.interlis.generator.model.AssociationRoleMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.RelationshipMetadata;
@@ -194,6 +196,40 @@ class GrailsRelationshipMapperTest {
         assertThat(mapping.properties())
             .extracting(GrailsRelationshipMapper.DomainProperty::type)
             .containsExactlyInAnyOrder("Person", "Address");
+        assertThat(mapper(metadata).map(person).collections()).isEmpty();
+    }
+
+    @Test
+    void associationMetadataCanDriveAssociationRolePropertiesWithoutRelationships() {
+        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ClassMetadata person = persistentClass("TestModel.Person", "person");
+        ClassMetadata address = persistentClass("TestModel.Address", "address");
+        ClassMetadata personAddress = persistentClass("TestModel.PersonAddress", "person_address");
+        personAddress.setKind(ClassMetadata.ClassKind.ASSOCIATION);
+        metadata.addClass(person);
+        metadata.addClass(address);
+        metadata.addClass(personAddress);
+
+        AssociationMetadata association = new AssociationMetadata(personAddress.getName());
+        association.setAssociationClass(personAddress.getName());
+        AssociationRoleMetadata personRole = new AssociationRoleMetadata("Person");
+        personRole.setTargetClass(person.getName());
+        personRole.setMandatory(true);
+        association.addRole(personRole);
+        AssociationRoleMetadata addressRole = new AssociationRoleMetadata("Address");
+        addressRole.setTargetClass(address.getName());
+        association.addRole(addressRole);
+        metadata.addAssociation(association);
+
+        GrailsRelationshipMapper.DomainMapping mapping = mapper(metadata).map(personAddress);
+
+        assertThat(mapping.properties())
+            .extracting(GrailsRelationshipMapper.DomainProperty::name)
+            .containsExactlyInAnyOrder("person", "address");
+        assertThat(mapping.properties())
+            .filteredOn(property -> property.name().equals("person"))
+            .extracting(GrailsRelationshipMapper.DomainProperty::nullable)
+            .containsExactly(false);
         assertThat(mapper(metadata).map(person).collections()).isEmpty();
     }
 

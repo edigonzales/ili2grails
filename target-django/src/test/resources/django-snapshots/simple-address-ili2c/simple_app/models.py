@@ -21,7 +21,7 @@ class Person(models.Model):
     last_name = models.CharField(max_length=50)
     email = models.CharField(max_length=100, null=True, blank=True)
     phone_number = models.CharField(max_length=20, null=True, blank=True)
-    birth_date = models.TextField(null=True, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
 
 
 class PersonAddress(models.Model):

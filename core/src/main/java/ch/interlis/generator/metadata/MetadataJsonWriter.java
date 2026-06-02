@@ -1,6 +1,8 @@
 package ch.interlis.generator.metadata;
 
 import ch.interlis.generator.model.AttributeMetadata;
+import ch.interlis.generator.model.AssociationMetadata;
+import ch.interlis.generator.model.AssociationRoleMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
@@ -49,6 +51,10 @@ public class MetadataJsonWriter {
             .sorted(Comparator.comparing(ClassMetadata::getName, Comparator.nullsLast(String::compareTo)))
             .map(this::classDto)
             .toList());
+        dto.put("associations", metadata.getAllAssociations().stream()
+            .sorted(Comparator.comparing(AssociationMetadata::getName, Comparator.nullsLast(String::compareTo)))
+            .map(this::associationDto)
+            .toList());
         dto.put("enums", metadata.getAllEnums().stream()
             .sorted(Comparator.comparing(EnumMetadata::getName, Comparator.nullsLast(String::compareTo)))
             .map(this::enumDto)
@@ -57,6 +63,46 @@ public class MetadataJsonWriter {
             .sorted(relationshipComparator())
             .map(this::relationshipDto)
             .toList());
+        return dto;
+    }
+
+    private Map<String, Object> associationDto(AssociationMetadata association) {
+        Map<String, Object> dto = new LinkedHashMap<>();
+        putIfNotNull(dto, "name", association.getName());
+        putIfNotNull(dto, "associationClass", association.getAssociationClass());
+        putIfNotNull(dto, "physicalTable", association.getPhysicalTable());
+        putIfNotNull(dto, "physicalSqlName", association.getPhysicalSqlName());
+        dto.put("roles", association.getRoles().stream()
+            .sorted(associationRoleComparator())
+            .map(this::associationRoleDto)
+            .toList());
+        dto.put("attributes", association.getAllAttributes().stream()
+            .sorted(attributeComparator())
+            .map(this::attributeDto)
+            .toList());
+        return dto;
+    }
+
+    private Map<String, Object> associationRoleDto(AssociationRoleMetadata role) {
+        Map<String, Object> dto = new LinkedHashMap<>();
+        putIfNotNull(dto, "name", role.getName());
+        putIfNotNull(dto, "targetClass", role.getTargetClass());
+        putIfNotNull(dto, "oppositeRoleName", role.getOppositeRoleName());
+        if (role.getCardinality() != null) {
+            dto.put("cardinality", cardinalityDto(role.getCardinality()));
+        }
+        dto.put("mandatory", role.isMandatory());
+        dto.put("ordered", role.isOrdered());
+        dto.put("external", role.isExternal());
+        dto.put("composition", role.isComposition());
+        putIfNotNull(dto, "sourceAttribute", role.getSourceAttribute());
+        putIfNotNull(dto, "targetAttribute", role.getTargetAttribute());
+        putIfNotNull(dto, "physicalName", role.getPhysicalName());
+        putIfNotNull(dto, "semanticName", role.getSemanticName());
+        putIfNotNull(dto, "source", role.getSource());
+        putIfNotNull(dto, "mergeReason", enumName(role.getMergeReason()));
+        putIfNotNull(dto, "mergeConfidence", enumName(role.getMergeConfidence()));
+        putIfNotNull(dto, "mergeToken", role.getMergeToken());
         return dto;
     }
 
@@ -88,7 +134,11 @@ public class MetadataJsonWriter {
         putIfNotNull(dto, "sqlName", attribute.getSqlName());
         putIfNotNull(dto, "iliType", attribute.getIliType());
         putIfNotNull(dto, "domainName", attribute.getDomainName());
-        putIfNotNull(dto, "javaType", attribute.getJavaType());
+        putIfNotNull(dto, "coreType", enumName(attribute.getCoreType()));
+        Map<String, Object> targetHints = targetHintsDto(attribute);
+        if (!targetHints.isEmpty()) {
+            dto.put("targetHints", targetHints);
+        }
         putIfNotNull(dto, "dbType", attribute.getDbType());
         dto.put("mandatory", attribute.isMandatory());
         dto.put("primaryKey", attribute.isPrimaryKey());
@@ -109,6 +159,12 @@ public class MetadataJsonWriter {
         putIfNotNull(dto, "referencedClass", attribute.getReferencedClass());
         putIfNotNull(dto, "referencedAttribute", attribute.getReferencedAttribute());
         dto.put("labels", new TreeMap<>(attribute.getLabels()));
+        return dto;
+    }
+
+    private Map<String, Object> targetHintsDto(AttributeMetadata attribute) {
+        Map<String, Object> dto = new LinkedHashMap<>();
+        putIfNotNull(dto, "javaType", attribute.getJavaType());
         return dto;
     }
 
@@ -188,6 +244,13 @@ public class MetadataJsonWriter {
             .thenComparing(RelationshipMetadata::getTargetRoleName, Comparator.nullsLast(String::compareTo))
             .thenComparing(RelationshipMetadata::getTargetClass, Comparator.nullsLast(String::compareTo))
             .thenComparing(RelationshipMetadata::getName, Comparator.nullsLast(String::compareTo));
+    }
+
+    private Comparator<AssociationRoleMetadata> associationRoleComparator() {
+        return Comparator
+            .comparing(AssociationRoleMetadata::getName, Comparator.nullsLast(String::compareTo))
+            .thenComparing(AssociationRoleMetadata::getTargetClass, Comparator.nullsLast(String::compareTo))
+            .thenComparing(AssociationRoleMetadata::getSourceAttribute, Comparator.nullsLast(String::compareTo));
     }
 
     private String enumName(Enum<?> value) {

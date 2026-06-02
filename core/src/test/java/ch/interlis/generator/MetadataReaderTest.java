@@ -180,6 +180,27 @@ class MetadataReaderTest {
                 assertThat(relationship.getCardinality().getMinTarget()).isZero();
                 assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(1);
             });
+
+        AssociationMetadata association = metadata.getAssociation("SimpleAddressModel.Addresses.PersonAddress");
+        assertThat(association).isNotNull();
+        assertThat(association.getAssociationClass()).isEqualTo("SimpleAddressModel.Addresses.PersonAddress");
+        assertThat(association.getPhysicalTable()).isEqualTo("personaddress");
+        assertThat(association.getRoles())
+            .extracting(AssociationRoleMetadata::getName)
+            .containsExactlyInAnyOrder("Person", "Address");
+        assertThat(association.getRoles())
+            .filteredOn(role -> role.getName().equals("Person"))
+            .singleElement()
+            .satisfies(role -> {
+                assertThat(role.getSourceAttribute()).isEqualTo("person_id");
+                assertThat(role.getPhysicalName()).isEqualTo("person_id");
+                assertThat(role.getTargetAttribute()).isEqualTo("T_Id");
+                assertThat(role.getMergeReason())
+                    .isEqualTo(RelationshipMetadata.MergeReason.NORMALIZED_TOKEN);
+                assertThat(role.getMergeConfidence())
+                    .isEqualTo(RelationshipMetadata.MergeConfidence.MEDIUM);
+            });
+        assertThat(association.getAllAttributes()).isEmpty();
     }
 
     @Test

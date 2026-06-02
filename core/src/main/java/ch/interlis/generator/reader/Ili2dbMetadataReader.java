@@ -72,6 +72,9 @@ public class Ili2dbMetadataReader {
         
         // Beziehungen ableiten
         deriveRelationships(metadata);
+
+        // Association-Klassen als eigene Core-IR vorbereiten
+        deriveAssociations(metadata);
         
         logger.info("Metadata reading complete: {} classes, {} enums", 
             metadata.getClasses().size(), metadata.getEnums().size());
@@ -754,6 +757,86 @@ public class Ili2dbMetadataReader {
                 }
             }
         }
+    }
+
+    private void deriveAssociations(ModelMetadata metadata) {
+        for (ClassMetadata classMetadata : metadata.getAllClasses()) {
+            if (classMetadata.getKind() != ClassMetadata.ClassKind.ASSOCIATION) {
+                continue;
+            }
+
+            AssociationMetadata association = new AssociationMetadata(classMetadata.getName());
+            association.setAssociationClass(classMetadata.getName());
+            association.setPhysicalTable(classMetadata.getTableName());
+            association.setPhysicalSqlName(classMetadata.getSqlName());
+
+            List<RelationshipMetadata> associationRelationships = metadata.getAllRelationships().stream()
+                .filter(relationship -> Objects.equals(relationship.getSourceClass(), classMetadata.getName()))
+                .toList();
+            for (RelationshipMetadata relationship : associationRelationships) {
+                association.addRole(toAssociationRole(relationship));
+            }
+            for (AttributeMetadata attribute : classMetadata.getAllAttributes()) {
+                if (!isAssociationRoleAttribute(attribute, associationRelationships)) {
+                    association.addAttribute(attribute);
+                }
+            }
+
+            metadata.addAssociation(association);
+        }
+    }
+
+    private AssociationRoleMetadata toAssociationRole(RelationshipMetadata relationship) {
+        String roleName = relationship.getTargetRoleName() != null
+            ? relationship.getTargetRoleName()
+            : relationship.getSourceAttribute();
+        if (roleName == null || roleName.isBlank()) {
+            roleName = relationship.getName();
+        }
+        AssociationRoleMetadata role = new AssociationRoleMetadata(roleName);
+        role.setTargetClass(relationship.getTargetClass());
+        role.setOppositeRoleName(relationship.getOppositeRoleName());
+        role.setCardinality(relationship.getCardinality());
+        role.setMandatory(relationship.isMandatory());
+        role.setOrdered(relationship.isOrdered());
+        role.setExternal(relationship.isExternal());
+        role.setComposition(relationship.isComposition());
+        role.setSourceAttribute(relationship.getSourceAttribute());
+        role.setTargetAttribute(relationship.getTargetAttribute());
+        role.setPhysicalName(relationship.getPhysicalName());
+        role.setSemanticName(relationship.getSemanticName());
+        role.setSource(relationship.getSource());
+        role.setMergeReason(relationship.getMergeReason());
+        role.setMergeConfidence(relationship.getMergeConfidence());
+        role.setMergeToken(relationship.getMergeToken());
+        return role;
+    }
+
+    private boolean isAssociationRoleAttribute(AttributeMetadata attribute,
+                                               List<RelationshipMetadata> relationships) {
+        if (attribute.isPrimaryKey() || attribute.isForeignKey()) {
+            return true;
+        }
+        for (RelationshipMetadata relationship : relationships) {
+            if (equalsAny(attribute.getName(), relationship.getSourceAttribute(), relationship.getPhysicalName())
+                || equalsAny(attribute.getColumnName(), relationship.getSourceAttribute(), relationship.getPhysicalName())
+                || equalsAny(attribute.getSqlName(), relationship.getSourceAttribute(), relationship.getPhysicalName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean equalsAny(String value, String... candidates) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        for (String candidate : candidates) {
+            if (candidate != null && value.equalsIgnoreCase(candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
     
     private String buildQuery(String template) {

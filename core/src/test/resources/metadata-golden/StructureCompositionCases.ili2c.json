@@ -14,7 +14,10 @@
       "name" : "MainInspection",
       "qualifiedName" : "StructureCompositionCases.Cases.Asset.MainInspection",
       "iliType" : "CompositionType",
-      "javaType" : "Inspection",
+      "coreType" : "COMPOSITION",
+      "targetHints" : {
+        "javaType" : "Inspection"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -29,7 +32,10 @@
       "name" : "Name",
       "qualifiedName" : "StructureCompositionCases.Cases.Asset.Name",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -44,7 +50,10 @@
       "name" : "OptionalAttachment",
       "qualifiedName" : "StructureCompositionCases.Cases.Asset.OptionalAttachment",
       "iliType" : "CompositionType",
-      "javaType" : "Attachment",
+      "coreType" : "COMPOSITION",
+      "targetHints" : {
+        "javaType" : "Attachment"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -59,7 +68,10 @@
       "name" : "Parts",
       "qualifiedName" : "StructureCompositionCases.Cases.Asset.Parts",
       "iliType" : "CompositionType",
-      "javaType" : "Part",
+      "coreType" : "COMPOSITION",
+      "targetHints" : {
+        "javaType" : "Part"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -90,7 +102,10 @@
       "name" : "FileName",
       "qualifiedName" : "StructureCompositionCases.Cases.Attachment.FileName",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -113,7 +128,10 @@
       "name" : "Title",
       "qualifiedName" : "StructureCompositionCases.Cases.Document.Title",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -136,7 +154,10 @@
       "name" : "Result",
       "qualifiedName" : "StructureCompositionCases.Cases.Inspection.Result",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -159,7 +180,10 @@
       "name" : "Name",
       "qualifiedName" : "StructureCompositionCases.Cases.Owner.Name",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -182,7 +206,10 @@
       "name" : "Label",
       "qualifiedName" : "StructureCompositionCases.Cases.Part.Label",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -197,7 +224,10 @@
       "name" : "OwnerRef",
       "qualifiedName" : "StructureCompositionCases.Cases.Part.OwnerRef",
       "iliType" : "ReferenceType",
-      "javaType" : "Owner",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Owner"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -209,6 +239,48 @@
       "referencedClass" : "StructureCompositionCases.Cases.Owner",
       "labels" : { }
     } ]
+  } ],
+  "associations" : [ {
+    "name" : "StructureCompositionCases.Cases.AssetDocument",
+    "associationClass" : "StructureCompositionCases.Cases.AssetDocument",
+    "roles" : [ {
+      "name" : "AssetRole",
+      "targetClass" : "StructureCompositionCases.Cases.Asset",
+      "oppositeRoleName" : "DocumentRole",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "StructureCompositionCases.Cases.AssetDocument.AssetRole",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    }, {
+      "name" : "DocumentRole",
+      "targetClass" : "StructureCompositionCases.Cases.Document",
+      "oppositeRoleName" : "AssetRole",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "StructureCompositionCases.Cases.AssetDocument.DocumentRole",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    } ],
+    "attributes" : [ ]
   } ],
   "enums" : [ ],
   "relationships" : [ {

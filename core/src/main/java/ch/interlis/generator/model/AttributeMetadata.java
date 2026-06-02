@@ -1,6 +1,7 @@
 package ch.interlis.generator.model;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -14,6 +15,7 @@ public class AttributeMetadata {
     private String sqlName;                 // SQL-Name (falls abweichend)
     private String iliType;                 // INTERLIS-Typ (TEXT, COORD, etc.)
     private String domainName;              // Benannter INTERLIS-Domain, falls vorhanden
+    private CoreType coreType;              // Framework-agnostischer Core-Typ
     private String javaType;                // Gemappter Java-Typ
     private String dbType;                  // Datenbank-Typ
     private boolean mandatory;
@@ -71,11 +73,19 @@ public class AttributeMetadata {
                 case "BOOLEAN" -> "Boolean";
                 case "DATE" -> "java.time.LocalDate";
                 case "DATETIME" -> "java.time.LocalDateTime";
+                case "TIME" -> "java.time.LocalTime";
                 case "INTERLIS.XMLDATE" -> "java.time.LocalDate";
                 case "INTERLIS.XMLDATETIME" -> "java.time.LocalDateTime";
+                case "INTERLIS.XMLTIME" -> "java.time.LocalTime";
                 default -> {
                     // Numerische Typen
-                    if (iliType.contains("COORD") || iliType.contains("MULTICOORD")) {
+                    String upperIliType = iliType.toUpperCase(Locale.ROOT);
+                    if (upperIliType.contains("COORD")
+                        || upperIliType.contains("MULTICOORD")
+                        || upperIliType.contains("POLYLINE")
+                        || upperIliType.contains("LINE")
+                        || upperIliType.contains("SURFACE")
+                        || upperIliType.contains("AREA")) {
                         yield "org.locationtech.jts.geom.Geometry";
                     } else if (dbType != null) {
                         yield inferJavaTypeFromDbType(dbType);
@@ -116,6 +126,140 @@ public class AttributeMetadata {
             return "org.locationtech.jts.geom.Geometry";
         }
         return "Object";
+    }
+
+    /**
+     * Bestimmt den framework-agnostischen Core-Typ aus semantischen Metadaten
+     * und, falls nötig, aus Datenbank-/Java-Fallbacks.
+     */
+    public void inferCoreType() {
+        coreType = inferCoreTypeValue();
+    }
+
+    private CoreType inferCoreTypeValue() {
+        if (enumType != null) {
+            return CoreType.ENUM;
+        }
+
+        CoreType typeFromIli = inferCoreTypeFromIliType(iliType);
+        if (typeFromIli != null) {
+            return typeFromIli;
+        }
+
+        if (referencedClass != null) {
+            return CoreType.REFERENCE;
+        }
+
+        if (isGeometry) {
+            return inferGeometryCoreType();
+        }
+
+        CoreType typeFromDb = inferCoreTypeFromDbType(dbType);
+        if (typeFromDb != null) {
+            return typeFromDb;
+        }
+
+        CoreType typeFromJava = inferCoreTypeFromJavaType(javaType);
+        if (typeFromJava != null) {
+            return typeFromJava;
+        }
+
+        return CoreType.UNKNOWN;
+    }
+
+    private CoreType inferCoreTypeFromIliType(String iliType) {
+        if (iliType == null || iliType.isBlank()) {
+            return null;
+        }
+        String upperIliType = iliType.trim().toUpperCase(Locale.ROOT);
+        return switch (upperIliType) {
+            case "TEXT", "TEXTTYPE", "TEXTOIDTYPE" -> CoreType.TEXT;
+            case "MTEXT" -> CoreType.MTEXT;
+            case "NUMERIC", "NUMERICTYPE", "NUMERICALTYPE" -> CoreType.NUMERIC;
+            case "BOOLEAN" -> CoreType.BOOLEAN;
+            case "DATE", "XMLDATE", "INTERLIS.XMLDATE" -> CoreType.DATE;
+            case "DATETIME", "XMLDATETIME", "INTERLIS.XMLDATETIME" -> CoreType.DATETIME;
+            case "TIME", "XMLTIME", "INTERLIS.XMLTIME" -> CoreType.TIME;
+            case "ENUM", "ENUMERATIONTYPE" -> CoreType.ENUM;
+            case "COORD", "COORDTYPE", "MULTICOORDTYPE" -> CoreType.COORD;
+            case "POLYLINE", "POLYLINETYPE", "LINETYPE", "MULTIPOLYLINETYPE" -> CoreType.POLYLINE;
+            case "SURFACE", "SURFACETYPE", "AREATYPE", "MULTISURFACETYPE", "MULTIAREATYPE" -> CoreType.SURFACE;
+            case "REFERENCE", "REFERENCETYPE" -> CoreType.REFERENCE;
+            case "COMPOSITION", "COMPOSITIONTYPE" -> CoreType.COMPOSITION;
+            case "OBJECT", "OBJECTTYPE" -> CoreType.OBJECT;
+            default -> null;
+        };
+    }
+
+    private CoreType inferGeometryCoreType() {
+        if (geometryKind == null || geometryKind.isBlank()) {
+            return CoreType.UNKNOWN;
+        }
+        String upperGeometryKind = geometryKind.toUpperCase(Locale.ROOT);
+        if (upperGeometryKind.contains("POINT")) {
+            return CoreType.COORD;
+        }
+        if (upperGeometryKind.contains("LINE")) {
+            return CoreType.POLYLINE;
+        }
+        if (upperGeometryKind.contains("POLYGON")
+            || upperGeometryKind.contains("SURFACE")
+            || upperGeometryKind.contains("AREA")) {
+            return CoreType.SURFACE;
+        }
+        return CoreType.UNKNOWN;
+    }
+
+    private CoreType inferCoreTypeFromDbType(String dbType) {
+        if (dbType == null || dbType.isBlank()) {
+            return null;
+        }
+        String upperDbType = dbType.toUpperCase(Locale.ROOT);
+        if (upperDbType.contains("GEOMETRY")) {
+            return CoreType.UNKNOWN;
+        }
+        if (upperDbType.contains("VARCHAR") || upperDbType.contains("TEXT")
+            || upperDbType.contains("CHAR")) {
+            return CoreType.TEXT;
+        }
+        if (upperDbType.contains("DECIMAL") || upperDbType.contains("NUMERIC")
+            || upperDbType.contains("DOUBLE") || upperDbType.contains("FLOAT")
+            || upperDbType.contains("REAL") || upperDbType.contains("INT")) {
+            return CoreType.NUMERIC;
+        }
+        if (upperDbType.contains("BOOL") || upperDbType.contains("BIT")) {
+            return CoreType.BOOLEAN;
+        }
+        if (upperDbType.contains("TIMESTAMP") || upperDbType.contains("DATETIME")) {
+            return CoreType.DATETIME;
+        }
+        if (upperDbType.contains("TIME")) {
+            return CoreType.TIME;
+        }
+        if (upperDbType.contains("DATE")) {
+            return CoreType.DATE;
+        }
+        return null;
+    }
+
+    private CoreType inferCoreTypeFromJavaType(String javaType) {
+        if (javaType == null || javaType.isBlank()) {
+            return null;
+        }
+        String simpleType = javaType;
+        int lastDot = simpleType.lastIndexOf('.');
+        if (lastDot >= 0) {
+            simpleType = simpleType.substring(lastDot + 1);
+        }
+        return switch (simpleType) {
+            case "String" -> CoreType.TEXT;
+            case "Boolean" -> CoreType.BOOLEAN;
+            case "LocalDate" -> CoreType.DATE;
+            case "LocalDateTime" -> CoreType.DATETIME;
+            case "LocalTime" -> CoreType.TIME;
+            case "Integer", "Long", "BigDecimal", "Double", "Float" -> CoreType.NUMERIC;
+            default -> null;
+        };
     }
     
     // Getters and Setters
@@ -166,6 +310,14 @@ public class AttributeMetadata {
 
     public void setDomainName(String domainName) {
         this.domainName = domainName;
+    }
+
+    public CoreType getCoreType() {
+        return coreType != null ? coreType : inferCoreTypeValue();
+    }
+
+    public void setCoreType(CoreType coreType) {
+        this.coreType = coreType;
     }
     
     public String getJavaType() {
@@ -346,6 +498,7 @@ public class AttributeMetadata {
                 ", columnName='" + columnName + '\'' +
                 ", iliType='" + iliType + '\'' +
                 ", domainName='" + domainName + '\'' +
+                ", coreType=" + getCoreType() +
                 ", javaType='" + getJavaType() + '\'' +
                 ", mandatory=" + mandatory +
                 ", cardinality=" + cardinalityMin + ".." + cardinalityMax +

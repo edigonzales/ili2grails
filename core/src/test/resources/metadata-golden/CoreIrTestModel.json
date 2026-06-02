@@ -14,7 +14,10 @@
       "name" : "Components",
       "qualifiedName" : "CoreIrTestModel.Relations.Child.Components",
       "iliType" : "CompositionType",
-      "javaType" : "Component",
+      "coreType" : "COMPOSITION",
+      "targetHints" : {
+        "javaType" : "Component"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -29,7 +32,10 @@
       "name" : "Score",
       "qualifiedName" : "CoreIrTestModel.Relations.Child.Score",
       "iliType" : "NumericType",
-      "javaType" : "Integer",
+      "coreType" : "NUMERIC",
+      "targetHints" : {
+        "javaType" : "Integer"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -53,7 +59,10 @@
       "name" : "Label",
       "qualifiedName" : "CoreIrTestModel.Relations.Component.Label",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -68,7 +77,10 @@
       "name" : "ParentRef",
       "qualifiedName" : "CoreIrTestModel.Relations.Component.ParentRef",
       "iliType" : "ReferenceType",
-      "javaType" : "Parent",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Parent"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -91,7 +103,10 @@
       "name" : "Name",
       "qualifiedName" : "CoreIrTestModel.Relations.Parent.Name",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -107,7 +122,10 @@
       "qualifiedName" : "CoreIrTestModel.Relations.Parent.Status",
       "iliType" : "EnumerationType",
       "domainName" : "CoreIrTestModel.Status",
-      "javaType" : "String",
+      "coreType" : "ENUM",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -126,7 +144,85 @@
     "abstract" : false,
     "kind" : "ASSOCIATION",
     "labels" : { },
-    "attributes" : [ ]
+    "attributes" : [ {
+      "name" : "RoleNote",
+      "qualifiedName" : "CoreIrTestModel.Relations.ParentChild.RoleNote",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 30,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
+  } ],
+  "associations" : [ {
+    "name" : "CoreIrTestModel.Relations.ParentChild",
+    "associationClass" : "CoreIrTestModel.Relations.ParentChild",
+    "roles" : [ {
+      "name" : "Children",
+      "targetClass" : "CoreIrTestModel.Relations.Child",
+      "oppositeRoleName" : "Owner",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "CoreIrTestModel.Relations.ParentChild.Children",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    }, {
+      "name" : "Owner",
+      "targetClass" : "CoreIrTestModel.Relations.Parent",
+      "oppositeRoleName" : "Children",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 1,
+        "maxTarget" : 1
+      },
+      "mandatory" : true,
+      "ordered" : false,
+      "external" : true,
+      "composition" : true,
+      "semanticName" : "CoreIrTestModel.Relations.ParentChild.Owner",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    } ],
+    "attributes" : [ {
+      "name" : "RoleNote",
+      "qualifiedName" : "CoreIrTestModel.Relations.ParentChild.RoleNote",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 30,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
   } ],
   "enums" : [ {
     "name" : "CoreIrTestModel.Status",

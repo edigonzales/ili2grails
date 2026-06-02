@@ -38,6 +38,7 @@ public class MetadataPrinter {
         out.println("Model Version:  " + metadata.getModelVersion());
         out.println("ili2db Version: " + metadata.getIli2dbVersion());
         out.println("Classes:        " + metadata.getClasses().size());
+        out.println("Associations:   " + metadata.getAssociations().size());
         out.println("Enumerations:   " + metadata.getEnums().size());
         out.println("Relationships:  " + metadata.getAllRelationships().size());
         out.println("═══════════════════════════════════════════════════════════");

@@ -12,6 +12,7 @@ public class ModelMetadata {
     private String schemaName;
     private Map<String, ClassMetadata> classes = new LinkedHashMap<>();
     private Map<String, EnumMetadata> enums = new LinkedHashMap<>();
+    private Map<String, AssociationMetadata> associations = new LinkedHashMap<>();
     private List<RelationshipMetadata> relationships = new ArrayList<>();
     private String iliVersion;
     private String modelVersion;
@@ -31,6 +32,19 @@ public class ModelMetadata {
     
     public void addEnum(EnumMetadata enumMetadata) {
         enums.put(enumMetadata.getName(), enumMetadata);
+    }
+
+    public void addAssociation(AssociationMetadata associationMetadata) {
+        Objects.requireNonNull(associationMetadata, "associationMetadata");
+        AssociationMetadata existing = associations.get(associationMetadata.getName());
+        if (existing == null) {
+            associations.put(associationMetadata.getName(), associationMetadata);
+            return;
+        }
+        if (existing == associationMetadata) {
+            return;
+        }
+        mergeAssociation(existing, associationMetadata);
     }
 
     public void addRelationship(RelationshipMetadata relationship) {
@@ -54,6 +68,14 @@ public class ModelMetadata {
     
     public Collection<EnumMetadata> getAllEnums() {
         return enums.values();
+    }
+
+    public AssociationMetadata getAssociation(String name) {
+        return associations.get(name);
+    }
+
+    public Collection<AssociationMetadata> getAllAssociations() {
+        return associations.values();
     }
 
     public List<RelationshipMetadata> getAllRelationships() {
@@ -100,6 +122,14 @@ public class ModelMetadata {
     
     public void setEnums(Map<String, EnumMetadata> enums) {
         this.enums = enums;
+    }
+
+    public Map<String, AssociationMetadata> getAssociations() {
+        return associations;
+    }
+
+    public void setAssociations(Map<String, AssociationMetadata> associations) {
+        this.associations = associations;
     }
     
     public String getIliVersion() {
@@ -157,10 +187,29 @@ public class ModelMetadata {
                 ", schemaName='" + schemaName + '\'' +
                 ", classes=" + classes.size() +
                 ", enums=" + enums.size() +
+                ", associations=" + associations.size() +
                 ", relationships=" + getAllRelationships().size() +
                 ", iliVersion='" + iliVersion + '\'' +
                 ", modelVersion='" + modelVersion + '\'' +
                 '}';
+    }
+
+    private void mergeAssociation(AssociationMetadata existing, AssociationMetadata incoming) {
+        if (incoming.getAssociationClass() != null) {
+            existing.setAssociationClass(incoming.getAssociationClass());
+        }
+        if (incoming.getPhysicalTable() != null) {
+            existing.setPhysicalTable(incoming.getPhysicalTable());
+        }
+        if (incoming.getPhysicalSqlName() != null) {
+            existing.setPhysicalSqlName(incoming.getPhysicalSqlName());
+        }
+        for (AssociationRoleMetadata role : incoming.getRoles()) {
+            existing.addRole(role);
+        }
+        for (AttributeMetadata attribute : incoming.getAllAttributes()) {
+            existing.addAttribute(attribute);
+        }
     }
 
     private boolean sameRelationship(RelationshipMetadata left, RelationshipMetadata right) {

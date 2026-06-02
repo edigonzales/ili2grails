@@ -1,6 +1,8 @@
 package ch.interlis.generator.grails;
 
 import ch.interlis.generator.model.AttributeMetadata;
+import ch.interlis.generator.model.AssociationMetadata;
+import ch.interlis.generator.model.AssociationRoleMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.RelationshipMetadata;
@@ -278,7 +280,7 @@ public final class GrailsRelationshipMapper {
 
     private Map<String, List<RelationshipMetadata>> indexRelationships(RelationshipClassSelector selector) {
         Map<String, List<RelationshipMetadata>> indexed = new LinkedHashMap<>();
-        for (RelationshipMetadata relationship : sorted(metadata.getAllRelationships())) {
+        for (RelationshipMetadata relationship : effectiveRelationships()) {
             String className = selector.className(relationship);
             if (className == null) {
                 continue;
@@ -286,6 +288,62 @@ public final class GrailsRelationshipMapper {
             indexed.computeIfAbsent(className, key -> new ArrayList<>()).add(relationship);
         }
         return indexed;
+    }
+
+    private List<RelationshipMetadata> effectiveRelationships() {
+        List<RelationshipMetadata> relationships = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+
+        metadata.getAllAssociations().stream()
+            .sorted(Comparator.comparing(AssociationMetadata::getName, Comparator.nullsLast(String::compareTo)))
+            .forEach(association -> association.getRoles().stream()
+                .sorted(Comparator
+                    .comparing(AssociationRoleMetadata::getName, Comparator.nullsLast(String::compareTo))
+                    .thenComparing(AssociationRoleMetadata::getTargetClass, Comparator.nullsLast(String::compareTo)))
+                .map(role -> relationshipFromAssociationRole(association, role))
+                .forEach(relationship -> {
+                    if (seen.add(relationshipIdentityKey(relationship))) {
+                        relationships.add(relationship);
+                    }
+                }));
+
+        for (RelationshipMetadata relationship : sorted(metadata.getAllRelationships())) {
+            if (seen.add(relationshipIdentityKey(relationship))) {
+                relationships.add(relationship);
+            }
+        }
+        return relationships;
+    }
+
+    private RelationshipMetadata relationshipFromAssociationRole(AssociationMetadata association,
+                                                                 AssociationRoleMetadata role) {
+        RelationshipMetadata relationship = new RelationshipMetadata(
+            association.getName() + "." + role.getName()
+        );
+        relationship.setSourceClass(association.getAssociationClass() != null
+            ? association.getAssociationClass()
+            : association.getName());
+        relationship.setTargetClass(role.getTargetClass());
+        relationship.setType(RelationshipMetadata.RelationType.ASSOCIATION);
+        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
+        relationship.setAssociationName(association.getName());
+        relationship.setSourceRoleName(role.getOppositeRoleName());
+        relationship.setTargetRoleName(role.getName());
+        relationship.setOppositeRoleName(role.getOppositeRoleName());
+        relationship.setCardinality(role.getCardinality());
+        relationship.setMandatory(role.isMandatory());
+        relationship.setOrdered(role.isOrdered());
+        relationship.setExternal(role.isExternal());
+        relationship.setComposition(role.isComposition());
+        relationship.setSourceAttribute(role.getSourceAttribute());
+        relationship.setTargetAttribute(role.getTargetAttribute());
+        relationship.setSource(role.getSource());
+        relationship.setPhysicalName(role.getPhysicalName());
+        relationship.setSemanticName(role.getSemanticName());
+        relationship.setMergeReason(role.getMergeReason());
+        relationship.setMergeConfidence(role.getMergeConfidence());
+        relationship.setMergeToken(role.getMergeToken());
+        return relationship;
     }
 
     private List<RelationshipMetadata> sorted(Collection<RelationshipMetadata> relationships) {
@@ -326,6 +384,16 @@ public final class GrailsRelationshipMapper {
     private String relationshipKey(RelationshipMetadata relationship) {
         return String.join("|",
             nullToEmpty(relationship.getName()),
+            nullToEmpty(relationship.getSourceClass()),
+            nullToEmpty(relationship.getTargetClass()),
+            nullToEmpty(relationship.getSourceAttribute()),
+            nullToEmpty(relationship.getTargetRoleName()),
+            relationship.getSemanticKind() != null ? relationship.getSemanticKind().name() : ""
+        );
+    }
+
+    private String relationshipIdentityKey(RelationshipMetadata relationship) {
+        return String.join("|",
             nullToEmpty(relationship.getSourceClass()),
             nullToEmpty(relationship.getTargetClass()),
             nullToEmpty(relationship.getSourceAttribute()),

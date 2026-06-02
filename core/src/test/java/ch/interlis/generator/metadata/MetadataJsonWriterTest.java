@@ -1,8 +1,12 @@
 package ch.interlis.generator.metadata;
 
+import ch.interlis.generator.model.AttributeMetadata;
+import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.reader.Ili2cModelReader;
 import ch.interlis.generator.testsupport.MetadataTestFixtures;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -10,11 +14,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MetadataJsonWriterTest {
+
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     @ParameterizedTest
     @MethodSource("ili2cGoldenCases")
@@ -33,6 +41,27 @@ class MetadataJsonWriterTest {
         ModelMetadata metadata = MetadataTestFixtures.readMergedSimpleAddressMetadata();
 
         assertGoldenJson(metadata, goldenFile);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void writesCoreTypeAndJavaTargetHintWithoutTopLevelJavaType() throws Exception {
+        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ClassMetadata classMetadata = new ClassMetadata("TestModel.Topic.Sample");
+        AttributeMetadata attribute = new AttributeMetadata("Name");
+        attribute.setIliType("TEXT");
+        attribute.setJavaType("String");
+        classMetadata.addAttribute(attribute);
+        metadata.addClass(classMetadata);
+
+        Map<String, Object> root = JSON_MAPPER.readValue(new MetadataJsonWriter().toJson(metadata), Map.class);
+        Map<String, Object> writtenAttribute = (Map<String, Object>) ((List<Object>) ((Map<String, Object>) ((List<Object>) root.get("classes"))
+            .get(0)).get("attributes")).get(0);
+
+        assertThat(writtenAttribute).containsEntry("coreType", "TEXT");
+        assertThat(writtenAttribute).doesNotContainKey("javaType");
+        assertThat((Map<String, Object>) writtenAttribute.get("targetHints"))
+            .containsEntry("javaType", "String");
     }
 
     static Stream<Arguments> ili2cGoldenCases() {
@@ -63,7 +92,12 @@ class MetadataJsonWriterTest {
 
     private void assertGoldenJson(ModelMetadata metadata, String goldenFile) throws Exception {
         String json = new MetadataJsonWriter().toJson(metadata);
-        String expected = Files.readString(Path.of("core/src/test/resources/metadata-golden", goldenFile));
+        Path expectedPath = Path.of("core/src/test/resources/metadata-golden", goldenFile);
+        if (Boolean.getBoolean("updateMetadataGolden")
+            || "true".equals(System.getenv("UPDATE_METADATA_GOLDEN"))) {
+            Files.writeString(expectedPath, json);
+        }
+        String expected = Files.readString(expectedPath);
 
         assertThat(json).isEqualTo(expected);
     }

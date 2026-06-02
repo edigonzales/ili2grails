@@ -219,7 +219,9 @@ public class ExampleUsage {
         for (ClassMetadata clazz : metadata.getAllClasses()) {
             System.out.println("Klasse: " + clazz.getSimpleName());
             for (AttributeMetadata attr : clazz.getAllAttributes()) {
-                System.out.println("  - " + attr.getName() + " : " + attr.getJavaType());
+                System.out.println("  - " + attr.getName()
+                    + " : " + attr.getCoreType()
+                    + " (Java: " + attr.getJavaType() + ")");
             }
         }
 
@@ -291,19 +293,39 @@ wird über Golden-Tests abgesichert. Generatoren sollen aus dieser IR lesen und 
 ili2db-/ili2c-spezifischen Details direkt nachbauen.
 
 **Kompatibilitätsregeln:**
-- Bestehende JSON-Feldnamen und Semantik bleiben kompatibel; Erweiterungen erfolgen additiv.
+- Der JSON-Vertrag wurde im aktuellen SNAPSHOT bewusst geändert: Attribut-`javaType` steht nicht mehr top-level, sondern als `targetHints.javaType`.
+- Weitere bestehende JSON-Feldnamen und Semantik bleiben kompatibel; Erweiterungen erfolgen additiv.
 - Fehlende optionale Felder bedeuten `unbekannt` oder `nicht vorhanden`, nicht automatisch `false`.
 - Reihenfolgen in JSON sind deterministisch sortiert; Generatoren sollen sich trotzdem fachlich an Namen/IDs orientieren.
 - Unbounded Cardinality wird in Java und JSON als `-1` ausgegeben.
 - Target-spezifische Namen, Packages, Controller- oder View-Pfade bleiben außerhalb der Core-IR und werden pro Target abgeleitet.
 
+Beispiel eines Attribut-Ausschnitts:
+```json
+{
+  "name": "Street",
+  "iliType": "TextType",
+  "coreType": "TEXT",
+  "targetHints": {
+    "javaType": "String"
+  },
+  "maxLength": 100
+}
+```
+
 | Objekt | Wichtigste Felder | Semantik / Herkunft | Stabilität |
 | --- | --- | --- | --- |
-| `ModelMetadata` | `modelName`, `schemaName`, `iliVersion`, `modelVersion`, `ili2dbVersion`, `settings`, `classes`, `enums`, `relationships` | Wurzel der IR; kombiniert ili2db-Mapping, ili2c-Semantik und Metadaten zum Import. | Stabiler Einstiegspunkt. Neue Top-Level-Felder nur additiv. |
+| `ModelMetadata` | `modelName`, `schemaName`, `iliVersion`, `modelVersion`, `ili2dbVersion`, `settings`, `classes`, `associations`, `enums`, `relationships` | Wurzel der IR; kombiniert ili2db-Mapping, ili2c-Semantik und Metadaten zum Import. | Stabiler Einstiegspunkt. Neue Top-Level-Felder nur additiv. |
 | `ClassMetadata` | `name`, `simpleName`, `topicName`, `tableName`, `sqlName`, `kind`, `abstract`, `baseClass`, `inheritanceStrategy`, `attributes`, `labels` | INTERLIS-Klasse, Structure oder Association plus physisches Tabellenmapping, falls vorhanden. | `name` ist die fachliche Identität; `tableName`/`sqlName` sind physische DB-Details. |
-| `AttributeMetadata` | `name`, `qualifiedName`, `columnName`, `sqlName`, `iliType`, `domainName`, `javaType`, `dbType`, `mandatory`, `geometry*`, `enumType`, `unit`, `referencedClass` | Attribut-/Spalten-IR mit Constraints, Typ- und Referenzinformationen. `javaType` ist ein pragmatischer aktueller Hilfstyp, kein langfristiger Core-Typvertrag. | Bestehende Felder bleiben; langfristig kann ein expliziter Core-Typ additiv ergänzt werden. |
+| `AssociationMetadata` | `name`, `associationClass`, `physicalTable`, `physicalSqlName`, `roles`, `attributes` | Kanonische IR für INTERLIS-Associations; Rollen, Kardinalitäten, eigene Attribute und physische Abbildung bleiben zusammen. | Additiver Core-Baustein. `RelationshipMetadata` bleibt für v1 kompatibel erhalten. |
+| `AssociationRoleMetadata` | `name`, `targetClass`, `oppositeRoleName`, `cardinality`, Flags, physische Felder, Merge-Diagnostik | Rolle innerhalb einer Association. Physische FK-/Role-Spalten gehören zur Rolle, nicht zu den Association-Attributen. | Targets sollen Rollen bevorzugt über `AssociationMetadata` lesen und Relationships als Fallback behandeln. |
+| `AttributeMetadata` | `name`, `qualifiedName`, `columnName`, `sqlName`, `iliType`, `domainName`, `coreType`, `targetHints.javaType`, `dbType`, `mandatory`, `geometry*`, `enumType`, `unit`, `referencedClass` | Attribut-/Spalten-IR mit Constraints, Typ- und Referenzinformationen. `coreType` ist der framework-agnostische Typvertrag; `targetHints.javaType` ist nur ein Java-/Grails-Hinweis. | `coreType` ist für Generatoren maßgeblich. `targetHints` bleiben optional und target-spezifisch. |
 | `RelationshipMetadata` | `name`, `sourceClass`, `targetClass`, `type`, `semanticKind`, Rollen/FK-Felder, `cardinality`, Flags, Merge-Diagnostik | Beziehung als First-Class-IR aus ili2db-FK und/oder ili2c-Semantik. | `semanticKind` und Klassen-/Rollenfelder sind für Targets maßgeblich; Diagnosefelder erklären die Zusammenführung. |
 | `EnumMetadata` | `name`, `simpleName`, `extendable`, `baseEnum`, `values[].iliCode`, `dispName`, `seq`, `labels` | INTERLIS-Enumeration inkl. Reihenfolge, Erweiterbarkeit und Display-/Label-Daten. | `iliCode` und `seq` sind stabil für Generatoren; Ziel-Identifier werden target-spezifisch erzeugt. |
+
+`coreType` verwendet aktuell diese Werte:
+`TEXT`, `MTEXT`, `NUMERIC`, `BOOLEAN`, `DATE`, `DATETIME`, `TIME`, `ENUM`,
+`COORD`, `POLYLINE`, `SURFACE`, `REFERENCE`, `COMPOSITION`, `OBJECT`, `UNKNOWN`.
 
 ### Relationship-Semantik
 - ili2db-Beziehungen liefern physische Namen: FK-Spalten, Zielspalten und Tabellenmapping.
@@ -320,9 +342,10 @@ ili2db-/ili2c-spezifischen Details direkt nachbauen.
 | `COMPOSITION_ATTRIBUTE` | INTERLIS `BAG/LIST OF` Composition aus ili2c. | Kardinalität entscheidet über To-One vs. Collection; Composition kann Ziel-Structures generationserheblich machen. |
 | `ASSOCIATION_ROLE` | Rolle einer INTERLIS Association. | In v1 als Rolle auf der Association-Klasse interpretieren; inverse Collections und komplexe Association-Semantik bleiben bewusst konservativ. |
 
-Grenze: `ASSOCIATION_ROLE` bildet aktuell Rollen als Relationships ab. Für komplexe
-Associations kann später ein eigenes `AssociationMetadata` additiv ergänzt werden,
-ohne den bestehenden Relationship-Vertrag zu brechen.
+`ASSOCIATION_ROLE` bleibt als kompatible Relationship-Sicht erhalten. Die
+kanonische Quelle für INTERLIS-Associations ist jedoch `AssociationMetadata`:
+Targets können daraus explizite Association-Klassen mit Rollen-Properties ableiten,
+ohne Rollen aus losen Relationships rekonstruieren zu müssen.
 
 ### Core-IR Merge-Diagnostik
 Relationships enthalten zusätzlich Diagnosefelder, damit der Merge von ili2db- und
@@ -342,16 +365,18 @@ Punkt für Debugging bei großen Modellen.
 
 ### Grails Relationship-/Structure-Mapping
 - Grails nutzt eine interne `GrailsRelationshipMapper`-Schicht statt roher Relationship-Listen.
+- Association-Rollen werden bevorzugt aus `AssociationMetadata` gelesen; `ASSOCIATION_ROLE`-Relationships bleiben Fallback.
 - `CLASS` und `ASSOCIATION` werden generiert, wenn sie nicht abstrakt sind.
 - `STRUCTURE` wird nur als Domain generiert, wenn sie physisch gemappt ist (`tableName`/`sqlName`) oder Ziel einer `COMPOSITION_ATTRIBUTE` ist.
 - Normale `ILI2DB_FK`- und `REFERENCE_ATTRIBUTE`-Beziehungen werden als typisierte Properties ausgegeben, erzeugen aber kein automatisches `belongsTo`.
 - `COMPOSITION_ATTRIBUTE` erzeugt bei `max > 1` oder `max = -1` ein `hasMany`; bei `max = 1` eine einfache Ziel-Property.
 - `belongsTo` wird nur für physisch vorhandene Composition-FKs ausgegeben. Der Generator erfindet dafür keine synthetischen DB-Spalten.
-- `ASSOCIATION_ROLE` wird in v1 als Property auf der Association-Domain modelliert; inverse `hasMany` auf den Zielklassen bleibt bewusst aus.
+- Association-Rollen werden in v1 als Properties auf der Association-Domain modelliert; inverse `hasMany` auf den Zielklassen und direkte Many-to-Many-Abbildungen bleiben bewusst aus.
 
 ### Django/GeoDjango Target-Spike
 - Das Paket `ch.interlis.generator.django` erzeugt aktuell nur eine repräsentative `models.py` aus der Core-IR.
-- Der Spike liest ausschließlich `ModelMetadata`, `ClassMetadata`, `AttributeMetadata`, `RelationshipMetadata` und `EnumMetadata`; er greift nicht auf ili2db-/ili2c-Readerdetails zu.
+- Der Spike liest ausschließlich die Core-IR (`ModelMetadata`, `ClassMetadata`, `AssociationMetadata`, `AttributeMetadata`, `RelationshipMetadata` und `EnumMetadata`); er greift nicht auf ili2db-/ili2c-Readerdetails zu.
+- Association-Rollen werden bevorzugt aus `AssociationMetadata` gelesen und als Felder der expliziten Association-Klasse ausgegeben.
 - Physisch gemergte ili2db-Klassen erhalten `db_table`, `managed = False` und FK-`db_column`-Informationen.
 - ili2c-only Geometrieattribute aktivieren GeoDjango (`django.contrib.gis.db.models`) und werden als `GeometryField` ausgegeben.
 - Structures und Compositions werden bewusst minimal als Django-Models, `ForeignKey` oder `ManyToManyField` abgebildet, um Core-IR-Grenzen sichtbar zu machen.
@@ -367,13 +392,17 @@ Punkt für Debugging bei großen Modellen.
 - `--grails-generate-all` nutzt dieselbe Registry wie die Domain-Dateien und ruft dadurch die kollisionsfreien Grails-Klassennamen auf.
 
 ### Typ-Inferenz (Beispiele)
-```
-TEXT + VARCHAR     → String
-XMLDate + DATE     → LocalDate
-COORD + GEOMETRY   → org.locationtech.jts.geom.Geometry
-NUMERIC 1..3       → Integer
-NUMERIC 1.00..3.55 → BigDecimal
-```
+| Quelle | `coreType` | `targetHints.javaType` |
+| --- | --- | --- |
+| `TEXT`, `VARCHAR` | `TEXT` | `String` |
+| `MTEXT` | `MTEXT` | `String` |
+| `BOOLEAN` | `BOOLEAN` | `Boolean` |
+| `INTERLIS.XMLDate`, SQL `DATE` | `DATE` | `java.time.LocalDate` |
+| `INTERLIS.XMLDateTime`, SQL `TIMESTAMP` | `DATETIME` | `java.time.LocalDateTime` |
+| `INTERLIS.XMLTime`, SQL `TIME` | `TIME` | `java.time.LocalTime` |
+| `NUMERIC` | `NUMERIC` | z. B. `Integer` oder `java.math.BigDecimal` |
+| `EnumerationType` | `ENUM` | `String` |
+| `COORD`, `POLYLINE`, `SURFACE` | `COORD`, `POLYLINE`, `SURFACE` | `org.locationtech.jts.geom.Geometry` |
 
 ### Modernes SSR-Scaffolding und Geometrie-Editing
 - Mit `--grails-ui-theme bootstrap` werden moderne SSR-Scaffolding-Templates verwendet (kein SPA-Zwang).

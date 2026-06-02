@@ -378,6 +378,7 @@ public class Ili2cModelReader {
             if (textType.getMaxLength() > 0) {
                 attr.setMaxLength(textType.getMaxLength());
             }
+            attr.setCoreType(textType.isNormalized() ? CoreType.TEXT : CoreType.MTEXT);
             attr.setJavaType("String");
         } else if (type instanceof NumericType) {
             NumericType numType = (NumericType) type;
@@ -387,6 +388,7 @@ public class Ili2cModelReader {
             if (numType.getMaximum() != null) {
                 attr.setMaxValue(numType.getMaximum().toString());
             }
+            attr.setCoreType(CoreType.NUMERIC);
             attr.setJavaType(resolveNumericJavaType(numType));
         } else if (type instanceof EnumerationType) {
             EnumerationType enumType = (EnumerationType) type;
@@ -395,33 +397,44 @@ public class Ili2cModelReader {
                 attr.setEnumType(attr.getEnumType());
             }
             if (attrDef != null && attrDef.isDomainBoolean()) {
+                attr.setCoreType(CoreType.BOOLEAN);
                 attr.setJavaType("Boolean");
             } else {
+                attr.setCoreType(CoreType.ENUM);
                 attr.setJavaType("String");
             }
         } else if (type instanceof FormattedType formattedType) {
+            attr.setCoreType(resolveFormattedCoreType(formattedType));
             attr.setJavaType(resolveFormattedJavaType(formattedType));
         } else if (type instanceof ObjectType) {
+            attr.setCoreType(CoreType.OBJECT);
             attr.setJavaType("Object");
         } else if (type instanceof CoordType || type instanceof MultiCoordType) {
             attr.setGeometry(true);
             attr.setGeometryKind("POINT");
+            attr.setCoreType(CoreType.COORD);
             attr.setJavaType("org.locationtech.jts.geom.Geometry");
         } else if (type instanceof LineType || type instanceof PolylineType || 
                    type instanceof SurfaceType || type instanceof AreaType) {
             attr.setGeometry(true);
             attr.setGeometryKind(type instanceof SurfaceType || type instanceof AreaType ? "POLYGON" : "LINESTRING");
+            attr.setCoreType(type instanceof SurfaceType || type instanceof AreaType
+                ? CoreType.SURFACE
+                : CoreType.POLYLINE);
             attr.setJavaType("org.locationtech.jts.geom.Geometry");
         } else if (type instanceof MultiPolylineType || type instanceof MultiSurfaceType
                    || type instanceof MultiAreaType) {
             attr.setGeometry(true);
             if (type instanceof MultiSurfaceType || type instanceof MultiAreaType) {
                 attr.setGeometryKind("POLYGON");
+                attr.setCoreType(CoreType.SURFACE);
             } else {
                 attr.setGeometryKind("LINESTRING");
+                attr.setCoreType(CoreType.POLYLINE);
             }
             attr.setJavaType("org.locationtech.jts.geom.Geometry");
         } else if (type instanceof ReferenceType referenceType) {
+            attr.setCoreType(CoreType.REFERENCE);
             AbstractClassDef target = referenceType.getReferred();
             if (target != null) {
                 attr.setJavaType(target.getName());
@@ -429,6 +442,7 @@ public class Ili2cModelReader {
                 addReferenceRelationship(metadata, classMetadata, attr, attrDef, target, referenceType);
             }
         } else if (type instanceof CompositionType compositionType) {
+            attr.setCoreType(CoreType.COMPOSITION);
             AbstractClassDef target = compositionType.getComponentType();
             if (target != null) {
                 attr.setJavaType(target.getName());
@@ -436,6 +450,7 @@ public class Ili2cModelReader {
                 addCompositionRelationship(metadata, classMetadata, attr, attrDef, target, compositionType);
             }
         } else if (type instanceof TextOIDType) {
+            attr.setCoreType(CoreType.TEXT);
             attr.setJavaType("String");
         }
         
@@ -451,6 +466,12 @@ public class Ili2cModelReader {
     private void processAssociationRoles(ModelMetadata metadata,
                                          ClassMetadata associationMetadata,
                                          AssociationDef associationDef) {
+        AssociationMetadata association = new AssociationMetadata(associationDef.getScopedName(null));
+        association.setAssociationClass(associationMetadata.getName());
+        for (AttributeMetadata attribute : associationMetadata.getAllAttributes()) {
+            association.addAttribute(attribute);
+        }
+
         Iterator<RoleDef> roles = associationDef.getRolesIterator();
         while (roles.hasNext()) {
             RoleDef role = roles.next();
@@ -485,7 +506,32 @@ public class Ili2cModelReader {
             relationship.setComposition(role.getKind() == RoleDef.Kind.eCOMPOSITE);
 
             metadata.addRelationship(relationship);
+            association.addRole(toAssociationRole(relationship));
         }
+        metadata.addAssociation(association);
+    }
+
+    private AssociationRoleMetadata toAssociationRole(RelationshipMetadata relationship) {
+        String roleName = relationship.getTargetRoleName() != null
+            ? relationship.getTargetRoleName()
+            : relationship.getName();
+        AssociationRoleMetadata role = new AssociationRoleMetadata(roleName);
+        role.setTargetClass(relationship.getTargetClass());
+        role.setOppositeRoleName(relationship.getOppositeRoleName());
+        role.setCardinality(relationship.getCardinality());
+        role.setMandatory(relationship.isMandatory());
+        role.setOrdered(relationship.isOrdered());
+        role.setExternal(relationship.isExternal());
+        role.setComposition(relationship.isComposition());
+        role.setSourceAttribute(relationship.getSourceAttribute());
+        role.setTargetAttribute(relationship.getTargetAttribute());
+        role.setPhysicalName(relationship.getPhysicalName());
+        role.setSemanticName(relationship.getSemanticName());
+        role.setSource(relationship.getSource());
+        role.setMergeReason(relationship.getMergeReason());
+        role.setMergeConfidence(relationship.getMergeConfidence());
+        role.setMergeToken(relationship.getMergeToken());
+        return role;
     }
 
     private void addReferenceRelationship(ModelMetadata metadata,
@@ -573,17 +619,36 @@ public class Ili2cModelReader {
     }
 
     private String resolveFormattedJavaType(FormattedType formattedType) {
+        return switch (resolveFormattedCoreType(formattedType)) {
+            case DATE -> "java.time.LocalDate";
+            case DATETIME -> "java.time.LocalDateTime";
+            case TIME -> "java.time.LocalTime";
+            default -> "String";
+        };
+    }
+
+    private CoreType resolveFormattedCoreType(FormattedType formattedType) {
         Domain baseDomain = formattedType.getDefinedBaseDomain();
         if (baseDomain == PredefinedModel.getInstance().XmlDate) {
-            return "java.time.LocalDate";
+            return CoreType.DATE;
         }
         if (baseDomain == PredefinedModel.getInstance().XmlDateTime) {
-            return "java.time.LocalDateTime";
+            return CoreType.DATETIME;
         }
         if (baseDomain == PredefinedModel.getInstance().XmlTime) {
-            return "java.time.LocalTime";
+            return CoreType.TIME;
         }
-        return "String";
+        String format = formattedType.getFormat();
+        if (format == null) {
+            return CoreType.TEXT;
+        }
+        if (format.contains("Year") && format.contains("Month") && format.contains("Day")) {
+            return format.contains("Hours") ? CoreType.DATETIME : CoreType.DATE;
+        }
+        if (format.contains("Hours") && format.contains("Minutes") && format.contains("Seconds")) {
+            return CoreType.TIME;
+        }
+        return CoreType.TEXT;
     }
 
     private int toCardinalityBound(long value) {

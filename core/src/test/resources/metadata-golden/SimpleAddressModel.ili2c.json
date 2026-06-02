@@ -14,7 +14,10 @@
       "name" : "City",
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.City",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -29,7 +32,10 @@
       "name" : "HouseNumber",
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.HouseNumber",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -45,7 +51,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.Position",
       "iliType" : "CoordType",
       "domainName" : "SimpleAddressModel.CHKoord",
-      "javaType" : "org.locationtech.jts.geom.Geometry",
+      "coreType" : "COORD",
+      "targetHints" : {
+        "javaType" : "org.locationtech.jts.geom.Geometry"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -60,7 +69,10 @@
       "name" : "PostalCode",
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.PostalCode",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -76,7 +88,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.Status",
       "iliType" : "EnumerationType",
       "domainName" : "SimpleAddressModel.Addresses.AddressStatus",
-      "javaType" : "String",
+      "coreType" : "ENUM",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -91,7 +106,10 @@
       "name" : "Street",
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.Street",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -115,7 +133,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.BirthDate",
       "iliType" : "FormattedType",
       "domainName" : "INTERLIS.XMLDate",
-      "javaType" : "String",
+      "coreType" : "DATE",
+      "targetHints" : {
+        "javaType" : "java.time.LocalDate"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -129,7 +150,10 @@
       "name" : "Email",
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.Email",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -144,7 +168,10 @@
       "name" : "FirstName",
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.FirstName",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -160,7 +187,10 @@
       "name" : "LastName",
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.LastName",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -176,7 +206,10 @@
       "name" : "PhoneNumber",
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.PhoneNumber",
       "iliType" : "TextType",
-      "javaType" : "String",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -195,6 +228,48 @@
     "abstract" : false,
     "kind" : "ASSOCIATION",
     "labels" : { },
+    "attributes" : [ ]
+  } ],
+  "associations" : [ {
+    "name" : "SimpleAddressModel.Addresses.PersonAddress",
+    "associationClass" : "SimpleAddressModel.Addresses.PersonAddress",
+    "roles" : [ {
+      "name" : "Address",
+      "targetClass" : "SimpleAddressModel.Addresses.Address",
+      "oppositeRoleName" : "Person",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : 1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "SimpleAddressModel.Addresses.PersonAddress.Address",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    }, {
+      "name" : "Person",
+      "targetClass" : "SimpleAddressModel.Addresses.Person",
+      "oppositeRoleName" : "Address",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "SimpleAddressModel.Addresses.PersonAddress.Person",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    } ],
     "attributes" : [ ]
   } ],
   "enums" : [ {

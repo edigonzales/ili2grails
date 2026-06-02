@@ -1,0 +1,40 @@
+INTERLIS 2.3;
+
+MODEL CoreTypeTestModel (en)
+AT "http://www.example.ch"
+VERSION "2026-06-02" =
+
+  DOMAIN
+    LineCoord = COORD
+      0.000 .. 100.000,
+      0.000 .. 100.000;
+
+    RouteLine = POLYLINE WITH (STRAIGHTS) VERTEX LineCoord;
+
+    ParcelSurface = SURFACE WITH (STRAIGHTS) VERTEX LineCoord
+      WITHOUT OVERLAPS > 0.001;
+
+    Status = (
+      active,
+      inactive
+    );
+
+  TOPIC Types =
+
+    CLASS Sample =
+      PlainText: TEXT*40;
+      MultiLine: MTEXT*255;
+      Amount: 0.00 .. 999.99;
+      Flag: BOOLEAN;
+      OnDate: INTERLIS.XMLDate;
+      AtDateTime: INTERLIS.XMLDateTime;
+      AtTime: INTERLIS.XMLTime;
+      Status: CoreTypeTestModel.Status;
+      Position: LineCoord;
+      Route: RouteLine;
+      Footprint: ParcelSurface;
+    END Sample;
+
+  END Types;
+
+END CoreTypeTestModel.

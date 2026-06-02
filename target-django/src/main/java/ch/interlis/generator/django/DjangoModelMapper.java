@@ -1,7 +1,10 @@
 package ch.interlis.generator.django;
 
 import ch.interlis.generator.model.AttributeMetadata;
+import ch.interlis.generator.model.AssociationMetadata;
+import ch.interlis.generator.model.AssociationRoleMetadata;
 import ch.interlis.generator.model.ClassMetadata;
+import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.RelationshipMetadata;
@@ -154,6 +157,31 @@ final class DjangoModelMapper {
     }
 
     private FieldType fieldType(AttributeMetadata attribute) {
+        CoreType coreType = attribute.getCoreType();
+        if (coreType != CoreType.UNKNOWN) {
+            return fieldTypeFromCoreType(attribute, coreType);
+        }
+        return fieldTypeFromLegacyHints(attribute);
+    }
+
+    private FieldType fieldTypeFromCoreType(AttributeMetadata attribute, CoreType coreType) {
+        return switch (coreType) {
+            case COORD, POLYLINE, SURFACE -> new FieldType("models.GeometryField", true);
+            case ENUM -> new FieldType("models.CharField", false);
+            case TEXT -> attribute.getMaxLength() == null
+                ? new FieldType("models.TextField", false)
+                : new FieldType("models.CharField", false);
+            case MTEXT -> new FieldType("models.TextField", false);
+            case NUMERIC -> new FieldType("models.DecimalField", false);
+            case BOOLEAN -> new FieldType("models.BooleanField", false);
+            case DATE -> new FieldType("models.DateField", false);
+            case DATETIME -> new FieldType("models.DateTimeField", false);
+            case TIME -> new FieldType("models.TimeField", false);
+            case REFERENCE, COMPOSITION, OBJECT, UNKNOWN -> new FieldType("models.TextField", false);
+        };
+    }
+
+    private FieldType fieldTypeFromLegacyHints(AttributeMetadata attribute) {
         if (attribute.isGeometry()) {
             return new FieldType("models.GeometryField", true);
         }
@@ -331,15 +359,71 @@ final class DjangoModelMapper {
 
     private Map<String, List<RelationshipMetadata>> indexRelationships(Function<RelationshipMetadata, String> selector) {
         Map<String, List<RelationshipMetadata>> indexed = new LinkedHashMap<>();
+        for (RelationshipMetadata relationship : effectiveRelationships()) {
+            String key = selector.apply(relationship);
+            if (key != null) {
+                indexed.computeIfAbsent(key, ignored -> new ArrayList<>()).add(relationship);
+            }
+        }
+        return indexed;
+    }
+
+    private List<RelationshipMetadata> effectiveRelationships() {
+        List<RelationshipMetadata> relationships = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+
+        metadata.getAllAssociations().stream()
+            .sorted(Comparator.comparing(AssociationMetadata::getName, Comparator.nullsLast(String::compareTo)))
+            .forEach(association -> association.getRoles().stream()
+                .sorted(Comparator
+                    .comparing(AssociationRoleMetadata::getName, Comparator.nullsLast(String::compareTo))
+                    .thenComparing(AssociationRoleMetadata::getTargetClass, Comparator.nullsLast(String::compareTo)))
+                .map(role -> relationshipFromAssociationRole(association, role))
+                .forEach(relationship -> {
+                    if (seen.add(relationshipIdentityKey(relationship))) {
+                        relationships.add(relationship);
+                    }
+                }));
+
         metadata.getAllRelationships().stream()
             .sorted(Comparator.comparing(RelationshipMetadata::getName, Comparator.nullsLast(String::compareTo)))
             .forEach(relationship -> {
-                String key = selector.apply(relationship);
-                if (key != null) {
-                    indexed.computeIfAbsent(key, ignored -> new ArrayList<>()).add(relationship);
+                if (seen.add(relationshipIdentityKey(relationship))) {
+                    relationships.add(relationship);
                 }
             });
-        return indexed;
+        return relationships;
+    }
+
+    private RelationshipMetadata relationshipFromAssociationRole(AssociationMetadata association,
+                                                                 AssociationRoleMetadata role) {
+        RelationshipMetadata relationship = new RelationshipMetadata(
+            association.getName() + "." + role.getName()
+        );
+        relationship.setSourceClass(association.getAssociationClass() != null
+            ? association.getAssociationClass()
+            : association.getName());
+        relationship.setTargetClass(role.getTargetClass());
+        relationship.setType(RelationshipMetadata.RelationType.ASSOCIATION);
+        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
+        relationship.setAssociationName(association.getName());
+        relationship.setSourceRoleName(role.getOppositeRoleName());
+        relationship.setTargetRoleName(role.getName());
+        relationship.setOppositeRoleName(role.getOppositeRoleName());
+        relationship.setCardinality(role.getCardinality());
+        relationship.setMandatory(role.isMandatory());
+        relationship.setOrdered(role.isOrdered());
+        relationship.setExternal(role.isExternal());
+        relationship.setComposition(role.isComposition());
+        relationship.setSourceAttribute(role.getSourceAttribute());
+        relationship.setTargetAttribute(role.getTargetAttribute());
+        relationship.setSource(role.getSource());
+        relationship.setPhysicalName(role.getPhysicalName());
+        relationship.setSemanticName(role.getSemanticName());
+        relationship.setMergeReason(role.getMergeReason());
+        relationship.setMergeConfidence(role.getMergeConfidence());
+        relationship.setMergeToken(role.getMergeToken());
+        return relationship;
     }
 
     private String uniqueFieldName(String preferredName, Set<String> usedFields) {
@@ -372,6 +456,14 @@ final class DjangoModelMapper {
     private static String relationshipKey(RelationshipMetadata relationship) {
         return relationship.getName()
             + "|" + relationship.getSourceClass()
+            + "|" + relationship.getTargetClass()
+            + "|" + relationship.getSourceAttribute()
+            + "|" + relationship.getTargetRoleName()
+            + "|" + relationship.getSemanticKind();
+    }
+
+    private static String relationshipIdentityKey(RelationshipMetadata relationship) {
+        return relationship.getSourceClass()
             + "|" + relationship.getTargetClass()
             + "|" + relationship.getSourceAttribute()
             + "|" + relationship.getTargetRoleName()

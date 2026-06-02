@@ -19,7 +19,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.houseNumber",
       "columnName" : "housenumber",
       "sqlName" : "housenumber",
-      "javaType" : "Object",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -32,7 +35,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.postalCode",
       "columnName" : "postalcode",
       "sqlName" : "postalcode",
-      "javaType" : "Object",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -45,7 +51,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.street",
       "columnName" : "astreet",
       "sqlName" : "astreet",
-      "javaType" : "Object",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -58,7 +67,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.t_id",
       "columnName" : "t_id",
       "sqlName" : "t_id",
-      "javaType" : "Object",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : true,
       "foreignKey" : false,
@@ -81,7 +93,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.birthDate",
       "columnName" : "birthdate",
       "sqlName" : "birthdate",
-      "javaType" : "Object",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -94,7 +109,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.firstName",
       "columnName" : "firstname",
       "sqlName" : "firstname",
-      "javaType" : "Object",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -107,7 +125,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.lastName",
       "columnName" : "lastname",
       "sqlName" : "lastname",
-      "javaType" : "Object",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
@@ -120,7 +141,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.t_id",
       "columnName" : "t_id",
       "sqlName" : "t_id",
-      "javaType" : "Object",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : true,
       "foreignKey" : false,
@@ -143,7 +167,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.PersonAddress.address",
       "columnName" : "address_id",
       "sqlName" : "address_id",
-      "javaType" : "Object",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : true,
@@ -157,7 +184,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.PersonAddress.person",
       "columnName" : "person_id",
       "sqlName" : "person_id",
-      "javaType" : "Object",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : true,
@@ -171,7 +201,10 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.PersonAddress.t_id",
       "columnName" : "t_id",
       "sqlName" : "t_id",
-      "javaType" : "Object",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
       "mandatory" : false,
       "primaryKey" : true,
       "foreignKey" : false,
@@ -180,6 +213,58 @@
       "enumValues" : [ ],
       "labels" : { }
     } ]
+  } ],
+  "associations" : [ {
+    "name" : "SimpleAddressModel.Addresses.PersonAddress",
+    "associationClass" : "SimpleAddressModel.Addresses.PersonAddress",
+    "physicalTable" : "personaddress",
+    "physicalSqlName" : "personaddress",
+    "roles" : [ {
+      "name" : "Address",
+      "targetClass" : "SimpleAddressModel.Addresses.Address",
+      "oppositeRoleName" : "Person",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : 1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "sourceAttribute" : "address_id",
+      "targetAttribute" : "T_Id",
+      "physicalName" : "address_id",
+      "semanticName" : "SimpleAddressModel.Addresses.PersonAddress.Address",
+      "source" : "ili2db+ili2c",
+      "mergeReason" : "NORMALIZED_TOKEN",
+      "mergeConfidence" : "MEDIUM",
+      "mergeToken" : "address"
+    }, {
+      "name" : "Person",
+      "targetClass" : "SimpleAddressModel.Addresses.Person",
+      "oppositeRoleName" : "Address",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "sourceAttribute" : "person_id",
+      "targetAttribute" : "T_Id",
+      "physicalName" : "person_id",
+      "semanticName" : "SimpleAddressModel.Addresses.PersonAddress.Person",
+      "source" : "ili2db+ili2c",
+      "mergeReason" : "NORMALIZED_TOKEN",
+      "mergeConfidence" : "MEDIUM",
+      "mergeToken" : "person"
+    } ],
+    "attributes" : [ ]
   } ],
   "enums" : [ {
     "name" : "SimpleAddressModel.Addresses.AddressStatus",

@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -116,6 +117,10 @@ public class MetadataReader {
         for (RelationshipMetadata ili2cRelationship : ili2cMetadata.getAllRelationships()) {
             mergeRelationship(metadata, ili2cRelationship);
         }
+
+        for (AssociationMetadata association : ili2cMetadata.getAllAssociations()) {
+            metadata.addAssociation(association);
+        }
     }
     
     /**
@@ -194,9 +199,14 @@ public class MetadataReader {
             dbAttr.setDomainName(ili2cAttr.getDomainName());
         }
 
+        if (ili2cAttr.getCoreType() != CoreType.UNKNOWN) {
+            dbAttr.setCoreType(ili2cAttr.getCoreType());
+        }
+
         // Java-Typ (vom ili2c-Reader abgeleitet)
-        if (ili2cAttr.getJavaType() != null && dbAttr.getJavaType() == null) {
-            dbAttr.setJavaType(ili2cAttr.getJavaType());
+        String ili2cJavaType = ili2cAttr.getJavaType();
+        if (ili2cJavaType != null) {
+            dbAttr.setJavaType(ili2cJavaType);
         }
 
         // Mandatory (OR-Logik: Modell-Constraint zählt)
@@ -410,13 +420,132 @@ public class MetadataReader {
     private void postProcess(ModelMetadata metadata) {
         for (ClassMetadata classMetadata : metadata.getAllClasses()) {
             for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
+                if (attr.getCoreType() == CoreType.UNKNOWN) {
+                    attr.inferCoreType();
+                }
                 // Java-Typ ableiten falls noch nicht gesetzt
                 if (attr.getJavaType() == null) {
                     attr.inferJavaType();
                 }
             }
         }
+
+        syncAssociationMetadata(metadata);
         
         logger.debug("Post-processing complete");
+    }
+
+    private void syncAssociationMetadata(ModelMetadata metadata) {
+        for (ClassMetadata classMetadata : metadata.getAllClasses()) {
+            if (classMetadata.getKind() != ClassMetadata.ClassKind.ASSOCIATION) {
+                continue;
+            }
+            AssociationMetadata association = metadata.getAssociation(classMetadata.getName());
+            if (association == null) {
+                association = new AssociationMetadata(classMetadata.getName());
+            }
+            association.setAssociationClass(classMetadata.getName());
+            association.setPhysicalTable(classMetadata.getTableName());
+            association.setPhysicalSqlName(classMetadata.getSqlName());
+            metadata.addAssociation(association);
+        }
+
+        for (AssociationMetadata association : metadata.getAllAssociations()) {
+            ClassMetadata associationClass = metadata.getClass(association.getAssociationClass());
+            if (associationClass == null) {
+                associationClass = metadata.getClass(association.getName());
+            }
+            if (associationClass != null) {
+                association.setAssociationClass(associationClass.getName());
+                association.setPhysicalTable(associationClass.getTableName());
+                association.setPhysicalSqlName(associationClass.getSqlName());
+            }
+
+            List<RelationshipMetadata> roleRelationships = metadata.getAllRelationships().stream()
+                .filter(relationship -> relationship.getSemanticKind()
+                    == RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+                .filter(relationship -> association.getName()
+                    .equals(resolveAssociationName(metadata, relationship)))
+                .toList();
+            if (!roleRelationships.isEmpty()) {
+                association.setRoles(roleRelationships.stream()
+                    .map(this::toAssociationRole)
+                    .toList());
+            }
+
+            if (associationClass != null) {
+                association.setAttributes(new LinkedHashMap<>());
+                for (AttributeMetadata attribute : associationClass.getAllAttributes()) {
+                    if (!isAssociationRoleAttribute(attribute, roleRelationships)) {
+                        association.addAttribute(attribute);
+                    }
+                }
+            }
+        }
+    }
+
+    private String resolveAssociationName(ModelMetadata metadata, RelationshipMetadata relationship) {
+        if (relationship.getAssociationName() != null && !relationship.getAssociationName().isBlank()) {
+            return relationship.getAssociationName();
+        }
+        ClassMetadata sourceClass = metadata.getClass(relationship.getSourceClass());
+        if (sourceClass != null && sourceClass.getKind() == ClassMetadata.ClassKind.ASSOCIATION) {
+            return sourceClass.getName();
+        }
+        return relationship.getSourceClass();
+    }
+
+    private AssociationRoleMetadata toAssociationRole(RelationshipMetadata relationship) {
+        String roleName = relationship.getTargetRoleName();
+        if (roleName == null || roleName.isBlank()) {
+            roleName = relationship.getSourceAttribute();
+        }
+        if (roleName == null || roleName.isBlank()) {
+            roleName = relationship.getName();
+        }
+        AssociationRoleMetadata role = new AssociationRoleMetadata(roleName);
+        role.setTargetClass(relationship.getTargetClass());
+        role.setOppositeRoleName(relationship.getOppositeRoleName());
+        role.setCardinality(relationship.getCardinality());
+        role.setMandatory(relationship.isMandatory());
+        role.setOrdered(relationship.isOrdered());
+        role.setExternal(relationship.isExternal());
+        role.setComposition(relationship.isComposition());
+        role.setSourceAttribute(relationship.getSourceAttribute());
+        role.setTargetAttribute(relationship.getTargetAttribute());
+        role.setPhysicalName(relationship.getPhysicalName());
+        role.setSemanticName(relationship.getSemanticName());
+        role.setSource(relationship.getSource());
+        role.setMergeReason(relationship.getMergeReason());
+        role.setMergeConfidence(relationship.getMergeConfidence());
+        role.setMergeToken(relationship.getMergeToken());
+        return role;
+    }
+
+    private boolean isAssociationRoleAttribute(AttributeMetadata attribute,
+                                               List<RelationshipMetadata> roleRelationships) {
+        if (attribute.isPrimaryKey() || attribute.isForeignKey()) {
+            return true;
+        }
+        for (RelationshipMetadata relationship : roleRelationships) {
+            if (equalsAny(attribute.getName(), relationship.getSourceAttribute(), relationship.getPhysicalName())
+                || equalsAny(attribute.getColumnName(), relationship.getSourceAttribute(), relationship.getPhysicalName())
+                || equalsAny(attribute.getSqlName(), relationship.getSourceAttribute(), relationship.getPhysicalName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean equalsAny(String value, String... candidates) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        for (String candidate : candidates) {
+            if (candidate != null && value.equalsIgnoreCase(candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
