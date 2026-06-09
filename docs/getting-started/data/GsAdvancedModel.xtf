@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TRANSFER xmlns="http://www.interlis.ch/INTERLIS2.3">
+  <HEADERSECTION VERSION="2.3" SENDER="ili2grails-getting-started">
+    <MODELS>
+      <MODEL NAME="GsAdvancedModel" VERSION="2026-06-09" URI="https://example.com/ili2grails/getting-started"/>
+    </MODELS>
+  </HEADERSECTION>
+  <DATASECTION>
+    <GsAdvancedModel.Inventory BID="b-advanced">
+      <GsAdvancedModel.Inventory.Owner TID="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1">
+        <Name>City Works</Name>
+        <ContactEmail>works@example.com</ContactEmail>
+      </GsAdvancedModel.Inventory.Owner>
+      <GsAdvancedModel.Inventory.Owner TID="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2">
+        <Name>External Inspector</Name>
+        <ContactEmail>inspector@example.com</ContactEmail>
+      </GsAdvancedModel.Inventory.Owner>
+
+      <GsAdvancedModel.Inventory.Asset TID="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1">
+        <Name>Pump Station North</Name>
+        <Status>active</Status>
+        <Owner REF="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"/>
+        <Location>
+          <COORD>
+            <C1>2600000.000</C1>
+            <C2>1200000.000</C2>
+          </COORD>
+        </Location>
+        <AccessRoute>
+          <POLYLINE>
+            <COORD>
+              <C1>2600000.000</C1>
+              <C2>1200000.000</C2>
+            </COORD>
+            <COORD>
+              <C1>2600020.000</C1>
+              <C2>1200010.000</C2>
+            </COORD>
+          </POLYLINE>
+        </AccessRoute>
+        <Footprint>
+          <SURFACE>
+            <BOUNDARY>
+              <POLYLINE>
+                <COORD>
+                  <C1>2600000.000</C1>
+                  <C2>1200000.000</C2>
+                </COORD>
+                <COORD>
+                  <C1>2600010.000</C1>
+                  <C2>1200000.000</C2>
+                </COORD>
+                <COORD>
+                  <C1>2600010.000</C1>
+                  <C2>1200010.000</C2>
+                </COORD>
+                <COORD>
+                  <C1>2600000.000</C1>
+                  <C2>1200010.000</C2>
+                </COORD>
+                <COORD>
+                  <C1>2600000.000</C1>
+                  <C2>1200000.000</C2>
+                </COORD>
+              </POLYLINE>
+            </BOUNDARY>
+          </SURFACE>
+        </Footprint>
+        <Inspections>
+          <GsAdvancedModel.Inventory.Inspection>
+            <InspectionDate>2026-01-15</InspectionDate>
+            <Result>ok</Result>
+            <Score>92</Score>
+            <Inspector REF="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2"/>
+          </GsAdvancedModel.Inventory.Inspection>
+        </Inspections>
+        <Attachments>
+          <GsAdvancedModel.Inventory.Attachment>
+            <FileName>pump-station-photo.jpg</FileName>
+            <MimeType>image/jpeg</MimeType>
+          </GsAdvancedModel.Inventory.Attachment>
+        </Attachments>
+      </GsAdvancedModel.Inventory.Asset>
+
+      <GsAdvancedModel.Inventory.ServiceRecord TID="cccccccc-cccc-cccc-cccc-ccccccccccc1">
+        <PerformedOn>2026-02-10</PerformedOn>
+        <Cost>1250.50</Cost>
+        <Asset REF="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1"/>
+        <Parts>
+          <GsAdvancedModel.Inventory.MaintenancePart>
+            <Label>Seal kit</Label>
+            <Quantity>2</Quantity>
+          </GsAdvancedModel.Inventory.MaintenancePart>
+          <GsAdvancedModel.Inventory.MaintenancePart>
+            <Label>Filter</Label>
+            <Quantity>1</Quantity>
+          </GsAdvancedModel.Inventory.MaintenancePart>
+        </Parts>
+      </GsAdvancedModel.Inventory.ServiceRecord>
+
+      <GsAdvancedModel.Inventory.Tag TID="dddddddd-dddd-dddd-dddd-ddddddddddd1">
+        <Code>critical</Code>
+        <Description>Critical infrastructure</Description>
+      </GsAdvancedModel.Inventory.Tag>
+      <GsAdvancedModel.Inventory.Tag TID="dddddddd-dddd-dddd-dddd-ddddddddddd2">
+        <Code>inspection</Code>
+        <Description>Needs regular inspection</Description>
+      </GsAdvancedModel.Inventory.Tag>
+
+      <GsAdvancedModel.Inventory.AssetTag>
+        <Assets REF="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1"/>
+        <Tags REF="dddddddd-dddd-dddd-dddd-ddddddddddd1"/>
+        <Note>Shown on dashboard</Note>
+      </GsAdvancedModel.Inventory.AssetTag>
+      <GsAdvancedModel.Inventory.AssetTag>
+        <Assets REF="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1"/>
+        <Tags REF="dddddddd-dddd-dddd-dddd-ddddddddddd2"/>
+        <Note>Annual review</Note>
+      </GsAdvancedModel.Inventory.AssetTag>
+    </GsAdvancedModel.Inventory>
+  </DATASECTION>
+</TRANSFER>

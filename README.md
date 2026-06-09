@@ -6,6 +6,7 @@ Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und e
 - [Ziel & Funktionsumfang](#ziel--funktionsumfang)
 - [Voraussetzungen](#voraussetzungen)
 - [Installation & Build](#installation--build)
+- [Getting Started Tutorial](#getting-started-tutorial)
 - [Schnellstart (CLI)](#schnellstart-cli)
 - [Grails-Projekt starten](#grails-projekt-starten)
 - [Benutzeranleitung (Detail)](#benutzeranleitung-detail)
@@ -43,6 +44,11 @@ java -version
 ```bash
 ./gradlew build
 ```
+
+## Getting Started Tutorial
+Für absolute Beginner gibt es ein Schritt-für-Schritt-Tutorial mit Docker-DB,
+ili2pg-Schemaimport, optionalem Seed-Datenimport und Grails-App-Erzeugung:
+[docs/getting-started.md](docs/getting-started.md).
 
 ## Schnellstart (CLI)
 **PostgreSQL:**

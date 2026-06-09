@@ -1,0 +1,37 @@
+INTERLIS 2.3;
+
+MODEL GsSimpleModel (en)
+AT "https://example.com/ili2grails/getting-started"
+VERSION "2026-06-09" =
+
+  TOPIC Organization =
+    OID AS INTERLIS.UUIDOID;
+
+    CLASS Company =
+      Name: MANDATORY TEXT*80;
+      LegalId: TEXT*30;
+    END Company;
+
+    CLASS Department =
+      Name: MANDATORY TEXT*80;
+    END Department;
+
+    CLASS Employee =
+      FirstName: MANDATORY TEXT*50;
+      LastName: MANDATORY TEXT*50;
+      Email: TEXT*120;
+    END Employee;
+
+    ASSOCIATION CompanyDepartment =
+      Company -- {1} Company;
+      Departments -- {0..*} Department;
+    END CompanyDepartment;
+
+    ASSOCIATION DepartmentEmployee =
+      Department -- {1} Department;
+      Employees -- {0..*} Employee;
+    END DepartmentEmployee;
+
+  END Organization;
+
+END GsSimpleModel.
