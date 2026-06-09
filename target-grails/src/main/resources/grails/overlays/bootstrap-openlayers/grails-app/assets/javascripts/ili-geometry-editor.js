@@ -5,6 +5,15 @@
 
     function normalizeKind(rawKind) {
         var kind = (rawKind || "GEOMETRY").toUpperCase();
+        if (kind.indexOf("MULTIPOINT") >= 0) {
+            return "MULTIPOINT";
+        }
+        if (kind.indexOf("MULTILINE") >= 0 || kind.indexOf("MULTIPOLYLINE") >= 0) {
+            return "MULTILINESTRING";
+        }
+        if (kind.indexOf("MULTIPOLYGON") >= 0 || kind.indexOf("MULTISURFACE") >= 0 || kind.indexOf("MULTIAREA") >= 0) {
+            return "MULTIPOLYGON";
+        }
         if (kind.indexOf("POINT") >= 0) {
             return "POINT";
         }
@@ -15,6 +24,10 @@
             return "POLYGON";
         }
         return "GEOMETRY";
+    }
+
+    function isMultiKind(kind) {
+        return kind === "MULTIPOINT" || kind === "MULTILINESTRING" || kind === "MULTIPOLYGON";
     }
 
     function parseSrid(rawSrid) {
@@ -77,13 +90,13 @@
     }
 
     function resolveFixedDrawType(kind) {
-        if (kind === "POINT") {
+        if (kind === "POINT" || kind === "MULTIPOINT") {
             return "Point";
         }
-        if (kind === "LINESTRING") {
+        if (kind === "LINESTRING" || kind === "MULTILINESTRING") {
             return "LineString";
         }
-        if (kind === "POLYGON") {
+        if (kind === "POLYGON" || kind === "MULTIPOLYGON") {
             return "Polygon";
         }
         return null;
@@ -94,7 +107,7 @@
         input.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    function setupInteractionState(map, source, resolveDrawType, mode) {
+    function setupInteractionState(map, source, resolveDrawType, mode, allowMultiple) {
         var drawInteraction = null;
         var modifyInteraction = null;
 
@@ -116,9 +129,11 @@
                 type: resolvedDrawType,
                 maxPoints: resolvedDrawType === "Point" ? 1 : undefined
             });
-            drawInteraction.on("drawstart", function() {
-                source.clear();
-            });
+            if (!allowMultiple) {
+                drawInteraction.on("drawstart", function() {
+                    source.clear();
+                });
+            }
             map.addInteraction(drawInteraction);
         }
 
@@ -145,6 +160,49 @@
             clearGeometry: clearGeometry,
             removeDraw: removeDraw
         };
+    }
+
+    function geometryForWrite(source, kind) {
+        var features = source.getFeatures();
+        if (!features.length) {
+            return null;
+        }
+        if (!isMultiKind(kind)) {
+            return features[0].getGeometry().clone();
+        }
+        var pointCoordinates = [];
+        var lineCoordinates = [];
+        var polygonCoordinates = [];
+        features.forEach(function(feature) {
+            var geometry = feature.getGeometry();
+            var type = geometry.getType();
+            if (kind === "MULTIPOINT") {
+                if (type === "Point") {
+                    pointCoordinates.push(geometry.getCoordinates());
+                } else if (type === "MultiPoint") {
+                    pointCoordinates = pointCoordinates.concat(geometry.getCoordinates());
+                }
+            } else if (kind === "MULTILINESTRING") {
+                if (type === "LineString") {
+                    lineCoordinates.push(geometry.getCoordinates());
+                } else if (type === "MultiLineString") {
+                    lineCoordinates = lineCoordinates.concat(geometry.getCoordinates());
+                }
+            } else if (kind === "MULTIPOLYGON") {
+                if (type === "Polygon") {
+                    polygonCoordinates.push(geometry.getCoordinates());
+                } else if (type === "MultiPolygon") {
+                    polygonCoordinates = polygonCoordinates.concat(geometry.getCoordinates());
+                }
+            }
+        });
+        if (kind === "MULTIPOINT") {
+            return new ol.geom.MultiPoint(pointCoordinates);
+        }
+        if (kind === "MULTILINESTRING") {
+            return new ol.geom.MultiLineString(lineCoordinates);
+        }
+        return new ol.geom.MultiPolygon(polygonCoordinates);
     }
 
     function resizeMapSoon(map, source) {
@@ -188,13 +246,12 @@
         var format = new ol.format.WKT();
 
         function writeWkt() {
-            var features = source.getFeatures();
-            if (!features.length) {
+            var geometry = geometryForWrite(source, kind);
+            if (!geometry) {
                 wktInput.value = "";
                 dispatchWktEvents(wktInput);
                 return;
             }
-            var geometry = features[0].getGeometry().clone();
             if (dataProjection !== viewProjection) {
                 geometry.transform(viewProjection, dataProjection);
             }
@@ -222,7 +279,7 @@
 
         source.on("addfeature", function(event) {
             var features = source.getFeatures();
-            if (features.length > 1) {
+            if (!isMultiKind(kind) && features.length > 1) {
                 source.removeFeature(features[0] === event.feature ? features[1] : features[0]);
             }
             writeWkt();
@@ -259,7 +316,7 @@
             return "Polygon";
         }
 
-        var interactionState = setupInteractionState(map, source, resolveDrawType, mode);
+        var interactionState = setupInteractionState(map, source, resolveDrawType, mode, isMultiKind(kind));
 
         var drawButton = editor.querySelector('[data-geometry-action="draw"]');
         var modifyButton = editor.querySelector('[data-geometry-action="modify"]');

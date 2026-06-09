@@ -41,14 +41,30 @@ class AttributeMetadataCoreTypeTest {
     @Test
     void infersGeometryKindsButKeepsGenericGeometryUnknown() {
         AttributeMetadata point = geometryAttribute("POINT");
+        AttributeMetadata multiPoint = geometryAttribute("MULTIPOINT");
         AttributeMetadata line = geometryAttribute("LINESTRING");
+        AttributeMetadata multiLine = geometryAttribute("MULTILINESTRING");
         AttributeMetadata surface = geometryAttribute("POLYGON");
+        AttributeMetadata multiSurface = geometryAttribute("MULTIPOLYGON");
         AttributeMetadata generic = geometryAttribute(null);
 
         assertThat(point.getCoreType()).isEqualTo(CoreType.COORD);
+        assertThat(multiPoint.getCoreType()).isEqualTo(CoreType.COORD);
         assertThat(line.getCoreType()).isEqualTo(CoreType.POLYLINE);
+        assertThat(multiLine.getCoreType()).isEqualTo(CoreType.POLYLINE);
         assertThat(surface.getCoreType()).isEqualTo(CoreType.SURFACE);
+        assertThat(multiSurface.getCoreType()).isEqualTo(CoreType.SURFACE);
         assertThat(generic.getCoreType()).isEqualTo(CoreType.UNKNOWN);
+    }
+
+    @Test
+    void normalizesGeometryKindStrings() {
+        AttributeMetadata multiSurface = geometryAttribute("MultiSurface");
+        AttributeMetadata postgisLine = geometryAttribute("LINESTRING ZM");
+
+        assertThat(multiSurface.getGeometryKindEnum()).isEqualTo(GeometryKind.MULTIPOLYGON);
+        assertThat(multiSurface.getGeometryKind()).isEqualTo("MULTIPOLYGON");
+        assertThat(postgisLine.getGeometryKindEnum()).isEqualTo(GeometryKind.LINESTRING);
     }
 
     @Test

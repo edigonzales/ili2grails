@@ -145,7 +145,10 @@ public final class GrailsRelationshipMapper {
             attribute.getConstraints(),
             attribute.isGeometry(),
             attribute.getGeometrySrid(),
-            attribute.getGeometryKind()
+            attribute.getGeometryKind(),
+            attribute.getGeometryHasZ(),
+            attribute.getGeometryHasM(),
+            attribute.getAllowEmptyGeometry()
         );
     }
 
@@ -163,6 +166,9 @@ public final class GrailsRelationshipMapper {
             null,
             constraintsForRelationship(relationship),
             false,
+            null,
+            null,
+            null,
             null,
             null
         );
@@ -451,7 +457,10 @@ public final class GrailsRelationshipMapper {
         AttributeConstraints constraints,
         boolean geometry,
         Integer geometrySrid,
-        String geometryKind
+        String geometryKind,
+        Boolean geometryHasZ,
+        Boolean geometryHasM,
+        Boolean allowEmptyGeometry
     ) {
     }
 

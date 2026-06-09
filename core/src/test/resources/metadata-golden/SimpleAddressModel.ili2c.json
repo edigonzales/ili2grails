@@ -74,6 +74,8 @@
       "foreignKey" : false,
       "geometry" : true,
       "geometryKind" : "POINT",
+      "geometryHasZ" : false,
+      "allowEmptyGeometry" : false,
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,

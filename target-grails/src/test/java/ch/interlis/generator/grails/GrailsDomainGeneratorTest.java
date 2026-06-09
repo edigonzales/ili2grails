@@ -78,6 +78,33 @@ class GrailsDomainGeneratorTest {
         assertThat(content).contains("amount nullable: true, min: 0.0, max: 9999.999, scale: 3");
     }
 
+    @Test
+    void rendersGeometryMetaWithTypedKindAndValidationFlags(@TempDir Path tempDir) throws Exception {
+        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ClassMetadata parcel = new ClassMetadata("TestModel.Parcel");
+        parcel.setTableName("parcel");
+        parcel.addAttribute(primaryKeyAttribute());
+        AttributeMetadata footprint = new AttributeMetadata("footprint");
+        footprint.setGeometry(true);
+        footprint.setGeometryKind("MULTIPOLYGON");
+        footprint.setGeometrySrid(2056);
+        footprint.setGeometryHasZ(false);
+        footprint.setGeometryHasM(false);
+        footprint.setAllowEmptyGeometry(false);
+        footprint.setJavaType("org.locationtech.jts.geom.Geometry");
+        parcel.addAttribute(footprint);
+        metadata.addClass(parcel);
+
+        GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
+        new GrailsDomainGenerator().generate(metadata, config);
+
+        Path parcelDomain = tempDir.resolve("grails-app/domain/com/example/Parcel.groovy");
+        String content = Files.readString(parcelDomain);
+
+        assertThat(content).contains("static final Map<String, Map<String, Object>> geometryMeta");
+        assertThat(content).contains("footprint: [srid: 2056, kind: 'MULTIPOLYGON', hasZ: false, hasM: false, allowEmpty: false]");
+    }
+
     private AttributeMetadata primaryKeyAttribute() {
         AttributeMetadata attribute = new AttributeMetadata("t_id");
         attribute.setSqlName("t_id");

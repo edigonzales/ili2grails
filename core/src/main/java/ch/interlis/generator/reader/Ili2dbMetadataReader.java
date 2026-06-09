@@ -358,9 +358,12 @@ public class Ili2dbMetadataReader {
             String resolvedGeometryKind = resolveGeometryKind(tableName, columnName);
             if (resolvedGeometryKind != null && !resolvedGeometryKind.isBlank()) {
                 attr.setGeometryKind(resolvedGeometryKind);
+                attr.setGeometryHasZ(geometryTypeHasZ(resolvedGeometryKind));
+                attr.setGeometryHasM(geometryTypeHasM(resolvedGeometryKind));
             } else if (attr.getGeometryKind() == null || attr.getGeometryKind().isBlank()) {
-                attr.setGeometryKind("GEOMETRY");
+                attr.setGeometryKind(GeometryKind.GEOMETRY);
             }
+            attr.setAllowEmptyGeometry(false);
             attr.setGeometrySrid(resolveGeometrySrid(tableName, columnName));
         }
 
@@ -417,7 +420,7 @@ public class Ili2dbMetadataReader {
                 stmt.setString(3, columnName);
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
-                        return normalizeGeometryKind(rs.getString(1));
+                        return rs.getString(1);
                     }
                 }
             }
@@ -431,7 +434,7 @@ public class Ili2dbMetadataReader {
                 stmt.setString(2, columnName);
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
-                        return normalizeGeometryKind(rs.getString(1));
+                        return rs.getString(1);
                     }
                 }
             }
@@ -441,21 +444,21 @@ public class Ili2dbMetadataReader {
         return null;
     }
 
-    private String normalizeGeometryKind(String rawKind) {
-        if (rawKind == null || rawKind.isBlank()) {
-            return null;
+    private boolean geometryTypeHasZ(String rawKind) {
+        String normalized = normalizeGeometryTypeSuffix(rawKind);
+        return normalized.endsWith("Z") || normalized.endsWith("ZM");
+    }
+
+    private boolean geometryTypeHasM(String rawKind) {
+        String normalized = normalizeGeometryTypeSuffix(rawKind);
+        return normalized.endsWith("M") || normalized.endsWith("ZM");
+    }
+
+    private String normalizeGeometryTypeSuffix(String rawKind) {
+        if (rawKind == null) {
+            return "";
         }
-        String normalized = rawKind.toUpperCase(Locale.ROOT);
-        if (normalized.contains("POINT")) {
-            return "POINT";
-        }
-        if (normalized.contains("LINE")) {
-            return "LINESTRING";
-        }
-        if (normalized.contains("POLYGON") || normalized.contains("SURFACE") || normalized.contains("AREA")) {
-            return "POLYGON";
-        }
-        return "GEOMETRY";
+        return rawKind.toUpperCase(Locale.ROOT).replaceAll("[^A-Z]", "");
     }
 
     private ColumnInfo resolveColumnInfo(String tableName, String columnName) throws SQLException {

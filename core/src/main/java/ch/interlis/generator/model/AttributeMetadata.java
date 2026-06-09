@@ -23,7 +23,10 @@ public class AttributeMetadata {
     private boolean isForeignKey;
     private boolean isGeometry;
     private Integer geometrySrid;
-    private String geometryKind;
+    private GeometryKind geometryKind;
+    private Boolean geometryHasZ;
+    private Boolean geometryHasM;
+    private Boolean allowEmptyGeometry;
     private String documentation;
     
     // Constraints
@@ -194,19 +197,16 @@ public class AttributeMetadata {
     }
 
     private CoreType inferGeometryCoreType() {
-        if (geometryKind == null || geometryKind.isBlank()) {
+        if (geometryKind == null) {
             return CoreType.UNKNOWN;
         }
-        String upperGeometryKind = geometryKind.toUpperCase(Locale.ROOT);
-        if (upperGeometryKind.contains("POINT")) {
+        if (geometryKind == GeometryKind.POINT || geometryKind == GeometryKind.MULTIPOINT) {
             return CoreType.COORD;
         }
-        if (upperGeometryKind.contains("LINE")) {
+        if (geometryKind == GeometryKind.LINESTRING || geometryKind == GeometryKind.MULTILINESTRING) {
             return CoreType.POLYLINE;
         }
-        if (upperGeometryKind.contains("POLYGON")
-            || upperGeometryKind.contains("SURFACE")
-            || upperGeometryKind.contains("AREA")) {
+        if (geometryKind == GeometryKind.POLYGON || geometryKind == GeometryKind.MULTIPOLYGON) {
             return CoreType.SURFACE;
         }
         return CoreType.UNKNOWN;
@@ -396,11 +396,43 @@ public class AttributeMetadata {
     }
 
     public String getGeometryKind() {
-        return geometryKind;
+        return geometryKind != null ? geometryKind.name() : null;
     }
 
     public void setGeometryKind(String geometryKind) {
+        this.geometryKind = GeometryKind.from(geometryKind);
+    }
+
+    public GeometryKind getGeometryKindEnum() {
+        return geometryKind;
+    }
+
+    public void setGeometryKind(GeometryKind geometryKind) {
         this.geometryKind = geometryKind;
+    }
+
+    public Boolean getGeometryHasZ() {
+        return geometryHasZ;
+    }
+
+    public void setGeometryHasZ(Boolean geometryHasZ) {
+        this.geometryHasZ = geometryHasZ;
+    }
+
+    public Boolean getGeometryHasM() {
+        return geometryHasM;
+    }
+
+    public void setGeometryHasM(Boolean geometryHasM) {
+        this.geometryHasM = geometryHasM;
+    }
+
+    public Boolean getAllowEmptyGeometry() {
+        return allowEmptyGeometry;
+    }
+
+    public void setAllowEmptyGeometry(Boolean allowEmptyGeometry) {
+        this.allowEmptyGeometry = allowEmptyGeometry;
     }
     
     public String getDocumentation() {
@@ -538,7 +570,10 @@ public class AttributeMetadata {
                 ", isPrimaryKey=" + isPrimaryKey +
                 ", isForeignKey=" + isForeignKey +
                 ", geometrySrid=" + geometrySrid +
-                ", geometryKind='" + geometryKind + '\'' +
+                ", geometryKind=" + geometryKind +
+                ", geometryHasZ=" + geometryHasZ +
+                ", geometryHasM=" + geometryHasM +
+                ", allowEmptyGeometry=" + allowEmptyGeometry +
                 '}';
     }
 }

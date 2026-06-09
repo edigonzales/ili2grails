@@ -15,6 +15,7 @@ ext {
     h2Version = '2.2.224'
     groovyVersion = '4.0.24'
     jtsVersion = '1.19.0'
+    playwrightVersion = '1.60.0'
 }
 
 allprojects {

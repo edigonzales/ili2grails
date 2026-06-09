@@ -12,6 +12,7 @@ dependencies {
     testImplementation "org.assertj:assertj-core:${rootProject.assertjVersion}"
     testImplementation "org.apache.groovy:groovy:${rootProject.groovyVersion}"
     testImplementation "org.locationtech.jts:jts-core:${rootProject.jtsVersion}"
+    testImplementation "com.microsoft.playwright:playwright:${rootProject.playwrightVersion}"
     testRuntimeOnly "com.h2database:h2:${rootProject.h2Version}"
 }
 
@@ -26,6 +27,11 @@ sourceSets {
         compileClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testRuntimeClasspath
         runtimeClasspath += output + compileClasspath
     }
+    browserE2eTest {
+        java.srcDir 'src/browserE2eTest/java'
+        compileClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testRuntimeClasspath
+        runtimeClasspath += output + compileClasspath
+    }
 }
 
 configurations {
@@ -33,6 +39,8 @@ configurations {
     grailsRuntimeSmokeTestRuntimeOnly.extendsFrom testRuntimeOnly
     realIli2dbSmokeTestImplementation.extendsFrom testImplementation
     realIli2dbSmokeTestRuntimeOnly.extendsFrom testRuntimeOnly
+    browserE2eTestImplementation.extendsFrom testImplementation
+    browserE2eTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
 tasks.register('grailsRuntimeSmokeTest', Test) {
@@ -52,5 +60,19 @@ tasks.register('realIli2dbSmokeTest', Test) {
     classpath = sourceSets.realIli2dbSmokeTest.runtimeClasspath
     shouldRunAfter tasks.named('test')
     systemProperty 'ili2pgHome', project.findProperty('ili2pgHome') ?: '/Users/stefan/apps/ili2pg-5.5.1'
+    outputs.upToDateWhen { false }
+}
+
+tasks.register('browserE2eTest', Test) {
+    description = 'Runs opt-in browser end-to-end tests against a generated Grails app.'
+    group = 'verification'
+    testClassesDirs = sourceSets.browserE2eTest.output.classesDirs
+    classpath = sourceSets.browserE2eTest.runtimeClasspath
+    shouldRunAfter tasks.named('realIli2dbSmokeTest')
+    systemProperty 'grailsSmokeVersion', project.findProperty('grailsSmokeVersion') ?: '7.0.6'
+    systemProperty 'browserE2eJdbcUrl', project.findProperty('browserE2eJdbcUrl') ?: 'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa'
+    if (project.findProperty('browserE2eAppUrl') != null) {
+        systemProperty 'browserE2eAppUrl', project.findProperty('browserE2eAppUrl')
+    }
     outputs.upToDateWhen { false }
 }

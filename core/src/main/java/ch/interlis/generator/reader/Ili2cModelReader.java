@@ -414,13 +414,19 @@ public class Ili2cModelReader {
             attr.setJavaType("Object");
         } else if (type instanceof CoordType || type instanceof MultiCoordType) {
             attr.setGeometry(true);
-            attr.setGeometryKind("POINT");
+            attr.setGeometryKind(type instanceof MultiCoordType ? GeometryKind.MULTIPOINT : GeometryKind.POINT);
+            setGeometryDimensionHints(attr, type);
+            attr.setAllowEmptyGeometry(false);
             attr.setCoreType(CoreType.COORD);
             attr.setJavaType("org.locationtech.jts.geom.Geometry");
         } else if (type instanceof LineType || type instanceof PolylineType || 
                    type instanceof SurfaceType || type instanceof AreaType) {
             attr.setGeometry(true);
-            attr.setGeometryKind(type instanceof SurfaceType || type instanceof AreaType ? "POLYGON" : "LINESTRING");
+            attr.setGeometryKind(type instanceof SurfaceType || type instanceof AreaType
+                ? GeometryKind.POLYGON
+                : GeometryKind.LINESTRING);
+            setGeometryDimensionHints(attr, type);
+            attr.setAllowEmptyGeometry(false);
             attr.setCoreType(type instanceof SurfaceType || type instanceof AreaType
                 ? CoreType.SURFACE
                 : CoreType.POLYLINE);
@@ -429,12 +435,14 @@ public class Ili2cModelReader {
                    || type instanceof MultiAreaType) {
             attr.setGeometry(true);
             if (type instanceof MultiSurfaceType || type instanceof MultiAreaType) {
-                attr.setGeometryKind("POLYGON");
+                attr.setGeometryKind(GeometryKind.MULTIPOLYGON);
                 attr.setCoreType(CoreType.SURFACE);
             } else {
-                attr.setGeometryKind("LINESTRING");
+                attr.setGeometryKind(GeometryKind.MULTILINESTRING);
                 attr.setCoreType(CoreType.POLYLINE);
             }
+            setGeometryDimensionHints(attr, type);
+            attr.setAllowEmptyGeometry(false);
             attr.setJavaType("org.locationtech.jts.geom.Geometry");
         } else if (type instanceof ReferenceType referenceType) {
             attr.setCoreType(CoreType.REFERENCE);
@@ -464,6 +472,25 @@ public class Ili2cModelReader {
                 attr.setUnit(numType.getUnit().getName());
             }
         }
+    }
+
+    private void setGeometryDimensionHints(AttributeMetadata attr, Type type) {
+        Boolean hasZ = geometryHasZ(type);
+        if (hasZ != null) {
+            attr.setGeometryHasZ(hasZ);
+        }
+    }
+
+    private Boolean geometryHasZ(Type type) {
+        if (type instanceof ch.interlis.ili2c.metamodel.AbstractCoordType coordType) {
+            return coordType.getDimensions() != null && coordType.getDimensions().length >= 3;
+        }
+        if (type instanceof LineType lineType) {
+            Domain controlPointDomain = lineType.getControlPointDomain();
+            Type controlPointType = controlPointDomain != null ? controlPointDomain.getType() : null;
+            return geometryHasZ(controlPointType);
+        }
+        return null;
     }
 
     private void processAssociationRoles(ModelMetadata metadata,

@@ -39,6 +39,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_geometry-panel.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_relationship-fields.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_show-details.gsp")).exists();
+        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy")).exists();
+        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy")).exists();
+        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy")).exists();
+        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy")).exists();
         assertThat(projectDir.resolve("grails-app/views/layouts/main.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js")).exists();
@@ -62,6 +66,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(indexTemplate).contains("name=\"max\"");
         assertThat(indexTemplate).contains("<g:paginate");
         assertThat(indexTemplate).contains("ili-list-tools");
+        assertThat(indexTemplate).contains("g:sortableColumn");
+        assertThat(indexTemplate).contains("Typisierte Filter");
         assertThat(indexTemplate).doesNotContain("bx-table");
 
         String formTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_form.gsp"));
@@ -91,15 +97,19 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(layoutTemplate).doesNotContain("<bx-header");
 
         String controllerTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/Controller.groovy"));
-        assertThat(controllerTemplate).contains("def index(Integer max, Integer offset)");
-        assertThat(controllerTemplate).contains("paginationParams");
-        assertThat(controllerTemplate).contains("pagedRecords");
-        assertThat(controllerTemplate).contains("relationshipModel");
-        assertThat(controllerTemplate).contains("relationshipOptions");
-        assertThat(controllerTemplate).contains("relationshipOptionPage");
-        assertThat(controllerTemplate).contains("relationshipOptionLabel");
-        assertThat(controllerTemplate).contains("render page as JSON");
-        assertThat(controllerTemplate).contains("params.int(\"max\")");
+        assertThat(controllerTemplate).contains("extends InterlisCrudControllerSupport");
+        assertThat(controllerTemplate).contains("protected Class<${className}> domainType()");
+        assertThat(controllerTemplate).contains("protected Object crudService()");
+        assertThat(controllerTemplate).doesNotContain("paginationParams");
+
+        String controllerSupport = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy"));
+        assertThat(controllerSupport).contains("def index(Integer max, Integer offset)");
+        assertThat(controllerSupport).contains("relationshipOptions");
+        assertThat(controllerSupport).contains("InterlisGeometryBinder.bindGeometryFromParams");
+
+        String geometryBinder = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy"));
+        assertThat(geometryBinder).contains("IsValidOp");
+        assertThat(geometryBinder).contains("MULTIPOLYGON");
 
         String formUx = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js"));
         assertThat(formUx).contains("initRelationshipAutocomplete");
@@ -108,6 +118,7 @@ class GrailsTemplateOverlayInstallerTest {
         String stylesheet = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
         assertThat(stylesheet).contains(".ili-list-tools");
         assertThat(stylesheet).contains(".ili-pagination-bar");
+        assertThat(stylesheet).contains("--dp-color-accent");
     }
 
     @Test

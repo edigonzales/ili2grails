@@ -147,6 +147,9 @@ public class MetadataJsonWriter {
         dto.put("geometry", attribute.isGeometry());
         putIfNotNull(dto, "geometrySrid", attribute.getGeometrySrid());
         putIfNotNull(dto, "geometryKind", attribute.getGeometryKind());
+        putIfNotNull(dto, "geometryHasZ", attribute.getGeometryHasZ());
+        putIfNotNull(dto, "geometryHasM", attribute.getGeometryHasM());
+        putIfNotNull(dto, "allowEmptyGeometry", attribute.getAllowEmptyGeometry());
         putIfNotNull(dto, "documentation", attribute.getDocumentation());
         putIfNotNull(dto, "maxLength", attribute.getMaxLength());
         putIfNotNull(dto, "minValue", attribute.getMinValue());

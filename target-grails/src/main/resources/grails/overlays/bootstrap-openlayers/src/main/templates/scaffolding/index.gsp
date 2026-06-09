@@ -52,6 +52,39 @@
                     <g:link action="index" class="btn btn-outline-secondary">Zurücksetzen</g:link>
                 </div>
             </g:if>
+            <g:if test="\${typedFilters}">
+                <div class="col-12">
+                    <details class="ili-filter-panel">
+                        <summary>Typisierte Filter</summary>
+                        <div class="ili-filter-grid">
+                            <g:each in="\${typedFilters}" var="filterField">
+                                <div class="ili-field-row">
+                                    <label class="form-label" for="filter-\${filterField.name}">
+                                        \${message(code: '${propertyName}.' + filterField.name + '.label', default: filterField.name)}
+                                    </label>
+                                    <g:if test="\${filterField.type == 'boolean'}">
+                                        <g:select id="filter-\${filterField.name}"
+                                                  name="\${'filter.' + filterField.name}"
+                                                  from="\${[[id: '', label: 'Alle'], [id: 'true', label: 'Ja'], [id: 'false', label: 'Nein']]}"
+                                                  optionKey="id"
+                                                  optionValue="label"
+                                                  value="\${activeFilters?.get(filterField.name) ?: ''}"
+                                                  class="form-select" />
+                                    </g:if>
+                                    <g:else>
+                                        <input id="filter-\${filterField.name}"
+                                               type="\${filterField.type == 'number' ? 'number' : (filterField.type == 'date' ? 'date' : 'search')}"
+                                               name="\${'filter.' + filterField.name}"
+                                               value="\${activeFilters?.get(filterField.name) ?: ''}"
+                                               class="form-control"
+                                               autocomplete="off" />
+                                    </g:else>
+                                </div>
+                            </g:each>
+                        </div>
+                    </details>
+                </div>
+            </g:if>
         </g:form>
     </section>
 
@@ -74,7 +107,11 @@
                     <thead class="table-light">
                         <tr>
                             <g:each in="\${tableColumns ?: []}" var="tableColumn">
-                                <th scope="col">\${message(code: '${propertyName}.' + tableColumn + '.label', default: tableColumn)}</th>
+                                <th scope="col">
+                                    <g:sortableColumn property="\${tableColumn}"
+                                                      title="\${message(code: '${propertyName}.' + tableColumn + '.label', default: tableColumn)}"
+                                                      params="\${params.findAll { key, value -> !(key in ['offset', 'sort', 'order']) }}" />
+                                </th>
                             </g:each>
                             <th scope="col" class="text-end">Actions</th>
                         </tr>
@@ -123,7 +160,7 @@
                 <g:paginate total="\${${propertyName}Count ?: 0}"
                             max="\${max ?: 25}"
                             offset="\${offset ?: 0}"
-                            params="\${[q: q, max: max ?: 25]}" />
+                            params="\${params.findAll { key, value -> key != 'offset' }}" />
             </div>
         </section>
     </g:else>

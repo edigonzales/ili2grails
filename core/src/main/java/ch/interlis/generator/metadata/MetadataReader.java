@@ -257,6 +257,18 @@ public class MetadataReader {
         if (ili2cAttr.getGeometryKind() != null) {
             dbAttr.setGeometryKind(ili2cAttr.getGeometryKind());
         }
+
+        if (ili2cAttr.getGeometryHasZ() != null) {
+            dbAttr.setGeometryHasZ(ili2cAttr.getGeometryHasZ());
+        }
+
+        if (ili2cAttr.getGeometryHasM() != null) {
+            dbAttr.setGeometryHasM(ili2cAttr.getGeometryHasM());
+        }
+
+        if (ili2cAttr.getAllowEmptyGeometry() != null) {
+            dbAttr.setAllowEmptyGeometry(ili2cAttr.getAllowEmptyGeometry());
+        }
         
         // Labels
         dbAttr.getLabels().putAll(ili2cAttr.getLabels());

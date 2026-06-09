@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="de-CH">
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title><g:layoutTitle default="INTERLIS CRUD GENERATOR"/></title>
+    <title><g:layoutTitle default="INTERLIS CRUD"/></title>
     <asset:link rel="icon" href="favicon.ico" type="image/x-ico"/>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
@@ -21,9 +21,9 @@
            .collect { [controller: it.logicalPropertyName, label: it.shortName?.replace('Controller', '')] }
            .sort { it.label?.toLowerCase() }}"/>
 
-<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom fixed-top shadow-sm" aria-label="Hauptnavigation">
+<nav class="navbar navbar-expand-lg bg-white border-bottom fixed-top" aria-label="Hauptnavigation">
     <div class="container-fluid">
-        <a class="navbar-brand fw-semibold" href="${request.contextPath}/">INTERLIS CRUD GENERATOR</a>
+        <a class="navbar-brand fw-semibold" href="${request.contextPath}/">INTERLIS CRUD</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#iliMainNavbar" aria-controls="iliMainNavbar" aria-expanded="false" aria-label="Navigation ein-/ausblenden">
             <span class="navbar-toggler-icon"></span>
         </button>

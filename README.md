@@ -375,13 +375,18 @@ Beispiel eines Attribut-Ausschnitts:
 | `ClassMetadata` | `name`, `simpleName`, `topicName`, `tableName`, `sqlName`, `kind`, `abstract`, `baseClass`, `inheritanceStrategy`, `attributes`, `labels` | INTERLIS-Klasse, Structure oder Association plus physisches Tabellenmapping, falls vorhanden. | `name` ist die fachliche Identität; `tableName`/`sqlName` sind physische DB-Details. |
 | `AssociationMetadata` | `name`, `associationClass`, `physicalTable`, `physicalSqlName`, `roles`, `attributes` | Kanonische IR für INTERLIS-Associations; Rollen, Kardinalitäten, eigene Attribute und physische Abbildung bleiben zusammen. | Additiver Core-Baustein. `RelationshipMetadata` bleibt für v1 kompatibel erhalten. |
 | `AssociationRoleMetadata` | `name`, `targetClass`, `oppositeRoleName`, `cardinality`, Flags, physische Felder, Merge-Diagnostik | Rolle innerhalb einer Association. Physische FK-/Role-Spalten gehören zur Rolle, nicht zu den Association-Attributen. | Targets sollen Rollen bevorzugt über `AssociationMetadata` lesen und Relationships als Fallback behandeln. |
-| `AttributeMetadata` | `name`, `qualifiedName`, `columnName`, `sqlName`, `iliType`, `domainName`, `coreType`, `targetHints.javaType`, `dbType`, `mandatory`, `precision`, `scale`, `constraints`, `geometry*`, `enumType`, `unit`, `referencedClass` | Attribut-/Spalten-IR mit Constraints, Typ- und Referenzinformationen. `coreType` ist der framework-agnostische Typvertrag; `constraints` bündelt Pflichtigkeit, Grenzen, Dezimalpräzision, Kardinalität und `ordered`. `targetHints.javaType` ist nur ein Java-/Grails-Hinweis. | `coreType` und `constraints` sind für Generatoren maßgeblich. Legacy-Constraint-Felder bleiben aus Kompatibilitätsgründen erhalten. `targetHints` bleiben optional und target-spezifisch. |
+| `AttributeMetadata` | `name`, `qualifiedName`, `columnName`, `sqlName`, `iliType`, `domainName`, `coreType`, `targetHints.javaType`, `dbType`, `mandatory`, `precision`, `scale`, `constraints`, `geometry*`, `enumType`, `unit`, `referencedClass` | Attribut-/Spalten-IR mit Constraints, Typ- und Referenzinformationen. `coreType` ist der framework-agnostische Typvertrag; `constraints` bündelt Pflichtigkeit, Grenzen, Dezimalpräzision, Kardinalität und `ordered`. Geometrien führen zusätzlich `geometryKind`, `geometrySrid`, `geometryHasZ`, `geometryHasM` und `allowEmptyGeometry`, soweit bekannt. `targetHints.javaType` ist nur ein Java-/Grails-Hinweis. | `coreType`, `constraints` und die Geometrie-Metadaten sind für Generatoren maßgeblich. Legacy-Constraint-Felder bleiben aus Kompatibilitätsgründen erhalten. `targetHints` bleiben optional und target-spezifisch. |
 | `RelationshipMetadata` | `name`, `sourceClass`, `targetClass`, `type`, `semanticKind`, Rollen/FK-Felder, `cardinality`, Flags, Merge-Diagnostik | Beziehung als First-Class-IR aus ili2db-FK und/oder ili2c-Semantik. | `semanticKind` und Klassen-/Rollenfelder sind für Targets maßgeblich; Diagnosefelder erklären die Zusammenführung. |
 | `EnumMetadata` | `name`, `simpleName`, `extendable`, `baseEnum`, `values[].iliCode`, `dispName`, `seq`, `labels` | INTERLIS-Enumeration inkl. Reihenfolge, Erweiterbarkeit und Display-/Label-Daten. | `iliCode` und `seq` sind stabil für Generatoren; Ziel-Identifier werden target-spezifisch erzeugt. |
 
 `coreType` verwendet aktuell diese Werte:
 `TEXT`, `MTEXT`, `NUMERIC`, `BOOLEAN`, `DATE`, `DATETIME`, `TIME`, `ENUM`,
 `COORD`, `POLYLINE`, `SURFACE`, `REFERENCE`, `COMPOSITION`, `OBJECT`, `UNKNOWN`.
+
+Geometrieattribute verwenden zusätzlich den typisierten Geometrievertrag
+`POINT`, `MULTIPOINT`, `LINESTRING`, `MULTILINESTRING`, `POLYGON`,
+`MULTIPOLYGON` oder `GEOMETRY`. Die JSON-Ausgabe bleibt kompatibel und schreibt
+`geometryKind` weiterhin als String.
 
 ### Relationship-Semantik
 - ili2db-Beziehungen liefern physische Namen: FK-Spalten, Zielspalten und Tabellenmapping.
@@ -471,9 +476,9 @@ schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
 ### Modernes SSR-Scaffolding und Geometrie-Editing
 - Mit `--grails-ui-theme bootstrap` werden moderne SSR-Scaffolding-Templates verwendet (kein SPA-Zwang).
 - Mit `--grails-map-editor openlayers` erhalten Scaffold-`create/edit/show` bei Geometrie-Attributen eine Webkarte.
-- Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt.
-- Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen (ohne Snapping/Topologieprüfung).
-- Die Oberfläche nutzt Bootstrap 5.3 mit Standardkomponenten (Navbar mit Hamburger-Menü, Alerts, Tabellen, Modal).
+- Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt. Die Runtime prüft erwarteten Geometrietyp, Empty-Geometrien, JTS-Validität und konvertiert Single-Geometrien bei erwarteten Multi-Typen in Multi-Geometrien.
+- Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen (ohne Snapping).
+- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis, wird aber mit ruhigen Datenportal-Tokens (`ili-modern.css`) gestaltet: kleine Radien, dünne Linien, rote Akzente und keine Card-Shadows.
 - `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
   links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
 - Typisierte To-One-Relationships werden im Bootstrap-Overlay als serverseitige Selects mit
@@ -481,8 +486,17 @@ schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
   `name`, `bezeichnung`, `label`, `title`, danach `id` abgeleitet.
 - Bei mehreren Geometriefeldern wird rechts ein Tab-Panel pro Feld gerendert.
 - `show` nutzt ebenfalls das Split-Layout und eine separate Danger-Zone mit Confirm-Modal vor `DELETE`.
-- `index` rendert als Bootstrap-Tabelle mit serverseitigem Paging, Freitextsuche über Textspalten und Row-Actions.
+- `index` rendert als Tabelle mit serverseitigem Paging, Freitextsuche über Textspalten, echten Sortierlinks, einfachen typisierten Filtern und Row-Actions.
 - Unsaved-Changes werden in `create/edit` als Badge + `beforeunload`-Warnung signalisiert.
+- Wiederverwendbare Runtime-Logik liegt in `ch.interlis.generator.grails.runtime`. Das Controller-Template delegiert an `InterlisCrudControllerSupport`, statt Paging, Suche, Relationship-Optionen und Geometrie-Binding in jede generierte Controller-Klasse zu kopieren.
+
+Opt-in Browser-E2E:
+```bash
+./gradlew :target-grails:browserE2eTest -PbrowserE2eAppUrl=http://localhost:8080
+```
+Der Test läuft gegen eine bereits gestartete generierte Grails-App und prüft die
+Browser-Navigation bis zur CRUD-Form. Der vollständige PostGIS-Setup-Pfad bleibt
+weiterhin ein expliziter Integrationsschritt über die bestehenden Smoke-Tests.
 
 #### UX-Grenzen dieser Iteration
 - Keine Bulk-Actions und keine SPA-Architektur.

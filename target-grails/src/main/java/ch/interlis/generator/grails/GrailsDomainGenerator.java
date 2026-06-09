@@ -59,10 +59,14 @@ public class GrailsDomainGenerator {
         boolean hasIdAttribute = false;
         boolean hasPrimaryKeyTId = false;
         boolean hasTIdColumn = false;
+        boolean hasVersionColumn = false;
 
         for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
             if ("id".equalsIgnoreCase(attr.getName())) {
                 hasIdAttribute = true;
+            }
+            if (isVersionColumn(attr)) {
+                hasVersionColumn = true;
             }
             if (isTIdColumn(attr)) {
                 hasTIdColumn = true;
@@ -104,9 +108,7 @@ public class GrailsDomainGenerator {
             sb.append("\n    static final Map<String, Map<String, Object>> geometryMeta = [\n");
             String geometryMetaBlock = geometryAttributes.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
-                .map(entry -> "        " + entry.getKey() + ": [srid: "
-                    + renderSrid(entry.getValue())
-                    + ", kind: '" + renderGeometryKind(entry.getValue()) + "']")
+                .map(entry -> "        " + entry.getKey() + ": " + renderGeometryMeta(entry.getValue()))
                 .collect(Collectors.joining(",\n"));
             sb.append(geometryMetaBlock).append("\n");
             sb.append("    ]\n");
@@ -135,7 +137,9 @@ public class GrailsDomainGenerator {
             sb.append("        id column: 't_id', generator: 'identity'\n");
         }
         
-        sb.append("        version false\n");
+        if (!hasVersionColumn) {
+            sb.append("        version false\n");
+        }
         
         if (!columnMappings.isEmpty()) {
             sb.append("        columns {\n");
@@ -225,6 +229,30 @@ public class GrailsDomainGenerator {
             return true;
         }
         return "t_id".equalsIgnoreCase(attr.getName());
+    }
+
+    private boolean isVersionColumn(AttributeMetadata attr) {
+        String columnName = attr.getColumnName();
+        if (columnName != null && columnName.equalsIgnoreCase("version")) {
+            return true;
+        }
+        return "version".equalsIgnoreCase(attr.getName());
+    }
+
+    private String renderGeometryMeta(GrailsRelationshipMapper.DomainProperty property) {
+        List<String> entries = new ArrayList<>();
+        entries.add("srid: " + renderSrid(property));
+        entries.add("kind: '" + renderGeometryKind(property) + "'");
+        if (property.geometryHasZ() != null) {
+            entries.add("hasZ: " + property.geometryHasZ());
+        }
+        if (property.geometryHasM() != null) {
+            entries.add("hasM: " + property.geometryHasM());
+        }
+        if (property.allowEmptyGeometry() != null) {
+            entries.add("allowEmpty: " + property.allowEmptyGeometry());
+        }
+        return "[" + String.join(", ", entries) + "]";
     }
 
     private String renderSrid(GrailsRelationshipMapper.DomainProperty property) {
