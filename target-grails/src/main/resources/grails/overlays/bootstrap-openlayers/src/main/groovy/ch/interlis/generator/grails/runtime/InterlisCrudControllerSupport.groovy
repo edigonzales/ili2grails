@@ -3,6 +3,7 @@ package ch.interlis.generator.grails.runtime
 import grails.converters.JSON
 import grails.validation.ValidationException
 import org.locationtech.jts.geom.Geometry
+import org.springframework.dao.DataIntegrityViolationException
 
 import java.beans.Introspector
 import java.time.LocalDate
@@ -12,11 +13,14 @@ import static org.springframework.http.HttpStatus.*
 
 abstract class InterlisCrudControllerSupport<T> {
 
+    private static final String CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
     protected abstract Class<T> domainType()
 
     protected abstract Object crudService()
 
     def index(Integer max, Integer offset) {
+        applySecurityHeaders()
         Map<String, Object> pagination = paginationParams(max, offset)
         String query = normalizedQuery(params.q)
         List<String> columns = tableColumns()
@@ -38,6 +42,7 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     def show(Long id) {
+        applySecurityHeaders()
         T instance = crudService().get(id) as T
         if (instance == null) {
             notFound()
@@ -51,12 +56,14 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     def create() {
+        applySecurityHeaders()
         T instance = domainType().newInstance(params) as T
         InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
         respond instance, model: formModel(instance)
     }
 
     def save() {
+        applySecurityHeaders()
         T instance = domainType().newInstance(params) as T
         InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
         if (instance.hasErrors()) {
@@ -84,6 +91,7 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     def edit(Long id) {
+        applySecurityHeaders()
         T instance = crudService().get(id) as T
         if (instance == null) {
             notFound()
@@ -93,6 +101,7 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     def update(Long id) {
+        applySecurityHeaders()
         T instance = crudService().get(id) as T
         if (instance == null) {
             notFound()
@@ -126,12 +135,24 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     def delete(Long id) {
+        applySecurityHeaders()
         if (id == null) {
             notFound()
             return
         }
 
-        crudService().delete(id)
+        try {
+            crudService().delete(id)
+        } catch (DataIntegrityViolationException ignored) {
+            request.withFormat {
+                form multipartForm {
+                    flash.message = "Datensatz ${id} kann nicht geloescht werden, weil abhaengige Daten vorhanden sind."
+                    redirect action: "index", method: "GET"
+                }
+                "*" { render status: CONFLICT }
+            }
+            return
+        }
 
         request.withFormat {
             form multipartForm {
@@ -146,6 +167,7 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     def relationshipOptions() {
+        applySecurityHeaders()
         Map<String, Object> page = relationshipOptionPage(
             params.field?.toString(),
             normalizedQuery(params.q),
@@ -156,6 +178,7 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     protected void notFound() {
+        applySecurityHeaders()
         request.withFormat {
             form multipartForm {
                 flash.message = message(
@@ -166,6 +189,14 @@ abstract class InterlisCrudControllerSupport<T> {
             }
             "*" { render status: NOT_FOUND }
         }
+    }
+
+    protected void applySecurityHeaders() {
+        response.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+        response.setHeader("X-Content-Type-Options", "nosniff")
+        response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.setHeader("X-Frame-Options", "DENY")
+        response.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
     }
 
     protected Map<String, Object> formModel(T instance) {

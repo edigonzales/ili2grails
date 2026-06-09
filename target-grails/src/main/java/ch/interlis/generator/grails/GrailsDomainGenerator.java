@@ -3,8 +3,10 @@ package ch.interlis.generator.grails;
 import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.AttributeConstraints;
 import ch.interlis.generator.model.ClassMetadata;
+import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.RelationshipMetadata;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -14,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -22,6 +25,15 @@ import java.util.stream.Collectors;
  * Generiert Grails Domain-Klassen inkl. Constraints und Mapping.
  */
 public class GrailsDomainGenerator {
+
+    private static final List<String> DISPLAY_FIELD_PREFERENCES = List.of(
+        "name",
+        "bezeichnung",
+        "label",
+        "title",
+        "code",
+        "ident"
+    );
 
     public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
         generate(metadata, config, TargetNameRegistry.forMetadata(metadata, config));
@@ -57,6 +69,9 @@ public class GrailsDomainGenerator {
         Map<String, String> columnMappings = new LinkedHashMap<>();
         Map<String, GrailsRelationshipMapper.DomainProperty> geometryAttributes = new LinkedHashMap<>();
         Map<String, AttributeMetadata> fieldMetadata = new LinkedHashMap<>();
+        List<String> displayFields = displayFields(mapping.properties());
+        List<String> searchFields = searchFields(mapping.properties());
+        Map<String, GrailsRelationshipMapper.DomainProperty> relationshipMetadata = relationshipMetadata(mapping.properties());
         boolean hasIdAttribute = false;
         boolean hasPrimaryKeyTId = false;
         boolean hasTIdColumn = false;
@@ -125,6 +140,23 @@ public class GrailsDomainGenerator {
                 .map(entry -> "        " + entry.getKey() + ": " + renderFieldMeta(entry.getValue()))
                 .collect(Collectors.joining(",\n"));
             sb.append(fieldMetaBlock).append("\n");
+            sb.append("    ]\n");
+        }
+
+        if (!displayFields.isEmpty() || !searchFields.isEmpty()) {
+            sb.append("\n    static final Map<String, Object> interlisDisplayMeta = [\n");
+            sb.append("        displayFields: ").append(renderStringList(displayFields)).append(",\n");
+            sb.append("        searchFields: ").append(renderStringList(searchFields)).append("\n");
+            sb.append("    ]\n");
+        }
+
+        if (!relationshipMetadata.isEmpty()) {
+            sb.append("\n    static final Map<String, Map<String, Object>> interlisRelationshipMeta = [\n");
+            String relationshipMetaBlock = relationshipMetadata.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> "        " + entry.getKey() + ": " + renderRelationshipMeta(entry.getValue()))
+                .collect(Collectors.joining(",\n"));
+            sb.append(relationshipMetaBlock).append("\n");
             sb.append("    ]\n");
         }
 
@@ -269,6 +301,30 @@ public class GrailsDomainGenerator {
         return "[" + String.join(", ", entries) + "]";
     }
 
+    private String renderRelationshipMeta(GrailsRelationshipMapper.DomainProperty property) {
+        RelationshipMetadata relationship = property.relationship();
+        List<String> entries = new ArrayList<>();
+        entries.add("targetClass: '" + escapeGroovy(property.type()) + "'");
+        if (relationship != null && relationship.getSemanticKind() != null) {
+            entries.add("semanticKind: '" + relationship.getSemanticKind().name() + "'");
+        }
+        String label = relationshipLabel(property);
+        if (label != null && !label.isBlank()) {
+            entries.add("label: '" + escapeGroovy(label) + "'");
+        }
+        if (relationship != null && relationship.getSourceAttribute() != null && !relationship.getSourceAttribute().isBlank()) {
+            entries.add("sourceAttribute: '" + escapeGroovy(relationship.getSourceAttribute()) + "'");
+        }
+        if (relationship != null && relationship.getTargetRoleName() != null && !relationship.getTargetRoleName().isBlank()) {
+            entries.add("targetRole: '" + escapeGroovy(relationship.getTargetRoleName()) + "'");
+        }
+        if (relationship != null && relationship.getAssociationName() != null && !relationship.getAssociationName().isBlank()) {
+            entries.add("association: '" + escapeGroovy(relationship.getAssociationName()) + "'");
+        }
+        entries.add("mandatory: " + !property.nullable());
+        return "[" + String.join(", ", entries) + "]";
+    }
+
     private String renderFieldMeta(AttributeMetadata attribute) {
         List<String> entries = new ArrayList<>();
         String label = resolveDefaultLabel(attribute);
@@ -320,5 +376,109 @@ public class GrailsDomainGenerator {
             return "GEOMETRY";
         }
         return geometryKind.toUpperCase();
+    }
+
+    private List<String> displayFields(List<GrailsRelationshipMapper.DomainProperty> properties) {
+        List<String> preferred = DISPLAY_FIELD_PREFERENCES.stream()
+            .flatMap(preference -> properties.stream()
+                .filter(this::isDisplayCandidate)
+                .filter(property -> preference.equals(normalizedName(property.name())))
+                .map(GrailsRelationshipMapper.DomainProperty::name))
+            .distinct()
+            .limit(2)
+            .toList();
+        if (!preferred.isEmpty()) {
+            return preferred;
+        }
+        return properties.stream()
+            .filter(this::isTextDisplayCandidate)
+            .map(GrailsRelationshipMapper.DomainProperty::name)
+            .distinct()
+            .limit(2)
+            .toList();
+    }
+
+    private List<String> searchFields(List<GrailsRelationshipMapper.DomainProperty> properties) {
+        List<String> preferred = DISPLAY_FIELD_PREFERENCES.stream()
+            .flatMap(preference -> properties.stream()
+                .filter(this::isTextDisplayCandidate)
+                .filter(property -> preference.equals(normalizedName(property.name())))
+                .map(GrailsRelationshipMapper.DomainProperty::name))
+            .distinct()
+            .toList();
+        List<String> textFields = properties.stream()
+            .filter(this::isTextDisplayCandidate)
+            .map(GrailsRelationshipMapper.DomainProperty::name)
+            .distinct()
+            .toList();
+        List<String> result = new ArrayList<>();
+        preferred.forEach(result::add);
+        for (String field : textFields) {
+            if (!result.contains(field)) {
+                result.add(field);
+            }
+        }
+        return result;
+    }
+
+    private Map<String, GrailsRelationshipMapper.DomainProperty> relationshipMetadata(
+        List<GrailsRelationshipMapper.DomainProperty> properties
+    ) {
+        Map<String, GrailsRelationshipMapper.DomainProperty> result = new LinkedHashMap<>();
+        for (GrailsRelationshipMapper.DomainProperty property : properties) {
+            if (property.relationship() != null) {
+                result.put(property.name(), property);
+            }
+        }
+        return result;
+    }
+
+    private boolean isDisplayCandidate(GrailsRelationshipMapper.DomainProperty property) {
+        if (property == null || property.geometry() || property.relationship() != null || property.attribute() == null) {
+            return false;
+        }
+        String name = normalizedName(property.name());
+        return !"id".equals(name) && !"version".equals(name) && !"tid".equals(name);
+    }
+
+    private boolean isTextDisplayCandidate(GrailsRelationshipMapper.DomainProperty property) {
+        if (!isDisplayCandidate(property)) {
+            return false;
+        }
+        AttributeMetadata attribute = property.attribute();
+        CoreType coreType = attribute.getCoreType();
+        return "String".equals(property.type())
+            || coreType == CoreType.TEXT
+            || coreType == CoreType.MTEXT;
+    }
+
+    private String relationshipLabel(GrailsRelationshipMapper.DomainProperty property) {
+        RelationshipMetadata relationship = property.relationship();
+        if (relationship == null) {
+            return property.name();
+        }
+        if (relationship.getTargetRoleName() != null && !relationship.getTargetRoleName().isBlank()) {
+            return relationship.getTargetRoleName();
+        }
+        if (relationship.getSourceAttribute() != null && !relationship.getSourceAttribute().isBlank()) {
+            return relationship.getSourceAttribute();
+        }
+        if (relationship.getName() != null && !relationship.getName().isBlank()) {
+            return relationship.getName();
+        }
+        return property.name();
+    }
+
+    private String renderStringList(List<String> values) {
+        return values.stream()
+            .map(value -> "'" + escapeGroovy(value) + "'")
+            .collect(Collectors.joining(", ", "[", "]"));
+    }
+
+    private String normalizedName(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("_", "").replace("-", "").toLowerCase(Locale.ROOT);
     }
 }

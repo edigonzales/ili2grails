@@ -12,6 +12,11 @@ class Address {
         postalcode: [label: 'postalCode', qualifiedName: 'SimpleAddressModel.Addresses.Address.postalCode']
     ]
 
+    static final Map<String, Object> interlisDisplayMeta = [
+        displayFields: ['astreet', 'housenumber'],
+        searchFields: ['astreet', 'housenumber', 'postalcode']
+    ]
+
     static mapping = {
         table 'address'
         id column: 't_id', generator: 'identity'

@@ -161,9 +161,10 @@ Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch 
 ```
 Der Scaffold-Schritt wird blockiert, wenn im Zielverzeichnis bereits `build.gradle`, `settings.gradle` oder `grails-app/` vorhanden sind.
 
-Hinweis: Der Generator ergänzt in `build.gradle` automatisch die JTS-Dependency, sobald eine Grails-App vorhanden ist.
+Hinweis: Der Generator ergänzt in `build.gradle` automatisch die JTS-, PostgreSQL- und WebJar-Dependencies für Bootstrap, OpenLayers und proj4, sobald eine Grails-App vorhanden ist.
 Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `development`-Datenbank auf die per CLI übergebene JDBC-URL, ergänzt `currentSchema` (falls gesetzt), stellt `dbCreate` auf `none` und setzt den PostgreSQL-Hibernate-Dialekt.
 Wenn die JDBC-URL `user`, `username` oder `password` enthält, entfernt der Generator diese Werte aus der URL und schreibt stattdessen `DB_USERNAME`/`DB_PASSWORD`-Platzhalter in die Grails-Konfiguration.
+Für `production` schreibt der Generator keine Demo-URL, sondern erwartet explizit `DB_URL`, `DB_USERNAME` und `DB_PASSWORD`; fehlende Werte sollen beim Start sichtbar fehlschlagen.
 Ist Geometrie aktiviert (Map-Editor `openlayers` oder Geometrie-Felder im Modell), ergänzt der Generator zusätzlich `hibernate-spatial`, setzt den Spatial-Dialekt und schreibt `interlis.geometry.defaultSrid`.
 
 ### 2) CRUD-Artefakte generieren
@@ -193,6 +194,15 @@ Die DB-Verbindung kommt aus der Grails-Konfiguration in `grails-app/conf/applica
 (Properties `dataSource.url`, `dataSource.username`, `dataSource.password`). Bei generierten lokalen Demo-Apps mit Credentials in der JDBC-URL müssen die Umgebungsvariablen gesetzt sein:
 ```bash
 DB_USERNAME=postgres DB_PASSWORD=secret ./gradlew bootRun
+```
+
+Für den Production-Start müssen alle drei Verbindungswerte gesetzt werden; `DB_URL`
+enthält dabei auch das Schema, falls die App auf ein ili2pg-Schema zeigen soll:
+```bash
+DB_URL='jdbc:postgresql://localhost:54321/edit?currentSchema=sa' \
+DB_USERNAME=postgres \
+DB_PASSWORD=secret \
+./gradlew -Dgrails.env=prod bootRun
 ```
 
 ## Benutzeranleitung (Detail)
@@ -487,18 +497,25 @@ schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
 - Mit `--grails-ui-theme bootstrap` werden moderne SSR-Scaffolding-Templates verwendet (kein SPA-Zwang).
 - Mit `--grails-map-editor openlayers` erhalten Scaffold-`create/edit/show` bei Geometrie-Attributen eine Webkarte.
 - Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt. Die Runtime prüft erwarteten Geometrietyp, Empty-Geometrien, JTS-Validität und konvertiert Single-Geometrien bei erwarteten Multi-Typen in Multi-Geometrien.
-- Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen (ohne Snapping).
-- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis, wird aber mit ruhigen Datenportal-Tokens (`ili-modern.css`) gestaltet: kleine Radien, dünne Linien, rote Akzente und keine Card-Shadows.
+- Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen und Snapping auf vorhandene Editor-Vertices. Fachliche Topologie-Regeln bleiben ein projektspezifischer Extension Point.
+- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis, wird aber mit ruhigen Datenportal-Tokens (`ili-modern.css`) gestaltet: kleine Radien, dünne Linien, rote Akzente und keine Card-Shadows. Bootstrap, OpenLayers und proj4 werden über lokale WebJars/Asset-Pipeline eingebunden, nicht über CDN.
 - `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
   links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
 - Dokumentation und Units aus der Core-IR werden als zurückhaltende Feldhinweise im Formular angezeigt. Übersetzte Labels bleiben weiterhin über Grails-Message-Codes überschreibbar.
 - Typisierte To-One-Relationships werden im Bootstrap-Overlay als serverseitige Selects mit
-  paginiertem Autocomplete-Endpunkt gerendert. Labels werden zur Laufzeit bevorzugt aus
-  `name`, `bezeichnung`, `label`, `title`, danach `id` abgeleitet.
+  paginiertem Autocomplete-Endpunkt und serverseitiger Fallback-Auswahl gerendert.
+  Der Generator schreibt additive `interlisDisplayMeta`-/`interlisRelationshipMeta`-Maps in
+  die Grails-Domains. Relationship-Optionen suchen und sortieren bevorzugt nach
+  `name`, `bezeichnung`, `label`, `title`, `code`, `ident` und danach nach sinnvollen
+  Textfeldern; Labels werden aus ein bis zwei Display-Feldern zusammengesetzt und fallen
+  zuletzt auf `id` zurück.
 - Bei mehreren Geometriefeldern wird rechts ein Tab-Panel pro Feld gerendert.
 - `show` nutzt ebenfalls das Split-Layout und eine separate Danger-Zone mit Confirm-Modal vor `DELETE`.
 - `index` rendert als Tabelle mit serverseitigem Paging, Freitextsuche über Textspalten, echten Sortierlinks, einfachen typisierten Filtern und Row-Actions.
 - Unsaved-Changes werden in `create/edit` als Badge + `beforeunload`-Warnung signalisiert.
+- Der Runtime-Support setzt Security-Header mit lokaler CSP und fängt referenzielle
+  Integritätsfehler bei Deletes als verständliche Flash-Meldung ab, statt einen 500er
+  durchzureichen.
 - Wiederverwendbare Runtime-Logik liegt in `ch.interlis.generator.grails.runtime`. Das Controller-Template delegiert an `InterlisCrudControllerSupport`, statt Paging, Suche, Relationship-Optionen und Geometrie-Binding in jede generierte Controller-Klasse zu kopieren.
 
 Opt-in Browser-E2E:
@@ -522,6 +539,8 @@ Browser-CRUD-Pfad weiterhin auf eine externe URL gerichtet werden:
 - Keine Bulk-Actions und keine SPA-Architektur.
 - Relationship-Autocomplete lädt pro Anfrage eine begrenzte Ergebnismenge und bleibt ein progressives Enhancement über dem serverseitig gerenderten Select.
 - Die Suche ist bewusst generisch und auf einfache Textspalten begrenzt; modell- oder fachdomänenspezifische Filter bleiben späteren Targets vorbehalten.
+- Security-Header sind Betriebsdefaults, ersetzen aber keine Authentisierung, Rollen,
+  Autorisierung oder Audit-Logs.
 
 ### Strukturen im Domain-Model
 - INTERLIS-Strukturen werden als eigene `STRUCTURE`-Klassen im Metamodell geführt.
@@ -534,7 +553,7 @@ Browser-CRUD-Pfad weiterhin auf eine externe URL gerichtet werden:
 - Getesteter Primärpfad ist weiterhin PostgreSQL/PostGIS mit ili2pg; andere ili2db-Flavours sind nicht als produktiv validiert.
 - Grails-CRUD nutzt weiterhin Grails-Scaffolding/Template-Overlay; das Core-Metamodell soll davon unabhängig bleiben.
 - Django/GeoDjango ist derzeit ein Target-Spike mit CLI-verdrahteter `models.py`-Ausgabe und Snapshot-Abdeckung, aber ohne produktionsreife Runtime-Validierung.
-- Der Generator schreibt Credentials aus JDBC-URLs nicht mehr dauerhaft in `application.yml`, sondern nutzt `DB_USERNAME`/`DB_PASSWORD`-Platzhalter. Auth/Rollen, Audit-Felder, CSP und vollständig lokale Frontend-Assets bleiben separate Produktionshärtungsaufgaben.
+- Der Generator schreibt Credentials aus JDBC-URLs nicht mehr dauerhaft in `application.yml`, sondern nutzt `DB_USERNAME`/`DB_PASSWORD`-Platzhalter und für `production` zusätzlich `DB_URL`. Auth/Rollen, Autorisierung und Audit-Felder bleiben separate Produktionshärtungsaufgaben.
 
 ## Projektstruktur
 ```

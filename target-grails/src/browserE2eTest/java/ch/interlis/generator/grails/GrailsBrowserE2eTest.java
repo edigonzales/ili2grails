@@ -318,6 +318,9 @@ class GrailsBrowserE2eTest {
     }
 
     private void submitForm(Page page) {
+        assertThat(page.locator("[data-form-submit]").count())
+            .as("submit action on " + page.url() + "\n" + pageSummary(page))
+            .isGreaterThan(0);
         page.locator("[data-form-submit]").click();
         page.waitForLoadState(LoadState.NETWORKIDLE);
         assertThat(page.locator(".alert-danger").count()).isZero();

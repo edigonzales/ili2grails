@@ -152,6 +152,9 @@
         if (mode !== "view") {
             modifyInteraction = new ol.interaction.Modify({ source: source });
             map.addInteraction(modifyInteraction);
+            if (ol.interaction.Snap) {
+                map.addInteraction(new ol.interaction.Snap({ source: source }));
+            }
         }
 
         return {

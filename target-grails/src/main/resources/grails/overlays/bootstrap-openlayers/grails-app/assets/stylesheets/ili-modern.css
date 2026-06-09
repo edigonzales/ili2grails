@@ -190,6 +190,20 @@ body {
     min-width: 0;
 }
 
+.ili-relationship-picker {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.ili-relationship-results {
+    max-height: 14rem;
+    overflow: auto;
+}
+
+.ili-relationship-result {
+    text-align: left;
+}
+
 .ili-native-control > ul {
     margin-bottom: var(--dp-space-2);
     padding-left: 1.1rem;

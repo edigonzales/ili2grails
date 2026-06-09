@@ -10,6 +10,11 @@ class SameTargetAssociation {
         secondaryPersonId: [label: 'SecondaryPerson', qualifiedName: 'AssociationCases.Base.SameTargetAssociation.SecondaryPerson']
     ]
 
+    static final Map<String, Map<String, Object>> interlisRelationshipMeta = [
+        primaryPersonId: [targetClass: 'Person', semanticKind: 'ASSOCIATION_ROLE', label: 'PrimaryPerson', sourceAttribute: 'primary_person_id', targetRole: 'PrimaryPerson', association: 'AssociationCases.Base.SameTargetAssociation', mandatory: false],
+        secondaryPersonId: [targetClass: 'Person', semanticKind: 'ASSOCIATION_ROLE', label: 'SecondaryPerson', sourceAttribute: 'secondary_person_id', targetRole: 'SecondaryPerson', association: 'AssociationCases.Base.SameTargetAssociation', mandatory: false]
+    ]
+
     static mapping = {
         table 'sametargetassociation'
         id column: 't_id', generator: 'identity'

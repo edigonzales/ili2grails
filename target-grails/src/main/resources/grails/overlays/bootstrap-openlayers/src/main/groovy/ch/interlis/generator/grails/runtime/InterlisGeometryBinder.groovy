@@ -9,6 +9,9 @@ import org.locationtech.jts.operation.valid.IsValidOp
 
 final class InterlisGeometryBinder {
 
+    private static final int DEFAULT_MAX_WKT_LENGTH = 1_048_576
+    private static final int DEFAULT_MAX_VERTEX_COUNT = 50_000
+
     private InterlisGeometryBinder() {
     }
 
@@ -29,6 +32,17 @@ final class InterlisGeometryBinder {
             String wktValue = params.get(paramName)
             if (wktValue == null || wktValue.trim().isEmpty()) {
                 instance."${field}" = null
+                return
+            }
+            int maxWktLength = maxWktLength(grailsApplication)
+            if (wktValue.length() > maxWktLength) {
+                rejectValue(
+                    instance,
+                    field,
+                    "default.invalid.geometry.wktSize.message",
+                    [field, maxWktLength] as Object[],
+                    "Geometrie fuer ${field} ist zu gross. Maximal ${maxWktLength} WKT-Zeichen sind erlaubt."
+                )
                 return
             }
             try {
@@ -59,6 +73,18 @@ final class InterlisGeometryBinder {
                         "default.invalid.geometry.empty.message",
                         [field] as Object[],
                         "Leere Geometrien sind fuer ${field} nicht erlaubt."
+                    )
+                    return
+                }
+                int maxVertices = maxVertexCount(grailsApplication)
+                int vertices = vertexCount(normalized)
+                if (vertices > maxVertices) {
+                    rejectValue(
+                        instance,
+                        field,
+                        "default.invalid.geometry.vertexCount.message",
+                        [field, maxVertices, vertices] as Object[],
+                        "Geometrie fuer ${field} hat zu viele Stuetzpunkte. Maximal ${maxVertices} sind erlaubt."
                     )
                     return
                 }
@@ -112,6 +138,29 @@ final class InterlisGeometryBinder {
 
     private static boolean allowEmpty(String field, Map<String, Map<String, Object>> geometryMeta) {
         return geometryMeta[field]?.get("allowEmpty") == true
+    }
+
+    private static int maxWktLength(def grailsApplication) {
+        return grailsApplication?.config?.getProperty(
+            "interlis.geometry.maxWktLength",
+            Integer,
+            DEFAULT_MAX_WKT_LENGTH
+        ) ?: DEFAULT_MAX_WKT_LENGTH
+    }
+
+    private static int maxVertexCount(def grailsApplication) {
+        return grailsApplication?.config?.getProperty(
+            "interlis.geometry.maxVertices",
+            Integer,
+            DEFAULT_MAX_VERTEX_COUNT
+        ) ?: DEFAULT_MAX_VERTEX_COUNT
+    }
+
+    private static int vertexCount(Geometry geometry) {
+        if (geometry == null) {
+            return 0
+        }
+        return geometry.coordinates?.length ?: 0
     }
 
     private static Geometry normalizeGeometry(Geometry geometry, String expectedKind) {

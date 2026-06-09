@@ -14,6 +14,11 @@ class Person {
         lastname: [label: 'lastName', documentation: 'Nachname', qualifiedName: 'SimpleAddressModel.Addresses.Person.lastName']
     ]
 
+    static final Map<String, Object> interlisDisplayMeta = [
+        displayFields: ['firstname', 'lastname'],
+        searchFields: ['firstname', 'lastname']
+    ]
+
     static mapping = {
         table 'person'
         id column: 't_id', generator: 'identity'

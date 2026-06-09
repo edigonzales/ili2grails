@@ -25,6 +25,9 @@ class GrailsBuildGradleUpdaterTest {
         String updated = Files.readString(buildGradle);
         assertThat(updated).contains("org.locationtech.jts:jts-core");
         assertThat(updated).contains("org.postgresql:postgresql:42.7.7");
+        assertThat(updated).contains("org.webjars:bootstrap:5.3.3");
+        assertThat(updated).contains("org.webjars.npm:ol:9.2.4");
+        assertThat(updated).contains("org.webjars.npm:proj4:2.11.0");
         assertThat(updated).doesNotContain("sqlite-jdbc");
         assertThat(updated).doesNotContain("sqlite-dialect");
         assertThat(updated).doesNotContain("hibernate-spatial");
@@ -45,6 +48,9 @@ class GrailsBuildGradleUpdaterTest {
 
         String updated = Files.readString(buildGradle);
         assertThat(updated).contains("org.hibernate:hibernate-spatial:5.6.15.Final");
+        assertThat(updated).containsOnlyOnce("org.webjars:bootstrap:5.3.3");
+        assertThat(updated).containsOnlyOnce("org.webjars.npm:ol:9.2.4");
+        assertThat(updated).containsOnlyOnce("org.webjars.npm:proj4:2.11.0");
         assertThat(updated).doesNotContain("org.hibernate.orm:hibernate-spatial");
     }
 }

@@ -76,23 +76,19 @@ class GrailsApplicationYamlUpdater {
     private boolean updateDevelopmentDataSource(List<Object> documents, String jdbcUrl, String schema) {
         boolean changed = false;
         JdbcConnectionSettings connectionSettings = JdbcConnectionSettings.from(jdbcUrl);
+        boolean developmentUpdated = false;
         for (Object document : documents) {
             Map<String, Object> root = asMap(document);
             if (root == null) {
                 continue;
             }
             Map<String, Object> environments = asMap(root.get("environments"));
-            if (environments == null) {
-                continue;
-            }
-            Map<String, Object> development = asMap(environments.get("development"));
-            if (development == null) {
-                continue;
-            }
-            Map<String, Object> dataSource = asMap(development.get("dataSource"));
+            Map<String, Object> development = environments == null ? null : asMap(environments.get("development"));
+            Map<String, Object> dataSource = development == null ? null : asMap(development.get("dataSource"));
             if (dataSource == null) {
                 continue;
             }
+            developmentUpdated = true;
             if (connectionSettings.url() != null) {
                 String resolvedJdbcUrl = appendCurrentSchema(connectionSettings.url(), schema);
                 if (!Objects.equals(resolvedJdbcUrl, dataSource.get("url"))) {
@@ -118,6 +114,56 @@ class GrailsApplicationYamlUpdater {
                 dataSource.put("dbCreate", "none");
                 changed = true;
             }
+        }
+        if (!developmentUpdated) {
+            Map<String, Object> root = firstRootDocument(documents);
+            if (root != null) {
+                Map<String, Object> dataSource = environmentDataSource(root, "development");
+                if (connectionSettings.url() != null) {
+                    dataSource.put("url", appendCurrentSchema(connectionSettings.url(), schema));
+                    changed = true;
+                }
+                if (connectionSettings.username() != null) {
+                    dataSource.put("username", "${DB_USERNAME}");
+                    changed = true;
+                }
+                if (connectionSettings.password() != null) {
+                    dataSource.put("password", "${DB_PASSWORD}");
+                    changed = true;
+                }
+                dataSource.put("dbCreate", "none");
+            }
+        }
+        changed |= ensureProductionDataSource(documents);
+        return changed;
+    }
+
+    private boolean ensureProductionDataSource(List<Object> documents) {
+        boolean changed = false;
+        Map<String, Object> root = firstRootDocument(documents);
+        if (root == null) {
+            return false;
+        }
+        Map<String, Object> dataSource = environmentDataSource(root, "production");
+        if (!Objects.equals("${DB_URL}", dataSource.get("url"))) {
+            dataSource.put("url", "${DB_URL}");
+            changed = true;
+        }
+        if (!Objects.equals("${DB_USERNAME}", dataSource.get("username"))) {
+            dataSource.put("username", "${DB_USERNAME}");
+            changed = true;
+        }
+        if (!Objects.equals("${DB_PASSWORD}", dataSource.get("password"))) {
+            dataSource.put("password", "${DB_PASSWORD}");
+            changed = true;
+        }
+        if (H2_DRIVER.equals(dataSource.get("driverClassName"))) {
+            dataSource.remove("driverClassName");
+            changed = true;
+        }
+        if (!Objects.equals("none", dataSource.get("dbCreate"))) {
+            dataSource.put("dbCreate", "none");
+            changed = true;
         }
         return changed;
     }
@@ -157,6 +203,20 @@ class GrailsApplicationYamlUpdater {
             }
             if (!Objects.equals(targetDialect, hibernate.get("dialect"))) {
                 hibernate.put("dialect", targetDialect);
+                changed = true;
+            }
+        }
+        Map<String, Object> root = firstRootDocument(documents);
+        if (root != null) {
+            Map<String, Object> production = environment(root, "production");
+            Map<String, Object> productionHibernate = asMap(production.get("hibernate"));
+            if (productionHibernate == null) {
+                productionHibernate = new java.util.LinkedHashMap<>();
+                production.put("hibernate", productionHibernate);
+                changed = true;
+            }
+            if (!Objects.equals(targetDialect, productionHibernate.get("dialect"))) {
+                productionHibernate.put("dialect", targetDialect);
                 changed = true;
             }
         }
@@ -220,6 +280,40 @@ class GrailsApplicationYamlUpdater {
         }
         char separator = jdbcUrl.contains("?") ? '&' : '?';
         return jdbcUrl + separator + "currentSchema=" + schema;
+    }
+
+    private Map<String, Object> environmentDataSource(Map<String, Object> root, String environmentName) {
+        Map<String, Object> environment = environment(root, environmentName);
+        Map<String, Object> dataSource = asMap(environment.get("dataSource"));
+        if (dataSource == null) {
+            dataSource = new java.util.LinkedHashMap<>();
+            environment.put("dataSource", dataSource);
+        }
+        return dataSource;
+    }
+
+    private Map<String, Object> environment(Map<String, Object> root, String environmentName) {
+        Map<String, Object> environments = asMap(root.get("environments"));
+        if (environments == null) {
+            environments = new java.util.LinkedHashMap<>();
+            root.put("environments", environments);
+        }
+        Map<String, Object> environment = asMap(environments.get(environmentName));
+        if (environment == null) {
+            environment = new java.util.LinkedHashMap<>();
+            environments.put(environmentName, environment);
+        }
+        return environment;
+    }
+
+    private Map<String, Object> firstRootDocument(List<Object> documents) {
+        for (Object document : documents) {
+            Map<String, Object> root = asMap(document);
+            if (root != null) {
+                return root;
+            }
+        }
+        return null;
     }
 
     private record JdbcConnectionSettings(String url, String username, String password) {
