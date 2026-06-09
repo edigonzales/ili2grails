@@ -25,6 +25,12 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "referencedClass" : "StructureCompositionCases.Cases.Inspection",
       "labels" : { }
@@ -44,6 +50,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 50,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -61,6 +74,12 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "referencedClass" : "StructureCompositionCases.Cases.Attachment",
       "labels" : { }
@@ -79,6 +98,12 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : -1,
       "ordered" : true,
+      "constraints" : {
+        "required" : false,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : -1,
+        "ordered" : true
+      },
       "enumValues" : [ ],
       "referencedClass" : "StructureCompositionCases.Cases.Part",
       "labels" : { }
@@ -114,6 +139,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 100,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     } ]
@@ -140,6 +172,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 80,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     } ]
@@ -166,6 +205,13 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 80,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     } ]
@@ -192,6 +238,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 50,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     } ]
@@ -218,6 +271,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 50,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -235,6 +295,12 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "referencedClass" : "StructureCompositionCases.Cases.Owner",
       "labels" : { }

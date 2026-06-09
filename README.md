@@ -118,7 +118,7 @@ Weitere Optionen:
 - `--model-file <file>` (optional: explizite `.ili`-Datei)
 - `--model-repos <r1;r2>` (optional: Repository-Liste für die Modellauflösung)
 - `--metadata-json <file>` (optional: schreibt eine deterministische JSON-Ausgabe der Core-IR)
-- `--merge-report <dir>` (optional: schreibt Merge-Diagnostik für Relationships als Markdown und JSON)
+- `--merge-report <dir>` (optional: schreibt Merge-Diagnostik für Relationships und Association-Rollen als Markdown und JSON)
 - `--grails-init [appName]` (optional: erzeugt ein Grails-Projekt im Zielverzeichnis; mit `appName` wird ein Unterordner erstellt)
 - `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
@@ -232,7 +232,10 @@ Optional kann zusätzlich ein Merge-Report für Relationships geschrieben werden
 ```
 
 Der Markdown-Report ist für manuelle Reviews gedacht. Der JSON-Report enthält dieselben
-Kategorien maschinenlesbar und eignet sich für automatisierte Checks.
+Kategorien maschinenlesbar und eignet sich für automatisierte Checks. Neben der
+kompatiblen Relationship-Sicht enthält der Report auch eine Association-Role-Sicht
+aus `AssociationMetadata`, damit Rollen, physische Spaltennamen und Merge-Confidence
+direkt prüfbar sind.
 
 ## Programmatische Nutzung
 ```java
@@ -335,6 +338,7 @@ ili2db-/ili2c-spezifischen Details direkt nachbauen.
 **Kompatibilitätsregeln:**
 - Der JSON-Vertrag wurde im aktuellen SNAPSHOT bewusst geändert: Attribut-`javaType` steht nicht mehr top-level, sondern als `targetHints.javaType`.
 - Weitere bestehende JSON-Feldnamen und Semantik bleiben kompatibel; Erweiterungen erfolgen additiv.
+- Attribute behalten die bisherigen Constraint-Felder (`mandatory`, `maxLength`, `minValue`, `maxValue`, `cardinalityMin`, `cardinalityMax`, `ordered`) und schreiben zusätzlich das additive Objekt `constraints`.
 - Fehlende optionale Felder bedeuten `unbekannt` oder `nicht vorhanden`, nicht automatisch `false`.
 - Reihenfolgen in JSON sind deterministisch sortiert; Generatoren sollen sich trotzdem fachlich an Namen/IDs orientieren.
 - Unbounded Cardinality wird in Java und JSON als `-1` ausgegeben.
@@ -349,7 +353,19 @@ Beispiel eines Attribut-Ausschnitts:
   "targetHints": {
     "javaType": "String"
   },
-  "maxLength": 100
+  "mandatory": true,
+  "maxLength": 100,
+  "constraints": {
+    "required": true,
+    "maxLength": 100,
+    "minInclusive": null,
+    "maxInclusive": null,
+    "precision": null,
+    "scale": null,
+    "cardinalityMin": null,
+    "cardinalityMax": null,
+    "ordered": false
+  }
 }
 ```
 
@@ -359,7 +375,7 @@ Beispiel eines Attribut-Ausschnitts:
 | `ClassMetadata` | `name`, `simpleName`, `topicName`, `tableName`, `sqlName`, `kind`, `abstract`, `baseClass`, `inheritanceStrategy`, `attributes`, `labels` | INTERLIS-Klasse, Structure oder Association plus physisches Tabellenmapping, falls vorhanden. | `name` ist die fachliche Identität; `tableName`/`sqlName` sind physische DB-Details. |
 | `AssociationMetadata` | `name`, `associationClass`, `physicalTable`, `physicalSqlName`, `roles`, `attributes` | Kanonische IR für INTERLIS-Associations; Rollen, Kardinalitäten, eigene Attribute und physische Abbildung bleiben zusammen. | Additiver Core-Baustein. `RelationshipMetadata` bleibt für v1 kompatibel erhalten. |
 | `AssociationRoleMetadata` | `name`, `targetClass`, `oppositeRoleName`, `cardinality`, Flags, physische Felder, Merge-Diagnostik | Rolle innerhalb einer Association. Physische FK-/Role-Spalten gehören zur Rolle, nicht zu den Association-Attributen. | Targets sollen Rollen bevorzugt über `AssociationMetadata` lesen und Relationships als Fallback behandeln. |
-| `AttributeMetadata` | `name`, `qualifiedName`, `columnName`, `sqlName`, `iliType`, `domainName`, `coreType`, `targetHints.javaType`, `dbType`, `mandatory`, `geometry*`, `enumType`, `unit`, `referencedClass` | Attribut-/Spalten-IR mit Constraints, Typ- und Referenzinformationen. `coreType` ist der framework-agnostische Typvertrag; `targetHints.javaType` ist nur ein Java-/Grails-Hinweis. | `coreType` ist für Generatoren maßgeblich. `targetHints` bleiben optional und target-spezifisch. |
+| `AttributeMetadata` | `name`, `qualifiedName`, `columnName`, `sqlName`, `iliType`, `domainName`, `coreType`, `targetHints.javaType`, `dbType`, `mandatory`, `precision`, `scale`, `constraints`, `geometry*`, `enumType`, `unit`, `referencedClass` | Attribut-/Spalten-IR mit Constraints, Typ- und Referenzinformationen. `coreType` ist der framework-agnostische Typvertrag; `constraints` bündelt Pflichtigkeit, Grenzen, Dezimalpräzision, Kardinalität und `ordered`. `targetHints.javaType` ist nur ein Java-/Grails-Hinweis. | `coreType` und `constraints` sind für Generatoren maßgeblich. Legacy-Constraint-Felder bleiben aus Kompatibilitätsgründen erhalten. `targetHints` bleiben optional und target-spezifisch. |
 | `RelationshipMetadata` | `name`, `sourceClass`, `targetClass`, `type`, `semanticKind`, Rollen/FK-Felder, `cardinality`, Flags, Merge-Diagnostik | Beziehung als First-Class-IR aus ili2db-FK und/oder ili2c-Semantik. | `semanticKind` und Klassen-/Rollenfelder sind für Targets maßgeblich; Diagnosefelder erklären die Zusammenführung. |
 | `EnumMetadata` | `name`, `simpleName`, `extendable`, `baseEnum`, `values[].iliCode`, `dispName`, `seq`, `labels` | INTERLIS-Enumeration inkl. Reihenfolge, Erweiterbarkeit und Display-/Label-Daten. | `iliCode` und `seq` sind stabil für Generatoren; Ziel-Identifier werden target-spezifisch erzeugt. |
 
@@ -403,9 +419,16 @@ ili2c-Informationen nachvollziehbar bleibt:
 praktisch für reale ili2db-Spalten wie `person_id`, bleibt aber der kritischste
 Punkt für Debugging bei großen Modellen.
 
+Der Merge-Report fasst sowohl `RelationshipMetadata` als auch Association-Rollen
+aus `AssociationMetadata` zusammen. Für Association-Rollen werden unter anderem
+Association, Rolle, Zielklasse, `physicalName`, `semanticName`, `mergeReason` und
+`mergeConfidence` ausgegeben. Die CLI-Option bleibt unverändert: `--merge-report`
+schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
+
 ### Grails Relationship-/Structure-Mapping
 - Grails nutzt eine interne `GrailsRelationshipMapper`-Schicht statt roher Relationship-Listen.
 - Association-Rollen werden bevorzugt aus `AssociationMetadata` gelesen; `ASSOCIATION_ROLE`-Relationships bleiben Fallback.
+- Das Relationship-Matching berücksichtigt `sourceAttribute`, `targetRoleName` und `physicalName`, damit gemergte ili2db-Spaltennamen wie von Django erkannt werden.
 - `CLASS` und `ASSOCIATION` werden generiert, wenn sie nicht abstrakt sind.
 - `STRUCTURE` wird nur als Domain generiert, wenn sie physisch gemappt ist (`tableName`/`sqlName`) oder Ziel einer `COMPOSITION_ATTRIBUTE` ist.
 - Normale `ILI2DB_FK`- und `REFERENCE_ATTRIBUTE`-Beziehungen werden als typisierte Properties ausgegeben, erzeugen aber kein automatisches `belongsTo`.
@@ -418,6 +441,7 @@ Punkt für Debugging bei großen Modellen.
 - Der Spike liest ausschließlich die Core-IR (`ModelMetadata`, `ClassMetadata`, `AssociationMetadata`, `AttributeMetadata`, `RelationshipMetadata` und `EnumMetadata`); er greift nicht auf ili2db-/ili2c-Readerdetails zu.
 - Association-Rollen werden bevorzugt aus `AssociationMetadata` gelesen und als Felder der expliziten Association-Klasse ausgegeben.
 - Physisch gemergte ili2db-Klassen erhalten `db_table`, `managed = False` und FK-`db_column`-Informationen.
+- Numerische Attribute nutzen `constraints.precision` und `constraints.scale` für `DecimalField`, falls diese Werte vorhanden sind.
 - ili2c-only Geometrieattribute aktivieren GeoDjango (`django.contrib.gis.db.models`) und werden als `GeometryField` ausgegeben.
 - Structures und Compositions werden bewusst minimal als Django-Models, `ForeignKey` oder `ManyToManyField` abgebildet, um Core-IR-Grenzen sichtbar zu machen.
 - Die CLI-Integration schreibt aktuell nur `<django-output>/<django-app>/models.py`; der Spike hat keine Migrationsstrategie und keine Admin-/View-Generierung.
@@ -452,18 +476,18 @@ Punkt für Debugging bei großen Modellen.
 - Die Oberfläche nutzt Bootstrap 5.3 mit Standardkomponenten (Navbar mit Hamburger-Menü, Alerts, Tabellen, Modal).
 - `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
   links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
-- Typisierte To-One-Relationships werden im Bootstrap-Overlay als serverseitige Selects gerendert.
-  Labels werden zur Laufzeit bevorzugt aus `name`, `bezeichnung`, `label`, `title`, danach `id`
-  abgeleitet.
+- Typisierte To-One-Relationships werden im Bootstrap-Overlay als serverseitige Selects mit
+  paginiertem Autocomplete-Endpunkt gerendert. Labels werden zur Laufzeit bevorzugt aus
+  `name`, `bezeichnung`, `label`, `title`, danach `id` abgeleitet.
 - Bei mehreren Geometriefeldern wird rechts ein Tab-Panel pro Feld gerendert.
 - `show` nutzt ebenfalls das Split-Layout und eine separate Danger-Zone mit Confirm-Modal vor `DELETE`.
-- `index` rendert ohne Paging/Search/Bulk als Bootstrap-Tabelle mit Row-Actions.
+- `index` rendert als Bootstrap-Tabelle mit serverseitigem Paging, Freitextsuche über Textspalten und Row-Actions.
 - Unsaved-Changes werden in `create/edit` als Badge + `beforeunload`-Warnung signalisiert.
 
 #### UX-Grenzen dieser Iteration
-- Kein Paging, keine Freitextsuche und keine Bulk-Actions.
-- Relationship-Selects laden aktuell alle Zielobjekte serverseitig; Autocomplete/Paging folgt später.
-- All-Rows-Index ist für moderate Datenmengen gedacht; bei sehr großen Tabellen kann die Ladezeit steigen.
+- Keine Bulk-Actions und keine SPA-Architektur.
+- Relationship-Autocomplete lädt pro Anfrage eine begrenzte Ergebnismenge und bleibt ein progressives Enhancement über dem serverseitig gerenderten Select.
+- Die Suche ist bewusst generisch und auf einfache Textspalten begrenzt; modell- oder fachdomänenspezifische Filter bleiben späteren Targets vorbehalten.
 
 ### Strukturen im Domain-Model
 - INTERLIS-Strukturen werden als eigene `STRUCTURE`-Klassen im Metamodell geführt.
@@ -509,11 +533,14 @@ Die Gradle-Module bilden die Architekturgrenzen ab:
 Die Tests enthalten gezielte Naming-Kollisionsfälle und kompilieren generierte
 Grails-Domains/Enums mit dem Standalone-Groovy-Compiler. Zusätzlich vergleichen
 Generated-Output-Snapshots ausgewählte Domain-/Enum-Dateien für repräsentative
-Relationship-, Association- und Structure-/Composition-Fälle. Die Grails-Snapshots
+Relationship-, Association- und Structure-/Composition-Fälle. `AssociationCases`
+deckt unter anderem Associations ohne Attribute, mit eigenem Attribut, zwei Rollen
+auf gleicher Zielklasse, abweichende physische Rollenspalten, `EXTERNAL`, `COMPOSITE`
+und Associations in erweitertem Topic ab. Die Grails-Snapshots
 liegen unter `target-grails/src/test/resources/grails-snapshots/`.
 
 Der Django/GeoDjango-Spike ist über `models.py`-Snapshots für gemergte ili2db-FKs,
-ili2c-only Geometry/Enums und Structure-/Composition-Fälle abgesichert. Diese
+ili2c-only Geometry/Enums, Association-Rollen und Structure-/Composition-Fälle abgesichert. Diese
 Snapshots liegen unter `target-django/src/test/resources/django-snapshots/`. Snapshot-Updates
 sollen nur bei absichtlichen Generatoränderungen erfolgen.
 

@@ -1,6 +1,7 @@
 package ch.interlis.generator.django;
 
 import ch.interlis.generator.model.AttributeMetadata;
+import ch.interlis.generator.model.AttributeConstraints;
 import ch.interlis.generator.model.AssociationMetadata;
 import ch.interlis.generator.model.AssociationRoleMetadata;
 import ch.interlis.generator.model.ClassMetadata;
@@ -115,7 +116,7 @@ final class DjangoModelMapper {
         addMaxLength(attribute, fieldType, args);
         addEnumChoices(attribute, args);
         addDbColumn(attribute, fieldName, args);
-        addNullBlank(attribute.isMandatory(), args);
+        addNullBlank(attribute.getConstraints().required(), args);
         if (attribute.isGeometry() && attribute.getGeometrySrid() != null) {
             args.add("srid=" + attribute.getGeometrySrid());
         }
@@ -128,7 +129,7 @@ final class DjangoModelMapper {
         args.add("\"" + py(registry.className(attribute.getReferencedClass())) + "\"");
         args.add("on_delete=models.PROTECT");
         addDbColumn(attribute, fieldName, args);
-        addNullBlank(attribute.isMandatory(), args);
+        addNullBlank(attribute.getConstraints().required(), args);
         args.add("related_name=\"+\"");
         return new DjangoField(fieldName, "models.ForeignKey", args, false);
     }
@@ -211,15 +212,16 @@ final class DjangoModelMapper {
     }
 
     private void addMaxLength(AttributeMetadata attribute, FieldType fieldType, List<String> args) {
+        AttributeConstraints constraints = attribute.getConstraints();
         if ("models.CharField".equals(fieldType.constructor())) {
-            int maxLength = attribute.getMaxLength() != null
-                ? attribute.getMaxLength()
+            int maxLength = constraints.maxLength() != null
+                ? constraints.maxLength()
                 : enumMaxLength(attribute);
             args.add("max_length=" + Math.max(maxLength, 1));
         }
         if ("models.DecimalField".equals(fieldType.constructor())) {
-            args.add("max_digits=20");
-            args.add("decimal_places=6");
+            args.add("max_digits=" + (constraints.precision() != null ? constraints.precision() : 20));
+            args.add("decimal_places=" + (constraints.scale() != null ? constraints.scale() : 6));
         }
     }
 

@@ -1,5 +1,7 @@
 package ch.interlis.generator.report;
 
+import ch.interlis.generator.model.AssociationMetadata;
+import ch.interlis.generator.model.AssociationRoleMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.RelationshipMetadata;
 
@@ -39,11 +41,34 @@ public final class RelationshipMergeReporter {
                 Collectors.counting()
             ));
 
+        List<AssociationRoleMergeReportEntry> associationRoleEntries = metadata.getAllAssociations().stream()
+            .flatMap(association -> association.getRoles().stream()
+                .map(role -> toAssociationRoleEntry(association, role)))
+            .sorted(associationRoleComparator())
+            .toList();
+
+        Map<String, Long> associationRolesByMergeReason = associationRoleEntries.stream()
+            .collect(Collectors.groupingBy(
+                entry -> nullToUnknown(entry.mergeReason()),
+                TreeMap::new,
+                Collectors.counting()
+            ));
+
+        Map<String, Long> associationRolesByMergeConfidence = associationRoleEntries.stream()
+            .collect(Collectors.groupingBy(
+                entry -> nullToUnknown(entry.mergeConfidence()),
+                TreeMap::new,
+                Collectors.counting()
+            ));
+
         return new RelationshipMergeReport(
             metadata.getModelName(),
             entries.size(),
             byMergeReason,
             byMergeConfidence,
+            associationRoleEntries.size(),
+            associationRolesByMergeReason,
+            associationRolesByMergeConfidence,
             filterByConfidence(entries, "EXACT"),
             filterByReason(entries, "NORMALIZED_TOKEN"),
             filterByReason(entries, "ILI2DB_ONLY"),
@@ -51,6 +76,10 @@ public final class RelationshipMergeReporter {
             filterByConfidence(entries, "MEDIUM"),
             entries.stream()
                 .filter(this::isSuspicious)
+                .toList(),
+            associationRoleEntries,
+            associationRoleEntries.stream()
+                .filter(this::isSuspiciousAssociationRole)
                 .toList()
         );
     }
@@ -91,6 +120,38 @@ public final class RelationshipMergeReporter {
             || ("REFERENCE_ATTRIBUTE".equals(entry.semanticKind()) && isBlank(entry.physicalName()));
     }
 
+    private AssociationRoleMergeReportEntry toAssociationRoleEntry(AssociationMetadata association,
+                                                                   AssociationRoleMetadata role) {
+        return new AssociationRoleMergeReportEntry(
+            association.getName(),
+            association.getAssociationClass(),
+            association.getPhysicalTable(),
+            role.getName(),
+            role.getTargetClass(),
+            role.getOppositeRoleName(),
+            role.getPhysicalName(),
+            role.getSemanticName(),
+            role.getSourceAttribute(),
+            role.getTargetAttribute(),
+            role.getSource(),
+            enumName(role.getMergeReason()),
+            enumName(role.getMergeConfidence()),
+            role.getMergeToken(),
+            role.getCardinality() != null ? role.getCardinality().toString() : null,
+            role.isMandatory(),
+            role.isOrdered(),
+            role.isExternal(),
+            role.isComposition()
+        );
+    }
+
+    private boolean isSuspiciousAssociationRole(AssociationRoleMergeReportEntry entry) {
+        return "MEDIUM".equals(entry.mergeConfidence())
+            || "ILI2DB_ONLY".equals(entry.mergeReason())
+            || "ILI2C_ONLY".equals(entry.mergeReason())
+            || isBlank(entry.physicalName());
+    }
+
     private List<RelationshipMergeReportEntry> filterByReason(
         List<RelationshipMergeReportEntry> entries,
         String mergeReason
@@ -122,6 +183,16 @@ public final class RelationshipMergeReporter {
             .thenComparing(RelationshipMergeReportEntry::semanticKind,
                 Comparator.nullsLast(String::compareTo))
             .thenComparing(RelationshipMergeReportEntry::name,
+                Comparator.nullsLast(String::compareTo));
+    }
+
+    private Comparator<AssociationRoleMergeReportEntry> associationRoleComparator() {
+        return Comparator
+            .comparing(AssociationRoleMergeReportEntry::association,
+                Comparator.nullsLast(String::compareTo))
+            .thenComparing(AssociationRoleMergeReportEntry::role,
+                Comparator.nullsLast(String::compareTo))
+            .thenComparing(AssociationRoleMergeReportEntry::target,
                 Comparator.nullsLast(String::compareTo));
     }
 

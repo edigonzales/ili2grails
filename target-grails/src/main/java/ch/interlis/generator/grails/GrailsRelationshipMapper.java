@@ -1,6 +1,7 @@
 package ch.interlis.generator.grails;
 
 import ch.interlis.generator.model.AttributeMetadata;
+import ch.interlis.generator.model.AttributeConstraints;
 import ch.interlis.generator.model.AssociationMetadata;
 import ch.interlis.generator.model.AssociationRoleMetadata;
 import ch.interlis.generator.model.ClassMetadata;
@@ -141,6 +142,7 @@ public final class GrailsRelationshipMapper {
             attribute.getMaxLength(),
             attribute.getMinValue(),
             attribute.getMaxValue(),
+            attribute.getConstraints(),
             attribute.isGeometry(),
             attribute.getGeometrySrid(),
             attribute.getGeometryKind()
@@ -159,9 +161,25 @@ public final class GrailsRelationshipMapper {
             null,
             null,
             null,
+            constraintsForRelationship(relationship),
             false,
             null,
             null
+        );
+    }
+
+    private AttributeConstraints constraintsForRelationship(RelationshipMetadata relationship) {
+        RelationshipMetadata.Cardinality cardinality = relationship.getCardinality();
+        return new AttributeConstraints(
+            relationship.isMandatory(),
+            null,
+            null,
+            null,
+            null,
+            null,
+            cardinality != null ? cardinality.getMinTarget() : null,
+            cardinality != null ? cardinality.getMaxTarget() : null,
+            relationship.isOrdered()
         );
     }
 
@@ -193,6 +211,7 @@ public final class GrailsRelationshipMapper {
 
     private boolean matchesAttribute(RelationshipMetadata relationship, AttributeMetadata attribute) {
         return equalsAny(relationship.getSourceAttribute(), attribute.getName(), attribute.getSqlName(), attribute.getColumnName())
+            || equalsAny(relationship.getPhysicalName(), attribute.getName(), attribute.getSqlName(), attribute.getColumnName())
             || equalsAny(relationship.getTargetRoleName(), attribute.getName(), attribute.getSqlName(), attribute.getColumnName());
     }
 
@@ -429,6 +448,7 @@ public final class GrailsRelationshipMapper {
         Integer maxLength,
         String minValue,
         String maxValue,
+        AttributeConstraints constraints,
         boolean geometry,
         Integer geometrySrid,
         String geometryKind

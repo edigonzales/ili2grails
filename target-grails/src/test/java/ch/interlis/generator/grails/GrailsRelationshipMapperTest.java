@@ -56,6 +56,43 @@ class GrailsRelationshipMapperTest {
     }
 
     @Test
+    void physicalNameCanMatchRelationshipWhenSemanticRoleDiffersFromColumn() {
+        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ClassMetadata owner = persistentClass("TestModel.Owner", "owner");
+        ClassMetadata parcel = persistentClass("TestModel.Parcel", "parcel");
+        AttributeMetadata ownerReference = foreignKey("ownerReference", owner.getName(), false);
+        ownerReference.setColumnName("owner_fk");
+        ownerReference.setSqlName("owner_fk");
+        parcel.addAttribute(ownerReference);
+        metadata.addClass(owner);
+        metadata.addClass(parcel);
+
+        RelationshipMetadata relationship = relationship(
+            "Parcel_Owner",
+            parcel.getName(),
+            owner.getName(),
+            RelationshipMetadata.RelationType.MANY_TO_ONE,
+            RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE
+        );
+        relationship.setSourceAttribute("SemanticOwner");
+        relationship.setTargetRoleName("OwnerRole");
+        relationship.setPhysicalName("owner_fk");
+        relationship.setMandatory(true);
+        metadata.addRelationship(relationship);
+
+        GrailsRelationshipMapper.DomainMapping mapping = mapper(metadata).map(parcel);
+
+        assertThat(mapping.properties())
+            .filteredOn(property -> property.name().equals("ownerFk"))
+            .singleElement()
+            .satisfies(property -> {
+                assertThat(property.type()).isEqualTo("Owner");
+                assertThat(property.nullable()).isFalse();
+                assertThat(property.relationship()).isSameAs(relationship);
+            });
+    }
+
+    @Test
     void compositionManyUsesAttributeNameAsCollection() {
         ModelMetadata metadata = new ModelMetadata("TestModel");
         ClassMetadata building = persistentClass("TestModel.Building", "building");

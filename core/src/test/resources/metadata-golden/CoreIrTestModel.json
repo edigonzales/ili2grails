@@ -25,6 +25,12 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : -1,
       "ordered" : true,
+      "constraints" : {
+        "required" : false,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : -1,
+        "ordered" : true
+      },
       "enumValues" : [ ],
       "referencedClass" : "CoreIrTestModel.Relations.Component",
       "labels" : { }
@@ -42,9 +48,21 @@
       "geometry" : false,
       "minValue" : "0",
       "maxValue" : "100",
+      "precision" : 3,
+      "scale" : 0,
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "minInclusive" : "0",
+        "maxInclusive" : "100",
+        "precision" : 3,
+        "scale" : 0,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     } ]
@@ -71,6 +89,13 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 40,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -88,6 +113,12 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "referencedClass" : "CoreIrTestModel.Relations.Parent",
       "labels" : { }
@@ -115,6 +146,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 50,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -133,6 +171,12 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumType" : "CoreIrTestModel.Status",
       "enumValues" : [ ],
       "labels" : { }
@@ -160,6 +204,13 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 30,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     } ]
@@ -220,6 +271,13 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 30,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     } ]

@@ -58,6 +58,10 @@ class GrailsTemplateOverlayInstallerTest {
         String indexTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/index.gsp"));
         assertThat(indexTemplate).contains("<table class=\"table");
         assertThat(indexTemplate).contains("data-row-delete");
+        assertThat(indexTemplate).contains("name=\"q\"");
+        assertThat(indexTemplate).contains("name=\"max\"");
+        assertThat(indexTemplate).contains("<g:paginate");
+        assertThat(indexTemplate).contains("ili-list-tools");
         assertThat(indexTemplate).doesNotContain("bx-table");
 
         String formTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_form.gsp"));
@@ -71,6 +75,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(relationshipTemplate).contains("form-select");
         assertThat(relationshipTemplate).contains("relationshipOptions");
         assertThat(relationshipTemplate).contains("relationshipRequired");
+        assertThat(relationshipTemplate).contains("js-relationship-search");
+        assertThat(relationshipTemplate).contains("data-relationship-url");
 
         String showTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/show.gsp"));
         assertThat(showTemplate).contains("Danger Zone");
@@ -85,12 +91,23 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(layoutTemplate).doesNotContain("<bx-header");
 
         String controllerTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/Controller.groovy"));
-        assertThat(controllerTemplate).contains("def index()");
-        assertThat(controllerTemplate).contains("list([:])");
+        assertThat(controllerTemplate).contains("def index(Integer max, Integer offset)");
+        assertThat(controllerTemplate).contains("paginationParams");
+        assertThat(controllerTemplate).contains("pagedRecords");
         assertThat(controllerTemplate).contains("relationshipModel");
         assertThat(controllerTemplate).contains("relationshipOptions");
+        assertThat(controllerTemplate).contains("relationshipOptionPage");
         assertThat(controllerTemplate).contains("relationshipOptionLabel");
-        assertThat(controllerTemplate).doesNotContain("params.max");
+        assertThat(controllerTemplate).contains("render page as JSON");
+        assertThat(controllerTemplate).contains("params.int(\"max\")");
+
+        String formUx = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js"));
+        assertThat(formUx).contains("initRelationshipAutocomplete");
+        assertThat(formUx).contains("js-relationship-search");
+
+        String stylesheet = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
+        assertThat(stylesheet).contains(".ili-list-tools");
+        assertThat(stylesheet).contains(".ili-pagination-bar");
     }
 
     @Test

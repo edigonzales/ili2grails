@@ -2,6 +2,7 @@ package ch.interlis.generator.grails;
 
 import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
+import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.RelationshipMetadata;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,32 @@ class GrailsDomainGeneratorTest {
         assertThat(content).doesNotContain("static belongsTo");
         assertThat(content).contains("address column: 'address'");
         assertThat(content).doesNotContain("address_id");
+    }
+
+    @Test
+    void rendersNumericConstraintsFromCoreContract(@TempDir Path tempDir) throws Exception {
+        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ClassMetadata invoice = new ClassMetadata("TestModel.Invoice");
+        invoice.setTableName("invoice");
+        invoice.addAttribute(primaryKeyAttribute());
+        AttributeMetadata amount = new AttributeMetadata("amount");
+        amount.setCoreType(CoreType.NUMERIC);
+        amount.setJavaType("java.math.BigDecimal");
+        amount.setMinValue("0.0");
+        amount.setMaxValue("9999.999");
+        amount.setPrecision(7);
+        amount.setScale(3);
+        invoice.addAttribute(amount);
+        metadata.addClass(invoice);
+
+        GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
+        new GrailsDomainGenerator().generate(metadata, config);
+
+        Path invoiceDomain = tempDir.resolve("grails-app/domain/com/example/Invoice.groovy");
+        String content = Files.readString(invoiceDomain);
+
+        assertThat(content).contains("BigDecimal amount");
+        assertThat(content).contains("amount nullable: true, min: 0.0, max: 9999.999, scale: 3");
     }
 
     private AttributeMetadata primaryKeyAttribute() {

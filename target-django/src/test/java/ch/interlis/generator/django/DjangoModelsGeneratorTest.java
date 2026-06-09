@@ -60,6 +60,17 @@ class DjangoModelsGeneratorTest {
     }
 
     @Test
+    void associationCasesMergedOutputMatchesSnapshot() throws Exception {
+        ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
+        Path outputDir = tempDir.resolve("association-cases");
+        DjangoGenerationConfig config = DjangoGenerationConfig.builder(outputDir, "association_app").build();
+
+        new DjangoModelsGenerator().generate(metadata, config);
+
+        assertSnapshot("association-cases", config.getModelsFile());
+    }
+
+    @Test
     void scalarFieldMappingPrefersCoreTypeOverJavaTargetHint() throws Exception {
         ModelMetadata metadata = new ModelMetadata("TestModel");
         ClassMetadata classMetadata = new ClassMetadata("TestModel.Topic.Event");
@@ -75,6 +86,26 @@ class DjangoModelsGeneratorTest {
 
         assertThat(Files.readString(config.getModelsFile()))
             .contains("recorded_at = models.DateField(null=True, blank=True)");
+    }
+
+    @Test
+    void decimalFieldMappingUsesCoreConstraints() throws Exception {
+        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ClassMetadata classMetadata = new ClassMetadata("TestModel.Topic.Invoice");
+        AttributeMetadata amount = new AttributeMetadata("Amount");
+        amount.setCoreType(CoreType.NUMERIC);
+        amount.setJavaType("BigDecimal");
+        amount.setPrecision(8);
+        amount.setScale(3);
+        classMetadata.addAttribute(amount);
+        metadata.addClass(classMetadata);
+        Path outputDir = tempDir.resolve("core-decimal-constraints");
+        DjangoGenerationConfig config = DjangoGenerationConfig.builder(outputDir, "invoice_app").build();
+
+        new DjangoModelsGenerator().generate(metadata, config);
+
+        assertThat(Files.readString(config.getModelsFile()))
+            .contains("amount = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True)");
     }
 
     @Test

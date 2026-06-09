@@ -26,6 +26,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 100,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -44,6 +51,13 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 10,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -63,6 +77,12 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -81,6 +101,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 10,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -99,6 +126,12 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumType" : "SimpleAddressModel.Addresses.AddressStatus",
       "enumValues" : [ ],
       "labels" : { }
@@ -118,6 +151,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 100,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     } ]
@@ -144,6 +184,12 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -162,6 +208,13 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 100,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -181,6 +234,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 50,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -200,6 +260,13 @@
       "cardinalityMin" : 1,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 50,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     }, {
@@ -218,6 +285,13 @@
       "cardinalityMin" : 0,
       "cardinalityMax" : 1,
       "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 20,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
       "enumValues" : [ ],
       "labels" : { }
     } ]

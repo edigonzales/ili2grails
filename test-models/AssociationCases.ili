@@ -1,0 +1,67 @@
+INTERLIS 2.3;
+
+MODEL AssociationCases (en)
+AT "http://www.example.ch"
+VERSION "2026-06-09" =
+
+  TOPIC Base =
+    OID AS INTERLIS.UUIDOID;
+
+    CLASS Person =
+      Name: MANDATORY TEXT*50;
+    END Person;
+
+    CLASS Parcel =
+      Ident: MANDATORY TEXT*20;
+    END Parcel;
+
+    CLASS Document =
+      Title: MANDATORY TEXT*80;
+    END Document;
+
+    CLASS Building =
+      Name: TEXT*40;
+    END Building;
+
+    ASSOCIATION EmptyAssociation =
+      PersonRole -- {0..*} Person;
+      ParcelRole -- {0..1} Parcel;
+    END EmptyAssociation;
+
+    ASSOCIATION AssociationWithAttribute =
+      PersonRole -- {0..*} Person;
+      DocumentRole -- {0..*} Document;
+      RoleNote: TEXT*30;
+    END AssociationWithAttribute;
+
+    ASSOCIATION SameTargetAssociation =
+      PrimaryPerson -- {0..1} Person;
+      SecondaryPerson -- {0..1} Person;
+    END SameTargetAssociation;
+
+    ASSOCIATION PhysicalMismatchAssociation =
+      SemanticOwner -- {1} Person;
+      OwnedParcel -- {0..*} Parcel;
+    END PhysicalMismatchAssociation;
+
+    ASSOCIATION ExternalCompositeAssociation =
+      Owner (EXTERNAL) -<#> {1} Person;
+      Buildings -- {0..*} Building;
+    END ExternalCompositeAssociation;
+
+  END Base;
+
+  TOPIC Extended EXTENDS Base =
+
+    CLASS ExtendedParcel EXTENDS Parcel =
+      ExtraCode: TEXT*20;
+    END ExtendedParcel;
+
+    ASSOCIATION ExtendedTopicAssociation =
+      ExtendedPersonRole -- {0..*} Person;
+      ExtendedParcelRole -- {0..1} ExtendedParcel;
+    END ExtendedTopicAssociation;
+
+  END Extended;
+
+END AssociationCases.

@@ -45,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -388,6 +389,8 @@ public class Ili2cModelReader {
             if (numType.getMaximum() != null) {
                 attr.setMaxValue(numType.getMaximum().toString());
             }
+            attr.setPrecision(resolveNumericPrecision(numType));
+            attr.setScale(resolveNumericScale(numType));
             attr.setCoreType(CoreType.NUMERIC);
             attr.setJavaType(resolveNumericJavaType(numType));
         } else if (type instanceof EnumerationType) {
@@ -616,6 +619,57 @@ public class Ili2cModelReader {
 
     private boolean hasDecimalDigits(PrecisionDecimal value) {
         return value != null && value.getAccuracy() > 0;
+    }
+
+    private Integer resolveNumericPrecision(NumericType numType) {
+        Integer minPrecision = precision(numType.getMinimum());
+        Integer maxPrecision = precision(numType.getMaximum());
+        if (minPrecision == null) {
+            return maxPrecision;
+        }
+        if (maxPrecision == null) {
+            return minPrecision;
+        }
+        return Math.max(minPrecision, maxPrecision);
+    }
+
+    private Integer resolveNumericScale(NumericType numType) {
+        Integer minScale = scale(numType.getMinimum());
+        Integer maxScale = scale(numType.getMaximum());
+        if (minScale == null) {
+            return maxScale;
+        }
+        if (maxScale == null) {
+            return minScale;
+        }
+        return Math.max(minScale, maxScale);
+    }
+
+    private Integer precision(PrecisionDecimal value) {
+        BigDecimal decimal = decimal(value);
+        if (decimal == null) {
+            return null;
+        }
+        return decimal.precision();
+    }
+
+    private Integer scale(PrecisionDecimal value) {
+        BigDecimal decimal = decimal(value);
+        if (decimal == null) {
+            return null;
+        }
+        return Math.max(decimal.scale(), value.getAccuracy());
+    }
+
+    private BigDecimal decimal(PrecisionDecimal value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private String resolveFormattedJavaType(FormattedType formattedType) {

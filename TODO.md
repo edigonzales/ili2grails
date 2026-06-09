@@ -6,7 +6,7 @@
 - Geometrien erfassen und nachführen
 - Welchen Einfluss hat smartXInheritance
 - Strukturen: produktive Persistenzstrategie für komplexe ili2db-Mappings nach Real-Smoke weiter härten
-- Relationship-Comboboxen: Autocomplete/Paging für große Zieltabellen
+- Relationship-Comboboxen: fachliche Such-/Sortierlabels und weitere Zielklassenfilter ergänzen
 - EnumAsId
 - Beziehungen: Cascade-Regeln auf Basis von Rollen/Kardinalitäten definieren
 - Naming-Policy bei weiteren Targets wiederverwenden

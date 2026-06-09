@@ -11,7 +11,7 @@
     <section class="ili-page-header">
         <div>
             <h1 class="ili-page-title"><g:message code="default.list.label" args="[entityName]" /></h1>
-            <p class="ili-page-subtitle">Alle Datensätze serverseitig geladen, ohne Paging/Search/Bulk.</p>
+            <p class="ili-page-subtitle">Serverseitige Suche und Paging für große Datenbestände.</p>
         </div>
         <div class="ili-page-actions">
             <g:link action="create" class="btn btn-primary">
@@ -25,11 +25,41 @@
         <div class="alert alert-info" role="status">\${flash.message}</div>
     </g:if>
 
+    <section class="ili-list-tools">
+        <g:form action="index" method="GET" class="row g-2 align-items-end">
+            <div class="col-12 col-md-7 col-lg-6">
+                <label class="form-label" for="${propertyName}-search">Suche</label>
+                <input id="${propertyName}-search"
+                       type="search"
+                       name="q"
+                       value="\${q ?: ''}"
+                       class="form-control"
+                       autocomplete="off" />
+            </div>
+            <div class="col-6 col-md-2 col-lg-2">
+                <label class="form-label" for="${propertyName}-max">Pro Seite</label>
+                <g:select id="${propertyName}-max"
+                          name="max"
+                          from="\${[10, 25, 50, 100]}"
+                          value="\${max ?: 25}"
+                          class="form-select" />
+            </div>
+            <div class="col-6 col-md-auto">
+                <button type="submit" class="btn btn-outline-primary">Suchen</button>
+            </div>
+            <g:if test="\${q}">
+                <div class="col-12 col-md-auto">
+                    <g:link action="index" class="btn btn-outline-secondary">Zurücksetzen</g:link>
+                </div>
+            </g:if>
+        </g:form>
+    </section>
+
     <g:if test="\${rows.isEmpty()}">
         <section class="card ili-empty-state">
             <div class="card-body">
-                <h2 class="h5 mb-2">Noch keine Daten</h2>
-                <p class="mb-3">Erstelle den ersten Datensatz für \${entityName}.</p>
+                <h2 class="h5 mb-2">\${q ? 'Keine Treffer' : 'Noch keine Daten'}</h2>
+                <p class="mb-3">\${q ? 'Passe die Suche an.' : 'Erstelle den ersten Datensatz für ' + entityName + '.'}</p>
                 <g:link action="create" class="btn btn-primary">
                     <g:message code="default.new.label" args="[entityName]" />
                 </g:link>
@@ -88,6 +118,12 @@
                         </g:each>
                     </tbody>
                 </table>
+            </div>
+            <div class="ili-pagination-bar">
+                <g:paginate total="\${${propertyName}Count ?: 0}"
+                            max="\${max ?: 25}"
+                            offset="\${offset ?: 0}"
+                            params="\${[q: q, max: max ?: 25]}" />
             </div>
         </section>
     </g:else>

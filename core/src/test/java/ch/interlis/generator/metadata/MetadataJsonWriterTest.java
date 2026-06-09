@@ -2,6 +2,7 @@ package ch.interlis.generator.metadata;
 
 import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
+import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.reader.Ili2cModelReader;
 import ch.interlis.generator.testsupport.MetadataTestFixtures;
@@ -44,6 +45,13 @@ class MetadataJsonWriterTest {
     }
 
     @Test
+    void writesDeterministicMergedAssociationCasesGoldenJson() throws Exception {
+        ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
+
+        assertGoldenJson(metadata, "AssociationCases.merged-h2.json");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void writesCoreTypeAndJavaTargetHintWithoutTopLevelJavaType() throws Exception {
         ModelMetadata metadata = new ModelMetadata("TestModel");
@@ -62,6 +70,43 @@ class MetadataJsonWriterTest {
         assertThat(writtenAttribute).doesNotContainKey("javaType");
         assertThat((Map<String, Object>) writtenAttribute.get("targetHints"))
             .containsEntry("javaType", "String");
+        assertThat((Map<String, Object>) writtenAttribute.get("constraints"))
+            .containsEntry("required", false)
+            .containsEntry("ordered", false);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void writesConstraintsObjectAndLegacyConstraintFields() throws Exception {
+        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ClassMetadata classMetadata = new ClassMetadata("TestModel.Topic.Sample");
+        AttributeMetadata amount = new AttributeMetadata("Amount");
+        amount.setCoreType(CoreType.NUMERIC);
+        amount.setJavaType("java.math.BigDecimal");
+        amount.setMandatory(true);
+        amount.setMinValue("0.00");
+        amount.setMaxValue("999.99");
+        amount.setPrecision(5);
+        amount.setScale(2);
+        classMetadata.addAttribute(amount);
+        metadata.addClass(classMetadata);
+
+        Map<String, Object> root = JSON_MAPPER.readValue(new MetadataJsonWriter().toJson(metadata), Map.class);
+        Map<String, Object> writtenAttribute = (Map<String, Object>) ((List<Object>) ((Map<String, Object>) ((List<Object>) root.get("classes"))
+            .get(0)).get("attributes")).get(0);
+
+        assertThat(writtenAttribute)
+            .containsEntry("mandatory", true)
+            .containsEntry("minValue", "0.00")
+            .containsEntry("maxValue", "999.99")
+            .containsEntry("precision", 5)
+            .containsEntry("scale", 2);
+        assertThat((Map<String, Object>) writtenAttribute.get("constraints"))
+            .containsEntry("required", true)
+            .containsEntry("minInclusive", "0.00")
+            .containsEntry("maxInclusive", "999.99")
+            .containsEntry("precision", 5)
+            .containsEntry("scale", 2);
     }
 
     static Stream<Arguments> ili2cGoldenCases() {
@@ -80,6 +125,11 @@ class MetadataJsonWriterTest {
                 "test-models/StructureCompositionCases.ili",
                 "StructureCompositionCases",
                 "StructureCompositionCases.ili2c.json"
+            ),
+            Arguments.of(
+                "test-models/AssociationCases.ili",
+                "AssociationCases",
+                "AssociationCases.ili2c.json"
             )
         );
     }

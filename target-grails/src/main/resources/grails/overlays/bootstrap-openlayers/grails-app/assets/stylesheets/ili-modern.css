@@ -110,6 +110,13 @@ body {
     background: transparent;
 }
 
+.ili-list-tools {
+    background: #ffffff;
+    border: 1px solid var(--ili-border);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
 .ili-native-form-host {
     padding: 0.25rem 0;
 }
@@ -264,6 +271,16 @@ body {
     overflow-x: auto;
     background: #ffffff;
     border-radius: 0.5rem;
+}
+
+.ili-pagination-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 1rem 0 0;
+}
+
+.ili-pagination-bar .pagination {
+    margin-bottom: 0;
 }
 
 .ili-row-actions {

@@ -1,6 +1,7 @@
 package ch.interlis.generator.metadata;
 
 import ch.interlis.generator.model.AttributeMetadata;
+import ch.interlis.generator.model.AttributeConstraints;
 import ch.interlis.generator.model.AssociationMetadata;
 import ch.interlis.generator.model.AssociationRoleMetadata;
 import ch.interlis.generator.model.ClassMetadata;
@@ -150,9 +151,12 @@ public class MetadataJsonWriter {
         putIfNotNull(dto, "maxLength", attribute.getMaxLength());
         putIfNotNull(dto, "minValue", attribute.getMinValue());
         putIfNotNull(dto, "maxValue", attribute.getMaxValue());
+        putIfNotNull(dto, "precision", attribute.getPrecision());
+        putIfNotNull(dto, "scale", attribute.getScale());
         putIfNotNull(dto, "cardinalityMin", attribute.getCardinalityMin());
         putIfNotNull(dto, "cardinalityMax", attribute.getCardinalityMax());
         dto.put("ordered", attribute.isOrdered());
+        dto.put("constraints", constraintsDto(attribute.getConstraints()));
         putIfNotNull(dto, "enumType", attribute.getEnumType());
         dto.put("enumValues", enumValueDtos(attribute.getEnumValues()));
         putIfNotNull(dto, "unit", attribute.getUnit());
@@ -165,6 +169,20 @@ public class MetadataJsonWriter {
     private Map<String, Object> targetHintsDto(AttributeMetadata attribute) {
         Map<String, Object> dto = new LinkedHashMap<>();
         putIfNotNull(dto, "javaType", attribute.getJavaType());
+        return dto;
+    }
+
+    private Map<String, Object> constraintsDto(AttributeConstraints constraints) {
+        Map<String, Object> dto = new LinkedHashMap<>();
+        dto.put("required", constraints.required());
+        putIfNotNull(dto, "maxLength", constraints.maxLength());
+        putIfNotNull(dto, "minInclusive", constraints.minInclusive());
+        putIfNotNull(dto, "maxInclusive", constraints.maxInclusive());
+        putIfNotNull(dto, "precision", constraints.precision());
+        putIfNotNull(dto, "scale", constraints.scale());
+        putIfNotNull(dto, "cardinalityMin", constraints.cardinalityMin());
+        putIfNotNull(dto, "cardinalityMax", constraints.cardinalityMax());
+        dto.put("ordered", constraints.ordered());
         return dto;
     }
 

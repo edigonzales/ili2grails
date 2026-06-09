@@ -231,6 +231,71 @@ class MetadataReaderTest {
     }
 
     @Test
+    void testAssociationCaseMatrixMerge() throws Exception {
+        ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
+
+        assertThat(metadata.getAllAssociations())
+            .extracting(AssociationMetadata::getName)
+            .contains(
+                "AssociationCases.Base.EmptyAssociation",
+                "AssociationCases.Base.AssociationWithAttribute",
+                "AssociationCases.Base.SameTargetAssociation",
+                "AssociationCases.Base.PhysicalMismatchAssociation",
+                "AssociationCases.Base.ExternalCompositeAssociation",
+                "AssociationCases.Extended.ExtendedTopicAssociation"
+            );
+
+        AssociationMetadata withAttribute = metadata.getAssociation(
+            "AssociationCases.Base.AssociationWithAttribute");
+        assertThat(withAttribute.getAllAttributes())
+            .extracting(AttributeMetadata::getName)
+            .containsExactly("RoleNote");
+
+        AssociationMetadata sameTarget = metadata.getAssociation(
+            "AssociationCases.Base.SameTargetAssociation");
+        assertThat(sameTarget.getRoles())
+            .extracting(AssociationRoleMetadata::getName)
+            .containsExactlyInAnyOrder("PrimaryPerson", "SecondaryPerson");
+        assertThat(sameTarget.getRoles())
+            .extracting(AssociationRoleMetadata::getTargetClass)
+            .containsOnly("AssociationCases.Base.Person");
+
+        AssociationMetadata physicalMismatch = metadata.getAssociation(
+            "AssociationCases.Base.PhysicalMismatchAssociation");
+        assertThat(physicalMismatch.getRoles())
+            .filteredOn(role -> role.getName().equals("SemanticOwner"))
+            .singleElement()
+            .satisfies(role -> {
+                assertThat(role.getSourceAttribute()).isEqualTo("owner_fk");
+                assertThat(role.getPhysicalName()).isEqualTo("owner_fk");
+                assertThat(role.getSemanticName())
+                    .isEqualTo("AssociationCases.Base.PhysicalMismatchAssociation.SemanticOwner");
+                assertThat(role.getMergeReason())
+                    .isEqualTo(RelationshipMetadata.MergeReason.EXACT_TARGET_ROLE);
+                assertThat(role.getMergeConfidence())
+                    .isEqualTo(RelationshipMetadata.MergeConfidence.EXACT);
+            });
+
+        AssociationMetadata externalComposite = metadata.getAssociation(
+            "AssociationCases.Base.ExternalCompositeAssociation");
+        assertThat(externalComposite.getRoles())
+            .filteredOn(role -> role.getName().equals("Owner"))
+            .singleElement()
+            .satisfies(role -> {
+                assertThat(role.isExternal()).isTrue();
+                assertThat(role.isComposition()).isTrue();
+                assertThat(role.isMandatory()).isTrue();
+                assertThat(role.getPhysicalName()).isEqualTo("owner_id");
+            });
+
+        AssociationMetadata extended = metadata.getAssociation(
+            "AssociationCases.Extended.ExtendedTopicAssociation");
+        assertThat(extended.getRoles())
+            .extracting(AssociationRoleMetadata::getName)
+            .containsExactlyInAnyOrder("ExtendedPersonRole", "ExtendedParcelRole");
+    }
+
+    @Test
     void testQualifiedAttributeNameMerge() throws Exception {
         try (Statement stmt = connection.createStatement()) {
             stmt.execute("UPDATE t_ili2db_attrname " +

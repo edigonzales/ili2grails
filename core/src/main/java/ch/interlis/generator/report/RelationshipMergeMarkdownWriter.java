@@ -30,6 +30,16 @@ public final class RelationshipMergeMarkdownWriter {
         appendSummaryTable(markdown, "Summary by mergeReason", "mergeReason", report.byMergeReason());
         appendSummaryTable(markdown, "Summary by mergeConfidence", "mergeConfidence",
             report.byMergeConfidence());
+        markdown.append("Total association roles: ")
+            .append(report.totalAssociationRoles())
+            .append("\n\n");
+        appendSummaryTable(markdown, "Association roles by mergeReason", "mergeReason",
+            report.associationRolesByMergeReason());
+        appendSummaryTable(markdown, "Association roles by mergeConfidence", "mergeConfidence",
+            report.associationRolesByMergeConfidence());
+        appendAssociationRoleTable(markdown, "Suspicious association roles",
+            report.suspiciousAssociationRoles());
+        appendAssociationRoleTable(markdown, "Association roles", report.associationRoles());
         appendRelationshipTable(markdown, "Suspicious", report.suspicious());
         appendRelationshipTable(markdown, "NORMALIZED_TOKEN matches", report.normalizedTokenMatches());
         appendRelationshipTable(markdown, "Exact matches", report.exactMatches());
@@ -77,6 +87,34 @@ public final class RelationshipMergeMarkdownWriter {
                 .append(escape(entry.physicalName()))
                 .append(" | ")
                 .append(escape(entry.semanticName()))
+                .append(" | ")
+                .append(escape(entry.mergeToken()))
+                .append(" |\n");
+        }
+        markdown.append("\n");
+    }
+
+    private void appendAssociationRoleTable(StringBuilder markdown,
+                                            String title,
+                                            Iterable<AssociationRoleMergeReportEntry> entries) {
+        markdown.append("## ").append(title).append("\n\n");
+        markdown.append("| Association | Role | Target | physicalName | semanticName | Reason | Confidence | token |\n");
+        markdown.append("|---|---|---|---|---|---|---|---|\n");
+        for (AssociationRoleMergeReportEntry entry : entries) {
+            markdown.append("| ")
+                .append(escape(entry.association()))
+                .append(" | ")
+                .append(escape(entry.role()))
+                .append(" | ")
+                .append(escape(entry.target()))
+                .append(" | ")
+                .append(escape(entry.physicalName()))
+                .append(" | ")
+                .append(escape(entry.semanticName()))
+                .append(" | ")
+                .append(escape(entry.mergeReason()))
+                .append(" | ")
+                .append(escape(entry.mergeConfidence()))
                 .append(" | ")
                 .append(escape(entry.mergeToken()))
                 .append(" |\n");

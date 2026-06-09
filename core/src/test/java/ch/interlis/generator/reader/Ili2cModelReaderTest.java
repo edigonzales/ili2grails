@@ -115,4 +115,40 @@ class Ili2cModelReaderTest {
         assertThat(sample.getAttribute("Route").getCoreType()).isEqualTo(CoreType.POLYLINE);
         assertThat(sample.getAttribute("Footprint").getCoreType()).isEqualTo(CoreType.SURFACE);
     }
+
+    @Test
+    void readsAssociationCaseMatrix() throws Exception {
+        Ili2cModelReader reader = new Ili2cModelReader(new File("test-models/AssociationCases.ili"));
+
+        ModelMetadata metadata = reader.readMetadata("AssociationCases");
+
+        assertThat(metadata.getAssociation("AssociationCases.Base.EmptyAssociation"))
+            .isNotNull();
+        AssociationMetadata withAttribute = metadata.getAssociation(
+            "AssociationCases.Base.AssociationWithAttribute");
+        assertThat(withAttribute).isNotNull();
+        assertThat(withAttribute.getAllAttributes())
+            .extracting(AttributeMetadata::getName)
+            .containsExactly("RoleNote");
+        AssociationMetadata sameTarget = metadata.getAssociation(
+            "AssociationCases.Base.SameTargetAssociation");
+        assertThat(sameTarget.getRoles())
+            .extracting(AssociationRoleMetadata::getTargetClass)
+            .containsOnly("AssociationCases.Base.Person");
+        AssociationMetadata externalComposite = metadata.getAssociation(
+            "AssociationCases.Base.ExternalCompositeAssociation");
+        assertThat(externalComposite.getRoles())
+            .filteredOn(role -> role.getName().equals("Owner"))
+            .singleElement()
+            .satisfies(role -> {
+                assertThat(role.isExternal()).isTrue();
+                assertThat(role.isComposition()).isTrue();
+                assertThat(role.isMandatory()).isTrue();
+            });
+        AssociationMetadata extended = metadata.getAssociation(
+            "AssociationCases.Extended.ExtendedTopicAssociation");
+        assertThat(extended).isNotNull();
+        assertThat(extended.getAssociationClass())
+            .isEqualTo("AssociationCases.Extended.ExtendedTopicAssociation");
+    }
 }

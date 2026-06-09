@@ -86,6 +86,8 @@ class RelationshipMergeReporterTest {
         assertThat(report.mediumConfidence())
             .extracting(RelationshipMergeReportEntry::name)
             .containsExactly("normalized");
+        assertThat(report.totalAssociationRoles()).isZero();
+        assertThat(report.associationRoles()).isEmpty();
     }
 
     @Test
@@ -164,6 +166,15 @@ class RelationshipMergeReporterTest {
     }
 
     @Test
+    void writesDeterministicMarkdownGoldenForMergedAssociationCases() throws Exception {
+        RelationshipMergeReport report = new RelationshipMergeReporter()
+            .create(MetadataTestFixtures.readMergedAssociationCasesMetadata());
+        String markdown = new RelationshipMergeMarkdownWriter().toMarkdown(report);
+
+        assertGolden(markdown, "AssociationCases.merged-h2.md");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void writesMachineReadableJsonForMergedSimpleAddress() throws Exception {
         RelationshipMergeReport report = new RelationshipMergeReporter()
@@ -189,6 +200,51 @@ class RelationshipMergeReporterTest {
         assertThat(suspicious)
             .extracting(entry -> entry.get("physicalName"))
             .containsExactly("address_id", "person_id");
+
+        assertThat(root).containsEntry("totalAssociationRoles", 2);
+        assertThat((Map<String, Object>) root.get("associationRolesByMergeReason"))
+            .containsEntry("NORMALIZED_TOKEN", 2);
+        List<Map<String, Object>> associationRoles =
+            (List<Map<String, Object>>) root.get("associationRoles");
+        assertThat(associationRoles)
+            .extracting(entry -> entry.get("role"))
+            .containsExactly("Address", "Person");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void writesAssociationRoleDiagnosticsForMergedAssociationCases() throws Exception {
+        RelationshipMergeReport report = new RelationshipMergeReporter()
+            .create(MetadataTestFixtures.readMergedAssociationCasesMetadata());
+
+        Map<String, Object> root = JSON_MAPPER.readValue(
+            new RelationshipMergeJsonWriter().toJson(report),
+            Map.class
+        );
+
+        assertThat(root).containsEntry("modelName", "AssociationCases");
+        assertThat(root).containsEntry("totalAssociationRoles", 12);
+        List<Map<String, Object>> associationRoles =
+            (List<Map<String, Object>>) root.get("associationRoles");
+        assertThat(associationRoles)
+            .anySatisfy(role -> {
+                assertThat(role).containsEntry("association",
+                    "AssociationCases.Base.PhysicalMismatchAssociation");
+                assertThat(role).containsEntry("role", "SemanticOwner");
+                assertThat(role).containsEntry("physicalName", "owner_fk");
+                assertThat(role).containsEntry("mergeReason", "EXACT_TARGET_ROLE");
+                assertThat(role).containsEntry("mergeConfidence", "EXACT");
+            })
+            .anySatisfy(role -> {
+                assertThat(role).containsEntry("association",
+                    "AssociationCases.Base.SameTargetAssociation");
+                assertThat(role).containsEntry("role", "PrimaryPerson");
+            })
+            .anySatisfy(role -> {
+                assertThat(role).containsEntry("association",
+                    "AssociationCases.Base.SameTargetAssociation");
+                assertThat(role).containsEntry("role", "SecondaryPerson");
+            });
     }
 
     private RelationshipMetadata relationship(String name,

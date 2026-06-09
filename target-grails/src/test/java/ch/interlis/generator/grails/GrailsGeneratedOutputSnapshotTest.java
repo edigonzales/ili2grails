@@ -60,6 +60,26 @@ class GrailsGeneratedOutputSnapshotTest {
         ));
     }
 
+    @Test
+    void associationCasesMergedOutputMatchesSnapshots() throws Exception {
+        ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
+        Path outputDir = tempDir.resolve("association-cases");
+        GenerationConfig config = GenerationConfig.builder(outputDir, "ch.example.association")
+            .domainPackage("ch.example.association.domain")
+            .enumPackage("ch.example.association.enums")
+            .build();
+
+        new GrailsCrudGenerator().generate(metadata, config);
+        GeneratedGroovyCompiler.compileGeneratedSources(outputDir);
+
+        assertSnapshots("association-cases", outputDir, List.of(
+            "grails-app/domain/ch/example/association/domain/AssociationWithAttribute.groovy",
+            "grails-app/domain/ch/example/association/domain/ExternalCompositeAssociation.groovy",
+            "grails-app/domain/ch/example/association/domain/PhysicalMismatchAssociation.groovy",
+            "grails-app/domain/ch/example/association/domain/SameTargetAssociation.groovy"
+        ));
+    }
+
     private void assertSnapshots(String snapshotCase, Path outputDir, List<String> relativePaths)
         throws Exception {
         for (String relativePath : relativePaths) {
@@ -69,6 +89,10 @@ class GrailsGeneratedOutputSnapshotTest {
             assertThat(actualFile)
                 .as("Generated file should exist: %s", relativePath)
                 .exists();
+            if (Boolean.getBoolean("updateGrailsSnapshots") || "true".equals(System.getenv("UPDATE_GRAILS_SNAPSHOTS"))) {
+                Files.createDirectories(expectedFile.getParent());
+                Files.writeString(expectedFile, normalize(Files.readString(actualFile)));
+            }
             assertThat(expectedFile)
                 .as("Snapshot should exist: %s/%s", snapshotCase, relativePath)
                 .exists();

@@ -176,8 +176,101 @@
         });
     }
 
+    function optionFromData(item) {
+        var option = document.createElement("option");
+        option.value = item.id || "";
+        option.textContent = item.label || item.id || "";
+        return option;
+    }
+
+    function renderRelationshipOptions(select, results) {
+        if (!select) {
+            return;
+        }
+        var previousValue = select.value;
+        var previousLabel = "";
+        var selectedOption = select.selectedOptions && select.selectedOptions.length ? select.selectedOptions[0] : null;
+        if (selectedOption) {
+            previousLabel = selectedOption.textContent || "";
+        }
+        var optional = select.getAttribute("data-relationship-optional") !== "false";
+        select.innerHTML = "";
+        if (optional) {
+            var empty = document.createElement("option");
+            empty.value = "";
+            empty.textContent = "Keine Auswahl";
+            select.appendChild(empty);
+        }
+        var hasPreviousValue = !previousValue;
+        (results || []).forEach(function(item) {
+            if (!item || !item.id) {
+                return;
+            }
+            if (item.id === previousValue) {
+                hasPreviousValue = true;
+            }
+            select.appendChild(optionFromData(item));
+        });
+        if (previousValue && !hasPreviousValue) {
+            select.appendChild(optionFromData({
+                id: previousValue,
+                label: previousLabel || previousValue
+            }));
+        }
+        select.value = previousValue || "";
+    }
+
+    function relationshipUrl(input) {
+        var url = input.getAttribute("data-relationship-url");
+        var field = input.getAttribute("data-relationship-field");
+        if (!url || !field) {
+            return null;
+        }
+        var params = new URLSearchParams();
+        params.set("field", field);
+        params.set("q", input.value || "");
+        params.set("max", "25");
+        return url + (url.indexOf("?") >= 0 ? "&" : "?") + params.toString();
+    }
+
+    function initRelationshipAutocomplete(input) {
+        var selectId = input.getAttribute("data-relationship-select");
+        var select = selectId ? document.getElementById(selectId) : null;
+        if (!select || typeof window.fetch !== "function") {
+            return;
+        }
+        var timer = null;
+        input.addEventListener("input", function() {
+            window.clearTimeout(timer);
+            timer = window.setTimeout(function() {
+                var url = relationshipUrl(input);
+                if (!url) {
+                    return;
+                }
+                window.fetch(url, {
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                })
+                    .then(function(response) {
+                        return response.ok ? response.json() : null;
+                    })
+                    .then(function(payload) {
+                        if (!payload) {
+                            return;
+                        }
+                        renderRelationshipOptions(select, payload.results || []);
+                    })
+                    .catch(function() {
+                        // Keep the existing server-rendered options if autocomplete fails.
+                    });
+            }, 250);
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         document.querySelectorAll(".js-dirty-form").forEach(initDirtyForm);
+        document.querySelectorAll(".js-relationship-search").forEach(initRelationshipAutocomplete);
         initBeforeUnloadGuard();
         initSubmitButtons();
         initUnsavedNavigationGuard();

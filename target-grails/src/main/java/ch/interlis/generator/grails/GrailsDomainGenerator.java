@@ -1,6 +1,7 @@
 package ch.interlis.generator.grails;
 
 import ch.interlis.generator.model.AttributeMetadata;
+import ch.interlis.generator.model.AttributeConstraints;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
@@ -148,18 +149,22 @@ public class GrailsDomainGenerator {
 
         sb.append("\n    static constraints = {\n");
         for (GrailsRelationshipMapper.DomainProperty property : mapping.properties()) {
+            AttributeConstraints constraints = property.constraints();
             List<String> constraintParts = new ArrayList<>();
             if (property.nullable()) {
                 constraintParts.add("nullable: true");
             }
-            if (property.maxLength() != null) {
-                constraintParts.add("maxSize: " + property.maxLength());
+            if (constraints != null && constraints.maxLength() != null) {
+                constraintParts.add("maxSize: " + constraints.maxLength());
             }
-            if (isNumeric(property.minValue())) {
-                constraintParts.add("min: " + property.minValue());
+            if (constraints != null && isNumeric(constraints.minInclusive())) {
+                constraintParts.add("min: " + constraints.minInclusive());
             }
-            if (isNumeric(property.maxValue())) {
-                constraintParts.add("max: " + property.maxValue());
+            if (constraints != null && isNumeric(constraints.maxInclusive())) {
+                constraintParts.add("max: " + constraints.maxInclusive());
+            }
+            if (constraints != null && constraints.scale() != null && isBigDecimal(property.type())) {
+                constraintParts.add("scale: " + constraints.scale());
             }
             if (!constraintParts.isEmpty()) {
                 sb.append("        ")
@@ -208,6 +213,10 @@ public class GrailsDomainGenerator {
             return false;
         }
         return value.matches("-?\\d+(\\.\\d+)?");
+    }
+
+    private boolean isBigDecimal(String type) {
+        return "BigDecimal".equals(type) || "java.math.BigDecimal".equals(type);
     }
 
     private boolean isTIdColumn(AttributeMetadata attr) {

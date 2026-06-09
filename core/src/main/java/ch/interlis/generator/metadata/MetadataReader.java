@@ -371,8 +371,8 @@ public class MetadataReader {
     private Set<String> relationshipNameTokens(RelationshipMetadata relationship) {
         Set<String> names = new LinkedHashSet<>();
         addNameToken(names, relationship.getTargetRoleName());
-        addNameToken(names, relationship.getSourceRoleName());
         addNameToken(names, relationship.getSourceAttribute());
+        addNameToken(names, relationship.getPhysicalName());
         addNameToken(names, relationship.getName());
         return names;
     }

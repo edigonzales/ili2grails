@@ -30,6 +30,8 @@ public class AttributeMetadata {
     private Integer maxLength;
     private String minValue;
     private String maxValue;
+    private Integer precision;
+    private Integer scale;
     private Integer cardinalityMin;
     private Integer cardinalityMax;
     private boolean ordered;
@@ -319,6 +321,20 @@ public class AttributeMetadata {
     public void setCoreType(CoreType coreType) {
         this.coreType = coreType;
     }
+
+    public AttributeConstraints getConstraints() {
+        return new AttributeConstraints(
+            mandatory,
+            maxLength,
+            minValue,
+            maxValue,
+            precision,
+            scale,
+            cardinalityMin,
+            cardinalityMax,
+            ordered
+        );
+    }
     
     public String getJavaType() {
         if (javaType == null) {
@@ -417,6 +433,22 @@ public class AttributeMetadata {
     
     public void setMaxValue(String maxValue) {
         this.maxValue = maxValue;
+    }
+
+    public Integer getPrecision() {
+        return precision;
+    }
+
+    public void setPrecision(Integer precision) {
+        this.precision = precision;
+    }
+
+    public Integer getScale() {
+        return scale;
+    }
+
+    public void setScale(Integer scale) {
+        this.scale = scale;
     }
 
     public Integer getCardinalityMin() {

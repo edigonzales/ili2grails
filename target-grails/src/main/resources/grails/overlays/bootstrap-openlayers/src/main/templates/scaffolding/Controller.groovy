@@ -1,5 +1,6 @@
 <%=packageName ? "package ${packageName}" : ''%>
 
+import grails.converters.JSON
 import grails.validation.ValidationException
 import org.locationtech.jts.io.WKTReader
 
@@ -11,15 +12,21 @@ class ${className}Controller {
 
     ${className}Service ${propertyName}Service
 
-    static allowedMethods = [save: "POST", update: "PUT", delete: "DELETE"]
+    static allowedMethods = [save: "POST", update: "PUT", delete: "DELETE", relationshipOptions: "GET"]
 
-    def index() {
-        List<${className}> records = ${propertyName}Service.list([:])
+    def index(Integer max, Integer offset) {
+        Map<String, Object> pagination = paginationParams(max, offset)
+        String query = normalizedQuery(params.q)
         List<String> columns = tableColumns()
+        Map<String, Object> page = pagedRecords(query, pagination)
+        List<${className}> records = page.records as List<${className}>
         respond records, model: [
-            ${propertyName}Count: records.size(),
+            ${propertyName}Count: page.total,
             tableColumns: columns,
-            tableRows: tableRows(records, columns)
+            tableRows: tableRows(records, columns),
+            q: query,
+            max: pagination.max,
+            offset: pagination.offset
         ]
     }
 
@@ -124,6 +131,16 @@ class ${className}Controller {
         }
     }
 
+    def relationshipOptions() {
+        Map<String, Object> page = relationshipOptionPage(
+            params.field?.toString(),
+            normalizedQuery(params.q),
+            boundedMax(params.int("max")),
+            safeOffset(params.int("offset"))
+        )
+        render page as JSON
+    }
+
     protected void notFound() {
         request.withFormat {
             form multipartForm {
@@ -139,6 +156,77 @@ class ${className}Controller {
         model.putAll(geometryModel(instance))
         model.putAll(relationshipModel(instance))
         return model
+    }
+
+    private Map<String, Object> paginationParams(Integer maxParam, Integer offsetParam) {
+        return [
+            max: boundedMax(maxParam),
+            offset: safeOffset(offsetParam),
+            sort: safeSort(params.sort),
+            order: safeOrder(params.order)
+        ]
+    }
+
+    private Integer boundedMax(Integer value) {
+        Integer requested = value ?: 25
+        return Math.min(Math.max(requested, 1), 100)
+    }
+
+    private Integer safeOffset(Integer value) {
+        return Math.max(value ?: 0, 0)
+    }
+
+    private String safeSort(Object value) {
+        String requested = value?.toString()
+        if (requested != null && tableColumns().contains(requested)) {
+            return requested
+        }
+        return "id"
+    }
+
+    private String safeOrder(Object value) {
+        String requested = value?.toString()?.toLowerCase(Locale.ROOT)
+        return requested == "desc" ? "desc" : "asc"
+    }
+
+    private String normalizedQuery(Object value) {
+        String query = value?.toString()?.trim()
+        return query ?: null
+    }
+
+    private Map<String, Object> pagedRecords(String query, Map<String, Object> pagination) {
+        if (query != null) {
+            return searchedRecords(query, pagination)
+        }
+        List<${className}> records = ${propertyName}Service.list(pagination) as List<${className}>
+        return [
+            records: records,
+            total: ${propertyName}Service.count()
+        ]
+    }
+
+    private Map<String, Object> searchedRecords(String query, Map<String, Object> pagination) {
+        List<String> columns = searchableColumns(${className})
+        if (columns.isEmpty()) {
+            return [records: [], total: 0]
+        }
+        String pattern = "%" + query + "%"
+        def results = ${className}.createCriteria().list(
+            max: pagination.max,
+            offset: pagination.offset,
+            sort: pagination.sort,
+            order: pagination.order
+        ) {
+            or {
+                columns.each { String column ->
+                    ilike(column, pattern)
+                }
+            }
+        }
+        return [
+            records: results as List<${className}>,
+            total: results.totalCount ?: results.size()
+        ]
     }
 
     private Map<Object, Map<String, String>> tableRows(List<${className}> records, List<String> columns) {
@@ -209,7 +297,7 @@ class ${className}Controller {
         Map<String, Boolean> required = [:]
 
         fields.each { String field ->
-            options[field] = relationshipOptions(field)
+            options[field] = initialRelationshipOptions(instance, field)
             values[field] = selectedRelationshipId(instance, field)
             required[field] = relationshipFieldRequired(field)
         }
@@ -249,13 +337,50 @@ class ${className}Controller {
         return property.type instanceof Class
     }
 
-    private List<Map<String, String>> relationshipOptions(String field) {
+    private List<Map<String, String>> initialRelationshipOptions(${className} instance, String field) {
+        List<Map<String, String>> options = relationshipOptionPage(field, null, 25, 0).results as List<Map<String, String>>
+        Map<String, String> selected = selectedRelationshipOption(instance, field)
+        if (selected != null && options.every { Map<String, String> option -> option.id != selected.id }) {
+            options = [selected] + options
+        }
+        return options
+    }
+
+    private Map<String, Object> relationshipOptionPage(String field, String query, Integer max, Integer offset) {
         Class targetType = relationshipTargetType(field)
         if (targetType == null) {
-            return []
+            return [results: [], pagination: [more: false, total: 0]]
         }
-        List<Object> records = targetType.list([sort: "id", order: "asc"]) as List<Object>
-        return records.collect { Object record ->
+        Map<String, Object> pagination = [
+            max: boundedMax(max),
+            offset: safeOffset(offset),
+            sort: "id",
+            order: "asc"
+        ]
+        List<Object> records
+        Number total
+        List<String> searchColumns = searchableColumns(targetType)
+        if (query != null && !searchColumns.isEmpty()) {
+            String pattern = "%" + query + "%"
+            def results = targetType.createCriteria().list(
+                max: pagination.max,
+                offset: pagination.offset,
+                sort: pagination.sort,
+                order: pagination.order
+            ) {
+                or {
+                    searchColumns.each { String column ->
+                        ilike(column, pattern)
+                    }
+                }
+            }
+            records = results as List<Object>
+            total = results.totalCount ?: records.size()
+        } else {
+            records = targetType.list(pagination) as List<Object>
+            total = targetType.count()
+        }
+        List<Map<String, String>> options = records.collect { Object record ->
             [
                 id: record?.id?.toString(),
                 label: relationshipOptionLabel(record)
@@ -268,6 +393,33 @@ class ${className}Controller {
             int labelCompare = leftLabel <=> rightLabel
             labelCompare != 0 ? labelCompare : ((left.id ?: "") <=> (right.id ?: ""))
         }
+        return [
+            results: options,
+            pagination: [
+                more: pagination.offset + options.size() < total,
+                total: total
+            ]
+        ]
+    }
+
+    private List<String> searchableColumns(Class targetType) {
+        def domainClass = targetType != null ? grailsApplication?.getDomainClass(targetType.name) : null
+        if (domainClass == null) {
+            return []
+        }
+        Set<String> excluded = new LinkedHashSet<>(geometryFields())
+        excluded.add("id")
+        excluded.add("version")
+        return domainClass.persistentProperties
+            .findAll { property ->
+                property?.name != null
+                    && !excluded.contains(property.name.toString())
+                    && !property.isAssociation()
+                    && property.type instanceof Class
+                    && CharSequence.isAssignableFrom(property.type)
+            }
+            .collect { property -> property.name.toString() }
+            .sort()
     }
 
     private Class relationshipTargetType(String field) {
@@ -284,6 +436,21 @@ class ${className}Controller {
         }
         Object selected = instance."\${field}"
         return selected?.id?.toString()
+    }
+
+    private Map<String, String> selectedRelationshipOption(${className} instance, String field) {
+        if (instance == null || field == null) {
+            return null
+        }
+        Object selected = instance."\${field}"
+        String id = selected?.id?.toString()
+        if (id == null) {
+            return null
+        }
+        return [
+            id: id,
+            label: relationshipOptionLabel(selected)
+        ]
     }
 
     private boolean relationshipFieldRequired(String field) {

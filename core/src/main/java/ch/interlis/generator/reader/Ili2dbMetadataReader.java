@@ -348,6 +348,10 @@ public class Ili2dbMetadataReader {
             maxLength = null;
         }
         attr.setMaxLength(maxLength);
+        if (isNumericColumn(columnInfo)) {
+            attr.setPrecision(maxLength);
+            attr.setScale(columnInfo.decimalDigits());
+        }
 
         if (columnInfo.typeName() != null && "GEOMETRY".equalsIgnoreCase(columnInfo.typeName())) {
             attr.setGeometry(true);
@@ -489,7 +493,11 @@ public class Ili2dbMetadataReader {
                     if (rs.wasNull()) {
                         size = null;
                     }
-                    return new ColumnInfo(dataType, typeName, nullable, size);
+                    Integer decimalDigits = rs.getInt("DECIMAL_DIGITS");
+                    if (rs.wasNull()) {
+                        decimalDigits = null;
+                    }
+                    return new ColumnInfo(dataType, typeName, nullable, size, decimalDigits);
                 }
             }
         }
@@ -511,7 +519,8 @@ public class Ili2dbMetadataReader {
                     ? ResultSetMetaData.columnNoNulls
                     : ResultSetMetaData.columnNullable;
                 Integer columnSize = parseColumnSize(typeName);
-                return new ColumnInfo(null, typeName, nullable, columnSize);
+                Integer decimalDigits = parseDecimalDigits(typeName);
+                return new ColumnInfo(null, typeName, nullable, columnSize, decimalDigits);
             }
         }
         return null;
@@ -528,6 +537,17 @@ public class Ili2dbMetadataReader {
         return null;
     }
 
+    private Integer parseDecimalDigits(String typeName) {
+        if (typeName == null) {
+            return null;
+        }
+        Matcher matcher = Pattern.compile("\\(\\d+\\s*,\\s*(\\d+)\\)").matcher(typeName);
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group(1));
+        }
+        return null;
+    }
+
     private String resolveDbType(Integer dataType, String typeName) {
         if (dataType == null) {
             return typeName;
@@ -537,6 +557,31 @@ public class Ili2dbMetadataReader {
             return mappedType;
         }
         return typeName != null && !typeName.isBlank() ? typeName : dataType.toString();
+    }
+
+    private boolean isNumericColumn(ColumnInfo columnInfo) {
+        if (columnInfo == null) {
+            return false;
+        }
+        Integer dataType = columnInfo.dataType();
+        if (dataType != null) {
+            return switch (dataType) {
+                case Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT,
+                    Types.DECIMAL, Types.NUMERIC, Types.DOUBLE, Types.FLOAT, Types.REAL -> true;
+                default -> false;
+            };
+        }
+        String typeName = columnInfo.typeName();
+        if (typeName == null || typeName.isBlank()) {
+            return false;
+        }
+        String upperType = typeName.toUpperCase(Locale.ROOT);
+        return upperType.contains("INT")
+            || upperType.contains("DECIMAL")
+            || upperType.contains("NUMERIC")
+            || upperType.contains("DOUBLE")
+            || upperType.contains("FLOAT")
+            || upperType.contains("REAL");
     }
 
     private String mapSqlTypeCode(int typeCode, String typeName) {
@@ -1061,7 +1106,13 @@ public class Ili2dbMetadataReader {
     private record ColumnPropColumns(String ownerColumn, String columnColumn) {
     }
 
-    private record ColumnInfo(Integer dataType, String typeName, Integer nullable, Integer columnSize) {
+    private record ColumnInfo(
+        Integer dataType,
+        String typeName,
+        Integer nullable,
+        Integer columnSize,
+        Integer decimalDigits
+    ) {
     }
 
     private boolean equalsIgnoreCase(String left, String right) {
