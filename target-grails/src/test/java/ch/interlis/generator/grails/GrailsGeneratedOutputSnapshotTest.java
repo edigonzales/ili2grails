@@ -35,7 +35,6 @@ class GrailsGeneratedOutputSnapshotTest {
         assertSnapshots("simple-address", outputDir, List.of(
             "grails-app/domain/ch/example/simple/domain/Address.groovy",
             "grails-app/domain/ch/example/simple/domain/Person.groovy",
-            "grails-app/domain/ch/example/simple/domain/PersonAddress.groovy",
             "src/main/groovy/ch/example/simple/enums/AddressStatus.groovy"
         ));
     }
@@ -55,7 +54,6 @@ class GrailsGeneratedOutputSnapshotTest {
 
         assertSnapshots("structure-composition", outputDir, List.of(
             "grails-app/domain/ch/example/structure/domain/Asset.groovy",
-            "grails-app/domain/ch/example/structure/domain/AssetDocument.groovy",
             "grails-app/domain/ch/example/structure/domain/Part.groovy"
         ));
     }

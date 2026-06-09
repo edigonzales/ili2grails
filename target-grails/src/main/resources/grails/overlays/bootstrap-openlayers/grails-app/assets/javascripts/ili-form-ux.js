@@ -103,6 +103,22 @@
         form.submit();
     }
 
+    function submitNativeForm(form, submitSelector) {
+        if (!form) {
+            return;
+        }
+        var submit = submitSelector ? form.querySelector(submitSelector) : null;
+        if (typeof form.requestSubmit === "function") {
+            form.requestSubmit(submit || undefined);
+            return;
+        }
+        if (submit) {
+            submit.click();
+            return;
+        }
+        form.submit();
+    }
+
     function initSubmitButtons() {
         document.addEventListener("click", function(event) {
             var submitAction = event.target.closest("[data-form-submit]");
@@ -122,12 +138,7 @@
                 if (!rowDeleteForm) {
                     return;
                 }
-                var rowDeleteSubmit = rowDeleteForm.querySelector(".js-delete-submit");
-                if (rowDeleteSubmit) {
-                    rowDeleteSubmit.click();
-                } else {
-                    rowDeleteForm.submit();
-                }
+                submitNativeForm(rowDeleteForm, ".js-delete-submit");
             }
         });
     }
@@ -167,12 +178,7 @@
             if (!form) {
                 return;
             }
-            var submit = form.querySelector(".js-delete-submit");
-            if (submit) {
-                submit.click();
-            } else {
-                form.submit();
-            }
+            submitNativeForm(form, ".js-delete-submit");
         });
     }
 

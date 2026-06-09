@@ -4,18 +4,18 @@
     <meta name="layout" content="main" />
     <g:set var="entityName" value="\${message(code: '${propertyName}.label', default: '${className}')}" />
     <g:set var="rows" value="\${${propertyName}List ?: []}" />
-    <title><g:message code="default.list.label" args="[entityName]" /></title>
+    <title><g:message code="default.list.label" args="\${[entityName]}" /></title>
 </head>
 <body>
 <div id="content" role="main" class="ili-page ili-page-list">
     <section class="ili-page-header">
         <div>
-            <h1 class="ili-page-title"><g:message code="default.list.label" args="[entityName]" /></h1>
+            <h1 class="ili-page-title"><g:message code="default.list.label" args="\${[entityName]}" /></h1>
             <p class="ili-page-subtitle">Serverseitige Suche und Paging für große Datenbestände.</p>
         </div>
         <div class="ili-page-actions">
             <g:link action="create" class="btn btn-primary">
-                <g:message code="default.new.label" args="[entityName]" />
+                <g:message code="default.new.label" args="\${[entityName]}" />
             </g:link>
             <span class="badge text-bg-secondary">Count: \${${propertyName}Count ?: 0}</span>
         </div>
@@ -94,7 +94,7 @@
                 <h2 class="h5 mb-2">\${q ? 'Keine Treffer' : 'Noch keine Daten'}</h2>
                 <p class="mb-3">\${q ? 'Passe die Suche an.' : 'Erstelle den ersten Datensatz für ' + entityName + '.'}</p>
                 <g:link action="create" class="btn btn-primary">
-                    <g:message code="default.new.label" args="[entityName]" />
+                    <g:message code="default.new.label" args="\${[entityName]}" />
                 </g:link>
             </div>
         </section>

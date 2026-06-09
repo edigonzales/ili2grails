@@ -2,9 +2,15 @@ package ch.example.simple.domain
 
 class Address {
 
-    Object astreet
-    Object housenumber
-    Object postalcode
+    String astreet
+    String housenumber
+    String postalcode
+
+    static final Map<String, Map<String, Object>> interlisFieldMeta = [
+        astreet: [label: 'street', qualifiedName: 'SimpleAddressModel.Addresses.Address.street'],
+        housenumber: [label: 'houseNumber', qualifiedName: 'SimpleAddressModel.Addresses.Address.houseNumber'],
+        postalcode: [label: 'postalCode', qualifiedName: 'SimpleAddressModel.Addresses.Address.postalCode']
+    ]
 
     static mapping = {
         table 'address'
@@ -13,8 +19,8 @@ class Address {
     }
 
     static constraints = {
-        astreet nullable: true
-        housenumber nullable: true
-        postalcode nullable: true
+        astreet maxSize: 100
+        housenumber nullable: true, maxSize: 10
+        postalcode maxSize: 10
     }
 }

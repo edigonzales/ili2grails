@@ -172,6 +172,7 @@ abstract class InterlisCrudControllerSupport<T> {
         Map<String, Object> model = [:]
         model.putAll(geometryModel(instance))
         model.putAll(relationshipModel(instance))
+        model.put("fieldMeta", fieldMeta())
         return model
     }
 
@@ -496,9 +497,21 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     protected Map<String, Map<String, Object>> geometryMeta() {
+        return staticDomainMap("geometryMeta")
+    }
+
+    protected Map<String, Map<String, Object>> fieldMeta() {
+        return staticDomainMap("interlisFieldMeta")
+    }
+
+    protected Map<String, Map<String, Object>> staticDomainMap(String fieldName) {
         try {
-            return (domainType().geometryMeta ?: [:]) as Map<String, Map<String, Object>>
-        } catch (MissingPropertyException ignored) {
+            def field = domainType().getDeclaredField(fieldName)
+            field.accessible = true
+            return (field.get(null) ?: [:]) as Map<String, Map<String, Object>>
+        } catch (NoSuchFieldException ignored) {
+            return [:]
+        } catch (IllegalAccessException ignored) {
             return [:]
         }
     }

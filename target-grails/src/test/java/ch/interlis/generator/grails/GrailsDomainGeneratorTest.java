@@ -61,6 +61,8 @@ class GrailsDomainGeneratorTest {
         AttributeMetadata amount = new AttributeMetadata("amount");
         amount.setCoreType(CoreType.NUMERIC);
         amount.setJavaType("java.math.BigDecimal");
+        amount.setDocumentation("Invoice amount");
+        amount.setUnit("CHF");
         amount.setMinValue("0.0");
         amount.setMaxValue("9999.999");
         amount.setPrecision(7);
@@ -76,6 +78,8 @@ class GrailsDomainGeneratorTest {
 
         assertThat(content).contains("BigDecimal amount");
         assertThat(content).contains("amount nullable: true, min: 0.0, max: 9999.999, scale: 3");
+        assertThat(content).contains("static final Map<String, Map<String, Object>> interlisFieldMeta");
+        assertThat(content).contains("amount: [label: 'amount', documentation: 'Invoice amount', unit: 'CHF'");
     }
 
     @Test

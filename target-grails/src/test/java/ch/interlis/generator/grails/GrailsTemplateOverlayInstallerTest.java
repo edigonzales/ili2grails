@@ -75,6 +75,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(formTemplate).contains("data-unsaved-badge");
         assertThat(formTemplate).contains("template=\"relationship-fields\"");
         assertThat(formTemplate).contains("relationshipFields ?: []");
+        assertThat(formTemplate).contains("fieldMeta");
+        assertThat(formTemplate).contains("ili-field-help-panel");
         assertThat(formTemplate).doesNotContain("js-carbon-bridge");
 
         String relationshipTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_relationship-fields.gsp"));
@@ -106,6 +108,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("def index(Integer max, Integer offset)");
         assertThat(controllerSupport).contains("relationshipOptions");
         assertThat(controllerSupport).contains("InterlisGeometryBinder.bindGeometryFromParams");
+        assertThat(controllerSupport).contains("fieldMeta()");
 
         String geometryBinder = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy"));
         assertThat(geometryBinder).contains("IsValidOp");
@@ -119,6 +122,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(stylesheet).contains(".ili-list-tools");
         assertThat(stylesheet).contains(".ili-pagination-bar");
         assertThat(stylesheet).contains("--dp-color-accent");
+        assertThat(stylesheet).contains(".ili-field-help-panel");
     }
 
     @Test

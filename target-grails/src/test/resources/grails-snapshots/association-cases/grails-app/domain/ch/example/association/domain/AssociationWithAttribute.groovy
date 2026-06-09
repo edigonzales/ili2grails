@@ -6,6 +6,12 @@ class AssociationWithAttribute {
     Person personRoleId
     String roleNote
 
+    static final Map<String, Map<String, Object>> interlisFieldMeta = [
+        documentRoleId: [label: 'DocumentRole', qualifiedName: 'AssociationCases.Base.AssociationWithAttribute.DocumentRole'],
+        personRoleId: [label: 'PersonRole', qualifiedName: 'AssociationCases.Base.AssociationWithAttribute.PersonRole'],
+        roleNote: [label: 'RoleNote', qualifiedName: 'AssociationCases.Base.AssociationWithAttribute.RoleNote']
+    ]
+
     static mapping = {
         table 'associationwithattribute'
         id column: 't_id', generator: 'identity'

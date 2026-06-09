@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -74,6 +75,7 @@ class GrailsApplicationYamlUpdater {
 
     private boolean updateDevelopmentDataSource(List<Object> documents, String jdbcUrl, String schema) {
         boolean changed = false;
+        JdbcConnectionSettings connectionSettings = JdbcConnectionSettings.from(jdbcUrl);
         for (Object document : documents) {
             Map<String, Object> root = asMap(document);
             if (root == null) {
@@ -91,12 +93,22 @@ class GrailsApplicationYamlUpdater {
             if (dataSource == null) {
                 continue;
             }
-            if (jdbcUrl != null) {
-                String resolvedJdbcUrl = appendCurrentSchema(jdbcUrl, schema);
+            if (connectionSettings.url() != null) {
+                String resolvedJdbcUrl = appendCurrentSchema(connectionSettings.url(), schema);
                 if (!Objects.equals(resolvedJdbcUrl, dataSource.get("url"))) {
                     dataSource.put("url", resolvedJdbcUrl);
                     changed = true;
                 }
+            }
+            if (connectionSettings.username() != null
+                && !Objects.equals("${DB_USERNAME}", dataSource.get("username"))) {
+                dataSource.put("username", "${DB_USERNAME}");
+                changed = true;
+            }
+            if (connectionSettings.password() != null
+                && !Objects.equals("${DB_PASSWORD}", dataSource.get("password"))) {
+                dataSource.put("password", "${DB_PASSWORD}");
+                changed = true;
             }
             if (H2_DRIVER.equals(dataSource.get("driverClassName"))) {
                 dataSource.remove("driverClassName");
@@ -208,6 +220,46 @@ class GrailsApplicationYamlUpdater {
         }
         char separator = jdbcUrl.contains("?") ? '&' : '?';
         return jdbcUrl + separator + "currentSchema=" + schema;
+    }
+
+    private record JdbcConnectionSettings(String url, String username, String password) {
+
+        static JdbcConnectionSettings from(String jdbcUrl) {
+            if (jdbcUrl == null || jdbcUrl.isBlank()) {
+                return new JdbcConnectionSettings(null, null, null);
+            }
+            int queryStart = jdbcUrl.indexOf('?');
+            if (queryStart < 0) {
+                return new JdbcConnectionSettings(jdbcUrl, null, null);
+            }
+            String baseUrl = jdbcUrl.substring(0, queryStart);
+            String query = jdbcUrl.substring(queryStart + 1);
+            String username = null;
+            String password = null;
+            Map<String, String> retained = new LinkedHashMap<>();
+            for (String part : query.split("&")) {
+                if (part.isBlank()) {
+                    continue;
+                }
+                int separator = part.indexOf('=');
+                String key = separator >= 0 ? part.substring(0, separator) : part;
+                String value = separator >= 0 ? part.substring(separator + 1) : "";
+                if ("user".equalsIgnoreCase(key) || "username".equalsIgnoreCase(key)) {
+                    username = value;
+                } else if ("password".equalsIgnoreCase(key)) {
+                    password = value;
+                } else if (!"dbSchema".equalsIgnoreCase(key)) {
+                    retained.put(key, value);
+                }
+            }
+            String sanitizedUrl = baseUrl;
+            if (!retained.isEmpty()) {
+                sanitizedUrl += "?" + retained.entrySet().stream()
+                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                    .collect(java.util.stream.Collectors.joining("&"));
+            }
+            return new JdbcConnectionSettings(sanitizedUrl, username, password);
+        }
     }
 
     @SuppressWarnings("unchecked")

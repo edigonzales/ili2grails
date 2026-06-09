@@ -34,12 +34,17 @@ class GrailsApplicationYamlUpdaterTest {
         GrailsApplicationYamlUpdater updater = new GrailsApplicationYamlUpdater();
         updater.ensureDevelopmentDataSourceUrl(
             yamlPath,
-            "jdbc:postgresql://localhost:5432/testdb",
+            "jdbc:postgresql://localhost:5432/testdb?user=postgres&password=secret&dbSchema=ignored",
             "public"
         );
 
         String updated = Files.readString(yamlPath);
         assertThat(updated).contains("jdbc:postgresql://localhost:5432/testdb?currentSchema=public");
+        assertThat(updated).contains("username: \"${DB_USERNAME}\"");
+        assertThat(updated).contains("password: \"${DB_PASSWORD}\"");
+        assertThat(updated).doesNotContain("user=postgres");
+        assertThat(updated).doesNotContain("password=secret");
+        assertThat(updated).doesNotContain("dbSchema=ignored");
         assertThat(updated).contains("dbCreate: \"none\"");
         assertThat(updated).contains("org.hibernate.dialect.PostgreSQLDialect");
         assertThat(updated).doesNotContain("username: \"sa\"");

@@ -6,16 +6,12 @@ final class InterlisRelationshipOptions {
     }
 
     static List<String> relationshipFields(def grailsApplication, Class domainType, Collection<String> geometryFields) {
-        def domainClass = grailsApplication?.getDomainClass(domainType.name)
-        if (domainClass == null) {
-            return []
-        }
         Set<String> excluded = new LinkedHashSet<>(geometryFields ?: [])
         excluded.add("id")
         excluded.add("version")
-        return domainClass.persistentProperties
-            .findAll { property -> isEditableRelationshipProperty(property, excluded) }
-            .collect { property -> property.name.toString() }
+        return persistentProperties(grailsApplication, domainType)
+            .findAll { property -> isEditableRelationshipProperty(grailsApplication, property, excluded) }
+            .collect { property -> propertyName(property) }
             .sort()
     }
 
@@ -112,25 +108,71 @@ final class InterlisRelationshipOptions {
         return value.toString()
     }
 
-    private static boolean isEditableRelationshipProperty(def property, Set<String> excluded) {
-        if (property == null || property.name == null || excluded.contains(property.name.toString())) {
+    private static boolean isEditableRelationshipProperty(def grailsApplication, def property, Set<String> excluded) {
+        String name = propertyName(property)
+        if (property == null || name == null || excluded.contains(name)) {
             return false
         }
-        if (!property.isAssociation()) {
+        Class type = propertyType(property)
+        if (!associationProperty(property) && !persistentEntityType(grailsApplication, type)) {
             return false
         }
-        if (property.isOneToMany() || property.isManyToMany()) {
+        if (booleanProperty(property, "isOneToMany", "oneToMany")
+            || booleanProperty(property, "isManyToMany", "manyToMany")) {
             return false
         }
-        return property.type instanceof Class
+        return type != null
     }
 
     private static Class relationshipTargetType(def grailsApplication, Class domainType, String field) {
-        def domainClass = grailsApplication?.getDomainClass(domainType.name)
-        def property = domainClass?.persistentProperties?.find { candidate ->
-            candidate.name?.toString() == field
+        def property = persistentProperties(grailsApplication, domainType).find { candidate ->
+            propertyName(candidate) == field
         }
-        return property?.type instanceof Class ? property.type : null
+        return propertyType(property)
+    }
+
+    private static Collection persistentProperties(def grailsApplication, Class targetType) {
+        if (targetType == null) {
+            return []
+        }
+        def entity = grailsApplication?.mappingContext?.getPersistentEntity(targetType.name)
+        if (entity?.persistentProperties != null) {
+            return entity.persistentProperties
+        }
+        def domainClass = grailsApplication?.getDomainClass(targetType.name)
+        try {
+            return domainClass?.persistentProperties ?: []
+        } catch (MissingPropertyException ignored) {
+            return []
+        }
+    }
+
+    private static String propertyName(def property) {
+        return property?.name?.toString()
+    }
+
+    private static Class propertyType(def property) {
+        def type = property?.type
+        return type instanceof Class ? type as Class : null
+    }
+
+    private static boolean associationProperty(def property) {
+        return booleanProperty(property, "isAssociation", "association")
+    }
+
+    private static boolean persistentEntityType(def grailsApplication, Class type) {
+        return type != null && grailsApplication?.mappingContext?.getPersistentEntity(type.name) != null
+    }
+
+    private static boolean booleanProperty(def property, String methodName, String propertyName) {
+        if (property == null) {
+            return false
+        }
+        try {
+            return property."${methodName}"() == true
+        } catch (MissingMethodException ignored) {
+            return property.hasProperty(propertyName) != null && property."${propertyName}" == true
+        }
     }
 
     private static Object readDisplayProperty(Object value, String propertyName) {

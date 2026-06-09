@@ -178,7 +178,27 @@ public class MetadataReader {
                 return direct;
             }
         }
+        Set<String> ili2cTokens = attributeNameTokens(ili2cAttr);
+        if (!ili2cTokens.isEmpty()) {
+            for (AttributeMetadata dbAttr : dbClass.getAllAttributes()) {
+                Set<String> dbTokens = attributeNameTokens(dbAttr);
+                for (String token : ili2cTokens) {
+                    if (dbTokens.contains(token)) {
+                        return dbAttr;
+                    }
+                }
+            }
+        }
         return null;
+    }
+
+    private Set<String> attributeNameTokens(AttributeMetadata attribute) {
+        Set<String> names = new LinkedHashSet<>();
+        addNameToken(names, attribute.getQualifiedName());
+        addNameToken(names, attribute.getName());
+        addNameToken(names, attribute.getColumnName());
+        addNameToken(names, attribute.getSqlName());
+        return names;
     }
     
     /**

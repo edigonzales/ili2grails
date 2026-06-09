@@ -3,7 +3,7 @@
 <head>
     <meta name="layout" content="main" />
     <g:set var="entityName" value="\${message(code: '${propertyName}.label', default: '${className}')}" />
-    <title><g:message code="default.create.label" args="[entityName]" /></title>
+    <title><g:message code="default.create.label" args="\${[entityName]}" /></title>
 </head>
 <body>
 <g:render template="form" model="\${[
@@ -12,7 +12,16 @@
     pageTitleCode: 'default.create.label',
     pageSubtitle: 'Neue Entität erfassen.',
     submitCode: 'default.button.create.label',
-    submitDefault: 'Create'
+    submitDefault: 'Create',
+    geometryFields: geometryFields,
+    geometryValues: geometryValues,
+    geometryKinds: geometryKinds,
+    geometrySrids: geometrySrids,
+    relationshipFields: relationshipFields,
+    relationshipOptions: relationshipOptions,
+    relationshipValues: relationshipValues,
+    relationshipRequired: relationshipRequired,
+    fieldMeta: fieldMeta
 ]}"/>
 </body>
 </html>

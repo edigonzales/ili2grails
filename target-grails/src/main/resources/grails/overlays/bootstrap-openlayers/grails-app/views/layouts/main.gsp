@@ -18,7 +18,7 @@
 <g:set var="viewMenuEntries"
        value="${grailsApplication.controllerClasses
            .findAll { it.logicalPropertyName && it.logicalPropertyName != 'urlMappings' }
-           .collect { [controller: it.logicalPropertyName, label: it.shortName?.replace('Controller', '')] }
+           .collect { [controller: it.logicalPropertyName, namespace: it.namespace, label: it.shortName?.replace('Controller', '')] }
            .sort { it.label?.toLowerCase() }}"/>
 
 <nav class="navbar navbar-expand-lg bg-white border-bottom fixed-top" aria-label="Hauptnavigation">
@@ -32,7 +32,7 @@
                 <g:if test="${viewMenuEntries}">
                     <g:each in="${viewMenuEntries}" var="entry">
                         <li class="nav-item">
-                            <a class="nav-link" href="${createLink(controller: entry.controller, action: 'index')}">${entry.label}</a>
+                            <a class="nav-link" href="${createLink(controller: entry.controller, namespace: entry.namespace, action: 'index')}">${entry.label}</a>
                         </li>
                     </g:each>
                 </g:if>

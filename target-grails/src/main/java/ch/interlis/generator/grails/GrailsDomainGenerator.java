@@ -56,6 +56,7 @@ public class GrailsDomainGenerator {
         List<String> properties = new ArrayList<>();
         Map<String, String> columnMappings = new LinkedHashMap<>();
         Map<String, GrailsRelationshipMapper.DomainProperty> geometryAttributes = new LinkedHashMap<>();
+        Map<String, AttributeMetadata> fieldMetadata = new LinkedHashMap<>();
         boolean hasIdAttribute = false;
         boolean hasPrimaryKeyTId = false;
         boolean hasTIdColumn = false;
@@ -84,6 +85,9 @@ public class GrailsDomainGenerator {
             }
 
             AttributeMetadata attribute = property.attribute();
+            if (attribute != null) {
+                fieldMetadata.put(property.name(), attribute);
+            }
             if (property.columnName() != null
                 && (attribute == null
                 || attribute.isForeignKey()
@@ -111,6 +115,16 @@ public class GrailsDomainGenerator {
                 .map(entry -> "        " + entry.getKey() + ": " + renderGeometryMeta(entry.getValue()))
                 .collect(Collectors.joining(",\n"));
             sb.append(geometryMetaBlock).append("\n");
+            sb.append("    ]\n");
+        }
+
+        if (!fieldMetadata.isEmpty()) {
+            sb.append("\n    static final Map<String, Map<String, Object>> interlisFieldMeta = [\n");
+            String fieldMetaBlock = fieldMetadata.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> "        " + entry.getKey() + ": " + renderFieldMeta(entry.getValue()))
+                .collect(Collectors.joining(",\n"));
+            sb.append(fieldMetaBlock).append("\n");
             sb.append("    ]\n");
         }
 
@@ -253,6 +267,46 @@ public class GrailsDomainGenerator {
             entries.add("allowEmpty: " + property.allowEmptyGeometry());
         }
         return "[" + String.join(", ", entries) + "]";
+    }
+
+    private String renderFieldMeta(AttributeMetadata attribute) {
+        List<String> entries = new ArrayList<>();
+        String label = resolveDefaultLabel(attribute);
+        if (label != null && !label.isBlank()) {
+            entries.add("label: '" + escapeGroovy(label) + "'");
+        }
+        if (attribute.getDocumentation() != null && !attribute.getDocumentation().isBlank()) {
+            entries.add("documentation: '" + escapeGroovy(attribute.getDocumentation()) + "'");
+        }
+        if (attribute.getUnit() != null && !attribute.getUnit().isBlank()) {
+            entries.add("unit: '" + escapeGroovy(attribute.getUnit()) + "'");
+        }
+        if (attribute.getQualifiedName() != null && !attribute.getQualifiedName().isBlank()) {
+            entries.add("qualifiedName: '" + escapeGroovy(attribute.getQualifiedName()) + "'");
+        }
+        return "[" + String.join(", ", entries) + "]";
+    }
+
+    private String resolveDefaultLabel(AttributeMetadata attribute) {
+        if (attribute.getLabels().containsKey("de-CH")) {
+            return attribute.getLabels().get("de-CH");
+        }
+        if (attribute.getLabels().containsKey("de")) {
+            return attribute.getLabels().get("de");
+        }
+        if (attribute.getLabels().containsKey("en")) {
+            return attribute.getLabels().get("en");
+        }
+        return attribute.getName();
+    }
+
+    private String escapeGroovy(String value) {
+        return value
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\r\n", "\\n")
+            .replace("\n", "\\n")
+            .replace("\r", "\\n");
     }
 
     private String renderSrid(GrailsRelationshipMapper.DomainProperty property) {

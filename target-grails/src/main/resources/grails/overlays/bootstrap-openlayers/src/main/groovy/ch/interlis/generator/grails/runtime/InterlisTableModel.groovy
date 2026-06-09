@@ -18,47 +18,44 @@ final class InterlisTableModel {
     }
 
     static List<String> searchableColumns(def grailsApplication, Class targetType, Collection<String> geometryFields) {
-        def domainClass = targetType != null ? grailsApplication?.getDomainClass(targetType.name) : null
-        if (domainClass == null) {
-            return []
-        }
         Set<String> excluded = new LinkedHashSet<>(geometryFields ?: [])
         excluded.add("id")
         excluded.add("version")
-        return domainClass.persistentProperties
+        return persistentProperties(grailsApplication, targetType)
             .findAll { property ->
-                property?.name != null
-                    && !excluded.contains(property.name.toString())
-                    && !property.isAssociation()
-                    && property.type instanceof Class
-                    && CharSequence.isAssignableFrom(property.type)
+                String name = propertyName(property)
+                Class type = propertyType(property)
+                name != null
+                    && !excluded.contains(name)
+                    && !relationshipProperty(grailsApplication, property)
+                    && type != null
+                    && CharSequence.isAssignableFrom(type)
             }
-            .collect { property -> property.name.toString() }
+            .collect { property -> propertyName(property) }
             .sort()
     }
 
     static List<Map<String, Object>> filterableColumns(def grailsApplication,
                                                        Class targetType,
                                                        Collection<String> geometryFields) {
-        def domainClass = targetType != null ? grailsApplication?.getDomainClass(targetType.name) : null
-        if (domainClass == null) {
-            return []
-        }
         Set<String> excluded = new LinkedHashSet<>(geometryFields ?: [])
         excluded.add("id")
         excluded.add("version")
-        return domainClass.persistentProperties
+        return persistentProperties(grailsApplication, targetType)
             .findAll { property ->
-                property?.name != null
-                    && !excluded.contains(property.name.toString())
-                    && !property.isAssociation()
-                    && property.type instanceof Class
+                String name = propertyName(property)
+                Class type = propertyType(property)
+                name != null
+                    && !excluded.contains(name)
+                    && !relationshipProperty(grailsApplication, property)
+                    && type != null
             }
             .collect { property ->
+                Class type = propertyType(property)
                 [
-                    name: property.name.toString(),
-                    type: filterType(property.type as Class),
-                    className: (property.type as Class).name
+                    name: propertyName(property),
+                    type: filterType(type),
+                    className: type.name
                 ]
             }
             .sort { left, right -> left.name <=> right.name }
@@ -91,5 +88,44 @@ final class InterlisTableModel {
             return "date"
         }
         return "text"
+    }
+
+    private static Collection persistentProperties(def grailsApplication, Class targetType) {
+        if (targetType == null) {
+            return []
+        }
+        def entity = grailsApplication?.mappingContext?.getPersistentEntity(targetType.name)
+        if (entity?.persistentProperties != null) {
+            return entity.persistentProperties
+        }
+        def domainClass = grailsApplication?.getDomainClass(targetType.name)
+        try {
+            return domainClass?.persistentProperties ?: []
+        } catch (MissingPropertyException ignored) {
+            return []
+        }
+    }
+
+    private static String propertyName(def property) {
+        return property?.name?.toString()
+    }
+
+    private static Class propertyType(def property) {
+        def type = property?.type
+        return type instanceof Class ? type as Class : null
+    }
+
+    private static boolean associationProperty(def property) {
+        try {
+            return property?.isAssociation() == true
+        } catch (MissingMethodException ignored) {
+            return property?.hasProperty("association") != null && property.association == true
+        }
+    }
+
+    private static boolean relationshipProperty(def grailsApplication, def property) {
+        Class type = propertyType(property)
+        return associationProperty(property)
+            || (type != null && grailsApplication?.mappingContext?.getPersistentEntity(type.name) != null)
     }
 }

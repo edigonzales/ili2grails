@@ -5,6 +5,11 @@ class ExternalCompositeAssociation {
     Building buildingId
     Person ownerId
 
+    static final Map<String, Map<String, Object>> interlisFieldMeta = [
+        buildingId: [label: 'Buildings', qualifiedName: 'AssociationCases.Base.ExternalCompositeAssociation.Buildings'],
+        ownerId: [label: 'Owner', qualifiedName: 'AssociationCases.Base.ExternalCompositeAssociation.Owner']
+    ]
+
     static mapping = {
         table 'externalcompositeassociation'
         id column: 't_id', generator: 'identity'

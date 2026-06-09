@@ -1,10 +1,18 @@
 package ch.example.simple.domain
 
+import java.time.LocalDate
+
 class Person {
 
-    Object birthdate
-    Object firstname
-    Object lastname
+    LocalDate birthdate
+    String firstname
+    String lastname
+
+    static final Map<String, Map<String, Object>> interlisFieldMeta = [
+        birthdate: [label: 'birthDate', qualifiedName: 'SimpleAddressModel.Addresses.Person.birthDate'],
+        firstname: [label: 'firstName', documentation: 'Vorname', qualifiedName: 'SimpleAddressModel.Addresses.Person.firstName'],
+        lastname: [label: 'lastName', documentation: 'Nachname', qualifiedName: 'SimpleAddressModel.Addresses.Person.lastName']
+    ]
 
     static mapping = {
         table 'person'
@@ -14,7 +22,7 @@ class Person {
 
     static constraints = {
         birthdate nullable: true
-        firstname nullable: true
-        lastname nullable: true
+        firstname maxSize: 50
+        lastname maxSize: 50
     }
 }

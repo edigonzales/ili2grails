@@ -8,9 +8,9 @@ class AddressStatusChoices(models.TextChoices):
 
 
 class Address(models.Model):
-    street = models.TextField(db_column="astreet", null=True, blank=True)
-    house_number = models.TextField(db_column="housenumber", null=True, blank=True)
-    postal_code = models.TextField(db_column="postalcode", null=True, blank=True)
+    street = models.CharField(max_length=100, db_column="astreet")
+    house_number = models.CharField(max_length=10, db_column="housenumber", null=True, blank=True)
+    postal_code = models.CharField(max_length=10, db_column="postalcode")
     t_id = models.BigAutoField(primary_key=True, db_column="t_id")
 
     class Meta:
@@ -19,9 +19,9 @@ class Address(models.Model):
 
 
 class Person(models.Model):
-    birth_date = models.TextField(db_column="birthdate", null=True, blank=True)
-    first_name = models.TextField(db_column="firstname", null=True, blank=True)
-    last_name = models.TextField(db_column="lastname", null=True, blank=True)
+    birth_date = models.DateField(db_column="birthdate", null=True, blank=True)
+    first_name = models.CharField(max_length=50, db_column="firstname")
+    last_name = models.CharField(max_length=50, db_column="lastname")
     t_id = models.BigAutoField(primary_key=True, db_column="t_id")
 
     class Meta:
