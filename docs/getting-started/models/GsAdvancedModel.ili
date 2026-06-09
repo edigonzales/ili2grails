@@ -1,0 +1,88 @@
+INTERLIS 2.3;
+
+MODEL GsAdvancedModel (en)
+AT "https://example.com/ili2grails/getting-started"
+VERSION "2026-06-09" =
+
+  DOMAIN
+    Coord2056 = COORD
+      2480000.000 .. 2840000.000,
+      1070000.000 .. 1300000.000,
+      ROTATION 2 -> 1;
+
+    RouteLine = POLYLINE WITH (STRAIGHTS) VERTEX Coord2056;
+
+    ParcelSurface = SURFACE WITH (STRAIGHTS) VERTEX Coord2056
+      WITHOUT OVERLAPS > 0.001;
+
+    AssetStatus = (
+      planned,
+      active,
+      archived
+    );
+
+  TOPIC Inventory =
+    OID AS INTERLIS.UUIDOID;
+
+    CLASS Owner =
+      Name: MANDATORY TEXT*80;
+      ContactEmail: TEXT*120;
+    END Owner;
+
+    STRUCTURE Inspection =
+      InspectionDate: INTERLIS.XMLDate;
+      Result: TEXT*80;
+      Score: 0 .. 100;
+      Inspector: REFERENCE TO Owner;
+    END Inspection;
+
+    STRUCTURE Attachment =
+      FileName: MANDATORY TEXT*120;
+      MimeType: TEXT*80;
+    END Attachment;
+
+    STRUCTURE MaintenancePart =
+      Label: MANDATORY TEXT*80;
+      Quantity: 0 .. 999;
+    END MaintenancePart;
+
+    CLASS Asset =
+      Name: MANDATORY TEXT*80;
+      Status: MANDATORY GsAdvancedModel.AssetStatus;
+      Location: Coord2056;
+      AccessRoute: RouteLine;
+      Footprint: ParcelSurface;
+      Inspections: LIST {0..*} OF Inspection;
+      Attachments: BAG {0..*} OF Attachment;
+    END Asset;
+
+    CLASS ServiceRecord =
+      PerformedOn: MANDATORY INTERLIS.XMLDate;
+      Cost: 0.00 .. 999999.99;
+      Parts: BAG {1..*} OF MaintenancePart;
+    END ServiceRecord;
+
+    CLASS Tag =
+      Code: MANDATORY TEXT*30;
+      Description: TEXT*120;
+    END Tag;
+
+    ASSOCIATION AssetOwner =
+      Owner -- {1} Owner;
+      Assets -- {0..*} Asset;
+    END AssetOwner;
+
+    ASSOCIATION AssetServiceRecord =
+      Asset -- {1} Asset;
+      ServiceRecords -- {0..*} ServiceRecord;
+    END AssetServiceRecord;
+
+    ASSOCIATION AssetTag =
+      Assets -- {0..*} Asset;
+      Tags -- {0..*} Tag;
+      Note: TEXT*60;
+    END AssetTag;
+
+  END Inventory;
+
+END GsAdvancedModel.

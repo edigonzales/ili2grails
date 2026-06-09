@@ -3,7 +3,7 @@
 <head>
     <meta name="layout" content="main" />
     <g:set var="entityName" value="\${message(code: '${propertyName}.label', default: '${className}')}" />
-    <title><g:message code="default.edit.label" args="[entityName]" /></title>
+    <title><g:message code="default.edit.label" args="\${[entityName]}" /></title>
 </head>
 <body>
 <g:render template="form" model="\${[
@@ -12,7 +12,16 @@
     pageTitleCode: 'default.edit.label',
     pageSubtitle: 'Bestehende Entität aktualisieren.',
     submitCode: 'default.button.update.label',
-    submitDefault: 'Update'
+    submitDefault: 'Update',
+    geometryFields: geometryFields,
+    geometryValues: geometryValues,
+    geometryKinds: geometryKinds,
+    geometrySrids: geometrySrids,
+    relationshipFields: relationshipFields,
+    relationshipOptions: relationshipOptions,
+    relationshipValues: relationshipValues,
+    relationshipRequired: relationshipRequired,
+    fieldMeta: fieldMeta
 ]}"/>
 </body>
 </html>

@@ -70,6 +70,7 @@ tasks.register('browserE2eTest', Test) {
     classpath = sourceSets.browserE2eTest.runtimeClasspath
     shouldRunAfter tasks.named('realIli2dbSmokeTest')
     systemProperty 'grailsSmokeVersion', project.findProperty('grailsSmokeVersion') ?: '7.0.6'
+    systemProperty 'ili2pgHome', project.findProperty('ili2pgHome') ?: '/Users/stefan/apps/ili2pg-5.5.1'
     systemProperty 'browserE2eJdbcUrl', project.findProperty('browserE2eJdbcUrl') ?: 'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa'
     if (project.findProperty('browserE2eAppUrl') != null) {
         systemProperty 'browserE2eAppUrl', project.findProperty('browserE2eAppUrl')

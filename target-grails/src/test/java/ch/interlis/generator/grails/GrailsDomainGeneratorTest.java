@@ -21,6 +21,10 @@ class GrailsDomainGeneratorTest {
         ClassMetadata address = new ClassMetadata("TestModel.Address");
         address.setTableName("address");
         address.addAttribute(primaryKeyAttribute());
+        AttributeMetadata addressName = new AttributeMetadata("name");
+        addressName.setCoreType(CoreType.TEXT);
+        addressName.setJavaType("String");
+        address.addAttribute(addressName);
         metadata.addClass(address);
 
         ClassMetadata person = new ClassMetadata("TestModel.Person");
@@ -38,6 +42,9 @@ class GrailsDomainGeneratorTest {
         relationship.setSourceClass(person.getName());
         relationship.setTargetClass(address.getName());
         relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
+        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE);
+        relationship.setSourceAttribute("address");
+        relationship.setTargetRoleName("address");
         person.addRelationship(relationship);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
@@ -49,7 +56,15 @@ class GrailsDomainGeneratorTest {
         assertThat(content).contains("Address address");
         assertThat(content).doesNotContain("static belongsTo");
         assertThat(content).contains("address column: 'address'");
+        assertThat(content).contains("static final Map<String, Map<String, Object>> interlisRelationshipMeta");
+        assertThat(content).contains("address: [targetClass: 'Address', semanticKind: 'REFERENCE_ATTRIBUTE'");
         assertThat(content).doesNotContain("address_id");
+
+        Path addressDomain = tempDir.resolve("grails-app/domain/com/example/Address.groovy");
+        String addressContent = Files.readString(addressDomain);
+        assertThat(addressContent).contains("static final Map<String, Object> interlisDisplayMeta");
+        assertThat(addressContent).contains("displayFields: ['name']");
+        assertThat(addressContent).contains("searchFields: ['name']");
     }
 
     @Test
@@ -61,6 +76,8 @@ class GrailsDomainGeneratorTest {
         AttributeMetadata amount = new AttributeMetadata("amount");
         amount.setCoreType(CoreType.NUMERIC);
         amount.setJavaType("java.math.BigDecimal");
+        amount.setDocumentation("Invoice amount");
+        amount.setUnit("CHF");
         amount.setMinValue("0.0");
         amount.setMaxValue("9999.999");
         amount.setPrecision(7);
@@ -76,6 +93,8 @@ class GrailsDomainGeneratorTest {
 
         assertThat(content).contains("BigDecimal amount");
         assertThat(content).contains("amount nullable: true, min: 0.0, max: 9999.999, scale: 3");
+        assertThat(content).contains("static final Map<String, Map<String, Object>> interlisFieldMeta");
+        assertThat(content).contains("amount: [label: 'amount', documentation: 'Invoice amount', unit: 'CHF'");
     }
 
     @Test

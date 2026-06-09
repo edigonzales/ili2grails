@@ -103,6 +103,22 @@
         form.submit();
     }
 
+    function submitNativeForm(form, submitSelector) {
+        if (!form) {
+            return;
+        }
+        var submit = submitSelector ? form.querySelector(submitSelector) : null;
+        if (typeof form.requestSubmit === "function") {
+            form.requestSubmit(submit || undefined);
+            return;
+        }
+        if (submit) {
+            submit.click();
+            return;
+        }
+        form.submit();
+    }
+
     function initSubmitButtons() {
         document.addEventListener("click", function(event) {
             var submitAction = event.target.closest("[data-form-submit]");
@@ -122,12 +138,7 @@
                 if (!rowDeleteForm) {
                     return;
                 }
-                var rowDeleteSubmit = rowDeleteForm.querySelector(".js-delete-submit");
-                if (rowDeleteSubmit) {
-                    rowDeleteSubmit.click();
-                } else {
-                    rowDeleteForm.submit();
-                }
+                submitNativeForm(rowDeleteForm, ".js-delete-submit");
             }
         });
     }
@@ -167,12 +178,7 @@
             if (!form) {
                 return;
             }
-            var submit = form.querySelector(".js-delete-submit");
-            if (submit) {
-                submit.click();
-            } else {
-                form.submit();
-            }
+            submitNativeForm(form, ".js-delete-submit");
         });
     }
 
@@ -183,25 +189,31 @@
         return option;
     }
 
-    function renderRelationshipOptions(select, results) {
+    function selectedOptionLabel(select) {
+        var selectedOption = select && select.selectedOptions && select.selectedOptions.length ? select.selectedOptions[0] : null;
+        return selectedOption ? selectedOption.textContent || "" : "";
+    }
+
+    function appendRelationshipOptions(select, results, reset) {
         if (!select) {
             return;
         }
         var previousValue = select.value;
-        var previousLabel = "";
-        var selectedOption = select.selectedOptions && select.selectedOptions.length ? select.selectedOptions[0] : null;
-        if (selectedOption) {
-            previousLabel = selectedOption.textContent || "";
-        }
+        var previousLabel = selectedOptionLabel(select);
         var optional = select.getAttribute("data-relationship-optional") !== "false";
-        select.innerHTML = "";
-        if (optional) {
+        if (reset) {
+            select.innerHTML = "";
+        }
+        if (reset && optional) {
             var empty = document.createElement("option");
             empty.value = "";
             empty.textContent = "Keine Auswahl";
             select.appendChild(empty);
         }
         var hasPreviousValue = !previousValue;
+        var knownValues = new Set(Array.from(select.options).map(function(option) {
+            return option.value;
+        }));
         (results || []).forEach(function(item) {
             if (!item || !item.id) {
                 return;
@@ -209,7 +221,11 @@
             if (item.id === previousValue) {
                 hasPreviousValue = true;
             }
+            if (knownValues.has(item.id)) {
+                return;
+            }
             select.appendChild(optionFromData(item));
+            knownValues.add(item.id);
         });
         if (previousValue && !hasPreviousValue) {
             select.appendChild(optionFromData({
@@ -220,7 +236,53 @@
         select.value = previousValue || "";
     }
 
-    function relationshipUrl(input) {
+    function renderRelationshipList(list, results, select, reset) {
+        if (!list) {
+            return;
+        }
+        if (reset) {
+            list.innerHTML = "";
+        }
+        (results || []).forEach(function(item) {
+            if (!item || !item.id) {
+                return;
+            }
+            var duplicate = Array.from(list.querySelectorAll("[data-relationship-value]")).some(function(option) {
+                return option.getAttribute("data-relationship-value") === item.id;
+            });
+            if (duplicate) {
+                return;
+            }
+            var option = document.createElement("button");
+            option.type = "button";
+            option.className = "list-group-item list-group-item-action ili-relationship-result";
+            option.setAttribute("role", "option");
+            option.setAttribute("data-relationship-value", item.id);
+            option.setAttribute("data-relationship-label", item.label || item.id);
+            option.textContent = item.label || item.id;
+            if (select && select.value === item.id) {
+                option.classList.add("active");
+                option.setAttribute("aria-selected", "true");
+            } else {
+                option.setAttribute("aria-selected", "false");
+            }
+            list.appendChild(option);
+        });
+        list.hidden = list.children.length === 0;
+    }
+
+    function markRelationshipSelection(list, value) {
+        if (!list) {
+            return;
+        }
+        Array.from(list.querySelectorAll("[data-relationship-value]")).forEach(function(option) {
+            var active = option.getAttribute("data-relationship-value") === value;
+            option.classList.toggle("active", active);
+            option.setAttribute("aria-selected", active ? "true" : "false");
+        });
+    }
+
+    function relationshipUrl(input, offset) {
         var url = input.getAttribute("data-relationship-url");
         var field = input.getAttribute("data-relationship-field");
         if (!url || !field) {
@@ -230,6 +292,7 @@
         params.set("field", field);
         params.set("q", input.value || "");
         params.set("max", "25");
+        params.set("offset", String(offset || 0));
         return url + (url.indexOf("?") >= 0 ? "&" : "?") + params.toString();
     }
 
@@ -239,33 +302,98 @@
         if (!select || typeof window.fetch !== "function") {
             return;
         }
+        var picker = input.closest(".js-relationship-picker");
+        var list = picker ? picker.querySelector("[data-relationship-list]") : null;
+        var state = {
+            loading: false,
+            loaded: false,
+            more: false,
+            offset: 0
+        };
         var timer = null;
+
+        function fetchOptions(reset) {
+            if (state.loading) {
+                return;
+            }
+            if (reset) {
+                state.offset = 0;
+                state.more = false;
+            } else if (!state.more) {
+                return;
+            }
+            var url = relationshipUrl(input, state.offset);
+            if (!url) {
+                return;
+            }
+            state.loading = true;
+            window.fetch(url, {
+                headers: {
+                    "Accept": "application/json"
+                }
+            })
+                .then(function(response) {
+                    return response.ok ? response.json() : null;
+                })
+                .then(function(payload) {
+                    if (!payload) {
+                        return;
+                    }
+                    var results = payload.results || [];
+                    var pagination = payload.pagination || {};
+                    appendRelationshipOptions(select, results, reset);
+                    renderRelationshipList(list, results, select, reset);
+                    state.loaded = true;
+                    state.more = pagination.more === true;
+                    var nextOffset = parseInt(pagination.nextOffset, 10);
+                    state.offset = Number.isFinite(nextOffset) ? nextOffset : state.offset + results.length;
+                })
+                .catch(function() {
+                    // Keep the existing server-rendered options if autocomplete fails.
+                })
+                .finally(function() {
+                    state.loading = false;
+                });
+        }
+
         input.addEventListener("input", function() {
             window.clearTimeout(timer);
             timer = window.setTimeout(function() {
-                var url = relationshipUrl(input);
-                if (!url) {
-                    return;
-                }
-                window.fetch(url, {
-                    headers: {
-                        "Accept": "application/json"
-                    }
-                })
-                    .then(function(response) {
-                        return response.ok ? response.json() : null;
-                    })
-                    .then(function(payload) {
-                        if (!payload) {
-                            return;
-                        }
-                        renderRelationshipOptions(select, payload.results || []);
-                    })
-                    .catch(function() {
-                        // Keep the existing server-rendered options if autocomplete fails.
-                    });
+                fetchOptions(true);
             }, 250);
         });
+
+        input.addEventListener("focus", function() {
+            if (!state.loaded) {
+                fetchOptions(true);
+            } else if (list && list.children.length) {
+                list.hidden = false;
+            }
+        });
+
+        select.addEventListener("change", function() {
+            input.value = selectedOptionLabel(select);
+            markRelationshipSelection(list, select.value);
+        });
+
+        if (list) {
+            list.addEventListener("click", function(event) {
+                var option = event.target.closest("[data-relationship-value]");
+                if (!option) {
+                    return;
+                }
+                select.value = option.getAttribute("data-relationship-value") || "";
+                input.value = option.getAttribute("data-relationship-label") || "";
+                markRelationshipSelection(list, select.value);
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            });
+
+            list.addEventListener("scroll", function() {
+                if (list.scrollTop + list.clientHeight >= list.scrollHeight - 24) {
+                    fetchOptions(false);
+                }
+            });
+        }
     }
 
     document.addEventListener("DOMContentLoaded", function() {

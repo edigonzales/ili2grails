@@ -19,17 +19,24 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.houseNumber",
       "columnName" : "housenumber",
       "sqlName" : "housenumber",
-      "coreType" : "UNKNOWN",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
       "targetHints" : {
-        "javaType" : "Object"
+        "javaType" : "String"
       },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
       "geometry" : false,
+      "maxLength" : 10,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
       "ordered" : false,
       "constraints" : {
         "required" : false,
+        "maxLength" : 10,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
         "ordered" : false
       },
       "enumValues" : [ ],
@@ -39,17 +46,24 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.postalCode",
       "columnName" : "postalcode",
       "sqlName" : "postalcode",
-      "coreType" : "UNKNOWN",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
       "targetHints" : {
-        "javaType" : "Object"
+        "javaType" : "String"
       },
-      "mandatory" : false,
+      "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
       "geometry" : false,
+      "maxLength" : 10,
+      "cardinalityMin" : 1,
+      "cardinalityMax" : 1,
       "ordered" : false,
       "constraints" : {
-        "required" : false,
+        "required" : true,
+        "maxLength" : 10,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
         "ordered" : false
       },
       "enumValues" : [ ],
@@ -59,17 +73,24 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Address.street",
       "columnName" : "astreet",
       "sqlName" : "astreet",
-      "coreType" : "UNKNOWN",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
       "targetHints" : {
-        "javaType" : "Object"
+        "javaType" : "String"
       },
-      "mandatory" : false,
+      "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
       "geometry" : false,
+      "maxLength" : 100,
+      "cardinalityMin" : 1,
+      "cardinalityMax" : 1,
       "ordered" : false,
       "constraints" : {
-        "required" : false,
+        "required" : true,
+        "maxLength" : 100,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
         "ordered" : false
       },
       "enumValues" : [ ],
@@ -109,17 +130,23 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.birthDate",
       "columnName" : "birthdate",
       "sqlName" : "birthdate",
-      "coreType" : "UNKNOWN",
+      "iliType" : "FormattedType",
+      "domainName" : "INTERLIS.XMLDate",
+      "coreType" : "DATE",
       "targetHints" : {
-        "javaType" : "Object"
+        "javaType" : "java.time.LocalDate"
       },
       "mandatory" : false,
       "primaryKey" : false,
       "foreignKey" : false,
       "geometry" : false,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
       "ordered" : false,
       "constraints" : {
         "required" : false,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
         "ordered" : false
       },
       "enumValues" : [ ],
@@ -129,17 +156,25 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.firstName",
       "columnName" : "firstname",
       "sqlName" : "firstname",
-      "coreType" : "UNKNOWN",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
       "targetHints" : {
-        "javaType" : "Object"
+        "javaType" : "String"
       },
-      "mandatory" : false,
+      "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
       "geometry" : false,
+      "documentation" : "Vorname",
+      "maxLength" : 50,
+      "cardinalityMin" : 1,
+      "cardinalityMax" : 1,
       "ordered" : false,
       "constraints" : {
-        "required" : false,
+        "required" : true,
+        "maxLength" : 50,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
         "ordered" : false
       },
       "enumValues" : [ ],
@@ -149,17 +184,25 @@
       "qualifiedName" : "SimpleAddressModel.Addresses.Person.lastName",
       "columnName" : "lastname",
       "sqlName" : "lastname",
-      "coreType" : "UNKNOWN",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
       "targetHints" : {
-        "javaType" : "Object"
+        "javaType" : "String"
       },
-      "mandatory" : false,
+      "mandatory" : true,
       "primaryKey" : false,
       "foreignKey" : false,
       "geometry" : false,
+      "documentation" : "Nachname",
+      "maxLength" : 50,
+      "cardinalityMin" : 1,
+      "cardinalityMax" : 1,
       "ordered" : false,
       "constraints" : {
-        "required" : false,
+        "required" : true,
+        "maxLength" : 50,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
         "ordered" : false
       },
       "enumValues" : [ ],

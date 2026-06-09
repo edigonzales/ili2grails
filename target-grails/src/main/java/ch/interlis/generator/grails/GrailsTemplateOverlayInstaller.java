@@ -35,8 +35,15 @@ public class GrailsTemplateOverlayInstaller {
         "grails-app/assets/stylesheets/ili-modern.css"
     );
     private static final List<String> APPLICATION_JS_REQUIRES = List.of(
+        "//= require webjars/proj4/2.11.0/dist/proj4.js",
+        "//= require webjars/ol/9.2.4/dist/ol.js",
+        "//= require webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js",
         "//= require ili-geometry-editor.js",
         "//= require ili-form-ux.js"
+    );
+    private static final List<String> APPLICATION_CSS_REQUIRES = List.of(
+        "*= require webjars/bootstrap/5.3.3/css/bootstrap.min.css",
+        "*= require webjars/ol/9.2.4/ol.css"
     );
     private static final List<String> LEGACY_FILES = List.of(
         "grails-app/assets/javascripts/ili-carbon-wc-bundle.js",
@@ -56,7 +63,8 @@ public class GrailsTemplateOverlayInstaller {
         for (String relativePath : MANAGED_FILES) {
             copyManagedResource(grailsProjectDir, relativePath);
         }
-        ensureAssetRequires(grailsProjectDir.resolve("grails-app/assets/javascripts/application.js"));
+        ensureJavascriptRequires(grailsProjectDir.resolve("grails-app/assets/javascripts/application.js"));
+        ensureStylesheetRequires(grailsProjectDir.resolve("grails-app/assets/stylesheets/application.css"));
     }
 
     private void cleanupLegacyCarbonArtifacts(Path grailsProjectDir) throws IOException {
@@ -77,7 +85,7 @@ public class GrailsTemplateOverlayInstaller {
         }
     }
 
-    private void ensureAssetRequires(Path applicationJs) throws IOException {
+    private void ensureJavascriptRequires(Path applicationJs) throws IOException {
         if (!Files.exists(applicationJs)) {
             return;
         }
@@ -95,6 +103,29 @@ public class GrailsTemplateOverlayInstaller {
         }
         if (!updatedContent.equals(content)) {
             Files.writeString(applicationJs, updatedContent, StandardCharsets.UTF_8);
+        }
+    }
+
+    private void ensureStylesheetRequires(Path applicationCss) throws IOException {
+        if (!Files.exists(applicationCss)) {
+            return;
+        }
+        String content = Files.readString(applicationCss, StandardCharsets.UTF_8);
+        String updatedContent = content;
+        for (String requireLine : APPLICATION_CSS_REQUIRES) {
+            if (updatedContent.contains(requireLine)) {
+                continue;
+            }
+            if (updatedContent.contains("*= require_self")) {
+                updatedContent = updatedContent.replace("*= require_self", requireLine + "\n *= require_self");
+            } else if (updatedContent.contains("*/")) {
+                updatedContent = updatedContent.replace("*/", " " + requireLine + "\n */");
+            } else {
+                updatedContent = updatedContent + "\n" + requireLine + "\n";
+            }
+        }
+        if (!updatedContent.equals(content)) {
+            Files.writeString(applicationCss, updatedContent, StandardCharsets.UTF_8);
         }
     }
 

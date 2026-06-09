@@ -6,9 +6,6 @@
     <title><g:layoutTitle default="INTERLIS CRUD"/></title>
     <asset:link rel="icon" href="favicon.ico" type="image/x-ico"/>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css"/>
-
     <asset:stylesheet src="application.css"/>
     <asset:stylesheet src="ili-modern.css"/>
     <g:layoutHead/>
@@ -18,7 +15,7 @@
 <g:set var="viewMenuEntries"
        value="${grailsApplication.controllerClasses
            .findAll { it.logicalPropertyName && it.logicalPropertyName != 'urlMappings' }
-           .collect { [controller: it.logicalPropertyName, label: it.shortName?.replace('Controller', '')] }
+           .collect { [controller: it.logicalPropertyName, namespace: it.namespace, label: it.shortName?.replace('Controller', '')] }
            .sort { it.label?.toLowerCase() }}"/>
 
 <nav class="navbar navbar-expand-lg bg-white border-bottom fixed-top" aria-label="Hauptnavigation">
@@ -32,7 +29,7 @@
                 <g:if test="${viewMenuEntries}">
                     <g:each in="${viewMenuEntries}" var="entry">
                         <li class="nav-item">
-                            <a class="nav-link" href="${createLink(controller: entry.controller, action: 'index')}">${entry.label}</a>
+                            <a class="nav-link" href="${createLink(controller: entry.controller, namespace: entry.namespace, action: 'index')}">${entry.label}</a>
                         </li>
                     </g:each>
                 </g:if>
@@ -50,9 +47,6 @@
     </div>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/ol@v9.2.4/dist/ol.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <asset:javascript src="application.js"/>
 </body>
 </html>

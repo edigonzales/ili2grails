@@ -3,21 +3,21 @@
 <head>
     <meta name="layout" content="main" />
     <g:set var="entityName" value="\${message(code: '${propertyName}.label', default: '${className}')}" />
-    <title><g:message code="default.show.label" args="[entityName]" /></title>
+    <title><g:message code="default.show.label" args="\${[entityName]}" /></title>
 </head>
 <body>
 <div id="content" role="main" class="ili-page ili-page-show">
     <section class="ili-page-header">
         <div>
-            <h1 class="ili-page-title"><g:message code="default.show.label" args="[entityName]" /> #\${this.${propertyName}?.id}</h1>
+            <h1 class="ili-page-title"><g:message code="default.show.label" args="\${[entityName]}" /> #\${this.${propertyName}?.id}</h1>
             <p class="ili-page-subtitle">Detailansicht mit Geometrie und sicheren Destruktiv-Aktionen.</p>
         </div>
         <div class="ili-page-actions">
             <g:link class="btn btn-outline-secondary" action="index">
-                <g:message code="default.list.label" args="[entityName]" />
+                <g:message code="default.list.label" args="\${[entityName]}" />
             </g:link>
             <g:link class="btn btn-outline-primary" action="create">
-                <g:message code="default.new.label" args="[entityName]" />
+                <g:message code="default.new.label" args="\${[entityName]}" />
             </g:link>
             <g:link class="btn btn-primary" action="edit" resource="\${this.${propertyName}}" controller="\${controllerName}">
                 <g:message code="default.button.edit.label" default="Edit" />

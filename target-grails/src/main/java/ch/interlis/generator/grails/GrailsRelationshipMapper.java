@@ -284,6 +284,10 @@ public final class GrailsRelationshipMapper {
             if (classMetadata.isAbstract()) {
                 continue;
             }
+            if (classMetadata.getKind() == ClassMetadata.ClassKind.ASSOCIATION
+                && !hasPhysicalMapping(classMetadata)) {
+                continue;
+            }
             if (classMetadata.getKind() == ClassMetadata.ClassKind.STRUCTURE
                 && !hasPhysicalMapping(classMetadata)
                 && !compositionTargets.contains(classMetadata.getName())) {

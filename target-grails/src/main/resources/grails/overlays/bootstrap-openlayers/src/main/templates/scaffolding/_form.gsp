@@ -1,17 +1,17 @@
 <div id="content" role="main" class="ili-page ili-page-form">
     <section class="ili-page-header">
         <div>
-            <h1 class="ili-page-title"><g:message code="\${pageTitleCode}" args="[\${entityName}]" /></h1>
+            <h1 class="ili-page-title"><g:message code="\${pageTitleCode}" args="\${[entityName]}" /></h1>
             <p class="ili-page-subtitle">\${pageSubtitle}</p>
         </div>
         <div class="ili-page-actions">
             <span class="badge text-bg-warning ili-unsaved-badge" hidden data-unsaved-badge>Unsaved changes</span>
             <g:link class="btn btn-outline-secondary" action="index" data-unsaved-nav="true">
-                <g:message code="default.list.label" args="[\${entityName}]" />
+                <g:message code="default.list.label" args="\${[entityName]}" />
             </g:link>
             <g:if test="\${mode == 'edit'}">
                 <g:link class="btn btn-outline-primary" action="create" data-unsaved-nav="true">
-                    <g:message code="default.new.label" args="[\${entityName}]" />
+                    <g:message code="default.new.label" args="\${[entityName]}" />
                 </g:link>
             </g:if>
         </div>
@@ -60,6 +60,28 @@
                                    widget-selectDateClass="form-control"
                                    widget-checkBoxClass="form-check-input" />
                         </fieldset>
+                        <g:if test="\${fieldMeta}">
+                            <section class="ili-field-help-panel" aria-label="Feldhinweise">
+                                <h2 class="ili-section-title h6 mb-2">Feldhinweise</h2>
+                                <dl class="ili-field-help-list">
+                                    <g:each in="\${fieldMeta}" var="fieldEntry">
+                                        <g:if test="\${fieldEntry.value?.documentation || fieldEntry.value?.unit}">
+                                            <div class="ili-field-help-item">
+                                                <dt>
+                                                    \${message(code: '${propertyName}.' + fieldEntry.key + '.label', default: fieldEntry.value?.label ?: fieldEntry.key)}
+                                                    <g:if test="\${fieldEntry.value?.unit}">
+                                                        <span class="ili-unit-badge">\${fieldEntry.value.unit}</span>
+                                                    </g:if>
+                                                </dt>
+                                                <g:if test="\${fieldEntry.value?.documentation}">
+                                                    <dd>\${fieldEntry.value.documentation}</dd>
+                                                </g:if>
+                                            </div>
+                                        </g:if>
+                                    </g:each>
+                                </dl>
+                            </section>
+                        </g:if>
                     </div>
                 </section>
             </section>

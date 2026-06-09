@@ -6,6 +6,7 @@ Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und e
 - [Ziel & Funktionsumfang](#ziel--funktionsumfang)
 - [Voraussetzungen](#voraussetzungen)
 - [Installation & Build](#installation--build)
+- [Getting Started Tutorial](#getting-started-tutorial)
 - [Schnellstart (CLI)](#schnellstart-cli)
 - [Grails-Projekt starten](#grails-projekt-starten)
 - [Benutzeranleitung (Detail)](#benutzeranleitung-detail)
@@ -43,6 +44,11 @@ java -version
 ```bash
 ./gradlew build
 ```
+
+## Getting Started Tutorial
+Für absolute Beginner gibt es ein Schritt-für-Schritt-Tutorial mit Docker-DB,
+ili2pg-Schemaimport, optionalem Seed-Datenimport und Grails-App-Erzeugung:
+[docs/getting-started.md](docs/getting-started.md).
 
 ## Schnellstart (CLI)
 **PostgreSQL:**
@@ -155,8 +161,10 @@ Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch 
 ```
 Der Scaffold-Schritt wird blockiert, wenn im Zielverzeichnis bereits `build.gradle`, `settings.gradle` oder `grails-app/` vorhanden sind.
 
-Hinweis: Der Generator ergänzt in `build.gradle` automatisch die JTS-Dependency, sobald eine Grails-App vorhanden ist.
+Hinweis: Der Generator ergänzt in `build.gradle` automatisch die JTS-, PostgreSQL- und WebJar-Dependencies für Bootstrap, OpenLayers und proj4, sobald eine Grails-App vorhanden ist.
 Zusätzlich setzt der Generator in `grails-app/conf/application.yml` die `development`-Datenbank auf die per CLI übergebene JDBC-URL, ergänzt `currentSchema` (falls gesetzt), stellt `dbCreate` auf `none` und setzt den PostgreSQL-Hibernate-Dialekt.
+Wenn die JDBC-URL `user`, `username` oder `password` enthält, entfernt der Generator diese Werte aus der URL und schreibt stattdessen `DB_USERNAME`/`DB_PASSWORD`-Platzhalter in die Grails-Konfiguration.
+Für `production` schreibt der Generator keine Demo-URL, sondern erwartet explizit `DB_URL`, `DB_USERNAME` und `DB_PASSWORD`; fehlende Werte sollen beim Start sichtbar fehlschlagen.
 Ist Geometrie aktiviert (Map-Editor `openlayers` oder Geometrie-Felder im Modell), ergänzt der Generator zusätzlich `hibernate-spatial`, setzt den Spatial-Dialekt und schreibt `interlis.geometry.defaultSrid`.
 
 ### 2) CRUD-Artefakte generieren
@@ -183,7 +191,19 @@ cd /path/to/my-grails-app
 grails run-app
 ```
 Die DB-Verbindung kommt aus der Grails-Konfiguration in `grails-app/conf/application.yml`
-(Property `dataSource.url` inkl. `username`, `password`).
+(Properties `dataSource.url`, `dataSource.username`, `dataSource.password`). Bei generierten lokalen Demo-Apps mit Credentials in der JDBC-URL müssen die Umgebungsvariablen gesetzt sein:
+```bash
+DB_USERNAME=postgres DB_PASSWORD=secret ./gradlew bootRun
+```
+
+Für den Production-Start müssen alle drei Verbindungswerte gesetzt werden; `DB_URL`
+enthält dabei auch das Schema, falls die App auf ein ili2pg-Schema zeigen soll:
+```bash
+DB_URL='jdbc:postgresql://localhost:54321/edit?currentSchema=sa' \
+DB_USERNAME=postgres \
+DB_PASSWORD=secret \
+./gradlew -Dgrails.env=prod bootRun
+```
 
 ## Benutzeranleitung (Detail)
 ### 1) Datenbank vorbereiten
@@ -477,31 +497,50 @@ schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
 - Mit `--grails-ui-theme bootstrap` werden moderne SSR-Scaffolding-Templates verwendet (kein SPA-Zwang).
 - Mit `--grails-map-editor openlayers` erhalten Scaffold-`create/edit/show` bei Geometrie-Attributen eine Webkarte.
 - Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt. Die Runtime prüft erwarteten Geometrietyp, Empty-Geometrien, JTS-Validität und konvertiert Single-Geometrien bei erwarteten Multi-Typen in Multi-Geometrien.
-- Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen (ohne Snapping).
-- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis, wird aber mit ruhigen Datenportal-Tokens (`ili-modern.css`) gestaltet: kleine Radien, dünne Linien, rote Akzente und keine Card-Shadows.
+- Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen und Snapping auf vorhandene Editor-Vertices. Fachliche Topologie-Regeln bleiben ein projektspezifischer Extension Point.
+- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis, wird aber mit ruhigen Datenportal-Tokens (`ili-modern.css`) gestaltet: kleine Radien, dünne Linien, rote Akzente und keine Card-Shadows. Bootstrap, OpenLayers und proj4 werden über lokale WebJars/Asset-Pipeline eingebunden, nicht über CDN.
 - `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
   links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
+- Dokumentation und Units aus der Core-IR werden als zurückhaltende Feldhinweise im Formular angezeigt. Übersetzte Labels bleiben weiterhin über Grails-Message-Codes überschreibbar.
 - Typisierte To-One-Relationships werden im Bootstrap-Overlay als serverseitige Selects mit
-  paginiertem Autocomplete-Endpunkt gerendert. Labels werden zur Laufzeit bevorzugt aus
-  `name`, `bezeichnung`, `label`, `title`, danach `id` abgeleitet.
+  paginiertem Autocomplete-Endpunkt und serverseitiger Fallback-Auswahl gerendert.
+  Der Generator schreibt additive `interlisDisplayMeta`-/`interlisRelationshipMeta`-Maps in
+  die Grails-Domains. Relationship-Optionen suchen und sortieren bevorzugt nach
+  `name`, `bezeichnung`, `label`, `title`, `code`, `ident` und danach nach sinnvollen
+  Textfeldern; Labels werden aus ein bis zwei Display-Feldern zusammengesetzt und fallen
+  zuletzt auf `id` zurück.
 - Bei mehreren Geometriefeldern wird rechts ein Tab-Panel pro Feld gerendert.
 - `show` nutzt ebenfalls das Split-Layout und eine separate Danger-Zone mit Confirm-Modal vor `DELETE`.
 - `index` rendert als Tabelle mit serverseitigem Paging, Freitextsuche über Textspalten, echten Sortierlinks, einfachen typisierten Filtern und Row-Actions.
 - Unsaved-Changes werden in `create/edit` als Badge + `beforeunload`-Warnung signalisiert.
+- Der Runtime-Support setzt Security-Header mit lokaler CSP und fängt referenzielle
+  Integritätsfehler bei Deletes als verständliche Flash-Meldung ab, statt einen 500er
+  durchzureichen.
 - Wiederverwendbare Runtime-Logik liegt in `ch.interlis.generator.grails.runtime`. Das Controller-Template delegiert an `InterlisCrudControllerSupport`, statt Paging, Suche, Relationship-Optionen und Geometrie-Binding in jede generierte Controller-Klasse zu kopieren.
 
 Opt-in Browser-E2E:
 ```bash
+./gradlew :target-grails:browserE2eTest
+```
+Der Test startet `docker compose edit-db`, importiert `SimpleAddressModel` mit ili2pg,
+erzeugt eine temporäre Grails-App, führt `generate-all` aus, startet die App und prüft
+im echten Chromium-Browser den CRUD-Pfad: Objekt erstellen, Geometrie speichern und
+ändern, Relationship-Objekt wählen, wieder öffnen und löschen. `grails`,
+`docker compose`, ein lokales ili2pg und installierte Playwright-Browser sind dafür
+Voraussetzung.
+
+Für manuelle Prüfungen gegen eine bereits gestartete passende App kann derselbe
+Browser-CRUD-Pfad weiterhin auf eine externe URL gerichtet werden:
+```bash
 ./gradlew :target-grails:browserE2eTest -PbrowserE2eAppUrl=http://localhost:8080
 ```
-Der Test läuft gegen eine bereits gestartete generierte Grails-App und prüft die
-Browser-Navigation bis zur CRUD-Form. Der vollständige PostGIS-Setup-Pfad bleibt
-weiterhin ein expliziter Integrationsschritt über die bestehenden Smoke-Tests.
 
 #### UX-Grenzen dieser Iteration
 - Keine Bulk-Actions und keine SPA-Architektur.
 - Relationship-Autocomplete lädt pro Anfrage eine begrenzte Ergebnismenge und bleibt ein progressives Enhancement über dem serverseitig gerenderten Select.
 - Die Suche ist bewusst generisch und auf einfache Textspalten begrenzt; modell- oder fachdomänenspezifische Filter bleiben späteren Targets vorbehalten.
+- Security-Header sind Betriebsdefaults, ersetzen aber keine Authentisierung, Rollen,
+  Autorisierung oder Audit-Logs.
 
 ### Strukturen im Domain-Model
 - INTERLIS-Strukturen werden als eigene `STRUCTURE`-Klassen im Metamodell geführt.
@@ -514,7 +553,7 @@ weiterhin ein expliziter Integrationsschritt über die bestehenden Smoke-Tests.
 - Getesteter Primärpfad ist weiterhin PostgreSQL/PostGIS mit ili2pg; andere ili2db-Flavours sind nicht als produktiv validiert.
 - Grails-CRUD nutzt weiterhin Grails-Scaffolding/Template-Overlay; das Core-Metamodell soll davon unabhängig bleiben.
 - Django/GeoDjango ist derzeit ein Target-Spike mit CLI-verdrahteter `models.py`-Ausgabe und Snapshot-Abdeckung, aber ohne produktionsreife Runtime-Validierung.
-- Produktive Credential-Konfiguration sollte über Umgebungsvariablen oder Grails/Spring-Konfiguration erfolgen; die CLI-Beispiele enthalten Zugangsdaten nur für lokale Demos.
+- Der Generator schreibt Credentials aus JDBC-URLs nicht mehr dauerhaft in `application.yml`, sondern nutzt `DB_USERNAME`/`DB_PASSWORD`-Platzhalter und für `production` zusätzlich `DB_URL`. Auth/Rollen, Autorisierung und Audit-Felder bleiben separate Produktionshärtungsaufgaben.
 
 ## Projektstruktur
 ```
@@ -587,6 +626,21 @@ Dieser Test nutzt `docker-compose.yml` (`edit-db` auf Port `54321`) und das loka
 unter `/Users/stefan/apps/ili2pg-5.5.1`. Der Pfad kann überschrieben werden:
 ```bash
 ./gradlew :target-grails:realIli2dbSmokeTest -Pili2pgHome=/path/to/ili2pg-5.5.1
+```
+
+Der Browser-E2E-Track schließt zusätzlich den generierten Grails-Browser-Pfad:
+```bash
+./gradlew :target-grails:browserE2eTest
+```
+
+Der Test benötigt dieselben lokalen Dienste wie der ili2db-Smoke-Test, zusätzlich
+eine lokale `grails`-CLI und Playwright Chromium. Die Grails-Version, ili2pg-Home
+und JDBC-URL können überschrieben werden:
+```bash
+./gradlew :target-grails:browserE2eTest \
+  -PgrailsSmokeVersion=7.0.6 \
+  -Pili2pgHome=/path/to/ili2pg-5.5.1 \
+  -PbrowserE2eJdbcUrl='jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret'
 ```
 
 Der Test importiert temporäre Schemas mit ili2pg, liest echte ili2db-Metatabellen,

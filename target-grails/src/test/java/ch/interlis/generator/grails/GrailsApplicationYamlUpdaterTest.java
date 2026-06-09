@@ -34,14 +34,23 @@ class GrailsApplicationYamlUpdaterTest {
         GrailsApplicationYamlUpdater updater = new GrailsApplicationYamlUpdater();
         updater.ensureDevelopmentDataSourceUrl(
             yamlPath,
-            "jdbc:postgresql://localhost:5432/testdb",
+            "jdbc:postgresql://localhost:5432/testdb?user=postgres&password=secret&dbSchema=ignored",
             "public"
         );
 
         String updated = Files.readString(yamlPath);
         assertThat(updated).contains("jdbc:postgresql://localhost:5432/testdb?currentSchema=public");
+        assertThat(updated).contains("username: \"${DB_USERNAME}\"");
+        assertThat(updated).contains("password: \"${DB_PASSWORD}\"");
+        assertThat(updated).doesNotContain("user=postgres");
+        assertThat(updated).doesNotContain("password=secret");
+        assertThat(updated).doesNotContain("dbSchema=ignored");
         assertThat(updated).contains("dbCreate: \"none\"");
         assertThat(updated).contains("org.hibernate.dialect.PostgreSQLDialect");
+        assertThat(updated).contains("production:");
+        assertThat(updated).contains("url: \"${DB_URL}\"");
+        assertThat(updated).contains("username: \"${DB_USERNAME}\"");
+        assertThat(updated).contains("password: \"${DB_PASSWORD}\"");
         assertThat(updated).doesNotContain("username: \"sa\"");
         assertThat(updated).doesNotContain("password: \"sa\"");
         assertThat(updated).doesNotContain("org.h2.Driver");
@@ -73,6 +82,9 @@ class GrailsApplicationYamlUpdaterTest {
 
         String updated = Files.readString(yamlPath);
         assertThat(updated).contains("org.hibernate.spatial.dialect.postgis.PostgisDialect");
+        assertThat(updated).contains("production:");
+        assertThat(updated).contains("url: \"${DB_URL}\"");
+        assertThat(updated).contains("dbCreate: \"none\"");
         assertThat(updated).contains("defaultSrid: 2056");
     }
 }

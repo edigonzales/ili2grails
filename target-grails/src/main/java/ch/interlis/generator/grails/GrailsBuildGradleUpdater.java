@@ -13,6 +13,12 @@ class GrailsBuildGradleUpdater {
         "implementation \"org.postgresql:postgresql:42.7.7\"";
     private static final String HIBERNATE_SPATIAL_DEPENDENCY =
         "implementation \"org.hibernate:hibernate-spatial:5.6.15.Final\"";
+    private static final String BOOTSTRAP_WEBJAR_DEPENDENCY =
+        "implementation \"org.webjars:bootstrap:5.3.3\"";
+    private static final String OPENLAYERS_WEBJAR_DEPENDENCY =
+        "implementation \"org.webjars.npm:ol:9.2.4\"";
+    private static final String PROJ4_WEBJAR_DEPENDENCY =
+        "implementation \"org.webjars.npm:proj4:2.11.0\"";
 
     void ensureJtsDependency(Path buildGradlePath) throws IOException {
         ensureDependencies(buildGradlePath, false);
@@ -33,6 +39,9 @@ class GrailsBuildGradleUpdater {
         List<String> updated = removeLegacySpatialDependency(lines);
         updated = insertDependencyIfMissing(updated, "org.locationtech.jts:jts-core", JTS_DEPENDENCY);
         updated = insertDependencyIfMissing(updated, "org.postgresql:postgresql", POSTGRES_JDBC_DEPENDENCY);
+        updated = insertDependencyIfMissing(updated, "org.webjars:bootstrap", BOOTSTRAP_WEBJAR_DEPENDENCY);
+        updated = insertDependencyIfMissing(updated, "org.webjars.npm:ol", OPENLAYERS_WEBJAR_DEPENDENCY);
+        updated = insertDependencyIfMissing(updated, "org.webjars.npm:proj4", PROJ4_WEBJAR_DEPENDENCY);
         if (geometryEnabled) {
             updated = insertDependencyIfMissing(updated, "org.hibernate:hibernate-spatial", HIBERNATE_SPATIAL_DEPENDENCY);
         }

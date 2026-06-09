@@ -14,10 +14,18 @@ class GrailsTemplateOverlayInstallerTest {
     void installsManagedFilesAndUpdatesApplicationJsIdempotently(@TempDir Path tempDir) throws Exception {
         Path projectDir = tempDir.resolve("my-grails-app");
         Path applicationJs = projectDir.resolve("grails-app/assets/javascripts/application.js");
+        Path applicationCss = projectDir.resolve("grails-app/assets/stylesheets/application.css");
         Files.createDirectories(applicationJs.getParent());
+        Files.createDirectories(applicationCss.getParent());
         Files.writeString(applicationJs, String.join("\n",
             "//= require webjars/jquery/%/dist/jquery.js",
             "//= require_self",
+            ""
+        ));
+        Files.writeString(applicationCss, String.join("\n",
+            "/*",
+            " *= require_self",
+            " */",
             ""
         ));
 
@@ -51,6 +59,9 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js")).doesNotExist();
 
         String updatedApplicationJs = Files.readString(applicationJs);
+        assertThat(updatedApplicationJs).contains("//= require webjars/proj4/2.11.0/dist/proj4.js");
+        assertThat(updatedApplicationJs).contains("//= require webjars/ol/9.2.4/dist/ol.js");
+        assertThat(updatedApplicationJs).contains("//= require webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js");
         assertThat(updatedApplicationJs).contains("//= require ili-geometry-editor.js");
         assertThat(updatedApplicationJs).contains("//= require ili-form-ux.js");
         assertThat(updatedApplicationJs).doesNotContain("//= require ili-carbon-input-bridge.js");
@@ -58,6 +69,12 @@ class GrailsTemplateOverlayInstallerTest {
             .isEqualTo(updatedApplicationJs.lastIndexOf("//= require ili-geometry-editor.js"));
         assertThat(updatedApplicationJs.indexOf("//= require ili-form-ux.js"))
             .isEqualTo(updatedApplicationJs.lastIndexOf("//= require ili-form-ux.js"));
+
+        String updatedApplicationCss = Files.readString(applicationCss);
+        assertThat(updatedApplicationCss).contains("*= require webjars/bootstrap/5.3.3/css/bootstrap.min.css");
+        assertThat(updatedApplicationCss).contains("*= require webjars/ol/9.2.4/ol.css");
+        assertThat(updatedApplicationCss).containsOnlyOnce("*= require webjars/bootstrap/5.3.3/css/bootstrap.min.css");
+        assertThat(updatedApplicationCss).containsOnlyOnce("*= require webjars/ol/9.2.4/ol.css");
 
         String indexTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/index.gsp"));
         assertThat(indexTemplate).contains("<table class=\"table");
@@ -75,6 +92,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(formTemplate).contains("data-unsaved-badge");
         assertThat(formTemplate).contains("template=\"relationship-fields\"");
         assertThat(formTemplate).contains("relationshipFields ?: []");
+        assertThat(formTemplate).contains("fieldMeta");
+        assertThat(formTemplate).contains("ili-field-help-panel");
         assertThat(formTemplate).doesNotContain("js-carbon-bridge");
 
         String relationshipTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_relationship-fields.gsp"));
@@ -83,6 +102,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(relationshipTemplate).contains("relationshipRequired");
         assertThat(relationshipTemplate).contains("js-relationship-search");
         assertThat(relationshipTemplate).contains("data-relationship-url");
+        assertThat(relationshipTemplate).contains("data-relationship-list");
+        assertThat(relationshipTemplate).contains("role=\"listbox\"");
 
         String showTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/show.gsp"));
         assertThat(showTemplate).contains("Danger Zone");
@@ -91,7 +112,9 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(showTemplate).doesNotContain("bx-modal");
 
         String layoutTemplate = Files.readString(projectDir.resolve("grails-app/views/layouts/main.gsp"));
-        assertThat(layoutTemplate).contains("bootstrap@5.3.3");
+        assertThat(layoutTemplate).contains("<asset:stylesheet src=\"application.css\"/>");
+        assertThat(layoutTemplate).contains("<asset:javascript src=\"application.js\"/>");
+        assertThat(layoutTemplate).doesNotContain("https://cdn.jsdelivr.net");
         assertThat(layoutTemplate).contains("navbar-toggler");
         assertThat(layoutTemplate).doesNotContain("ili-carbon-wc-bundle.js");
         assertThat(layoutTemplate).doesNotContain("<bx-header");
@@ -106,19 +129,38 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("def index(Integer max, Integer offset)");
         assertThat(controllerSupport).contains("relationshipOptions");
         assertThat(controllerSupport).contains("InterlisGeometryBinder.bindGeometryFromParams");
+        assertThat(controllerSupport).contains("fieldMeta()");
+        assertThat(controllerSupport).contains("Content-Security-Policy");
+        assertThat(controllerSupport).contains("DataIntegrityViolationException");
+        assertThat(controllerSupport).contains("X-Content-Type-Options");
+
+        String relationshipOptions = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"));
+        assertThat(relationshipOptions).contains("interlisDisplayMeta");
+        assertThat(relationshipOptions).contains("nextOffset");
+        assertThat(relationshipOptions).contains("pagination.offset + options.size()");
 
         String geometryBinder = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy"));
         assertThat(geometryBinder).contains("IsValidOp");
         assertThat(geometryBinder).contains("MULTIPOLYGON");
+        assertThat(geometryBinder).contains("maxWktLength");
+        assertThat(geometryBinder).contains("maxVertices");
 
         String formUx = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js"));
         assertThat(formUx).contains("initRelationshipAutocomplete");
         assertThat(formUx).contains("js-relationship-search");
+        assertThat(formUx).contains("pagination.nextOffset");
+        assertThat(formUx).contains("data-relationship-list");
+        assertThat(formUx).contains("list.addEventListener(\"scroll\"");
+
+        String geometryEditor = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js"));
+        assertThat(geometryEditor).contains("ol.interaction.Snap");
 
         String stylesheet = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
         assertThat(stylesheet).contains(".ili-list-tools");
         assertThat(stylesheet).contains(".ili-pagination-bar");
         assertThat(stylesheet).contains("--dp-color-accent");
+        assertThat(stylesheet).contains(".ili-field-help-panel");
+        assertThat(stylesheet).contains(".ili-relationship-results");
     }
 
     @Test

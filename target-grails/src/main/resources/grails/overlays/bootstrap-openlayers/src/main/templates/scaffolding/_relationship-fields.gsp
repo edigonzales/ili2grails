@@ -5,22 +5,30 @@
                 <label class="form-label" for="relationship-\${relationshipField}">
                     \${message(code: '${propertyName}.' + relationshipField + '.label', default: relationshipField)}
                 </label>
-                <input type="search"
-                       class="form-control form-control-sm mb-2 js-relationship-search"
-                       placeholder="Suchen"
-                       autocomplete="off"
-                       data-relationship-field="\${relationshipField}"
-                       data-relationship-select="relationship-\${relationshipField}"
-                       data-relationship-url="\${createLink(action: 'relationshipOptions')}" />
-                <g:select name="\${relationshipField}.id"
-                          id="relationship-\${relationshipField}"
-                          from="\${relationshipOptions?.get(relationshipField) ?: []}"
-                          optionKey="id"
-                          optionValue="label"
-                          value="\${relationshipValues?.get(relationshipField)}"
-                          noSelection="\${relationshipRequired?.get(relationshipField) ? [:] : ['': 'Keine Auswahl']}"
-                          data-relationship-optional="\${relationshipRequired?.get(relationshipField) ? 'false' : 'true'}"
-                          class="form-select \${hasErrors(bean: this.${propertyName}, field: relationshipField, 'is-invalid')}" />
+                <div class="ili-relationship-picker js-relationship-picker">
+                    <input type="search"
+                           class="form-control form-control-sm mb-2 js-relationship-search"
+                           placeholder="Suchen"
+                           autocomplete="off"
+                           aria-controls="relationship-\${relationshipField}-results"
+                           data-relationship-field="\${relationshipField}"
+                           data-relationship-select="relationship-\${relationshipField}"
+                           data-relationship-url="\${createLink(action: 'relationshipOptions')}" />
+                    <div id="relationship-\${relationshipField}-results"
+                         class="ili-relationship-results list-group mb-2"
+                         data-relationship-list
+                         role="listbox"
+                         hidden></div>
+                    <g:select name="\${relationshipField}.id"
+                              id="relationship-\${relationshipField}"
+                              from="\${relationshipOptions?.get(relationshipField) ?: []}"
+                              optionKey="id"
+                              optionValue="label"
+                              value="\${relationshipValues?.get(relationshipField)}"
+                              noSelection="\${relationshipRequired?.get(relationshipField) ? [:] : ['': 'Keine Auswahl']}"
+                              data-relationship-optional="\${relationshipRequired?.get(relationshipField) ? 'false' : 'true'}"
+                              class="form-select \${hasErrors(bean: this.${propertyName}, field: relationshipField, 'is-invalid')}" />
+                </div>
                 <g:hasErrors bean="\${this.${propertyName}}" field="\${relationshipField}">
                     <div class="invalid-feedback d-block">
                         <g:eachError bean="\${this.${propertyName}}" field="\${relationshipField}" var="error">
