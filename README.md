@@ -133,6 +133,9 @@ Weitere Optionen:
 - `--grails-map-editor <none|openlayers>` (Default: `openlayers` bei `bootstrap`, sonst `none`)
 - `--grails-default-srid <int>` (Default: `2056`)
 - `--grails-generate-all` (nur mit `--grails-init`, ruft `./grailsw generate-all` für jede Domain auf)
+- `--grails-association-ui <auto|off|read-only|editable>` (Default: `auto`; steuert die Association-UX der generierten App)
+- `--grails-association-page-size <1..100>` (Default: `10`; Seitengrösse für Association-Listen)
+- `--grails-association-navigation <auto|show|hide>` (Default: `auto`; Sichtbarkeit technischer Association-Controller in der Navigation)
 - `--django-output <dir>` und `--django-app <python_package>` (für `--target django`; schreibt `<dir>/<app>/models.py`)
 
 ## Grails-Projekt starten

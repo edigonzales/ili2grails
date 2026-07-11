@@ -44,6 +44,13 @@ class GeneratedGrailsCompileSmokeTest {
         assertThat(associationDomain).contains("TopicAGebaeude source");
         assertThat(associationDomain).contains("TopicBGebaeude target");
 
+        Path registryFile = tempDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy");
+        assertThat(registryFile).exists();
+        String registry = Files.readString(registryFile);
+        assertThat(registry).contains("package ch.interlis.generator.grails.generated");
+        assertThat(registry).contains("final class InterlisAssociationRegistry");
+
         GeneratedGroovyCompiler.compileGeneratedSources(tempDir);
     }
 

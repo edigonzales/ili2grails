@@ -74,6 +74,27 @@ final class GrailsCliOptions {
     )
     private boolean generateAll;
 
+    @Option(
+        names = "--grails-association-ui",
+        paramLabel = "<auto|off|read-only|editable>",
+        description = "Association UX mode for generated Grails artifacts."
+    )
+    private String associationUi;
+
+    @Option(
+        names = "--grails-association-page-size",
+        paramLabel = "<1..100>",
+        description = "Page size for association related lists (default 10)."
+    )
+    private Integer associationPageSize;
+
+    @Option(
+        names = "--grails-association-navigation",
+        paramLabel = "<auto|show|hide>",
+        description = "Navigation visibility for association controllers."
+    )
+    private String associationNavigation;
+
     boolean isConfigured() {
         return outputDir != null
             || initAppName != null
@@ -85,7 +106,10 @@ final class GrailsCliOptions {
             || uiTheme != null
             || mapEditor != null
             || defaultSrid != null
-            || generateAll;
+            || generateAll
+            || associationUi != null
+            || associationPageSize != null
+            || associationNavigation != null;
     }
 
     Path outputDir() {
@@ -137,5 +161,17 @@ final class GrailsCliOptions {
 
     boolean generateAll() {
         return generateAll;
+    }
+
+    String associationUi() {
+        return associationUi;
+    }
+
+    Integer associationPageSize() {
+        return associationPageSize;
+    }
+
+    String associationNavigation() {
+        return associationNavigation;
     }
 }

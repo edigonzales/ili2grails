@@ -14,14 +14,22 @@ public class GrailsCrudGenerator {
     private final GrailsControllerGenerator controllerGenerator = new GrailsControllerGenerator();
     private final GrailsViewGenerator viewGenerator = new GrailsViewGenerator();
     private final GrailsEnumGenerator enumGenerator = new GrailsEnumGenerator();
+    private final GrailsAssociationRegistryGenerator associationRegistryGenerator =
+        new GrailsAssociationRegistryGenerator();
     private final GrailsBuildGradleUpdater buildGradleUpdater = new GrailsBuildGradleUpdater();
     private final GrailsApplicationYamlUpdater applicationYamlUpdater = new GrailsApplicationYamlUpdater();
 
     public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
         Files.createDirectories(config.getOutputDir());
         TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
+        GrailsRelationshipMapper relationshipMapper =
+            GrailsRelationshipMapper.forMetadata(metadata, config, registry);
+        GrailsAssociationPlanner associationPlanner =
+            GrailsAssociationPlanner.forMetadata(metadata, config, registry, relationshipMapper);
+
         enumGenerator.generate(metadata, config, registry);
-        domainGenerator.generate(metadata, config, registry);
+        domainGenerator.generate(metadata, config, registry, relationshipMapper);
+        associationRegistryGenerator.generate(metadata, config, registry, associationPlanner);
         //controllerGenerator.generate(metadata, config, registry);
         //viewGenerator.generate(metadata, config, registry);
         buildGradleUpdater.ensureDependencies(

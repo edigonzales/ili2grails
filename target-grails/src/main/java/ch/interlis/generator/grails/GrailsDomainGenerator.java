@@ -42,12 +42,18 @@ public class GrailsDomainGenerator {
     public void generate(ModelMetadata metadata,
                          GenerationConfig config,
                          TargetNameRegistry registry) throws IOException {
+        generate(metadata, config, registry, GrailsRelationshipMapper.forMetadata(metadata, config, registry));
+    }
+
+    public void generate(ModelMetadata metadata,
+                         GenerationConfig config,
+                         TargetNameRegistry registry,
+                         GrailsRelationshipMapper mapper) throws IOException {
         Path baseDir = config.getOutputDir()
             .resolve("grails-app/domain")
             .resolve(NameUtils.packageToPath(config.getDomainPackage()));
         Files.createDirectories(baseDir);
 
-        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
         for (ClassMetadata classMetadata : mapper.generatedClasses()) {
             GrailsRelationshipMapper.DomainMapping mapping = mapper.map(classMetadata);
             String content = renderDomain(classMetadata, mapping, metadata, config, registry);

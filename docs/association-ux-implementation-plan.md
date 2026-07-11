@@ -9,7 +9,7 @@ Dieser Plan wird nach jedem grösseren Schritt aktualisiert, nicht erst am Schlu
 |---|---|---:|---:|---|---|
 | Phase 0 – Baseline, Analyse, Plan | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (83), ili2c PASS | Baseline grün mit JDK 21; ili2c via ilivalidator-libs; grails/ili2pg lokal nicht installiert |
 | Phase 1 – Association-Planungsmodell | DONE | 2026-07-11 | 2026-07-11 | `:target-grails:test` PASS (49), `./gradlew test` PASS (99) | Planungsmodelle + `GrailsAssociationPlanner` + 16 Unit-Tests; keine Runtime/GSP/Core-IR-Änderung |
-| Phase 2 – Registry-Generierung & Konfiguration | NOT_STARTED |  |  |  |  |
+| Phase 2 – Registry-Generierung & Konfiguration | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (112); `:target-grails:grailsRuntimeSmokeTest` PASS (2, real Grails 7.0.6) | Registry-Generator + `GenerationConfig`-Association-Felder + CLI + gemeinsamer Mapper; Registry-Snapshot (6 Assoc.) + Compile-Test; keine Show/Runtime-Schreibpfade |
 | Phase 3 – Read-only Related-Sections | NOT_STARTED |  |  |  |  |
 | Phase 4 – Quick-Link (binäre Associations) | NOT_STARTED |  |  |  |  |
 | Phase 5 – Kontextuelle Formulare / n-är | NOT_STARTED |  |  |  |  |
@@ -33,12 +33,12 @@ Zulässige Statuswerte: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - **Wichtige Abhängigkeitsversionen (root `build.gradle` `ext`):** ili2c 5.6.8, iox-ili 1.24.4, ehibasics 1.4.1, postgres 42.7.7, groovy 4.0.24, jts 1.19.0, junit 5.10.1, assertj 3.24.2, h2 2.2.224, playwright 1.60.0, picocli 4.7.7.
 - **Grails (Smoke/E2E-Ziel):** Default `grailsSmokeVersion = 7.0.6` (überschreibbar via `-PgrailsSmokeVersion`).
 - **ili2c:** 5.6.8.
-  - ⚠️ Erwarteter Spec-Pfad `/Users/stefan/apps/ili2c-5.6.8/ili2c.jar` **existiert nicht**.
-  - Verfügbar über `ilivalidator-1.15.0/libs/*` (`ili2c-core-5.6.8.jar`, `ili2c-tool-5.6.8.jar`), Hauptklasse `ch.interlis.ili2c.Main`. Siehe ADR-002.
+  - ✅ Erwarteter Spec-Pfad `/Users/stefan/apps/ili2c-5.6.8/` ist inzwischen **installiert** (ADR-002-Fallback damit nicht mehr nötig; für neue/veränderte `.ili` kann direkt `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar …` verwendet werden). In Phase 0/2 wurde kein `.ili` verändert.
+  - Verfügbar zusätzlich über `ilivalidator-1.15.0/libs/*` (`ili2c-core-5.6.8.jar`, `ili2c-tool-5.6.8.jar`), Hauptklasse `ch.interlis.ili2c.Main`. Siehe ADR-002.
 - **ilivalidator:** 1.15.0 unter `/Users/stefan/apps/ilivalidator-1.15.0/`.
-- **ili2pg:** ⚠️ lokal **nicht installiert** (`/Users/stefan/apps/ili2pg*` fehlt). Blockiert Real-ili2db-Smoke ab Phase 3. Siehe Risiko R-2.
+- **ili2pg:** ✅ **installiert** unter `/Users/stefan/apps/ili2pg-5.6.1/` (Spec-Default war `5.5.1`; Real-ili2db-Smoke daher mit `-Pili2pgHome=/Users/stefan/apps/ili2pg-5.6.1` ausführen). Vor Phase 2 war dies ein Blocker (R-2).
 - **Docker:** Docker **29.6.1** vorhanden (`docker-compose.yml` im Repo).
-- **grails CLI:** ⚠️ **nicht auf PATH** (`which grails` → not found). Blockiert Runtime-Smoke/E2E. Siehe Risiko R-2.
+- **grails CLI:** ✅ **installiert** via SDKMAN unter `/Users/stefan/.sdkman/candidates/grails/7.0.6` (`current` → 7.0.6). Nicht auf dem Standard-PATH; für Smoke/E2E `PATH="$HOME/.sdkman/candidates/grails/current/bin:$JAVA_HOME/bin:$PATH"` mit `JAVA_HOME=…/21.0.10-tem` setzen. Grails 7.0.6 läuft auf JDK 21 (verifiziert `grails --version` → JVM 21.0.10). Vor Phase 2 war dies ein Blocker (R-2).
 - **Playwright:** Dependency deklariert (1.60.0); Browser-Binaries-Status ungeprüft (E2E ohnehin durch fehlende grails/ili2pg blockiert).
 
 ### Baseline-Testresultat
@@ -199,16 +199,22 @@ Diese generierten Association-Domains bestätigen die vom Planner (Phase 1) zu v
 - **Entscheidung:** Der Planner erzeugt in Phase 1 nur `LINK_ENTITY` (physisch gemappte Association-Domain) oder `UNMAPPED`. `EMBEDDED_FOREIGN_KEY` bleibt als Enum-Konstante vorhanden, wird aber nicht klassifiziert.
 - **Konsequenzen:** Optimierte/eingebettete ili2db-Abbildungen fallen aktuell auf `UNMAPPED` (read-only) zurück. Aktivierung mit Real-ili2db-Beleg in Phase 7 (Restpunkt).
 
+### ADR-007: Navigation-Sichtbarkeit der Association-Entities in der Registry (Phase 2)
+- **Kontext:** Die Registry muss pro Association-Domain ein `showInNavigation`-Flag ausgeben (§11.2/§21.3). Es gibt drei Quellen: den Planner-Wert `GrailsAssociationPlan.showInNavigation()`, das Config-Feld `hideContextualAssociationControllers` und die CLI-Navigation `associationNavigation` (`auto|show|hide`).
+- **Entscheidung:** `GrailsAssociationRegistryGenerator.resolveShowInNavigation(plan, config)` wendet folgende Priorität an: (1) `associationNavigation=show` ⇒ `true`; (2) `associationNavigation=hide` ⇒ `false`; (3) `hideContextualAssociationControllers=false` ⇒ `true`; (4) sonst `auto` ⇒ `plan.showInNavigation()` (versteckt nur, wenn physisch gemappt **und** kontextueller Zugriff existiert). Die `ENTITIES`-Map ist die einzige, von der Navigation-Config beeinflusste Ausgabe; die `showInNavigation`-Felder in `ASSOCIATIONS`-Deskriptoren bleiben der reine Planner-Wert (dokumentarisch).
+- **Alternativen:** Die Navigation-Config bereits im Planner auswerten — verworfen, weil der Planner framework-nah, aber config-unabhängig bleiben soll und Phase 1 keine Config-Felder kannte.
+- **Konsequenzen:** Navigation ist deterministisch und per CLI steuerbar, ohne Phase-1-Klassifikation zu verändern. Die tatsächliche Menü-Filterung (`InterlisNavigationSupport`, §21) folgt in einer späteren Phase und konsumiert `showInNavigation(domainClassName)`.
+
 ## Risiken
 
 | ID | Risiko | Wahrscheinlichkeit | Auswirkung | Massnahme | Status |
 |---|---|---|---|---|---|
 | R-1 | JDK-25-Default lässt Build lokal/CI fehlschlagen | Hoch | Hoch (Build blockiert) | JDK 21 erzwingen (ADR-001); Gradle-Toolchain-Pinning erwägen; in Doku festhalten | Mitigiert |
-| R-2 | `grails` CLI und `ili2pg` lokal nicht installiert → Runtime-Smoke/Real-ili2db/Browser-E2E nicht ausführbar | Hoch | Hoch (Phasen 3–8 Gates) | Vor Phase 3 Umgebung bereitstellen (grails 7.0.6, ili2pg 5.5.1, Docker-PostGIS, Playwright-Browser) ODER Infrastrukturblocker transparent dokumentieren; Unit-Tests genügen NICHT (Spec §30.10) | Offen |
-| R-3 | Planner ↔ Domain-Generator nutzen abweichende `TargetNameRegistry`/Mapper-Instanzen | Mittel | Hoch (inkonsistente Namen/Mappings) | Gemeinsame Instanzen in `GrailsCrudGenerator` erzeugen und durchreichen (§11.5, §29.2); Regressionstest | Offen (Phase 2) |
+| R-2 | `grails` CLI und `ili2pg` lokal nicht installiert → Runtime-Smoke/Real-ili2db/Browser-E2E nicht ausführbar | Hoch | Hoch (Phasen 3–8 Gates) | ✅ **Behoben:** grails 7.0.6 (SDKMAN) + ili2pg 5.6.1 + Docker vorhanden. Runtime-Smoke in Phase 2 real ausgeführt (2 Tests grün). PATH+JDK-21 nötig. | Geschlossen |
+| R-3 | Planner ↔ Domain-Generator nutzen abweichende `TargetNameRegistry`/Mapper-Instanzen | Mittel | Hoch (inkonsistente Namen/Mappings) | ✅ **Behoben (Phase 2):** `GrailsCrudGenerator` erzeugt eine `TargetNameRegistry` + einen `GrailsRelationshipMapper` und reicht sie an Enum-/Domain-Gen (neuer 4-arg-Overload), Planner und Registry-Gen durch. | Geschlossen |
 | R-4 | Falsche GORM-`hasMany`/Cascade zerstört ili2db-Persistenz | Mittel | Sehr hoch (Datenverlust) | Keine inversen Collections/Join-Tabellen; Related-Lists nur über Association-Domain-Query; Regressionstest §30.3 | Kontrolliert durch Design |
 | R-5 | Mehrdeutige Rollen→Property-Auflösung (gleiche Zielklasse, physische Abweichung) | Mittel | Mittel | Auflösung über `DomainMapping`/Relationship-Metadaten, Diagnose `AMBIGUOUS_ROLE_PROPERTY` + read-only (§10.3) | Mitigiert (Phase 1): Auflösung + Diagnose + Test implementiert |
-| R-6 | Snapshot-Lücke (2 nicht asserted Associations) verschleiert Regressionen | Niedrig | Mittel | In Phase 2 Snapshots auf alle 6 Associations + Registry ausdehnen | Offen |
+| R-6 | Snapshot-Lücke (2 nicht asserted Associations) verschleiert Regressionen | Niedrig | Mittel | ✅ **Behoben (Phase 2):** neuer `InterlisAssociationRegistry`-Snapshot deckt alle **6** Associations + alle Kontexte + Navigation-Metadaten ab. Domain-Snapshots weiterhin 4 (Registry deckt die übrigen inhaltlich ab). | Geschlossen |
 | R-7 | Sicherheitslücken (Mass Assignment, IDOR, Open Redirect, GET-Mutation) | Mittel | Hoch | Serverseitige Kontextvalidierung, feste Rolle nach Binding neu setzen, keine freie returnUrl, POST/PUT/DELETE (§27) | Design-Vorgabe (Phasen 4–6) |
 | R-8 | n-äre / ORDERED / EXTERNAL / Komposition falsch als M:N vereinfacht | Mittel | Hoch | Deterministische Klassifikation + read-only-Fallback; Real-ili2db-Beleg vor Schreibfunktion (§7.3, §24, Phase 7) | Design-Vorgabe |
 | R-9 | Testmodell fehlt echte n-äre/ORDERED-Fälle | Mittel | Mittel | In Phase 5/7 `AssociationCases.ili` konservativ erweitern, ili2c-validieren (§31.1) | Offen |
@@ -251,7 +257,7 @@ Tests/Source-Sets:
 
 Noch zu erstellen (Referenz, spätere Phasen):
 - Phase 1: ✅ ERLEDIGT — `AssociationStorageKind.java`, `AssociationPresentationKind.java`, `AssociationCreateMode.java`, `GrailsAssociationRolePlan.java`, `GrailsAssociationAttributePlan.java`, `GrailsAssociationContextPlan.java`, `GrailsAssociationPlan.java`, `GrailsAssociationPlanner.java`, `GrailsAssociationPlannerTest.java`.
-- Phase 2: `GrailsAssociationRegistryGenerator.java`, `GrailsAssociationRegistryGeneratorTest.java`, generierte `src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy`.
+- Phase 2: ✅ ERLEDIGT — `GrailsAssociationRegistryGenerator.java`, `GrailsAssociationRegistryGeneratorTest.java`, `GenerationConfigTest.java`, generierte `src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy` (+ Snapshot). `GenerationConfig` um Association-Felder erweitert, `GrailsDomainGenerator` 4-arg-Overload, `GrailsCrudGenerator` gemeinsame Instanzen + Registry-Einhängung, CLI-Optionen `--grails-association-{ui,page-size,navigation}`.
 - Phase 3+: `InterlisAssociationRegistrySupport.groovy`, `InterlisAssociationQueryService.groovy`, `InterlisAssociationCommandService.groovy`, `InterlisAssociationContextSupport.groovy`, `InterlisNavigationSupport.groovy`, `_association-*.gsp`.
 
 ## Offene Entscheidungen / Fragen
@@ -260,7 +266,7 @@ Noch zu erstellen (Referenz, spätere Phasen):
 2. **Gradle-Toolchain-Pinning (R-1/ADR-001):** JDK-Wahl explizit in `build.gradle`/`gradle.properties` fixieren, um Environment-Abhängigkeit zu beseitigen? (Build-Infrastruktur-Änderung, nicht Teil von Phase 0.)
 3. **ADR-003:** Result-Maps vs. typisierte Exceptions für Command-Services — vor Phase 4 festlegen.
 4. **ADR-004:** Quick-Link-Duplikatregel — vor Phase 4 festlegen.
-5. **Snapshot-Umfang (R-6):** In Phase 2 alle 6 Associations + `InterlisAssociationRegistry` in Snapshots aufnehmen (bevorzugt) — bestätigen.
+5. **Snapshot-Umfang (R-6):** ✅ Entschieden (Phase 2): nur `association-cases`-Registry-Snapshot mit allen 6 Associations (mit Nutzer bestätigt). Kein separater simple-address-Registry-Snapshot.
 6. **Testmodell-Erweiterung (R-9):** Zeitpunkt für ORDERED/n-är in `AssociationCases.ili` (Phase 5 vs. Phase 7) — Spec verortet n-är in Phase 5, ORDERED/embedded in Phase 7.
 
 ## Phase-Protokolle
@@ -299,6 +305,34 @@ Noch zu erstellen (Referenz, spätere Phasen):
   - ORDERED/echte n-äre Fälle in `AssociationCases.ili` + Fixtures → Phase 5/7 (ADR-005, R-9).
   - UI-Modus-Gating (`associationUiMode`) fliesst noch nicht in Quick-Link-Eligibility ein (Config-Feld existiert erst ab Phase 2); aktuell Default „editierbar“.
 - **Abnahme:** Phase 1 DONE-Kriterien: alle Planner-Fälle grün ✔, keine UI-Änderung ✔, keine Core-IR-Änderung (kein ADR nötig) ✔, bestehende Snapshots unverändert ✔, Umsetzungsplan aktualisiert ✔. Nicht mit Phase 2 fortgefahren ✔.
+
+### Phase 2
+- **Neue Dateien:**
+  - `target-grails/src/main/java/ch/interlis/generator/grails/GrailsAssociationRegistryGenerator.java` — Registry-Generator (§11). API `generate(metadata, config, registry, planner)`, `targetPath(config)`, `renderRegistry(plans, config)`. Festes Paket `ch.interlis.generator.grails.generated`, Zielpfad `src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy`. Emittiert `ASSOCIATIONS`, `CONTEXTS` (TreeMap, stabil), `CONTEXT_IDS_BY_PARTICIPANT` (TreeMap, Werte sortiert), `ENTITIES` (TreeMap) + Helper (`association`, `context`, `contextsForParticipant`, `showInNavigation`) + privater Ctor. Groovy-Escaping für `\`, `'`, `\n`, `\r`, `\t`, `$`; `null`→`null`; `-1` erhalten; leeres Modell ⇒ `[:]`.
+  - `target-grails/src/test/java/ch/interlis/generator/grails/GrailsAssociationRegistryGeneratorTest.java` — 8 Tests: `rendersDeterministicGroovyRegistry`, `escapesQuotesBackslashesAndNewlines`, `emitsContextsByParticipant`, `emitsEntityNavigationMetadata`, `navigationShowModeForcesVisibleAssociationEntities`, `navigationHideModeMarksAssociationEntitiesHidden`, `generatedRegistryCompilesWithGroovyCompiler`, `emptyAssociationSetProducesValidRegistry`.
+  - `target-grails/src/test/java/ch/interlis/generator/grails/GenerationConfigTest.java` — 5 Tests: `associationDefaultsAreStable`, `rejectsInvalidAssociationPageSize`, `editableModeEnablesWrites`, `readOnlyModeDisablesWrites`, `rejectsUnsupportedModes`.
+  - `target-grails/src/test/resources/grails-snapshots/association-cases/src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy` — neuer Registry-Snapshot (alle 6 Associations, 12 Kontexte, 6 ENTITIES).
+- **Geänderte Dateien:**
+  - `GenerationConfig.java` — Konstanten `ASSOCIATION_UI_{OFF,READ_ONLY,EDITABLE,AUTO}`, `ASSOCIATION_NAVIGATION_{AUTO,SHOW,HIDE}`; Felder `associationUiMode`(=`auto`), `associationPageSize`(=`10`, validiert 1..100), `hideContextualAssociationControllers`(=`true`), `associationNavigation`(=`auto`); Getter inkl. `isAssociationUiEnabled/Editable`; Builder mit Validierung (`IllegalArgumentException` bei ungültiger pageSize/mode/navigation).
+  - `GrailsDomainGenerator.java` — neuer 4-arg-Overload `generate(metadata, config, registry, mapper)` (§29.2); 3-arg-Overload delegiert (Verhalten unverändert).
+  - `GrailsCrudGenerator.java` — erzeugt **eine** `TargetNameRegistry` + **einen** `GrailsRelationshipMapper` + einen `GrailsAssociationPlanner`; reicht sie an Enum-/Domain-Gen und den neuen `GrailsAssociationRegistryGenerator` durch (§11.5, R-3 geschlossen). Registry wird nach den Domains generiert.
+  - `cli/GrailsCliOptions.java` / `cli/GrailsCliTarget.java` — Optionen `--grails-association-ui <auto|off|read-only|editable>`, `--grails-association-page-size <1..100>`, `--grails-association-navigation <auto|show|hide>` + Validierung + Config-Mapping.
+  - `README.md` — drei neue CLI-Optionen dokumentiert.
+  - `GrailsGeneratedOutputSnapshotTest.java` — Registry-Snapshot in `association-cases` aufgenommen.
+  - `GeneratedGrailsCompileSmokeTest.java` — prüft Existenz + Paket der generierten Registry; kompiliert sie mit (`GeneratedGroovyCompiler` walkt `src/main/groovy`).
+- **Nicht geändert (bewusst):** Core-IR, `GrailsAssociationPlanner` (nur konsumiert), `GrailsRelationshipMapper`-Semantik, Overlay-Runtime/GSPs, `AssociationCases.ili`, Fixtures. Keine Show-Seite, keine schreibende Runtime (Spec-Vorgabe Phase 2).
+- **Entscheidungen:** ADR-007 (Navigation-Sichtbarkeit-Auflösung). Snapshot-Umfang: nur `association-cases` (bestätigt mit Nutzer). Mapper-Sharing: neuer 4-arg-Overload (bestätigt mit Nutzer). `associationUiMode`-Gating der Writability bleibt Phase 4 (Registry `writable`/`createMode` stammen weiterhin aus dem Planner-Default „editierbar“; UI-Modus wird noch nicht angewandt — Restpunkt).
+- **Ausgeführte Tests (JDK 21, ADR-001):**
+  - `./gradlew :target-grails:test --tests "*GrailsAssociationRegistryGeneratorTest" --tests "*GenerationConfigTest" --tests "*GeneratedGrailsCompileSmokeTest"` → **PASS** (13).
+  - `./gradlew test` → **PASS total 112** (core 31, target-grails 62, cli 12, target-django 7), 0 Fehler/0 Errors/0 Skips. Delta +13 = 8 Registry- + 5 Config-Tests.
+  - Snapshot: mit `UPDATE_GRAILS_SNAPSHOTS=true` erzeugt, Inhalt **manuell inhaltlich geprüft** (alle 6 Associations, deterministische Sortierung, EXTERNAL+COMPOSITE ⇒ `CONTEXTUAL_FORM` statt `QUICK`, physisch abweichend ⇒ `ownerFk`/`parcelFk`, Selbstassoziation ⇒ zwei distinkte Person-Kontexte, `-1`/`null` korrekt) und danach committet.
+  - `PATH=grails-7.0.6 JAVA_HOME=21.0.10 ./gradlew :target-grails:grailsRuntimeSmokeTest -PgrailsSmokeVersion=7.0.6` → **PASS** (2 Tests, 0 Skips): echte Grails-7.0.6-App via `create-app`, Overlay + Generierung, `./gradlew compileGroovy` grün ⇒ generierte Registry kompiliert in echter App. Der frühere R-2-Blocker ist damit behoben.
+  - Kein `.ili`/XTF geändert ⇒ keine ili2c/ilivalidator-Neu-Validierung erforderlich.
+- **Offene Punkte / Restpunkte:**
+  - `associationUiMode`/`isAssociationUiEditable()` fließen noch nicht in `writable`/`createMode` der Registry ein → Phase 4 (Schreibpfad-Gating).
+  - Registry-Runtime-Support, Query-Service, Related-Sections → Phase 3.
+  - Real-ili2db-Smoke mit `AssociationCases` (ili2pg 5.6.1) → Phase 3 (physische Spalten-Verifikation).
+- **Abnahme:** Phase 2 DONE-Kriterien: Registry im festen Paket, stabil sortiert, kompiliert (Unit + Groovy-Compiler + echte Grails-App) ✔; `GenerationConfig`-Felder + Validierung ✔; deterministische Einhängung in `GrailsCrudGenerator` mit gemeinsamem Mapper ✔; CLI-Anbindung + README ✔; Snapshot/Compile-Tests erweitert ✔; Snapshots nur nach manueller Prüfung aktualisiert ✔; keine Show-Seite/schreibende Runtime verändert ✔; Unit-, Gesamt- und Grails-Runtime-Smoke-Tests ausgeführt ✔; Plan aktualisiert ✔. Nicht mit Phase 3 fortgefahren ✔.
 
 ## Abschluss-Checkliste (Gesamtprojekt)
 

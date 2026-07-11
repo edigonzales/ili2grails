@@ -63,6 +63,26 @@ final class GrailsCliTarget implements CliTargetAdapter {
         if (options.defaultSrid() != null && options.defaultSrid() <= 0) {
             throw new ParameterException(commandLine, "Option --grails-default-srid must be greater than zero.");
         }
+        if (options.associationUi() != null && !isSupportedAssociationUi(options.associationUi())) {
+            throw new ParameterException(
+                commandLine,
+                "Unsupported value for --grails-association-ui: " + options.associationUi()
+            );
+        }
+        if (options.associationNavigation() != null
+            && !isSupportedAssociationNavigation(options.associationNavigation())) {
+            throw new ParameterException(
+                commandLine,
+                "Unsupported value for --grails-association-navigation: " + options.associationNavigation()
+            );
+        }
+        if (options.associationPageSize() != null
+            && (options.associationPageSize() < 1 || options.associationPageSize() > 100)) {
+            throw new ParameterException(
+                commandLine,
+                "Option --grails-association-page-size must be between 1 and 100."
+            );
+        }
     }
 
     @Override
@@ -110,6 +130,15 @@ final class GrailsCliTarget implements CliTargetAdapter {
         }
         if (options.enumPackage() != null) {
             builder.enumPackage(options.enumPackage());
+        }
+        if (options.associationUi() != null) {
+            builder.associationUiMode(options.associationUi());
+        }
+        if (options.associationPageSize() != null) {
+            builder.associationPageSize(options.associationPageSize());
+        }
+        if (options.associationNavigation() != null) {
+            builder.associationNavigation(options.associationNavigation());
         }
         return builder.build();
     }
@@ -263,5 +292,18 @@ final class GrailsCliTarget implements CliTargetAdapter {
     private boolean isSupportedMapEditor(String mapEditor) {
         return GenerationConfig.MAP_EDITOR_NONE.equals(mapEditor)
             || GenerationConfig.MAP_EDITOR_OPENLAYERS.equals(mapEditor);
+    }
+
+    private boolean isSupportedAssociationUi(String mode) {
+        return GenerationConfig.ASSOCIATION_UI_AUTO.equals(mode)
+            || GenerationConfig.ASSOCIATION_UI_OFF.equals(mode)
+            || GenerationConfig.ASSOCIATION_UI_READ_ONLY.equals(mode)
+            || GenerationConfig.ASSOCIATION_UI_EDITABLE.equals(mode);
+    }
+
+    private boolean isSupportedAssociationNavigation(String navigation) {
+        return GenerationConfig.ASSOCIATION_NAVIGATION_AUTO.equals(navigation)
+            || GenerationConfig.ASSOCIATION_NAVIGATION_SHOW.equals(navigation)
+            || GenerationConfig.ASSOCIATION_NAVIGATION_HIDE.equals(navigation);
     }
 }

@@ -13,6 +13,18 @@ public class GenerationConfig {
     public static final String MAP_EDITOR_NONE = "none";
     public static final String MAP_EDITOR_OPENLAYERS = "openlayers";
 
+    public static final String ASSOCIATION_UI_OFF = "off";
+    public static final String ASSOCIATION_UI_READ_ONLY = "read-only";
+    public static final String ASSOCIATION_UI_EDITABLE = "editable";
+    public static final String ASSOCIATION_UI_AUTO = "auto";
+
+    public static final String ASSOCIATION_NAVIGATION_AUTO = "auto";
+    public static final String ASSOCIATION_NAVIGATION_SHOW = "show";
+    public static final String ASSOCIATION_NAVIGATION_HIDE = "hide";
+
+    private static final int ASSOCIATION_PAGE_SIZE_MIN = 1;
+    private static final int ASSOCIATION_PAGE_SIZE_MAX = 100;
+
     private final Path outputDir;
     private final String basePackage;
     private final String domainPackage;
@@ -24,6 +36,10 @@ public class GenerationConfig {
     private final String mapEditor;
     private final Integer defaultSrid;
     private final boolean geometryEnabled;
+    private final String associationUiMode;
+    private final int associationPageSize;
+    private final boolean hideContextualAssociationControllers;
+    private final String associationNavigation;
 
     private GenerationConfig(Builder builder) {
         this.outputDir = builder.outputDir;
@@ -37,6 +53,10 @@ public class GenerationConfig {
         this.mapEditor = builder.mapEditor;
         this.defaultSrid = builder.defaultSrid;
         this.geometryEnabled = builder.geometryEnabled;
+        this.associationUiMode = builder.associationUiMode;
+        this.associationPageSize = builder.associationPageSize;
+        this.hideContextualAssociationControllers = builder.hideContextualAssociationControllers;
+        this.associationNavigation = builder.associationNavigation;
     }
 
     public Path getOutputDir() {
@@ -83,6 +103,31 @@ public class GenerationConfig {
         return geometryEnabled;
     }
 
+    public String getAssociationUiMode() {
+        return associationUiMode;
+    }
+
+    public int getAssociationPageSize() {
+        return associationPageSize;
+    }
+
+    public boolean isHideContextualAssociationControllers() {
+        return hideContextualAssociationControllers;
+    }
+
+    public String getAssociationNavigation() {
+        return associationNavigation;
+    }
+
+    public boolean isAssociationUiEnabled() {
+        return !ASSOCIATION_UI_OFF.equals(associationUiMode);
+    }
+
+    public boolean isAssociationUiEditable() {
+        return ASSOCIATION_UI_EDITABLE.equals(associationUiMode)
+            || ASSOCIATION_UI_AUTO.equals(associationUiMode);
+    }
+
     public static Builder builder(Path outputDir, String basePackage) {
         return new Builder(outputDir, basePackage);
     }
@@ -99,6 +144,10 @@ public class GenerationConfig {
         private String mapEditor;
         private Integer defaultSrid;
         private boolean geometryEnabled;
+        private String associationUiMode;
+        private int associationPageSize;
+        private boolean hideContextualAssociationControllers;
+        private String associationNavigation;
 
         public Builder(Path outputDir, String basePackage) {
             this.outputDir = Objects.requireNonNull(outputDir, "outputDir");
@@ -110,6 +159,10 @@ public class GenerationConfig {
             this.mapEditor = MAP_EDITOR_NONE;
             this.defaultSrid = 2056;
             this.geometryEnabled = false;
+            this.associationUiMode = ASSOCIATION_UI_AUTO;
+            this.associationPageSize = 10;
+            this.hideContextualAssociationControllers = true;
+            this.associationNavigation = ASSOCIATION_NAVIGATION_AUTO;
         }
 
         public Builder jdbcUrl(String jdbcUrl) {
@@ -154,6 +207,44 @@ public class GenerationConfig {
 
         public Builder geometryEnabled(boolean geometryEnabled) {
             this.geometryEnabled = geometryEnabled;
+            return this;
+        }
+
+        public Builder associationUiMode(String mode) {
+            Objects.requireNonNull(mode, "associationUiMode");
+            if (!ASSOCIATION_UI_OFF.equals(mode)
+                && !ASSOCIATION_UI_READ_ONLY.equals(mode)
+                && !ASSOCIATION_UI_EDITABLE.equals(mode)
+                && !ASSOCIATION_UI_AUTO.equals(mode)) {
+                throw new IllegalArgumentException("Unsupported associationUiMode: " + mode);
+            }
+            this.associationUiMode = mode;
+            return this;
+        }
+
+        public Builder associationPageSize(int pageSize) {
+            if (pageSize < ASSOCIATION_PAGE_SIZE_MIN || pageSize > ASSOCIATION_PAGE_SIZE_MAX) {
+                throw new IllegalArgumentException(
+                    "associationPageSize must be between " + ASSOCIATION_PAGE_SIZE_MIN
+                        + " and " + ASSOCIATION_PAGE_SIZE_MAX + ": " + pageSize);
+            }
+            this.associationPageSize = pageSize;
+            return this;
+        }
+
+        public Builder hideContextualAssociationControllers(boolean hide) {
+            this.hideContextualAssociationControllers = hide;
+            return this;
+        }
+
+        public Builder associationNavigation(String navigation) {
+            Objects.requireNonNull(navigation, "associationNavigation");
+            if (!ASSOCIATION_NAVIGATION_AUTO.equals(navigation)
+                && !ASSOCIATION_NAVIGATION_SHOW.equals(navigation)
+                && !ASSOCIATION_NAVIGATION_HIDE.equals(navigation)) {
+                throw new IllegalArgumentException("Unsupported associationNavigation: " + navigation);
+            }
+            this.associationNavigation = navigation;
             return this;
         }
 

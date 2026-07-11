@@ -74,7 +74,8 @@ class GrailsGeneratedOutputSnapshotTest {
             "grails-app/domain/ch/example/association/domain/AssociationWithAttribute.groovy",
             "grails-app/domain/ch/example/association/domain/ExternalCompositeAssociation.groovy",
             "grails-app/domain/ch/example/association/domain/PhysicalMismatchAssociation.groovy",
-            "grails-app/domain/ch/example/association/domain/SameTargetAssociation.groovy"
+            "grails-app/domain/ch/example/association/domain/SameTargetAssociation.groovy",
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy"
         ));
     }
 
