@@ -1,0 +1,278 @@
+# Association UX Implementation Plan
+
+Begleitdokument zu `./docs/association-ux-implementation-spec.md` (verbindliche Referenz).
+Dieser Plan wird nach jedem grösseren Schritt aktualisiert, nicht erst am Schluss.
+
+## Status
+
+| Phase | Status | Beginn | Abschluss | Tests | Bemerkungen |
+|---|---|---:|---:|---|---|
+| Phase 0 – Baseline, Analyse, Plan | IN_PROGRESS | 2026-07-11 |  | `./gradlew test` PASS (83), ili2c PASS | Baseline grün mit JDK 21; ili2c via ilivalidator-libs; grails/ili2pg lokal nicht installiert |
+| Phase 1 – Association-Planungsmodell | NOT_STARTED |  |  |  |  |
+| Phase 2 – Registry-Generierung & Konfiguration | NOT_STARTED |  |  |  |  |
+| Phase 3 – Read-only Related-Sections | NOT_STARTED |  |  |  |  |
+| Phase 4 – Quick-Link (binäre Associations) | NOT_STARTED |  |  |  |  |
+| Phase 5 – Kontextuelle Formulare / n-är | NOT_STARTED |  |  |  |  |
+| Phase 6 – Navigation, Kardinalität, Fehler, Performance | NOT_STARTED |  |  |  |  |
+| Phase 7 – Spezialsemantik (EXTERNAL, Komposition, ORDERED, embedded FK) | NOT_STARTED |  |  |  |  |
+| Phase 8 – Abschluss & Regression | NOT_STARTED |  |  |  |  |
+
+Zulässige Statuswerte: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
+
+## Baseline
+
+- **Commit/Branch:** `main` @ `2a894d6` ("add GEVER test model and data").
+  - Working tree sauber, ausser untracked `docs/association-ux-implementation-spec.md` (Spezifikation) und dieser Plandatei.
+- **Repository-Layout:** Multi-Modul Gradle: `core`, `target-grails`, `target-django`, `cli` (siehe `settings.gradle`, rootProject `interlis-crud-generator`).
+- **Java (Default-Umgebung):** Temurin **25.0.2** (`JAVA_HOME` per SDKMAN `current`).
+  - ⚠️ **Inkompatibel mit dem Build** – siehe Risiko R-1 / ADR-001.
+  - Build-verwendetes JDK: Temurin **21.0.10** (`/Users/stefan/.sdkman/candidates/java/21.0.10-tem`).
+  - Verfügbare JDKs: 11.0.30-tem, 17.0.18-tem, 21.0.10-tem, 25.0.2-tem, 25.0.3-graal.
+- **Gradle:** Wrapper **8.14.3** (Kotlin 2.0.21, Groovy 3.0.24, Ant 1.10.15). Läuft mit JDK 21.
+- **Build-Toolchain-Ziel:** `sourceCompatibility`/`targetCompatibility = 17` (root `build.gradle`).
+- **Wichtige Abhängigkeitsversionen (root `build.gradle` `ext`):** ili2c 5.6.8, iox-ili 1.24.4, ehibasics 1.4.1, postgres 42.7.7, groovy 4.0.24, jts 1.19.0, junit 5.10.1, assertj 3.24.2, h2 2.2.224, playwright 1.60.0, picocli 4.7.7.
+- **Grails (Smoke/E2E-Ziel):** Default `grailsSmokeVersion = 7.0.6` (überschreibbar via `-PgrailsSmokeVersion`).
+- **ili2c:** 5.6.8.
+  - ⚠️ Erwarteter Spec-Pfad `/Users/stefan/apps/ili2c-5.6.8/ili2c.jar` **existiert nicht**.
+  - Verfügbar über `ilivalidator-1.15.0/libs/*` (`ili2c-core-5.6.8.jar`, `ili2c-tool-5.6.8.jar`), Hauptklasse `ch.interlis.ili2c.Main`. Siehe ADR-002.
+- **ilivalidator:** 1.15.0 unter `/Users/stefan/apps/ilivalidator-1.15.0/`.
+- **ili2pg:** ⚠️ lokal **nicht installiert** (`/Users/stefan/apps/ili2pg*` fehlt). Blockiert Real-ili2db-Smoke ab Phase 3. Siehe Risiko R-2.
+- **Docker:** Docker **29.6.1** vorhanden (`docker-compose.yml` im Repo).
+- **grails CLI:** ⚠️ **nicht auf PATH** (`which grails` → not found). Blockiert Runtime-Smoke/E2E. Siehe Risiko R-2.
+- **Playwright:** Dependency deklariert (1.60.0); Browser-Binaries-Status ungeprüft (E2E ohnehin durch fehlende grails/ili2pg blockiert).
+
+### Baseline-Testresultat
+
+Befehl: `JAVA_HOME=/Users/stefan/.sdkman/candidates/java/21.0.10-tem ./gradlew test`
+
+Ergebnis: **BUILD SUCCESSFUL** – 83 Tests, 0 Failures, 0 Errors, 0 Skips.
+
+| Modul | Tests | Failures | Errors | Skipped |
+|---|---:|---:|---:|---:|
+| core | 31 | 0 | 0 | 0 |
+| target-grails | 33 | 0 | 0 | 0 |
+| cli | 12 | 0 | 0 | 0 |
+| target-django | 7 | 0 | 0 | 0 |
+| **Total** | **83** | **0** | **0** | **0** |
+
+### ili2c-Validierung `test-models/AssociationCases.ili`
+
+Ausgeführter Befehl (angepasst, da Spec-Pfad fehlt – siehe ADR-002):
+
+```bash
+java -cp "/Users/stefan/apps/ilivalidator-1.15.0/libs/*" \
+  ch.interlis.ili2c.Main test-models/AssociationCases.ili
+```
+
+Ergebnis: **PASS**
+
+```
+Info: ili2c-5.6.8-e6f7ab6dd5cdba29afc9b24866ecb98c057d82b2
+Info: ilifile <test-models/AssociationCases.ili>
+Info: ...compiler run done 2026-07-11 15:15:23
+```
+
+Keine Warnungen/Fehler. Das Modell deckt aktuell ab: `EmptyAssociation` (binär, keine Attribute), `AssociationWithAttribute` (mit Attribut `RoleNote`), `SameTargetAssociation` (zwei Rollen derselben Zielklasse `Person`), `PhysicalMismatchAssociation` (semantisch `SemanticOwner`/`OwnedParcel`), `ExternalCompositeAssociation` (`EXTERNAL` + `-<#>` Komposition), `ExtendedTopicAssociation` (Association in erweitertem Topic). Es fehlen (Spec §31.1, optional): `ORDERED`, echte n-äre Association.
+
+## Ist-Zustand vs. Spezifikation (Abweichungen)
+
+### Core-IR (framework-agnostisch) — Spec §4.1
+
+| Element | Pfad | Status |
+|---|---|---|
+| `AssociationMetadata` | `core/src/main/java/ch/interlis/generator/model/AssociationMetadata.java` | Vorhanden. Hält name, associationClass, physicalTable, physicalSqlName, roles, attributes. Entspricht Spec. |
+| `AssociationRoleMetadata` | `core/.../model/AssociationRoleMetadata.java` | Vorhanden. Hält name, targetClass, oppositeRoleName, cardinality, mandatory, ordered, external, composition, sourceAttribute, targetAttribute, physicalName, semanticName, source, merge-Diagnostik. Entspricht Spec. |
+| `RelationshipMetadata` | `core/.../model/RelationshipMetadata.java` | Vorhanden. `SemanticKind.ASSOCIATION_ROLE`, `Cardinality(minSource,maxSource,minTarget,maxTarget)`, merge fields, physical/semantic name. |
+| `AttributeMetadata`, `ClassMetadata`, `ModelMetadata` | `core/.../model/` | Vorhanden (nicht im Detail für Phase 0 nötig). |
+
+**Befund:** Core-IR ist für Phase 1 voraussichtlich ausreichend. Keine Core-Erweiterung geplant. Falls Phase 1 eine Lücke nachweist, ist ein ADR + JSON-Kompatibilitätsprüfung + Django-Auswirkungsanalyse Pflicht (Spec §5.1).
+
+### Grails-Target Planungszeit — Spec §4.2–4.4, §9–11
+
+| Erwartet (Spec) | Ist-Zustand |
+|---|---|
+| `GrailsRelationshipMapper` (Pfad §4.2) | **Vorhanden**, entspricht konservativer Persistenzentscheidung: Association-Rollen werden als Properties auf der Association-Domain gemappt (`propertyForRelationship`), **keine** inversen `hasMany` für Association-Rollen. `forMetadata(metadata, config, registry)` + `map(ClassMetadata)` liefern `DomainMapping`/`DomainProperty` (mit `RelationshipMetadata`) — direkt durch den Planner wiederverwendbar. |
+| `GrailsDomainGenerator` (§4.3) erzeugt `interlisFieldMeta`, `interlisDisplayMeta`, `interlisRelationshipMeta`, geometryMeta | **Vorhanden**. Signatur `generate(metadata, config, registry)` — **kein** Mapper-Overload (§29.2 fordert zusätzlichen 4-arg-Overload für gemeinsame Mapper-Instanz). |
+| `GrailsCrudGenerator.generate(metadata, config)` orchestriert (§4.4/§11.5) | **Vorhanden**, aber baut eigenes `TargetNameRegistry`, **keinen** gemeinsamen `GrailsRelationshipMapper`; ruft `domainGenerator.generate(metadata, config, registry)`; controller/view auskommentiert. Registry-Einhängung (§11.5) noch offen. |
+| `GrailsAssociationPlanner` + Planmodelle (§9–10) | **Fehlt vollständig** (Phase 1). |
+| `GrailsAssociationRegistryGenerator` (§11) | **Fehlt vollständig** (Phase 2). |
+| `AssociationStorageKind`, `AssociationPresentationKind`, `AssociationCreateMode`, `GrailsAssociation*Plan` | **Fehlen** (Phase 1). |
+| `GenerationConfig` Association-Felder (§12.1) | **Fehlen** – aktuell keine `associationUiMode`/`associationPageSize`/`hideContextualAssociationControllers`. Builder ist klassische (nicht record) Variante. |
+| `TargetNameRegistry` (§Phase-0-Liste) | Vorhanden; public API u.a. `className`, `enumName`, `relationshipPropertyName`, `collectionPropertyName`, `controllerName`, `viewPath`, `domainPackage`, `enumPackage`, `controllerPackage`. Für Planner-Qualified-Names nutzbar. |
+
+### Overlay-Runtime & Templates — Spec §4.5–4.6, §13–20
+
+Overlay-Wurzel: `target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/` (17 Dateien).
+
+Vorhandene Runtime (`src/main/groovy/ch/interlis/generator/grails/runtime/`):
+- `InterlisCrudControllerSupport.groovy` (553 Z.) — abstrakte CRUD-Basis (index/show/create/save/edit/update/delete, Paging, Suche, `relationshipOptions`, Geometrie).
+- `InterlisRelationshipOptions.groovy` (314 Z.) — Autocomplete-Optionen, Display-Labels, Paging/Suche/Sortierung. **Ziel des Refactorings** (§14.5: `optionPageForTargetType(...)`).
+- `InterlisTableModel.groovy` (131 Z.) — Spalten-/Such-/Filter-Modell.
+- `InterlisGeometryBinder.groovy` (223 Z.) — WKT-Binding/Validierung.
+
+Vorhandene Templates (`src/main/templates/scaffolding/`): `Controller.groovy`, `show.gsp`, `_form.gsp`, `_relationship-fields.gsp`, `_show-details.gsp`, `_geometry-panel.gsp`, `create.gsp`, `edit.gsp`, `index.gsp`.
+Assets/Layout: `grails-app/assets/javascripts/ili-form-ux.js` (407 Z.), `ili-geometry-editor.js`, `grails-app/assets/stylesheets/ili-modern.css` (531 Z.), `grails-app/views/layouts/main.gsp` (52 Z., baut Navigation aus **allen** Controller-Klassen → §21-Problem bestätigt).
+
+**Fehlen vollständig** (spätere Phasen): `InterlisAssociationRegistrySupport`, `InterlisAssociationQueryService`, `InterlisAssociationCommandService`, `InterlisAssociationContextSupport`, `InterlisNavigationSupport`, sämtliche `_association-*.gsp`, `InterlisAssociationRegistry` (generiert). Grep im gesamten Repo: **kein** `InterlisAssociation*`, **kein** `InterlisNavigationSupport`, **kein** `*-association-*.gsp`.
+
+### Overlay-Installer — Spec §29.3
+
+`GrailsTemplateOverlayInstaller.MANAGED_FILES` verwaltet aktuell **17** Dateien:
+
+```
+src/main/templates/scaffolding/Controller.groovy
+src/main/templates/scaffolding/create.gsp
+src/main/templates/scaffolding/edit.gsp
+src/main/templates/scaffolding/show.gsp
+src/main/templates/scaffolding/index.gsp
+src/main/templates/scaffolding/_form.gsp
+src/main/templates/scaffolding/_geometry-panel.gsp
+src/main/templates/scaffolding/_relationship-fields.gsp
+src/main/templates/scaffolding/_show-details.gsp
+src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy
+src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy
+src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy
+src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy
+grails-app/views/layouts/main.gsp
+grails-app/assets/javascripts/ili-geometry-editor.js
+grails-app/assets/javascripts/ili-form-ux.js
+grails-app/assets/stylesheets/ili-modern.css
+```
+
+Neue Runtime-Klassen/Services/Templates müssen ab Phase 3 hier ergänzt werden.
+
+### Tests & Snapshots — Spec §4.7, §30
+
+Unit/Snapshot (`target-grails/src/test/java/ch/interlis/generator/grails/`): `GrailsBuildGradleUpdaterTest`, `GrailsTemplateOverlayInstallerTest`, `GrailsCrudGeneratorTest`, `GrailsApplicationYamlUpdaterTest`, `GrailsGeneratedOutputSnapshotTest`, `TargetNameRegistryTest`, `GrailsRelationshipMapperTest`, `GrailsDomainGeneratorTest`, `GeneratedGrailsCompileSmokeTest`, `LargeModelNamingTest` (+ Helper `GeneratedGroovyCompiler`).
+
+Opt-in Source-Sets (`target-grails/build.gradle`, group `verification`, `upToDateWhen { false }`):
+- `grailsRuntimeSmokeTest` → `GrailsRuntimeSmokeTest` — braucht `grails` CLI, `-PgrailsSmokeVersion` (default 7.0.6).
+- `realIli2dbSmokeTest` → `RealIli2dbSmokeTest` — braucht `ili2pg` (`-Pili2pgHome`, default `/Users/stefan/apps/ili2pg-5.5.1`) + Docker PostGIS.
+- `browserE2eTest` → `GrailsBrowserE2eTest` — braucht grails + ili2pg + `-PbrowserE2eJdbcUrl` (default `jdbc:postgresql://localhost:54321/edit?...&dbSchema=sa`) + Playwright; optional `-PbrowserE2eAppUrl` gegen laufende Instanz.
+
+Snapshots (`target-grails/src/test/resources/grails-snapshots/`): `simple-address/` (Person, Address, enum AddressStatus), `structure-composition/` (Asset, Part), `association-cases/` (**4** Domains: `AssociationWithAttribute`, `ExternalCompositeAssociation`, `PhysicalMismatchAssociation`, `SameTargetAssociation`).
+
+**Abweichung/Lücke:** `association-cases` Snapshot deckt nur 4 der 6 Associations ab; `EmptyAssociation` und `ExtendedTopicAssociation` sind im Fixture vorhanden, werden aber im Snapshot-Test **nicht** asserted (`GrailsGeneratedOutputSnapshotTest` Zeilen 73–78). Kein `InterlisAssociationRegistry`-Snapshot vorhanden (erwartet, entsteht in Phase 2, §30.4).
+
+Fixtures: `core/src/testFixtures/java/ch/interlis/generator/testsupport/MetadataTestFixtures.java` — `createAssociationCasesIli2dbFixture(Connection)` (Z. 251) + `readMergedAssociationCasesMetadata()` (Z. 44) spiegeln 5 Klassen + 6 Associations + Vererbung + FK-/Attribut-Mappings über H2-ili2db-Systemtabellen.
+
+### Beobachtete konservative Persistenz (Snapshot-Belege für Planner-Klassifikation)
+
+Diese generierten Association-Domains bestätigen die vom Planner (Phase 1) zu verwendenden Domain-Properties und Spaltennamen:
+- `AssociationWithAttribute`: Properties `documentRoleId`(Document), `personRoleId`(Person), `roleNote`(String, maxSize 30) → Spec §6.2 kontextuelles Formular (hat eigenes Attribut).
+- `SameTargetAssociation`: Properties `primaryPersonId`(Person), `secondaryPersonId`(Person) → §6.3 zwei distinkte Kontexte, gleiche Zielklasse.
+- `PhysicalMismatchAssociation`: semantisch `SemanticOwner`/`OwnedParcel`, Properties `ownerFk`/`parcelFk`, Spalten `owner_fk`/`parcel_fk` → §24.2 Planner muss generierte Property (nicht Rollenname) verwenden.
+- `ExternalCompositeAssociation`: `ownerId`(Person, mandatory, EXTERNAL+composite), `buildingId`(Building) → §6.5/§6.6 kein Quick-Link.
+- Alle: `version false`, `id column 't_id', generator: 'identity'`, keine inversen Collections auf Teilnehmern.
+
+## Entscheidungen (ADRs)
+
+### ADR-001: Build mit JDK 21 statt Default-JDK 25
+- **Kontext:** Default-`JAVA_HOME` ist Temurin 25.0.2. Gradle 8.14.3 bricht beim Konfigurieren ab: `Unsupported class file major version 69`.
+- **Entscheidung:** Alle Gradle-Aufrufe mit `JAVA_HOME=/Users/stefan/.sdkman/candidates/java/21.0.10-tem` ausführen. Toolchain-Ziel bleibt Java 17.
+- **Alternativen:** (a) Gradle auf Version mit Java-25-Support / ≥9.x heben — grösserer, nicht beauftragter Eingriff, Risiko für Grails-7-Kompatibilität. (b) Toolchain-Pinning in `build.gradle` — Änderung an Build-Infrastruktur, nicht Teil von Phase 0.
+- **Konsequenzen:** Reproduzierbar grün mit JDK 21. Muss in allen Phasen und ggf. in AGENTS.md/README dokumentiert werden. Empfehlung als offener Punkt: Gradle-Toolchain fixieren, damit die JDK-Wahl nicht implizit vom Shell-Environment abhängt.
+
+### ADR-002: ili2c über ilivalidator-Bibliotheken ausführen
+- **Kontext:** Der in der Spec (§30.9) genannte Pfad `/Users/stefan/apps/ili2c-5.6.8/ili2c.jar` existiert auf dieser Maschine nicht. Spec erlaubt Fallback über `jars.interlis.ch`.
+- **Entscheidung:** ili2c 5.6.8 aus `ilivalidator-1.15.0/libs/*` via `java -cp "…/libs/*" ch.interlis.ili2c.Main <ili>` verwenden (exakt dieselbe ili2c-Version 5.6.8 wie in der Spec).
+- **Alternativen:** Standalone-`ili2c.jar` von jars.interlis.ch nachladen — möglich, aber unnötig, da lokal bereits identische Version vorhanden.
+- **Konsequenzen:** Validierung ist erfüllt und reproduzierbar. Der abweichende Befehl ist überall dokumentiert. Kein Committen unvalidierter `.ili`-Dateien.
+
+### ADR-003: (offen) Fehler-/Ergebnis-Strategie der Command-Services
+- **Kontext:** Spec §25.1 lässt strukturierte Result-Maps ODER typisierte Exceptions zu; „eine einzige konsistente Strategie".
+- **Entscheidung:** OFFEN — festzulegen zu Beginn von Phase 4.
+- **Konsequenzen:** Beeinflusst Controller-HTTP-Status-Mapping (§17.6) und Tests.
+
+### ADR-004: (offen) Duplikat-Regel für Quick-Links
+- **Kontext:** Spec §15.3 — keine erfundene globale Unique-Regel; optionale Duplikatverhinderung nur bei eindeutiger IR/Spec-Grundlage.
+- **Entscheidung:** OFFEN — konservativer Default (keine Unique-Regel) bis in Phase 4 belegt.
+
+## Risiken
+
+| ID | Risiko | Wahrscheinlichkeit | Auswirkung | Massnahme | Status |
+|---|---|---|---|---|---|
+| R-1 | JDK-25-Default lässt Build lokal/CI fehlschlagen | Hoch | Hoch (Build blockiert) | JDK 21 erzwingen (ADR-001); Gradle-Toolchain-Pinning erwägen; in Doku festhalten | Mitigiert |
+| R-2 | `grails` CLI und `ili2pg` lokal nicht installiert → Runtime-Smoke/Real-ili2db/Browser-E2E nicht ausführbar | Hoch | Hoch (Phasen 3–8 Gates) | Vor Phase 3 Umgebung bereitstellen (grails 7.0.6, ili2pg 5.5.1, Docker-PostGIS, Playwright-Browser) ODER Infrastrukturblocker transparent dokumentieren; Unit-Tests genügen NICHT (Spec §30.10) | Offen |
+| R-3 | Planner ↔ Domain-Generator nutzen abweichende `TargetNameRegistry`/Mapper-Instanzen | Mittel | Hoch (inkonsistente Namen/Mappings) | Gemeinsame Instanzen in `GrailsCrudGenerator` erzeugen und durchreichen (§11.5, §29.2); Regressionstest | Offen (Phase 2) |
+| R-4 | Falsche GORM-`hasMany`/Cascade zerstört ili2db-Persistenz | Mittel | Sehr hoch (Datenverlust) | Keine inversen Collections/Join-Tabellen; Related-Lists nur über Association-Domain-Query; Regressionstest §30.3 | Kontrolliert durch Design |
+| R-5 | Mehrdeutige Rollen→Property-Auflösung (gleiche Zielklasse, physische Abweichung) | Mittel | Mittel | Auflösung über `DomainMapping`/Relationship-Metadaten, Diagnose `AMBIGUOUS_ROLE_PROPERTY` + read-only (§10.3) | Offen (Phase 1) |
+| R-6 | Snapshot-Lücke (2 nicht asserted Associations) verschleiert Regressionen | Niedrig | Mittel | In Phase 2 Snapshots auf alle 6 Associations + Registry ausdehnen | Offen |
+| R-7 | Sicherheitslücken (Mass Assignment, IDOR, Open Redirect, GET-Mutation) | Mittel | Hoch | Serverseitige Kontextvalidierung, feste Rolle nach Binding neu setzen, keine freie returnUrl, POST/PUT/DELETE (§27) | Design-Vorgabe (Phasen 4–6) |
+| R-8 | n-äre / ORDERED / EXTERNAL / Komposition falsch als M:N vereinfacht | Mittel | Hoch | Deterministische Klassifikation + read-only-Fallback; Real-ili2db-Beleg vor Schreibfunktion (§7.3, §24, Phase 7) | Design-Vorgabe |
+| R-9 | Testmodell fehlt echte n-äre/ORDERED-Fälle | Mittel | Mittel | In Phase 5/7 `AssociationCases.ili` konservativ erweitern, ili2c-validieren (§31.1) | Offen |
+
+## Konkrete Klassen- und Dateipfade (verifiziert)
+
+Core-IR:
+- `core/src/main/java/ch/interlis/generator/model/AssociationMetadata.java`
+- `core/src/main/java/ch/interlis/generator/model/AssociationRoleMetadata.java`
+- `core/src/main/java/ch/interlis/generator/model/RelationshipMetadata.java`
+- `core/src/testFixtures/java/ch/interlis/generator/testsupport/MetadataTestFixtures.java`
+
+Grails-Target (Planungszeit):
+- `target-grails/src/main/java/ch/interlis/generator/grails/GrailsRelationshipMapper.java`
+- `target-grails/src/main/java/ch/interlis/generator/grails/GrailsDomainGenerator.java`
+- `target-grails/src/main/java/ch/interlis/generator/grails/GrailsCrudGenerator.java`
+- `target-grails/src/main/java/ch/interlis/generator/grails/GenerationConfig.java`
+- `target-grails/src/main/java/ch/interlis/generator/grails/TargetNameRegistry.java`
+- `target-grails/src/main/java/ch/interlis/generator/grails/GrailsTemplateOverlayInstaller.java`
+
+Overlay-Runtime/Templates/Assets (`target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/`):
+- `src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy`
+- `src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy`
+- `src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy`
+- `src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy`
+- `src/main/templates/scaffolding/{Controller.groovy,show.gsp,_form.gsp,_relationship-fields.gsp,_show-details.gsp,create.gsp,edit.gsp,index.gsp,_geometry-panel.gsp}`
+- `grails-app/assets/javascripts/ili-form-ux.js`, `grails-app/assets/stylesheets/ili-modern.css`, `grails-app/views/layouts/main.gsp`
+
+CLI:
+- `cli/src/main/java/ch/interlis/generator/GrailsCliOptions.java` (Optionen; noch ohne `--grails-association-*`)
+- `cli/src/main/java/ch/interlis/generator/GrailsCliTarget.java`
+
+Tests/Source-Sets:
+- `target-grails/src/test/java/ch/interlis/generator/grails/` (Unit/Snapshot/Compile)
+- `target-grails/src/grailsRuntimeSmokeTest/java/ch/interlis/generator/grails/GrailsRuntimeSmokeTest.java`
+- `target-grails/src/realIli2dbSmokeTest/java/ch/interlis/generator/grails/RealIli2dbSmokeTest.java`
+- `target-grails/src/browserE2eTest/java/ch/interlis/generator/grails/GrailsBrowserE2eTest.java`
+- `target-grails/src/test/resources/grails-snapshots/{simple-address,structure-composition,association-cases}/`
+- `test-models/AssociationCases.ili`
+
+Noch zu erstellen (Referenz, spätere Phasen):
+- Phase 1: `AssociationStorageKind.java`, `AssociationPresentationKind.java`, `AssociationCreateMode.java`, `GrailsAssociationRolePlan.java`, `GrailsAssociationAttributePlan.java`, `GrailsAssociationContextPlan.java`, `GrailsAssociationPlan.java`, `GrailsAssociationPlanner.java`, `GrailsAssociationPlannerTest.java`.
+- Phase 2: `GrailsAssociationRegistryGenerator.java`, `GrailsAssociationRegistryGeneratorTest.java`, generierte `src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy`.
+- Phase 3+: `InterlisAssociationRegistrySupport.groovy`, `InterlisAssociationQueryService.groovy`, `InterlisAssociationCommandService.groovy`, `InterlisAssociationContextSupport.groovy`, `InterlisNavigationSupport.groovy`, `_association-*.gsp`.
+
+## Offene Entscheidungen / Fragen
+
+1. **Umgebung für Integration/E2E (R-2):** Sollen `grails` 7.0.6, `ili2pg` 5.5.1, Docker-PostGIS und Playwright vor Phase 3 bereitgestellt werden, oder wird für diese Phasen bewusst ein dokumentierter Infrastrukturblocker akzeptiert? Spec verlangt: Unit-Tests allein genügen nicht.
+2. **Gradle-Toolchain-Pinning (R-1/ADR-001):** JDK-Wahl explizit in `build.gradle`/`gradle.properties` fixieren, um Environment-Abhängigkeit zu beseitigen? (Build-Infrastruktur-Änderung, nicht Teil von Phase 0.)
+3. **ADR-003:** Result-Maps vs. typisierte Exceptions für Command-Services — vor Phase 4 festlegen.
+4. **ADR-004:** Quick-Link-Duplikatregel — vor Phase 4 festlegen.
+5. **Snapshot-Umfang (R-6):** In Phase 2 alle 6 Associations + `InterlisAssociationRegistry` in Snapshots aufnehmen (bevorzugt) — bestätigen.
+6. **Testmodell-Erweiterung (R-9):** Zeitpunkt für ORDERED/n-är in `AssociationCases.ili` (Phase 5 vs. Phase 7) — Spec verortet n-är in Phase 5, ORDERED/embedded in Phase 7.
+
+## Phase-Protokolle
+
+### Phase 0
+- **Geänderte Dateien:** `docs/association-ux-implementation-plan.md` (neu, dieses Dokument). Keine funktionalen Code-Änderungen.
+- **Ausgeführte Tests:**
+  - `JAVA_HOME=.../21.0.10-tem ./gradlew test` → **PASS** (83 Tests, 0 Fehler).
+  - `java -cp "/Users/stefan/apps/ilivalidator-1.15.0/libs/*" ch.interlis.ili2c.Main test-models/AssociationCases.ili` → **PASS**.
+- **Resultate:** Baseline grün. ili2c-Validierung erfolgreich. Architekturabweichungen und fehlende Bausteine dokumentiert (siehe oben).
+- **Offene Punkte:** R-2 (grails/ili2pg lokal fehlend) betrifft künftige Phasen, nicht Phase 0. Offene Entscheidungen 1–6.
+- **Abnahme:** Phase 0 DONE-Kriterien: Baseline grün ✔, Plan-Datei vorhanden ✔, Abweichungen dokumentiert ✔, keine unbeabsichtigten Änderungen ✔, kein funktionaler Scope vorgezogen ✔. Verbleibend: diesen Status nach Review auf DONE setzen.
+
+## Abschluss-Checkliste (Gesamtprojekt)
+
+- [ ] Alle Phasen DONE
+- [ ] `./gradlew test` (mit JDK 21 / ADR-001)
+- [ ] Grails Runtime Smoke
+- [ ] Real ili2db Smoke
+- [ ] Browser E2E
+- [ ] ili2c für alle geänderten Modelle
+- [ ] ilivalidator für alle geänderten XTF
+- [ ] README
+- [ ] docs/association-ux.md
+- [ ] Keine deaktivierten Tests
+- [ ] Keine ungeklärten High-Risk-Punkte
