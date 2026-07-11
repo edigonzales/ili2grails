@@ -7,8 +7,8 @@ Dieser Plan wird nach jedem grösseren Schritt aktualisiert, nicht erst am Schlu
 
 | Phase | Status | Beginn | Abschluss | Tests | Bemerkungen |
 |---|---|---:|---:|---|---|
-| Phase 0 – Baseline, Analyse, Plan | IN_PROGRESS | 2026-07-11 |  | `./gradlew test` PASS (83), ili2c PASS | Baseline grün mit JDK 21; ili2c via ilivalidator-libs; grails/ili2pg lokal nicht installiert |
-| Phase 1 – Association-Planungsmodell | NOT_STARTED |  |  |  |  |
+| Phase 0 – Baseline, Analyse, Plan | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (83), ili2c PASS | Baseline grün mit JDK 21; ili2c via ilivalidator-libs; grails/ili2pg lokal nicht installiert |
+| Phase 1 – Association-Planungsmodell | DONE | 2026-07-11 | 2026-07-11 | `:target-grails:test` PASS (49), `./gradlew test` PASS (99) | Planungsmodelle + `GrailsAssociationPlanner` + 16 Unit-Tests; keine Runtime/GSP/Core-IR-Änderung |
 | Phase 2 – Registry-Generierung & Konfiguration | NOT_STARTED |  |  |  |  |
 | Phase 3 – Read-only Related-Sections | NOT_STARTED |  |  |  |  |
 | Phase 4 – Quick-Link (binäre Associations) | NOT_STARTED |  |  |  |  |
@@ -188,6 +188,17 @@ Diese generierten Association-Domains bestätigen die vom Planner (Phase 1) zu v
 - **Kontext:** Spec §15.3 — keine erfundene globale Unique-Regel; optionale Duplikatverhinderung nur bei eindeutiger IR/Spec-Grundlage.
 - **Entscheidung:** OFFEN — konservativer Default (keine Unique-Regel) bis in Phase 4 belegt.
 
+### ADR-005: Synthetische In-Memory-Metadaten für ORDERED/n-är/UNMAPPED/ambiguous Planner-Tests
+- **Kontext:** `test-models/AssociationCases.ili` und die Fixture decken ORDERED und echte n-äre Associations nicht ab (siehe Phase-0-Befund, Spec §31.1). Der Umsetzungsplan verortet Modell-Erweiterungen bewusst in Phase 5 (n-är) und Phase 7 (ORDERED/embedded).
+- **Entscheidung:** Für Phase-1-Unit-Tests der Planner-Klassifikation werden ORDERED, n-är (3 Rollen), UNMAPPED und die Mehrdeutigkeits-Diagnose über handgebaute `ModelMetadata` (analog `GrailsRelationshipMapperTest`) getestet. Die realen Fälle (binär, attributiert, selbstreferenzierend/gleiche Zielklasse, physisch abweichend, EXTERNAL+COMPOSITE, erweitertes Topic) laufen über `MetadataTestFixtures.readMergedAssociationCasesMetadata()`.
+- **Alternativen:** `AssociationCases.ili` jetzt um ORDERED/n-är erweitern — verworfen, weil das eine Modell-/ili2c-Änderung in Phase 1 einführen würde (nicht beauftragt) und die Phasen 5/7 diese Erweiterung ohnehin vorsehen.
+- **Konsequenzen:** Kein `.ili`-Change in Phase 1, keine ili2c-Neu-Validierung nötig. ORDERED/n-är müssen in Phase 5/7 zusätzlich gegen echte ili2c/ili2db-Strukturen abgesichert werden.
+
+### ADR-006: `EMBEDDED_FOREIGN_KEY` in Phase 1 nicht erzeugt
+- **Kontext:** Spec §9.1 verlangt, dass `LINK_ENTITY` zuerst vollständig funktioniert und `EMBEDDED_FOREIGN_KEY` erst schreibbar wird, wenn durch echte ili2db-Struktur (Real-ili2db-Test) bewiesen.
+- **Entscheidung:** Der Planner erzeugt in Phase 1 nur `LINK_ENTITY` (physisch gemappte Association-Domain) oder `UNMAPPED`. `EMBEDDED_FOREIGN_KEY` bleibt als Enum-Konstante vorhanden, wird aber nicht klassifiziert.
+- **Konsequenzen:** Optimierte/eingebettete ili2db-Abbildungen fallen aktuell auf `UNMAPPED` (read-only) zurück. Aktivierung mit Real-ili2db-Beleg in Phase 7 (Restpunkt).
+
 ## Risiken
 
 | ID | Risiko | Wahrscheinlichkeit | Auswirkung | Massnahme | Status |
@@ -196,7 +207,7 @@ Diese generierten Association-Domains bestätigen die vom Planner (Phase 1) zu v
 | R-2 | `grails` CLI und `ili2pg` lokal nicht installiert → Runtime-Smoke/Real-ili2db/Browser-E2E nicht ausführbar | Hoch | Hoch (Phasen 3–8 Gates) | Vor Phase 3 Umgebung bereitstellen (grails 7.0.6, ili2pg 5.5.1, Docker-PostGIS, Playwright-Browser) ODER Infrastrukturblocker transparent dokumentieren; Unit-Tests genügen NICHT (Spec §30.10) | Offen |
 | R-3 | Planner ↔ Domain-Generator nutzen abweichende `TargetNameRegistry`/Mapper-Instanzen | Mittel | Hoch (inkonsistente Namen/Mappings) | Gemeinsame Instanzen in `GrailsCrudGenerator` erzeugen und durchreichen (§11.5, §29.2); Regressionstest | Offen (Phase 2) |
 | R-4 | Falsche GORM-`hasMany`/Cascade zerstört ili2db-Persistenz | Mittel | Sehr hoch (Datenverlust) | Keine inversen Collections/Join-Tabellen; Related-Lists nur über Association-Domain-Query; Regressionstest §30.3 | Kontrolliert durch Design |
-| R-5 | Mehrdeutige Rollen→Property-Auflösung (gleiche Zielklasse, physische Abweichung) | Mittel | Mittel | Auflösung über `DomainMapping`/Relationship-Metadaten, Diagnose `AMBIGUOUS_ROLE_PROPERTY` + read-only (§10.3) | Offen (Phase 1) |
+| R-5 | Mehrdeutige Rollen→Property-Auflösung (gleiche Zielklasse, physische Abweichung) | Mittel | Mittel | Auflösung über `DomainMapping`/Relationship-Metadaten, Diagnose `AMBIGUOUS_ROLE_PROPERTY` + read-only (§10.3) | Mitigiert (Phase 1): Auflösung + Diagnose + Test implementiert |
 | R-6 | Snapshot-Lücke (2 nicht asserted Associations) verschleiert Regressionen | Niedrig | Mittel | In Phase 2 Snapshots auf alle 6 Associations + Registry ausdehnen | Offen |
 | R-7 | Sicherheitslücken (Mass Assignment, IDOR, Open Redirect, GET-Mutation) | Mittel | Hoch | Serverseitige Kontextvalidierung, feste Rolle nach Binding neu setzen, keine freie returnUrl, POST/PUT/DELETE (§27) | Design-Vorgabe (Phasen 4–6) |
 | R-8 | n-äre / ORDERED / EXTERNAL / Komposition falsch als M:N vereinfacht | Mittel | Hoch | Deterministische Klassifikation + read-only-Fallback; Real-ili2db-Beleg vor Schreibfunktion (§7.3, §24, Phase 7) | Design-Vorgabe |
@@ -239,7 +250,7 @@ Tests/Source-Sets:
 - `test-models/AssociationCases.ili`
 
 Noch zu erstellen (Referenz, spätere Phasen):
-- Phase 1: `AssociationStorageKind.java`, `AssociationPresentationKind.java`, `AssociationCreateMode.java`, `GrailsAssociationRolePlan.java`, `GrailsAssociationAttributePlan.java`, `GrailsAssociationContextPlan.java`, `GrailsAssociationPlan.java`, `GrailsAssociationPlanner.java`, `GrailsAssociationPlannerTest.java`.
+- Phase 1: ✅ ERLEDIGT — `AssociationStorageKind.java`, `AssociationPresentationKind.java`, `AssociationCreateMode.java`, `GrailsAssociationRolePlan.java`, `GrailsAssociationAttributePlan.java`, `GrailsAssociationContextPlan.java`, `GrailsAssociationPlan.java`, `GrailsAssociationPlanner.java`, `GrailsAssociationPlannerTest.java`.
 - Phase 2: `GrailsAssociationRegistryGenerator.java`, `GrailsAssociationRegistryGeneratorTest.java`, generierte `src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy`.
 - Phase 3+: `InterlisAssociationRegistrySupport.groovy`, `InterlisAssociationQueryService.groovy`, `InterlisAssociationCommandService.groovy`, `InterlisAssociationContextSupport.groovy`, `InterlisNavigationSupport.groovy`, `_association-*.gsp`.
 
@@ -261,7 +272,33 @@ Noch zu erstellen (Referenz, spätere Phasen):
   - `java -cp "/Users/stefan/apps/ilivalidator-1.15.0/libs/*" ch.interlis.ili2c.Main test-models/AssociationCases.ili` → **PASS**.
 - **Resultate:** Baseline grün. ili2c-Validierung erfolgreich. Architekturabweichungen und fehlende Bausteine dokumentiert (siehe oben).
 - **Offene Punkte:** R-2 (grails/ili2pg lokal fehlend) betrifft künftige Phasen, nicht Phase 0. Offene Entscheidungen 1–6.
-- **Abnahme:** Phase 0 DONE-Kriterien: Baseline grün ✔, Plan-Datei vorhanden ✔, Abweichungen dokumentiert ✔, keine unbeabsichtigten Änderungen ✔, kein funktionaler Scope vorgezogen ✔. Verbleibend: diesen Status nach Review auf DONE setzen.
+- **Abnahme:** Phase 0 DONE-Kriterien: Baseline grün ✔, Plan-Datei vorhanden ✔, Abweichungen dokumentiert ✔, keine unbeabsichtigten Änderungen ✔, kein funktionaler Scope vorgezogen ✔. Status auf DONE gesetzt (bei Beginn Phase 1 re-verifiziert: Working tree sauber, `./gradlew test` grün).
+
+### Phase 1
+- **Geänderte/neue Dateien** (alle in `target-grails/src/main/java/ch/interlis/generator/grails/`, flaches Paket `ch.interlis.generator.grails`):
+  - `AssociationStorageKind.java` — Enum `LINK_ENTITY, EMBEDDED_FOREIGN_KEY, UNMAPPED` (§9.1).
+  - `AssociationPresentationKind.java` — Enum mit 6 Konstanten (§9.2).
+  - `AssociationCreateMode.java` — Enum `NONE, QUICK, CONTEXTUAL_FORM` (§9.2).
+  - `GrailsAssociationRolePlan.java` — Record + `isUnbounded/isToOne/isToMany` (§9.3) + Hilfsmethode `hasResolvedProperty()`.
+  - `GrailsAssociationAttributePlan.java` — Record (§9.4).
+  - `GrailsAssociationContextPlan.java` — Record mit defensiven Listenkopien (§9.5).
+  - `GrailsAssociationPlan.java` — Record mit defensiver Kopie + deterministischer Sortierung (Rollen nach Name+Zielklasse, Attribute nach Property, Kontexte nach `contextId`, Diagnosen lexikografisch) + `isBinary/isNary/hasOwnAttributes/role(...)` (§9.6).
+  - `GrailsAssociationPlanner.java` — API `forMetadata/plans/contextsForParticipant/findPlan/showDomainInNavigation/isAssociationDomain` und private Methoden gemäss §10.2 (`buildPlan`, `resolveStorageKind`, `buildRolePlans`, Rollen→Property-Auflösung, `buildAttributePlans`, `buildContextPlans`, `resolvePresentationKind`, `resolveCreateMode`, `isQuickLinkEligible`, `defaultContextLabel`, `contextMessageCode`).
+  - Test: `target-grails/src/test/java/ch/interlis/generator/grails/GrailsAssociationPlannerTest.java` (16 Tests).
+- **Nicht geändert (bewusst):** Core-IR (keine Erweiterung nötig), `GrailsRelationshipMapper` (semantisch unverändert, nur wiederverwendet), `GrailsDomainGenerator`, `GrailsCrudGenerator`, `GenerationConfig`, Overlay-Runtime, GSPs, CLI, `AssociationCases.ili`, Fixtures, Snapshots. Keine inversen GORM-Collections.
+- **Entscheidungen:** ADR-005 (synthetische In-Memory-Metadaten für ORDERED/n-är/UNMAPPED/ambiguous), ADR-006 (`EMBEDDED_FOREIGN_KEY` in Phase 1 nicht erzeugt). Perspektivkardinalität stammt aus der Gegenrolle (binär) bzw. bleibt `null` bei n-är (konservativ, §9.5). `contextId = "<qualified-assoc>::<fixedRole>"`, URL-encodiert, `::` erhalten (§9.5). Rollen→Property-Auflösung nutzt die tatsächlichen `GrailsRelationshipMapper.DomainMapping`-Properties (Reihenfolge: targetRoleName → physicalName → sourceAttribute → semanticName → Zielklasse), Mehrdeutigkeit ⇒ Diagnose `AMBIGUOUS_ROLE_PROPERTY` + Property `null` + read-only (§10.3). Quick-Link-Kriterien nach §10.4 (genau 2 Rollen, `LINK_ENTITY`, keine Attribute, keine `ordered`/`composition`/`external`, beide Properties + Zieldomains aufgelöst).
+- **Diagnose-Codes:** `UNMAPPED_ASSOCIATION`, `AMBIGUOUS_ROLE_PROPERTY:<role>`, `ROLE_PROPERTY_NOT_FOUND[:<role>]`, `TARGET_DOMAIN_NOT_GENERATED:<role>`, `MERGE_CONFIDENCE_NONE:<role>`.
+- **Ausgeführte Tests:**
+  - `JAVA_HOME=.../21.0.10-tem ./gradlew :target-grails:test --tests "…GrailsAssociationPlannerTest"` → **PASS** (16).
+  - `JAVA_HOME=.../21.0.10-tem ./gradlew :target-grails:test test` → **PASS** total **99** (core 31, target-grails 49, cli 12, target-django 7), 0 Fehler/0 Errors. Delta +16 = neue Planner-Tests.
+  - Kein `.ili` geändert ⇒ keine ili2c-Neu-Validierung erforderlich.
+- **Abgedeckte Testfälle (§30.2 + Phase-1-Zusatz):** binär→Quick-Link, attributiert→CONTEXTUAL_FORM, gleiche Zielklasse→distinkte Kontexte, physisch abweichend→generierte Property (`ownerFk`/`parcelFk`), n-är→NARY_CONTEXTUAL_FORM, EXTERNAL kein Quick-Link, COMPOSITE kein Quick-Link, ORDERED kein Quick-Link, ohne physische Klasse→READ_ONLY, Perspektivkardinalität aus Gegenrolle, deterministische Kontext-Sortierung, mehrdeutige Rolle→Diagnose+read-only, Navigation nur bei kontextuellem Zugriff versteckt, `planDoesNotMutateCoreMetadata`, `planUsesTargetNameRegistryForQualifiedDomainNames`, `rolePropertiesMatchGeneratedAssociationDomainProperties`.
+- **Offene Punkte / Restpunkte:**
+  - Registry-Generierung, `GenerationConfig`-Association-Felder, CLI-Optionen, gemeinsame Mapper-Instanz-Einhängung in `GrailsCrudGenerator` → Phase 2.
+  - `EMBEDDED_FOREIGN_KEY`-Klassifikation + Schreibpfad → Phase 7 mit Real-ili2db-Beleg (ADR-006).
+  - ORDERED/echte n-äre Fälle in `AssociationCases.ili` + Fixtures → Phase 5/7 (ADR-005, R-9).
+  - UI-Modus-Gating (`associationUiMode`) fliesst noch nicht in Quick-Link-Eligibility ein (Config-Feld existiert erst ab Phase 2); aktuell Default „editierbar“.
+- **Abnahme:** Phase 1 DONE-Kriterien: alle Planner-Fälle grün ✔, keine UI-Änderung ✔, keine Core-IR-Änderung (kein ADR nötig) ✔, bestehende Snapshots unverändert ✔, Umsetzungsplan aktualisiert ✔. Nicht mit Phase 2 fortgefahren ✔.
 
 ## Abschluss-Checkliste (Gesamtprojekt)
 
