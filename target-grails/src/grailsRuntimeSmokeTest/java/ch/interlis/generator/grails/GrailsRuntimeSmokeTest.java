@@ -76,6 +76,48 @@ class GrailsRuntimeSmokeTest {
         runCommand(appDir, List.of("./gradlew", "compileGroovy"));
     }
 
+    @Test
+    void associationRegistryAndRuntimeCompilesInRealGrailsApp() throws Exception {
+        Path appDir = createGrailsApp();
+        ModelMetadata metadata = simpleMetadata();
+        GenerationConfig config = grailsConfig(appDir, false, true);
+
+        new GrailsTemplateOverlayInstaller().install(appDir, config);
+        new GrailsCrudGenerator().generate(metadata, config);
+
+        Path registryFile = appDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy");
+        assertThat(registryFile).exists();
+
+        Path supportFile = appDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy");
+        assertThat(supportFile).exists();
+
+        Path queryServiceFile = appDir.resolve(
+            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy");
+        assertThat(queryServiceFile).exists();
+
+        Path associationSectionsGsp = appDir.resolve(
+            "src/main/templates/scaffolding/_association-sections.gsp");
+        assertThat(associationSectionsGsp).exists();
+
+        Path associationRowActionsGsp = appDir.resolve(
+            "src/main/templates/scaffolding/_association-row-actions.gsp");
+        assertThat(associationRowActionsGsp).exists();
+
+        runCommand(appDir, List.of("./gradlew", "compileGroovy"));
+
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
+        ClassMetadata personAddress = metadata.getClass("SmokeModel.People.PersonAddress");
+        String domainClass = DOMAIN_PACKAGE + "." + registry.className(personAddress);
+        runCommand(appDir, List.of("./grailsw", "generate-all", domainClass));
+
+        String showGsp = Files.readString(appDir.resolve("grails-app/views")
+            .resolve(registry.viewPath(personAddress))
+            .resolve("show.gsp"));
+        assertThat(showGsp).contains("_association-sections");
+    }
+
     private Path createGrailsApp() throws Exception {
         runCommand(tempDir, List.of("grails", "create-app", APP_NAME, "--grails-version", grailsVersion()));
         Path appDir = tempDir.resolve(APP_NAME);

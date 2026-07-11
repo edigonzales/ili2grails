@@ -244,6 +244,91 @@ class RealIli2dbSmokeTest {
         GeneratedGroovyCompiler.compileGeneratedSources(config.getOutputDir());
     }
 
+    @Test
+    void validatesAssociationCasesAgainstRealIli2pgSchema() throws Exception {
+        Path associationCasesModelFile = Path.of("test-models/AssociationCases.ili");
+        if (!Files.exists(associationCasesModelFile)) {
+            throw new TestAbortedException("AssociationCases.ili not available");
+        }
+
+        RealSchemaMetadata realSchema = importAndReadMetadata(
+            "AssociationCases",
+            associationCasesModelFile,
+            "rt_assoc_"
+        );
+
+        System.out.println("=== AssociationCases Real ili2db Association Plan ===");
+        System.out.println("Classes: " + realSchema.metadata().getAllClasses().size());
+        System.out.println("Relationships: " + realSchema.metadata().getAllRelationships().size());
+        System.out.println("Associations: " + realSchema.metadata().getAssociations().size());
+
+        GenerationConfig config = GenerationConfig.builder(tempDir.resolve("assoc-generated"), "ch.example.association")
+            .domainPackage("ch.example.association.domain")
+            .enumPackage("ch.example.association.enums")
+            .build();
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(realSchema.metadata(), config);
+        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(realSchema.metadata(), config, registry);
+        GrailsAssociationPlanner planner = GrailsAssociationPlanner.forMetadata(
+            realSchema.metadata(), config, registry, mapper);
+
+        List<GrailsAssociationPlan> plans = planner.plans();
+        System.out.println("Association plans: " + plans.size());
+
+        for (GrailsAssociationPlan plan : plans) {
+            System.out.println("  " + plan.associationName()
+                + ": storageKind=" + plan.storageKind()
+                + " roles=" + plan.roles().size()
+                + " attributes=" + plan.attributes().size()
+                + " contexts=" + plan.contexts().size()
+                + " writable=" + plan.writable()
+                + " physicalTable=" + plan.physicalTable());
+            for (GrailsAssociationRolePlan role : plan.roles()) {
+                System.out.println("    role=" + role.roleName()
+                    + " property=" + role.domainPropertyName()
+                    + " target=" + role.targetIliClassName());
+            }
+            for (GrailsAssociationContextPlan ctx : plan.contexts()) {
+                System.out.println("    context=" + ctx.contextId()
+                    + " presentation=" + ctx.presentationKind()
+                    + " createMode=" + ctx.createMode()
+                    + " fixedRole=" + ctx.fixedRoleName()
+                    + " fixedProperty=" + ctx.fixedRolePropertyName());
+            }
+        }
+
+        assertThat(plans).hasSize(6);
+        assertThat(planner.isAssociationDomain("AssociationCases.Base.AssociationWithAttribute")).isTrue();
+        assertThat(planner.isAssociationDomain("AssociationCases.Base.EmptyAssociation")).isTrue();
+        assertThat(planner.isAssociationDomain("AssociationCases.Base.SameTargetAssociation")).isTrue();
+        assertThat(planner.isAssociationDomain("AssociationCases.Base.PhysicalMismatchAssociation")).isTrue();
+        assertThat(planner.isAssociationDomain("AssociationCases.Base.ExternalCompositeAssociation")).isTrue();
+        assertThat(planner.isAssociationDomain("AssociationCases.Extended.ExtendedTopicAssociation")).isTrue();
+
+        GrailsAssociationPlan emptyAssoc = planner.findPlan("AssociationCases.Base.EmptyAssociation").orElseThrow();
+        assertThat(emptyAssoc.isBinary()).isTrue();
+        assertThat(emptyAssoc.hasOwnAttributes()).isFalse();
+
+        GrailsAssociationPlan attAssoc = planner.findPlan("AssociationCases.Base.AssociationWithAttribute").orElseThrow();
+        assertThat(attAssoc.hasOwnAttributes()).isTrue();
+        assertThat(attAssoc.storageKind()).isEqualTo(AssociationStorageKind.LINK_ENTITY);
+
+        GrailsAssociationPlan sameTarget = planner.findPlan("AssociationCases.Base.SameTargetAssociation").orElseThrow();
+        assertThat(sameTarget.contexts()).hasSize(2);
+        assertThat(sameTarget.contexts().get(0).fixedRolePropertyName())
+            .isNotEqualTo(sameTarget.contexts().get(1).fixedRolePropertyName());
+
+        new GrailsCrudGenerator().generate(realSchema.metadata(), config);
+        GeneratedGroovyCompiler.compileGeneratedSources(config.getOutputDir());
+
+        Path registryFile = config.getOutputDir().resolve(
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy");
+        assertThat(registryFile).exists();
+        String registryContent = Files.readString(registryFile, StandardCharsets.UTF_8);
+        assertThat(registryContent).contains("ASSOCIATIONS = [");
+        assertThat(registryContent).contains("CONTEXTS = [");
+        assertThat(registryContent).contains("ENTITIES = [");
+    }
+
     private RealSchemaMetadata importAndReadMetadata(String modelName, Path modelFile, String schemaPrefix)
         throws Exception {
         if (!Files.exists(modelFile)) {

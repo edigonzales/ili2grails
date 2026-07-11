@@ -19,6 +19,8 @@ abstract class InterlisCrudControllerSupport<T> {
 
     protected abstract Object crudService()
 
+    protected abstract Object associationQueryService()
+
     def index(Integer max, Integer offset) {
         applySecurityHeaders()
         Map<String, Object> pagination = paginationParams(max, offset)
@@ -52,6 +54,7 @@ abstract class InterlisCrudControllerSupport<T> {
         model.putAll(geometryModel(instance))
         model.putAll(relationshipModel(instance))
         model.putAll(detailModel(instance))
+        model.putAll(associationModel(instance))
         respond instance, model: model
     }
 
@@ -175,6 +178,95 @@ abstract class InterlisCrudControllerSupport<T> {
             safeOffset(params.int("offset"))
         )
         render page as JSON
+    }
+
+    def associationPage(Long id) {
+        applySecurityHeaders()
+        T instance = crudService().get(id) as T
+        if (instance == null) {
+            notFound()
+            return
+        }
+        String contextId = params.context?.toString()
+        if (contextId == null || contextId.isBlank()) {
+            response.status = BAD_REQUEST.value()
+            render([error: "context parameter required"] as JSON)
+            return
+        }
+        try {
+            Map<String, Object> page = associationQueryService().page(
+                domainType(),
+                instance.id as java.io.Serializable,
+                contextId,
+                boundedMax(params.int("max")),
+                safeOffset(params.int("offset")),
+                params.sort?.toString(),
+                params.order?.toString()
+            )
+            render page as JSON
+        } catch (InterlisAssociationRegistrySupport.AssociationContextNotFoundException e) {
+            response.status = BAD_REQUEST.value()
+            render([error: e.message] as JSON)
+        } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
+            response.status = BAD_REQUEST.value()
+            render([error: e.message] as JSON)
+        } catch (Exception e) {
+            log.error("associationPage failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
+            response.status = INTERNAL_SERVER_ERROR.value()
+            render([error: "Fehler beim Laden der Assoziationsdaten."] as JSON)
+        }
+    }
+
+    def associationOptions(Long id) {
+        applySecurityHeaders()
+        T instance = crudService().get(id) as T
+        if (instance == null) {
+            notFound()
+            return
+        }
+        String contextId = params.context?.toString()
+        String roleName = params.role?.toString()
+        if (contextId == null || contextId.isBlank() || roleName == null || roleName.isBlank()) {
+            response.status = BAD_REQUEST.value()
+            render([results: [], pagination: [more: false, total: 0, nextOffset: 0]] as JSON)
+            return
+        }
+        try {
+            Map<String, Object> page = associationQueryService().optionPage(
+                domainType(),
+                contextId,
+                roleName,
+                normalizedQuery(params.q),
+                boundedMax(params.int("max")),
+                safeOffset(params.int("offset"))
+            )
+            render page as JSON
+        } catch (Exception e) {
+            log.warn("associationOptions failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
+            render([results: [], pagination: [more: false, total: 0, nextOffset: 0]] as JSON)
+        }
+    }
+
+    protected Map<String, Object> associationModel(T instance) {
+        if (instance == null) {
+            return [associationSections: []]
+        }
+        try {
+            return [
+                associationSections: associationQueryService().sections(
+                    domainType(),
+                    instance.id as java.io.Serializable,
+                    associationPageSize()
+                )
+            ]
+        } catch (Exception e) {
+            log.warn("associationModel failed for ${domainType().simpleName}#${instance.id}: ${e.message}", e)
+            return [associationSections: [], associationDiagnostic: "Assoziationsdaten konnten nicht geladen werden."]
+        }
+    }
+
+    protected Integer associationPageSize() {
+        return 10
     }
 
     protected void notFound() {

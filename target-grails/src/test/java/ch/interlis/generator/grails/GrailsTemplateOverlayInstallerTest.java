@@ -51,6 +51,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy")).exists();
+        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy")).exists();
+        assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy")).exists();
+        assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-sections.gsp")).exists();
+        assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-row-actions.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/views/layouts/main.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js")).exists();
@@ -110,6 +114,18 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(showTemplate).contains("data-delete-open");
         assertThat(showTemplate).contains("modal fade");
         assertThat(showTemplate).doesNotContain("bx-modal");
+        assertThat(showTemplate).contains("association-sections");
+        assertThat(showTemplate).contains("associationDiagnostic");
+
+        String associationSectionsTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_association-sections.gsp"));
+        assertThat(associationSectionsTemplate).contains("ili-association-section");
+        assertThat(associationSectionsTemplate).contains("ili-association-table");
+        assertThat(associationSectionsTemplate).contains("ili-association-empty");
+        assertThat(associationSectionsTemplate).contains("Mehr anzeigen");
+
+        String associationRowActionsTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_association-row-actions.gsp"));
+        assertThat(associationRowActionsTemplate).contains("associationController");
+        assertThat(associationRowActionsTemplate).contains("associationId");
 
         String layoutTemplate = Files.readString(projectDir.resolve("grails-app/views/layouts/main.gsp"));
         assertThat(layoutTemplate).contains("<asset:stylesheet src=\"application.css\"/>");
@@ -124,6 +140,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerTemplate).contains("protected Class<${className}> domainType()");
         assertThat(controllerTemplate).contains("protected Object crudService()");
         assertThat(controllerTemplate).doesNotContain("paginationParams");
+        assertThat(controllerTemplate).contains("InterlisAssociationQueryService");
+        assertThat(controllerTemplate).contains("associationPage");
+        assertThat(controllerTemplate).contains("associationOptions");
+        assertThat(controllerTemplate).contains("protected Object associationQueryService()");
 
         String controllerSupport = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy"));
         assertThat(controllerSupport).contains("def index(Integer max, Integer offset)");
@@ -133,6 +153,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("Content-Security-Policy");
         assertThat(controllerSupport).contains("DataIntegrityViolationException");
         assertThat(controllerSupport).contains("X-Content-Type-Options");
+        assertThat(controllerSupport).contains("associationQueryService()");
+        assertThat(controllerSupport).contains("associationModel(T instance)");
+        assertThat(controllerSupport).contains("associationPage(Long id)");
+        assertThat(controllerSupport).contains("associationOptions(Long id)");
 
         String relationshipOptions = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"));
         assertThat(relationshipOptions).contains("interlisDisplayMeta");

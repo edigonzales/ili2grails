@@ -50,6 +50,20 @@
         </g:if>
     </div>
 
+    <g:if test="\${associationSections}">
+        <section class="ili-association-sections" aria-labelledby="association-sections-heading">
+            <h2 class="ili-section-title" id="association-sections-heading">Beziehungen</h2>
+            <g:render template="association-sections" model="\${[
+                associationSections: associationSections,
+                owner: this.${propertyName}
+            ]}"/>
+        </section>
+    </g:if>
+
+    <g:if test="\${associationDiagnostic}">
+        <div class="alert alert-warning" role="alert">\${associationDiagnostic}</div>
+    </g:if>
+
     <section class="card ili-danger-zone">
         <div class="card-body">
             <header class="ili-danger-zone-head">

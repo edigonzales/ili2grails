@@ -35,6 +35,17 @@ final class InterlisRelationshipOptions {
         if (targetType == null) {
             return [results: [], pagination: [more: false, total: 0, nextOffset: offset]]
         }
+        return optionPageForTargetType(grailsApplication, targetType, query, max, offset)
+    }
+
+    static Map<String, Object> optionPageForTargetType(def grailsApplication,
+                                                       Class targetType,
+                                                       String query,
+                                                       Integer max,
+                                                       Integer offset) {
+        if (targetType == null) {
+            return [results: [], pagination: [more: false, total: 0, nextOffset: offset]]
+        }
         Collection<String> targetGeometryFields = geometryFieldsFor(targetType)
         List<String> displayFields = displayFieldsFor(grailsApplication, targetType)
         List<String> searchColumns = searchFieldsFor(grailsApplication, targetType, targetGeometryFields, displayFields)

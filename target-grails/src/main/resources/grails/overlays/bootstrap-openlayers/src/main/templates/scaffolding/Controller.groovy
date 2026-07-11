@@ -1,12 +1,15 @@
 <%=packageName ? "package ${packageName}" : ''%>
 
 import ch.interlis.generator.grails.runtime.InterlisCrudControllerSupport
+import ch.interlis.generator.grails.runtime.InterlisAssociationQueryService
 
 class ${className}Controller extends InterlisCrudControllerSupport<${className}> {
 
     ${className}Service ${propertyName}Service
+    InterlisAssociationQueryService interlisAssociationQueryService
 
-    static allowedMethods = [save: "POST", update: "PUT", delete: "DELETE", relationshipOptions: "GET"]
+    static allowedMethods = [save: "POST", update: "PUT", delete: "DELETE", relationshipOptions: "GET",
+                             associationPage: "GET", associationOptions: "GET"]
 
     def index(Integer max, Integer offset) {
         super.index(max, offset)
@@ -40,6 +43,14 @@ class ${className}Controller extends InterlisCrudControllerSupport<${className}>
         super.relationshipOptions()
     }
 
+    def associationPage(Long id) {
+        super.associationPage(id)
+    }
+
+    def associationOptions(Long id) {
+        super.associationOptions(id)
+    }
+
     @Override
     protected Class<${className}> domainType() {
         return ${className}
@@ -48,5 +59,10 @@ class ${className}Controller extends InterlisCrudControllerSupport<${className}>
     @Override
     protected Object crudService() {
         return ${propertyName}Service
+    }
+
+    @Override
+    protected Object associationQueryService() {
+        return interlisAssociationQueryService
     }
 }
