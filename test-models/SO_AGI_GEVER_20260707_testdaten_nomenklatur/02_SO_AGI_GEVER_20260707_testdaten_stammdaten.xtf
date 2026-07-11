@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TRANSFER xmlns="http://www.interlis.ch/INTERLIS2.4">
+  <HEADERSECTION VERSION="2.4" SENDER="ChatGPT-Testdaten">
+    <MODELS>
+      <MODEL NAME="CatalogueObjects_V2" VERSION="2021-01-06" URI="https://models.geo.admin.ch/CH/"/>
+      <MODEL NAME="SO_AGI_GEVER_20260707" VERSION="2026-07-07" URI="https://agi.so.ch/models"/>
+    </MODELS>
+  </HEADERSECTION>
+  <DATASECTION>
+    <SO_AGI_GEVER_20260707.Stammdaten BID="b-8f63ea47-4dd4-5dc9-9fd2-ab9a9f9f40fe">
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit TID="64d5a3f8-f3dc-580a-aecc-1479f74b878a">
+        <kuerzel>AGI</kuerzel>
+        <name>Amt für Geoinformation</name>
+        <beschreibung>Federfuehrendes Amt fuer Geoinformation und amtliche Vermessung.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit TID="2566f5fc-810b-55b2-a7f5-b78a2437df47">
+        <kuerzel>AGI-NOM</kuerzel>
+        <name>Fachstelle Nomenklatur</name>
+        <beschreibung>Interne Fachstelle fuer geografische Namen und Nomenklaturgeschaefte.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit TID="51df8697-f0ee-589f-9940-bf385dc42108">
+        <kuerzel>NOMKOM</kuerzel>
+        <name>Kantonale Nomenklaturkommission</name>
+        <beschreibung>Kantonales Entscheidgremium fuer Nomenklaturfragen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit TID="edce536b-8bea-5898-947d-b383cc558a45">
+        <kuerzel>AV-NF</kuerzel>
+        <name>Nachführung amtliche Vermessung</name>
+        <beschreibung>Stelle fuer die technische Nachfuehrung in der amtlichen Vermessung.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer TID="5e11e774-5cf9-5de9-939f-3f0072ef00a7">
+        <username>s.mueller</username>
+        <name>Sabine Müller</name>
+        <email>sabine.mueller@agi.so.ch</email>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer TID="c52b97a8-1469-56a0-8155-3dc2991b3a72">
+        <username>a.keller</username>
+        <name>Andreas Keller</name>
+        <email>andreas.keller@agi.so.ch</email>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer TID="31b922eb-caf1-553b-8258-e77f0898b7db">
+        <username>p.steiner</username>
+        <name>Peter Steiner</name>
+        <email>peter.steiner@agi.so.ch</email>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem TID="a898781f-61e5-5b0e-b48a-6f696aa44bfc">
+        <code>AGI-GEVER</code>
+        <name>Ordnungssystem Amt für Geoinformation</name>
+        <gueltigVon>2026-01-01</gueltigVon>
+        <status>Aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition TID="68a1803c-93a6-513d-9834-9bc06d3fbbba">
+        <code>4</code>
+        <titel>Geoinformation und amtliche Vermessung</titel>
+        <beschreibung>Aufgabenbereich Geoinformation, amtliche Vermessung und geografische Namen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition TID="20b050f8-f60e-5ac1-8f77-eff502e279f0">
+        <code>4.3</code>
+        <titel>Nomenklatur und geografische Namen</titel>
+        <beschreibung>Grundlagen, Einzelgeschaefte und Gremienarbeit zu geografischen Namen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition TID="c82dbebd-73a6-5282-be46-01e6bc859300">
+        <code>4.3.2</code>
+        <titel>Einzelgeschäfte Flur- und Ortsnamen</titel>
+        <beschreibung>Dossiers zu einzelnen Festlegungen, Umbenennungen oder Korrekturen von Flur- und Ortsnamen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition TID="9d10d1e0-bccf-5489-9cb3-660631d8648f">
+        <code>4.3.3</code>
+        <titel>Kantonale Nomenklaturkommission</titel>
+        <beschreibung>Sitzungsunterlagen, Protokolle und allgemeine Unterlagen der Nomenklaturkommission.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition>
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit_Hierarchie TID="7a6f6a62-decc-5402-9f19-ff9f22bfb7d5">
+        <UebergeordneteEinheit REF="64d5a3f8-f3dc-580a-aecc-1479f74b878a"/>
+        <UntergeordneteEinheiten REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit_Hierarchie>
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit_Hierarchie TID="3c64dcc4-241d-5028-853e-bf68c7fe1273">
+        <UebergeordneteEinheit REF="64d5a3f8-f3dc-580a-aecc-1479f74b878a"/>
+        <UntergeordneteEinheiten REF="edce536b-8bea-5898-947d-b383cc558a45"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit_Hierarchie>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit TID="c855f2ab-e111-5986-87e2-4036ab17ec1e">
+        <PrimaereOrganisationseinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+        <ZugeordneteBenutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit TID="fbdaa80e-5c3c-58e2-a65c-ea16d691ce31">
+        <PrimaereOrganisationseinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+        <ZugeordneteBenutzer REF="c52b97a8-1469-56a0-8155-3dc2991b3a72"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit TID="b3a1417d-7e8c-5a3f-80cf-e476858ee3e0">
+        <PrimaereOrganisationseinheit REF="edce536b-8bea-5898-947d-b383cc558a45"/>
+        <ZugeordneteBenutzer REF="31b922eb-caf1-553b-8258-e77f0898b7db"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Organisationseinheit TID="cad16bba-fe4f-59a4-a4a5-71954436cbaa">
+        <Verwaltungseinheit REF="64d5a3f8-f3dc-580a-aecc-1479f74b878a"/>
+        <OrdnungssystemeDerEinheit REF="a898781f-61e5-5b0e-b48a-6f696aa44bfc"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position TID="fbb59822-d185-54f3-87ac-aebf76f37497">
+        <ZugehoerigesOrdnungssystem REF="a898781f-61e5-5b0e-b48a-6f696aa44bfc"/>
+        <PositionenDesOrdnungssystems REF="68a1803c-93a6-513d-9834-9bc06d3fbbba"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position TID="4ddd824a-6880-56d2-8c2e-e8868abed575">
+        <ZugehoerigesOrdnungssystem REF="a898781f-61e5-5b0e-b48a-6f696aa44bfc"/>
+        <PositionenDesOrdnungssystems REF="20b050f8-f60e-5ac1-8f77-eff502e279f0"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position TID="5ea8104d-92cd-5605-8714-02fa6e21fca3">
+        <ZugehoerigesOrdnungssystem REF="a898781f-61e5-5b0e-b48a-6f696aa44bfc"/>
+        <PositionenDesOrdnungssystems REF="c82dbebd-73a6-5282-be46-01e6bc859300"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position TID="182132ea-9cdf-592f-941a-a5f73159922e">
+        <ZugehoerigesOrdnungssystem REF="a898781f-61e5-5b0e-b48a-6f696aa44bfc"/>
+        <PositionenDesOrdnungssystems REF="9d10d1e0-bccf-5489-9cb3-660631d8648f"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie TID="fcbce98b-011c-5fc3-b74b-3171beb74116">
+        <Oberposition REF="68a1803c-93a6-513d-9834-9bc06d3fbbba"/>
+        <Unterpositionen REF="20b050f8-f60e-5ac1-8f77-eff502e279f0"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie TID="61c64846-4a74-57cc-a5fe-6c382003c6bb">
+        <Oberposition REF="20b050f8-f60e-5ac1-8f77-eff502e279f0"/>
+        <Unterpositionen REF="c82dbebd-73a6-5282-be46-01e6bc859300"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie TID="f4509896-cfec-5840-bbec-735de99f8bbd">
+        <Oberposition REF="20b050f8-f60e-5ac1-8f77-eff502e279f0"/>
+        <Unterpositionen REF="9d10d1e0-bccf-5489-9cb3-660631d8648f"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Federfuehrung TID="98b0d75d-2987-538c-b393-66240bff18a0">
+        <FederfuehrendeEinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+        <FedergefuehrtePositionen REF="c82dbebd-73a6-5282-be46-01e6bc859300"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Federfuehrung>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Federfuehrung TID="732713f4-60a1-504a-91d6-d2550d8dbed8">
+        <FederfuehrendeEinheit REF="51df8697-f0ee-589f-9940-bf385dc42108"/>
+        <FedergefuehrtePositionen REF="9d10d1e0-bccf-5489-9cb3-660631d8648f"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Federfuehrung>
+    </SO_AGI_GEVER_20260707.Stammdaten>
+  </DATASECTION>
+</TRANSFER>

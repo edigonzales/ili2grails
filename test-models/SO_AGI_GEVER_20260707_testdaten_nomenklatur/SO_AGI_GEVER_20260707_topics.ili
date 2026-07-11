@@ -1,0 +1,907 @@
+INTERLIS 2.4;
+
+/**
+ * Schlankes, generisches GEVER-Modell fuer Verwaltungen.
+ *
+ * Ziel dieses ersten Wurfs:
+ * - Das Modell trennt Katalogdaten, Stammdaten und operative Geschaeftsdaten in eigene Topics.
+ * - Katalogdaten beschreiben kontrollierte Wertelisten und fachliche Konfigurationen eines Tenants.
+ * - Stammdaten beschreiben Organisation, Benutzer und Ordnungssystem.
+ * - Geschaeftsdaten beschreiben die laufenden oder abgeschlossenen Dossiers, Geschaefte, Unterlagen,
+ *   Aufgaben, Beteiligungen, Fachsystemreferenzen, Journalereignisse und einfache Archivierungsinformationen.
+ *
+ * Bewusste Vereinfachungen:
+ * - Keine Schutz-/Publizitaetsklassifikation.
+ * - Keine fachliche Archivbewertung und keine rechtlich-fachlichen Fristenattribute.
+ * - Keine detaillierte ACL-Modellierung.
+ * - Keine Dokumentversionierung; Datei- und Ablageinformationen stehen direkt an der Unterlage.
+ * - Kein BPMN-/Workflow-Modell; stattdessen generischer Lebenszyklus plus fachliche Status aus Katalogen.
+ * - Keine Volltextsuche, keine Signatur-/Siegel-Details und keine eCH-Exportstruktur im Kernmodell.
+ *
+ * Import-/Export-Idee:
+ * - Kataloge koennen separat als fachliche Konfiguration eines Tenants geliefert werden.
+ * - Stammdaten koennen separat als Organisations- und Ordnungssystemdaten geliefert werden.
+ * - Geschaeftsdaten koennen separat als operative Daten geliefert werden und referenzieren Kataloge und Stammdaten.
+ */
+MODEL SO_AGI_GEVER_20260707 (de)
+AT "https://agi.so.ch/models"
+VERSION "2026-07-07" =
+
+  IMPORTS CatalogueObjects_V2;
+
+  DOMAIN
+    /** Kurzer technischer Code, z.B. Geschaeftsnummer, Katalogcode oder Organisationskuerzel. */
+    Code = TEXT*80;
+
+    /** Kurzer fachlicher Text fuer Titel und Namen. */
+    KurzerText = TEXT*255;
+
+    /** Laengerer Freitext fuer Beschreibungen, Bemerkungen und Kommentare. */
+    LangerText = MTEXT;
+
+    /** URI oder URL auf eine Datei, ein Fachsystem, ein DMS-Objekt oder ein Ablageobjekt. */
+    UriText = TEXT*1024;
+
+    /** Einfache E-Mail-Adresse als Text. */
+    EmailText = TEXT*255;
+
+    /** SHA-256-Hashwert einer Datei; dient der Integritaetskontrolle. */
+    HashSha256 = TEXT*64;
+
+    /** Numerische Sortierung, z.B. fuer Statuswerte innerhalb einer Geschaeftsart. */
+    Reihenfolge = 0 .. 999999;
+
+    /** Dateigroesse in Bytes. */
+    DateigroesseBytes = 0 .. 999999999999;
+
+    /**
+     * Allgemeiner Aktivitaetsstatus fuer Katalog- und Stammdaten.
+     *
+     * Zweck:
+     * Ein Katalog- oder Stammdateneintrag kann deaktiviert werden, ohne dass historische
+     * Geschaefte ungueltig werden. Alte Geschaefte duerfen weiterhin auf inaktive Eintraege verweisen.
+     */
+    AktivStatus = (
+      aktiv,
+      inaktiv
+    );
+
+    /**
+     * Lebenszyklus eines Ordnungssystems.
+     *
+     * Entwurf: noch nicht verbindlich.
+     * Aktiv: fuer neue Dossiers verwendbar.
+     * Abgeloest: historisch noch gueltig, aber fuer neue Dossiers nicht mehr zu verwenden.
+     */
+    OrdnungssystemStatus = (
+      Entwurf,
+      Aktiv,
+      Abgeloest
+    );
+
+    /**
+     * Generischer Lebenszyklus eines Geschaefts von der Erfassung bis zur Archivierung oder Vernichtung.
+     *
+     * Zweck:
+     * Der Lebenszyklus bleibt absichtlich allgemein und gilt fuer alle Geschaeftsarten.
+     * Fachliche Prozessphasen wie "Fachliche_Pruefung" oder fachliche Resultate wie "Genehmigt"
+     * werden nicht hier, sondern in Katalogen gefuehrt.
+     */
+    LifecycleStatus = (
+      Entwurf,
+      Eingegangen,
+      Eroeffnet,
+      In_Bearbeitung,
+      Sistiert,
+      Erledigt,
+      Abgeschlossen,
+      Archiviert,
+      Vernichtet
+    );
+
+    /**
+     * Lebenszyklus eines Dossiers als aktenmaessige Einheit.
+     *
+     * Offen: Dossier wird bearbeitet.
+     * Geschlossen: Bearbeitung ist beendet, Dossierinhalt soll stabil bleiben.
+     * Archiviert/Vernichtet: spaeterer Endzustand aus der Aussonderung.
+     */
+    DossierStatus = (
+      Offen,
+      Geschlossen,
+      Archiviert,
+      Vernichtet
+    );
+
+    /**
+     * Bearbeitungsstand einer Unterlage, also eines fachlichen Aktenstuecks.
+     *
+     * In_Arbeit: noch bearbeitbar.
+     * Final: fachlich fertig.
+     * Registriert: aktenrelevant registriert.
+     * Storniert: irrtuemlich oder nicht mehr gueltig, bleibt aber nachvollziehbar.
+     */
+    UnterlagenStatus = (
+      In_Arbeit,
+      Final,
+      Registriert,
+      Storniert
+    );
+
+    /**
+     * Bearbeitungsstand einer Aufgabe, Frist oder Pendenz.
+     *
+     * Zweck:
+     * Der Aufgabenstatus ist generisch und gilt fuer alle Geschaeftsarten. Die Art der Aufgabe
+     * wird dagegen ueber den Katalog AufgabenTyp gesteuert.
+     */
+    AufgabenStatus = (
+      Offen,
+      In_Arbeit,
+      Wartet_auf_Rueckmeldung,
+      Erledigt,
+      Abgebrochen,
+      Delegiert
+    );
+
+    /**
+     * Typ einer beteiligten Partei.
+     *
+     * Zweck:
+     * Unterscheidet externe Personen, externe Organisationen und interne Organisationseinheiten.
+     * Die Rolle dieser Partei im konkreten Geschaeft wird nicht hier, sondern in Beteiligung.rolle beschrieben.
+     */
+    BeteiligterTyp = (
+      Person,
+      Organisation,
+      Interne_Organisationseinheit
+    );
+
+    /**
+     * Typ eines Journalereignisses.
+     *
+     * Zweck:
+     * Das Journal macht den Verlauf eines Geschaefts nachvollziehbar. Es ersetzt keine detaillierte
+     * technische Aenderungshistorie, sondern haelt fachlich relevante Ereignisse fest.
+     */
+    EreignisTyp = (
+      Erstellt,
+      Geaendert,
+      Status_geaendert,
+      Zugewiesen,
+      Unterlage_registriert,
+      Aufgabe_erstellt,
+      Aufgabe_erledigt,
+      Kommentar_erfasst,
+      Entscheid_erfasst,
+      Dossier_abgeschlossen,
+      Archivierung_geaendert,
+      Vernichtet,
+      Weitere
+    );
+
+    /**
+     * Art des Objekts, auf das sich ein Journalereignis bezieht.
+     *
+     * Zweck:
+     * Der Bezug bleibt bewusst generisch, damit nicht fuer jedes GEVER-Objekt eine eigene Ereignisklasse
+     * noetig ist. Die konkrete Objekt-ID wird in Ereignis.objektId abgelegt.
+     */
+    EreignisObjektTyp = (
+      Geschaeft,
+      Dossier,
+      Unterlage,
+      Aufgabe,
+      Beteiligung,
+      FachsystemReferenz
+    );
+
+    /**
+     * Stand der einfachen archivischen Aussonderung eines Dossiers.
+     *
+     * Zweck:
+     * Dieses Attribut beschreibt nur den Bearbeitungsstand der Aussonderung. Es enthaelt bewusst keine
+     * fachliche Archivbewertung und keine rechtlich-fachlichen Fristen.
+     */
+    ArchivierungsStatus = (
+      Nicht_faellig,
+      Zur_Anbietung,
+      Angeboten,
+      Uebernommen,
+      Abgelehnt,
+      Vernichtet
+    );
+
+  /**
+   * Topic fuer Katalogdaten.
+   *
+   * Zweck:
+   * Dieses Topic enthaelt kontrollierte Wertelisten und fachliche Konfigurationen eines Tenants.
+   * Katalogdaten sind weder einzelne Geschaefte noch konkrete Dossiers, sondern wiederverwendbare
+   * fachliche Begriffe wie Geschaeftsarten, Prozessstatus, Resultatstatus, Rollen und Typen.
+   *
+   * Import-/Export:
+   * Kataloge koennen als eigener XTF-Basket geliefert werden. In einer produktiven Installation
+   * werden sie typischerweise zuerst importiert und danach von Stammdaten und Geschaeftsdaten referenziert.
+   */
+  TOPIC Kataloge
+    EXTENDS CatalogueObjects_V2.Catalogues =
+
+    BASKET OID AS INTERLIS.UUIDOID;
+    OID AS INTERLIS.UUIDOID;
+
+    /**
+     * Gemeinsame abstrakte Basisklasse fuer GEVER-Katalogeintraege.
+     *
+     * Zweck:
+     * Alle Kataloge erhalten einen stabilen Code, einen Namen, eine optionale Beschreibung
+     * und einen Aktivitaetsstatus. Die konkreten Katalogklassen erben diese Attribute.
+     *
+     * Hinweise:
+     * - code sollte dauerhaft stabil bleiben und eignet sich fuer technische Referenzen.
+     * - name ist die fachliche Anzeige in der Oberflaeche.
+     * - beschreibung erklaert Bedeutung und Verwendung des Katalogwerts.
+     * - status erlaubt das Deaktivieren alter Werte, ohne historische Daten ungueltig zu machen.
+     */
+    CLASS KatalogEintrag (ABSTRACT)
+      EXTENDS CatalogueObjects_V2.Catalogues.Item =
+      /** Stabiler technischer Code des Katalogeintrags. */
+      code : MANDATORY Code;
+      /** Fachlicher Anzeigename des Katalogeintrags. */
+      name : MANDATORY KurzerText;
+      /** Erklaerung, wann und wie der Katalogeintrag verwendet wird. */
+      beschreibung : LangerText;
+      /** Aktivitaetsstatus des Eintrags. */
+      status : MANDATORY AktivStatus;
+      UNIQUE code;
+    END KatalogEintrag;
+
+    /**
+     * Katalog der Geschaeftsarten, z.B. Nomenklaturmutation, Anfrage, Beschaffung oder Vertrag.
+     *
+     * Zweck:
+     * Geschaefte werden damit fachlich typisiert. Die Geschaeftsart dient als Klammer fuer
+     * fachliche Prozess- und Resultatstatus. Sie ist damit Teil der Tenant-Konfiguration.
+     */
+    CLASS Geschaeftsart EXTENDS KatalogEintrag =
+    END Geschaeftsart;
+
+    /**
+     * Fachlicher Prozessstatus fuer eine bestimmte Geschaeftsart.
+     *
+     * Zweck:
+     * Ergaenzt den generischen Lebenszyklus um fachliche Bearbeitungsphasen wie
+     * "Formelle_Pruefung", "Fachliche_Pruefung", "Traktandiert" oder "Umsetzung_im_Fachsystem".
+     *
+     * Hinweise:
+     * - Prozessstatus sind Stammdaten/Katalogdaten, nicht operative Geschaeftsdaten.
+     * - Ein konkretes Geschaeft referenziert nur den aktuellen Prozessstatus.
+     * - Die Zugehoerigkeit zur Geschaeftsart wird hier im Katalog gepflegt.
+     */
+    CLASS ProzessStatus EXTENDS KatalogEintrag =
+      /** Geschaeftsart, fuer die dieser Prozessstatus gilt. */
+      geschaeftsart : MANDATORY REFERENCE TO Geschaeftsart;
+      /** Sortierung fuer Anzeige und typische Prozessreihenfolge. */
+      sortierung : Reihenfolge;
+      /** Kennzeichnet den typischen Anfangsstatus innerhalb der Geschaeftsart. */
+      initial : MANDATORY BOOLEAN;
+      /** Kennzeichnet einen fachlichen Endstatus innerhalb der Geschaeftsart. */
+      terminal : MANDATORY BOOLEAN;
+    END ProzessStatus;
+
+    /**
+     * Fachlicher Resultatstatus fuer eine bestimmte Geschaeftsart.
+     *
+     * Zweck:
+     * Beschreibt das Ergebnis eines Geschaefts, z.B. "Genehmigt", "Abgelehnt",
+     * "Zurueckgestellt" oder "Teilweise_genehmigt". Das Resultat ist nicht dasselbe wie der Lebenszyklus.
+     */
+    CLASS ResultatStatus EXTENDS KatalogEintrag =
+      /** Geschaeftsart, fuer die dieses Resultat sinnvoll ist. */
+      geschaeftsart : MANDATORY REFERENCE TO Geschaeftsart;
+      /** Sortierung fuer Anzeige und Auswertungen. */
+      sortierung : Reihenfolge;
+      /** Kennzeichnet, ob dieses Resultat ein fachliches Endresultat ist. */
+      terminal : MANDATORY BOOLEAN;
+    END ResultatStatus;
+
+    /**
+     * Katalog der Rollen, die eine beteiligte Partei in einem Geschaeft haben kann.
+     *
+     * Zweck:
+     * Der Katalog beschreibt wiederverwendbare Funktionen von Beteiligten.
+     * Die Werte sind keine konkreten Personen oder Organisationen, sondern Rollenbegriffe.
+     *
+     * Beispiele:
+     * - Antragstellerin
+     * - Adressatin
+     * - Stellungnehmende_Stelle
+     * - Fachstelle
+     * - Entscheidgremium
+     * - Ausfuehrende_Stelle
+     */
+    CLASS BeteiligungsRolle EXTENDS KatalogEintrag =
+    END BeteiligungsRolle;
+
+    /**
+     * Katalog der Unterlagentypen, z.B. Antrag, E-Mail Eingang, Beschluss, Protokoll oder Plan.
+     *
+     * Zweck:
+     * Gliedert Unterlagen fachlich, ohne fuer neue Dokumentarten das Modell aendern zu muessen.
+     * Der Unterlagentyp beschreibt die fachliche Art des Aktenstuecks, nicht zwingend das Dateiformat.
+     */
+    CLASS UnterlagenTyp EXTENDS KatalogEintrag =
+    END UnterlagenTyp;
+
+    /**
+     * Katalog der Aufgabentypen, z.B. Vorpruefung, Fachpruefung, Rueckfrage oder Mitteilung.
+     *
+     * Zweck:
+     * Beschreibt die Art einer Aufgabe. Der Bearbeitungsstand selbst bleibt der generische AufgabenStatus.
+     */
+    CLASS AufgabenTyp EXTENDS KatalogEintrag =
+    END AufgabenTyp;
+
+  END Kataloge;
+
+  /**
+   * Topic fuer Stammdaten.
+   *
+   * Zweck:
+   * Dieses Topic enthaelt relativ stabile Grunddaten einer GEVER-Installation oder eines Fach-Tenants:
+   * Organisationseinheiten, Benutzer und Ordnungssystem. Diese Daten sind keine einzelnen Geschaeftsfaelle,
+   * werden aber von den Geschaeftsdaten referenziert.
+   *
+   * Import-/Export:
+   * Stammdaten koennen als eigener XTF-Basket geliefert werden. Typischerweise werden sie nach den
+   * Katalogdaten und vor den Geschaeftsdaten importiert.
+   */
+  TOPIC Stammdaten =
+
+    BASKET OID AS INTERLIS.UUIDOID;
+    OID AS INTERLIS.UUIDOID;
+
+    /**
+     * Verwaltungseinheit, Amt, Abteilung, Team oder externe Stelle.
+     *
+     * Zweck:
+     * Stammdatum fuer organisatorische Verantwortung, Federfuehrung, Zuweisungen und Ordnungssysteme.
+     * Die hier modellierte Organisationseinheit ist bewusst einfach gehalten und ersetzt kein umfassendes
+     * Organisationsverzeichnis.
+     */
+    CLASS Organisationseinheit =
+      /** Kurzer stabiler Code oder Kuerzel, z.B. AGI, ARP oder NOMKOM. */
+      kuerzel : MANDATORY Code;
+      /** Fachlicher Name der Organisationseinheit. */
+      name : MANDATORY KurzerText;
+      /** Optionale Beschreibung, z.B. Auftrag oder Abgrenzung der Einheit. */
+      beschreibung : LangerText;
+      /** Aktivitaetsstatus der Einheit. */
+      status : MANDATORY AktivStatus;
+      UNIQUE kuerzel;
+    END Organisationseinheit;
+
+    /**
+     * Benutzerkonto fuer interne Bearbeitung und Journalisierung.
+     *
+     * Zweck:
+     * Zeigt, wer verantwortlich ist, wem Aufgaben zugewiesen sind und wer Ereignisse ausgeloest hat.
+     * In einer produktiven Loesung kann diese Klasse auch nur eine lokale Abbildung eines externen
+     * Benutzerverzeichnisses sein.
+     */
+    CLASS Benutzer =
+      /** Stabiler Login- oder Benutzername. */
+      username : MANDATORY Code;
+      /** Anzeigename der Person. */
+      name : MANDATORY KurzerText;
+      /** Optionale E-Mail-Adresse fuer Benachrichtigungen und Kontakt. */
+      email : EmailText;
+      /** Aktivitaetsstatus des Benutzerkontos. */
+      status : MANDATORY AktivStatus;
+      UNIQUE username;
+    END Benutzer;
+
+    /**
+     * Ordnungssystem einer Verwaltungseinheit.
+     *
+     * Zweck:
+     * Beschreibt die Aufgabenstruktur, unter der Dossiers abgelegt werden. Es ist kein Dokumentenordner,
+     * sondern die fachliche Systematik der Verwaltungstaetigkeit.
+     */
+    CLASS Ordnungssystem =
+      /** Stabiler Code des Ordnungssystems. */
+      code : MANDATORY Code;
+      /** Fachlicher Name des Ordnungssystems. */
+      name : MANDATORY KurzerText;
+      /** Datum, ab dem das Ordnungssystem gilt. */
+      gueltigVon : MANDATORY INTERLIS.XMLDate;
+      /** Optionales Datum, bis zu dem das Ordnungssystem gilt. */
+      gueltigBis : INTERLIS.XMLDate;
+      /** Lebenszyklus des Ordnungssystems. */
+      status : MANDATORY OrdnungssystemStatus;
+      UNIQUE code;
+    END Ordnungssystem;
+
+    /**
+     * Position im Ordnungssystem.
+     *
+     * Zweck:
+     * Fachliche Einordnung von Dossiers, z.B. "Nomenklatur / Einzelgeschaefte Flur- und Ortsnamen".
+     * Die Position sagt, zu welcher Verwaltungsaufgabe ein Dossier gehoert.
+     *
+     * Hinweise:
+     * - Die Position ist Stammdatum und nicht Teil eines einzelnen Geschaefts.
+     * - Dossiers referenzieren eine OrdnungssystemPosition aus den Geschaeftsdaten.
+     */
+    CLASS OrdnungssystemPosition =
+      /** Stabiler Code der Position, z.B. 4.3.2. */
+      code : MANDATORY Code;
+      /** Fachlicher Titel der Position. */
+      titel : MANDATORY KurzerText;
+      /** Beschreibung der Verwaltungsaufgabe und der darunter abzulegenden Dossiers. */
+      beschreibung : LangerText;
+      /** Aktivitaetsstatus der Position. */
+      status : MANDATORY AktivStatus;
+      UNIQUE code;
+    END OrdnungssystemPosition;
+
+    /**
+     * Bildet die organisatorische Hierarchie, z.B. Amt -> Abteilung -> Team.
+     *
+     * Zweck:
+     * Ermoeglicht einfache Auswertungen und Anzeige von Organisationsstrukturen, ohne ein separates
+     * Organisationsmodell einzufuehren.
+     */
+    ASSOCIATION Organisationseinheit_Hierarchie =
+      UebergeordneteEinheit -- {0..1} Organisationseinheit;
+      UntergeordneteEinheiten -- {0..*} Organisationseinheit;
+    END Organisationseinheit_Hierarchie;
+
+    /**
+     * Ordnet Benutzer einer Organisationseinheit zu.
+     *
+     * Zweck:
+     * Legt die primaere organisatorische Zugehoerigkeit eines Benutzers fest. Fuer den ersten Wurf wird
+     * nur eine primaere Zugehoerigkeit modelliert.
+     */
+    ASSOCIATION Benutzer_Organisationseinheit =
+      PrimaereOrganisationseinheit -- {1} Organisationseinheit;
+      ZugeordneteBenutzer -- {0..*} Benutzer;
+    END Benutzer_Organisationseinheit;
+
+    /**
+     * Verbindet ein Ordnungssystem mit der Verwaltungseinheit, fuer die es gilt.
+     *
+     * Zweck:
+     * Macht sichtbar, welches Amt oder welche Verwaltungseinheit das Ordnungssystem verwendet oder verantwortet.
+     */
+    ASSOCIATION Ordnungssystem_Organisationseinheit =
+      Verwaltungseinheit -- {1} Organisationseinheit;
+      OrdnungssystemeDerEinheit -- {0..*} Ordnungssystem;
+    END Ordnungssystem_Organisationseinheit;
+
+    /**
+     * Enthaelt die Positionen eines Ordnungssystems.
+     *
+     * Zweck:
+     * Verknuepft jede Ordnungssystemposition mit genau einem Ordnungssystem.
+     */
+    ASSOCIATION Ordnungssystem_Position =
+      ZugehoerigesOrdnungssystem -- {1} Ordnungssystem;
+      PositionenDesOrdnungssystems -- {0..*} OrdnungssystemPosition;
+    END Ordnungssystem_Position;
+
+    /**
+     * Bildet die hierarchische Struktur innerhalb des Ordnungssystems.
+     *
+     * Zweck:
+     * Erlaubt eine Baumstruktur wie Hauptgruppe -> Untergruppe -> konkrete Position.
+     */
+    ASSOCIATION OrdnungssystemPosition_Hierarchie =
+      Oberposition -- {0..1} OrdnungssystemPosition;
+      Unterpositionen -- {0..*} OrdnungssystemPosition;
+    END OrdnungssystemPosition_Hierarchie;
+
+    /**
+     * Legt fest, welche Organisationseinheit fuer eine Ordnungssystemposition fachlich federfuehrend ist.
+     *
+     * Zweck:
+     * Dient als Standard fuer Dossiers und Geschaefte, die unter dieser Position eroeffnet werden.
+     */
+    ASSOCIATION OrdnungssystemPosition_Federfuehrung =
+      FederfuehrendeEinheit -- {0..1} Organisationseinheit;
+      FedergefuehrtePositionen -- {0..*} OrdnungssystemPosition;
+    END OrdnungssystemPosition_Federfuehrung;
+
+  END Stammdaten;
+
+  /**
+   * Topic fuer operative Geschaeftsdaten.
+   *
+   * Zweck:
+   * Dieses Topic enthaelt die eigentlichen GEVER-Falldaten: Dossiers, Geschaefte, Unterlagen, Aufgaben,
+   * Beteiligungen, Fachsystemreferenzen, einfache Archivierungsinformationen und Journalereignisse.
+   *
+   * Abhaengigkeiten:
+   * Geschaeftsdaten referenzieren Kataloge und Stammdaten. Deshalb sollten Kataloge und Stammdaten
+   * vor den Geschaeftsdaten importiert werden.
+   */
+  TOPIC Geschaeftsdaten =
+
+    BASKET OID AS INTERLIS.UUIDOID;
+    OID AS INTERLIS.UUIDOID;
+    DEPENDS ON SO_AGI_GEVER_20260707.Kataloge;
+    DEPENDS ON SO_AGI_GEVER_20260707.Stammdaten;
+
+    /**
+     * Aktenmaessige Einheit.
+     *
+     * Zweck:
+     * Sammelt die relevanten Unterlagen zu einem oder mehreren Geschaeften. Das Dossier ist die zentrale
+     * Einheit fuer Abschluss und spaetere Aussonderung.
+     */
+    CLASS Dossier =
+      /** Eindeutige fachliche Dossiernummer. */
+      dossiernummer : MANDATORY Code;
+      /** Fachlicher Dossiertitel. */
+      titel : MANDATORY KurzerText;
+      /** Optionale Beschreibung des Dossierinhalts. */
+      beschreibung : LangerText;
+      /** Einordnung im Ordnungssystem. */
+      ordnungssystemPosition : MANDATORY REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition;
+      /** Federfuehrende Organisationseinheit fuer dieses Dossier. */
+      federfuehrung : REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit;
+      /** Verantwortlicher Benutzer fuer dieses Dossier. */
+      verantwortlicher : REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Stammdaten.Benutzer;
+      /** Lebenszyklusstatus des Dossiers. */
+      status : MANDATORY DossierStatus;
+      /** Eroeffnungsdatum des Dossiers. */
+      eroeffnetAm : MANDATORY INTERLIS.XMLDate;
+      /** Optionales Schliessdatum des Dossiers. */
+      geschlossenAm : INTERLIS.XMLDate;
+      /** Weitere fachliche Hinweise zum Dossier. */
+      bemerkungen : LangerText;
+      UNIQUE dossiernummer;
+    END Dossier;
+
+    /**
+     * Bearbeiteter Verwaltungsvorgang.
+     *
+     * Zweck:
+     * Steuert Prozess, Fristen, Verantwortlichkeit und Status. Ein Geschaeft liegt in einem Dossier,
+     * kann Aufgaben und Beteiligte haben und kann auf Fachsystemobjekte verweisen.
+     */
+    CLASS Geschaeft =
+      /** Eindeutige fachliche Geschaeftsnummer. */
+      geschaeftsnummer : MANDATORY Code;
+      /** Fachlicher Titel des Geschaefts. */
+      titel : MANDATORY KurzerText;
+      /** Optionale Kurzbeschreibung des Verwaltungsvorgangs. */
+      kurzbeschreibung : LangerText;
+      /** Fachliche Art des Geschaefts aus dem Katalog. */
+      geschaeftsart : MANDATORY REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Kataloge.Geschaeftsart;
+      /** Generischer Lebenszyklusstatus des Geschaefts. */
+      lifecycleStatus : MANDATORY LifecycleStatus;
+      /** Fachlicher Prozessstatus passend zur Geschaeftsart. */
+      prozessStatus : REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Kataloge.ProzessStatus;
+      /** Fachliches Ergebnis des Geschaefts, falls bereits bekannt. */
+      resultatStatus : REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Kataloge.ResultatStatus;
+      /** Federfuehrende Organisationseinheit fuer dieses Geschaeft. */
+      federfuehrung : REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit;
+      /** Verantwortlicher Benutzer fuer dieses Geschaeft. */
+      verantwortlicher : REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Stammdaten.Benutzer;
+      /** Datum des Eingangs, z.B. Eingang eines Antrags. */
+      eingangsdatum : INTERLIS.XMLDate;
+      /** Datum der formellen Geschaeftseroeffnung. */
+      eroeffnungsdatum : INTERLIS.XMLDate;
+      /** Faelligkeit des Geschaefts. */
+      faelligAm : INTERLIS.XMLDate;
+      /** Abschlussdatum des Geschaefts. */
+      abgeschlossenAm : INTERLIS.XMLDate;
+      /** Einfache Prioritaet von 0 bis 5. */
+      prioritaet : 0 .. 5;
+      /** Erfassungszeitpunkt des Geschaefts. */
+      erstelltAm : MANDATORY INTERLIS.XMLDateTime;
+      /** Zeitpunkt der letzten fachlichen Aenderung. */
+      geaendertAm : INTERLIS.XMLDateTime;
+      UNIQUE geschaeftsnummer;
+    END Geschaeft;
+
+    /**
+     * Externe oder interne beteiligte Partei.
+     *
+     * Zweck:
+     * Fuehrt Personen, Organisationen oder interne Stellen, die in Geschaeften eine Rolle spielen.
+     * Die konkrete Funktion im Geschaeft wird nicht hier, sondern in der Klasse Beteiligung beschrieben.
+     */
+    CLASS Beteiligter =
+      /** Typ der beteiligten Partei. */
+      typ : MANDATORY BeteiligterTyp;
+      /** Name der Person, Organisation oder Stelle. */
+      name : MANDATORY KurzerText;
+      /** Vorname, falls es sich um eine Person handelt. */
+      vorname : KurzerText;
+      /** Organisationsname, falls die Person zu einer Organisation gehoert oder eine Organisation gemeint ist. */
+      organisation : KurzerText;
+      /** Kontakt-E-Mail. */
+      email : EmailText;
+      /** Kontakt-Telefonnummer. */
+      telefon : TEXT*50;
+      /** Einfache postalische Adresse als Freitext. */
+      adresse : LangerText;
+      /** Optionaler externer Schluessel, z.B. aus einem Einwohner-, Firmen- oder Kontaktregister. */
+      externeReferenz : Code;
+    END Beteiligter;
+
+    /**
+     * Beteiligung einer Person, Organisation oder Verwaltungseinheit an einem konkreten Geschaeft.
+     *
+     * Zweck:
+     * Eine Beteiligung beschreibt nicht die beteiligte Partei selbst, sondern ihre Funktion in genau
+     * diesem Geschaeft.
+     *
+     * Beispiel:
+     * - Beteiligter: Gemeinde Musterwil
+     * - Rolle: Antragstellerin
+     * - Geschaeft: Umbenennung Flurname "Im alten Boden" zu "Bodenrain"
+     */
+    CLASS Beteiligung =
+      /** Funktion des Beteiligten im konkreten Geschaeft, z.B. Antragstellerin oder Entscheidgremium. */
+      rolle : MANDATORY REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle;
+      /** Optionale Praezisierung der Rolle im Einzelfall, z.B. "fachliche Vorpruefung". */
+      rollenbezeichnung : KurzerText;
+      /** Optionaler Beginn der Beteiligung im Geschaeft. */
+      gueltigVon : INTERLIS.XMLDate;
+      /** Optionales Ende der Beteiligung im Geschaeft. */
+      gueltigBis : INTERLIS.XMLDate;
+      /** Freitext fuer Hinweise zur Beteiligung. */
+      bemerkung : LangerText;
+    END Beteiligung;
+
+    /**
+     * Fachliches Aktenstueck im Dossier, z.B. Antrag, E-Mail, Beschluss, Protokoll oder Plan.
+     *
+     * Zweck:
+     * Beschreibt den fachlichen Inhalt, Kontext und optional auch die konkrete Datei einer Unterlage.
+     * Es gibt im ersten Wurf keine separate Dokumentversionierung.
+     */
+    CLASS Unterlage =
+      /** Fachlicher Titel der Unterlage. */
+      titel : MANDATORY KurzerText;
+      /** Fachlicher Unterlagentyp aus dem Katalog. */
+      typ : MANDATORY REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp;
+      /** Fachliches Datum der Unterlage, z.B. Briefdatum oder Beschlussdatum. */
+      unterlagenDatum : INTERLIS.XMLDate;
+      /** Eingangsdatum, falls es sich um eine eingegangene Unterlage handelt. */
+      eingangsdatum : INTERLIS.XMLDate;
+      /** Ausgangsdatum, falls es sich um eine versandte Unterlage handelt. */
+      ausgangsdatum : INTERLIS.XMLDate;
+      /** Zeitpunkt der Registrierung im GEVER. */
+      registriertAm : INTERLIS.XMLDateTime;
+      /** Benutzer, der die Unterlage registriert hat. */
+      registriertVon : REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Stammdaten.Benutzer;
+      /** Kennzeichnet, ob die Unterlage aktenrelevant ist. */
+      aktenrelevant : MANDATORY BOOLEAN;
+      /** Bearbeitungsstand der Unterlage. */
+      status : MANDATORY UnterlagenStatus;
+      /** Dateiname, falls eine konkrete Datei abgelegt ist. */
+      dateiname : KurzerText;
+      /** MIME-Type der Datei, z.B. application/pdf oder message/rfc822. */
+      mimeType : Code;
+      /** Dateigroesse in Bytes. */
+      dateigroesse : DateigroesseBytes;
+      /** URI auf die Datei oder das Ablageobjekt. */
+      storageUri : UriText;
+      /** SHA-256-Hash zur Integritaetskontrolle der Datei. */
+      hashSha256 : HashSha256;
+      /** Technisches oder fachliches Dateiformat, z.B. PDF/A, EML oder DOCX. */
+      dateiformat : Code;
+      /** Weitere Hinweise zur Unterlage. */
+      bemerkungen : LangerText;
+    END Unterlage;
+
+    /**
+     * Aufgabe, Frist oder Arbeitsschritt innerhalb eines Geschaefts.
+     *
+     * Zweck:
+     * Ermoeglicht Geschaeftskontrolle: wer macht was bis wann und mit welchem Bearbeitungsstand.
+     */
+    CLASS Aufgabe =
+      /** Titel der Aufgabe. */
+      titel : MANDATORY KurzerText;
+      /** Beschreibung des Arbeitsschritts oder der Pendenz. */
+      beschreibung : LangerText;
+      /** Fachlicher Aufgabentyp aus dem Katalog. */
+      typ : MANDATORY REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp;
+      /** Generischer Bearbeitungsstand der Aufgabe. */
+      status : MANDATORY AufgabenStatus;
+      /** Einfache Prioritaet von 0 bis 5. */
+      prioritaet : 0 .. 5;
+      /** Erfassungszeitpunkt der Aufgabe. */
+      erstelltAm : MANDATORY INTERLIS.XMLDateTime;
+      /** Faelligkeitsdatum der Aufgabe. */
+      faelligAm : INTERLIS.XMLDate;
+      /** Erledigungszeitpunkt der Aufgabe. */
+      erledigtAm : INTERLIS.XMLDateTime;
+      /** Optional zugewiesener Benutzer. */
+      zugewiesenAnBenutzer : REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Stammdaten.Benutzer;
+      /** Optional zugewiesene Organisationseinheit. */
+      zugewiesenAnOrganisationseinheit : REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit;
+    END Aufgabe;
+
+    /**
+     * Referenz auf strukturierte Daten in einem Fachsystem.
+     *
+     * Zweck:
+     * Verbindet GEVER-Akten mit operativen Fachdaten, ohne diese Fachdaten im GEVER doppelt zu fuehren.
+     * Beispiel: Referenz auf eine Flurnamenmutation, ein Baugesuch, ein Objekt in der amtlichen Vermessung
+     * oder eine externe Fallnummer.
+     */
+    CLASS FachsystemReferenz =
+      /** Code des Fachsystems, z.B. NOMENKLATUR, AV oder BAUGESUCH. */
+      systemCode : MANDATORY Code;
+      /** Typ des referenzierten Fachobjekts. */
+      objektTyp : MANDATORY Code;
+      /** Identifikator des Fachobjekts im Fachsystem. */
+      objektId : MANDATORY Code;
+      /** Optionaler Mutations- oder Geschaeftsidentifikator im Fachsystem. */
+      mutationId : Code;
+      /** Link auf das Fachsystemobjekt, falls vorhanden. */
+      link : UriText;
+      /** Beschreibung der Referenz und ihres Zwecks. */
+      beschreibung : LangerText;
+    END FachsystemReferenz;
+
+    /**
+     * Einfache Aussonderungs-/Archivierungsinformation zu einem Dossier.
+     *
+     * Zweck:
+     * Haelt fest, ob ein Dossier dem Archiv angeboten, uebernommen, abgelehnt oder vernichtet wurde.
+     * Fachliche Archivbewertung und rechtlich-fachliche Fristenregeln sind in diesem ersten Wurf bewusst
+     * nicht modelliert.
+     */
+    CLASS Archivierung =
+      /** Bearbeitungsstand der Aussonderung/Archivierung. */
+      status : MANDATORY ArchivierungsStatus;
+      /** Datum, an dem das Dossier dem Archiv angeboten wurde. */
+      angebotenAm : INTERLIS.XMLDate;
+      /** Datum des Archiventscheids. */
+      entscheidAm : INTERLIS.XMLDate;
+      /** Archivsignatur, falls das Dossier uebernommen wurde. */
+      archivSignatur : Code;
+      /** URI auf ein SIP, Archivpaket oder Ablieferungsobjekt. */
+      sipUri : UriText;
+      /** Datum der Vernichtung, falls das Dossier vernichtet wurde. */
+      vernichtetAm : INTERLIS.XMLDate;
+      /** Bemerkung zur Aussonderung oder Archivierung. */
+      bemerkung : LangerText;
+    END Archivierung;
+
+    /**
+     * Journal-/Audit-Eintrag.
+     *
+     * Zweck:
+     * Macht wichtige Aenderungen, Statuswechsel, Aufgabenereignisse, Entscheide und Archivierungsschritte
+     * nachvollziehbar. Das Journal ist fachlich und bewusst schlank; es ersetzt keine vollstaendige technische
+     * Datenbank-Historisierung.
+     */
+    CLASS Ereignis =
+      /** Objektart, auf die sich das Ereignis bezieht. */
+      objektTyp : MANDATORY EreignisObjektTyp;
+      /** Fachlicher oder technischer Identifikator des betroffenen Objekts. */
+      objektId : MANDATORY Code;
+      /** Art des Ereignisses. */
+      typ : MANDATORY EreignisTyp;
+      /** Zeitpunkt des Ereignisses. */
+      zeitpunkt : MANDATORY INTERLIS.XMLDateTime;
+      /** Benutzer, der das Ereignis ausgeloest oder erfasst hat. */
+      benutzer : REFERENCE TO (EXTERNAL) SO_AGI_GEVER_20260707.Stammdaten.Benutzer;
+      /** Freitextbemerkung zum Ereignis. */
+      bemerkung : LangerText;
+    END Ereignis;
+
+    /**
+     * Verknuepft ein Geschaeft mit seinem Dossier.
+     *
+     * Zweck:
+     * Ein Geschaeft gehoert genau zu einem Dossier. Ein Dossier kann mehrere Geschaefte enthalten,
+     * z.B. bei Sammeldossiers oder zusammengehoerigen Teilgeschaeften.
+     */
+    ASSOCIATION Geschaeft_Dossier =
+      GeschaeftsDossier -- {1} Dossier;
+      GeschaefteImDossier -- {0..*} Geschaeft;
+    END Geschaeft_Dossier;
+
+    /**
+     * Ordnet eine Beteiligung einem Geschaeft zu.
+     *
+     * Zweck:
+     * Ohne diese Beziehung waere nicht klar, in welchem Geschaeft die beschriebene Rolle gilt.
+     */
+    ASSOCIATION Beteiligung_Geschaeft =
+      BeteiligtesGeschaeft -- {1} Geschaeft;
+      BeteiligungenZumGeschaeft -- {0..*} Beteiligung;
+    END Beteiligung_Geschaeft;
+
+    /**
+     * Ordnet eine Beteiligung der beteiligten Person, Organisation oder internen Stelle zu.
+     *
+     * Zweck:
+     * Trennt die Partei selbst von ihrer Rolle im Geschaeft. Dieselbe Partei kann in verschiedenen
+     * Geschaeften unterschiedliche Rollen haben.
+     */
+    ASSOCIATION Beteiligung_Beteiligter =
+      BeteiligtePartei -- {1} Beteiligter;
+      BeteiligungenDerPartei -- {0..*} Beteiligung;
+    END Beteiligung_Beteiligter;
+
+    /**
+     * Ordnet eine Unterlage ihrem Dossier zu.
+     *
+     * Zweck:
+     * Jede aktenrelevante Unterlage liegt in einem Dossier. Das Dossier ist der primaere Aktenkontext.
+     */
+    ASSOCIATION Unterlage_Dossier =
+      Ablagedossier -- {1} Dossier;
+      UnterlagenImDossier -- {0..*} Unterlage;
+    END Unterlage_Dossier;
+
+    /**
+     * Erlaubt, eine Unterlage optional einem bestimmten Hauptgeschaeft im Dossier zuzuordnen.
+     *
+     * Zweck:
+     * Nuetzlich, wenn ein Dossier mehrere Geschaefte enthaelt und eine Unterlage eindeutig zu einem
+     * bestimmten Geschaeft gehoert. Die Dossierzuordnung bleibt trotzdem massgebend.
+     */
+    ASSOCIATION Unterlage_Hauptgeschaeft =
+      Hauptgeschaeft -- {0..1} Geschaeft;
+      UnterlagenZumGeschaeft -- {0..*} Unterlage;
+    END Unterlage_Hauptgeschaeft;
+
+    /**
+     * Ordnet eine Aufgabe ihrem Geschaeft zu.
+     *
+     * Zweck:
+     * Aufgaben bilden Pendenzen, Fristen und Arbeitsschritte innerhalb eines Geschaefts ab.
+     */
+    ASSOCIATION Aufgabe_Geschaeft =
+      Aufgabengeschaeft -- {1} Geschaeft;
+      AufgabenZumGeschaeft -- {0..*} Aufgabe;
+    END Aufgabe_Geschaeft;
+
+    /**
+     * Verbindet eine Fachsystemreferenz optional mit einem Geschaeft.
+     *
+     * Zweck:
+     * Eine Referenz kann direkt zum Geschaeft gehoeren, z.B. die Mutationsnummer eines Fachsystems.
+     */
+    ASSOCIATION FachsystemReferenz_Geschaeft =
+      ReferenziertesGeschaeft -- {0..1} Geschaeft;
+      FachreferenzenZumGeschaeft -- {0..*} FachsystemReferenz;
+    END FachsystemReferenz_Geschaeft;
+
+    /**
+     * Verbindet eine Fachsystemreferenz optional mit einem Dossier.
+     *
+     * Zweck:
+     * Eine Referenz kann auch auf Dossierebene gelten, z.B. wenn mehrere Geschaefte dasselbe Fachobjekt betreffen.
+     */
+    ASSOCIATION FachsystemReferenz_Dossier =
+      ReferenziertesDossier -- {0..1} Dossier;
+      FachreferenzenZumDossier -- {0..*} FachsystemReferenz;
+    END FachsystemReferenz_Dossier;
+
+    /**
+     * Ordnet einem Dossier seine Archivierungsinformationen zu.
+     *
+     * Zweck:
+     * Haltet die einfache Aussonderungs-/Archivierungsinformation zum Dossier separat vom eigentlichen Dossier.
+     */
+    ASSOCIATION Archivierung_Dossier =
+      Archivierungsdossier -- {1} Dossier;
+      ArchivierungZumDossier -- {0..1} Archivierung;
+    END Archivierung_Dossier;
+
+  END Geschaeftsdaten;
+
+END SO_AGI_GEVER_20260707.

@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TRANSFER xmlns="http://www.interlis.ch/INTERLIS2.4">
+  <HEADERSECTION VERSION="2.4" SENDER="ChatGPT-Testdaten">
+    <MODELS>
+      <MODEL NAME="CatalogueObjects_V2" VERSION="2021-01-06" URI="https://models.geo.admin.ch/CH/"/>
+      <MODEL NAME="SO_AGI_GEVER_20260707" VERSION="2026-07-07" URI="https://agi.so.ch/models"/>
+    </MODELS>
+  </HEADERSECTION>
+  <DATASECTION>
+    <SO_AGI_GEVER_20260707.Kataloge BID="b-c4dbb2a2-9b06-525d-b2d9-e69b8d9e7013">
+      <SO_AGI_GEVER_20260707.Kataloge.Geschaeftsart TID="d5410f91-14ed-50c7-9596-f8c227db72c1">
+        <code>NOMENKLATURMUTATION</code>
+        <name>Nomenklaturmutation</name>
+        <beschreibung>Geschaeftsart fuer die Aenderung, Festlegung oder Aufhebung eines Flur-, Orts- oder geografischen Namens.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.Geschaeftsart>
+      <SO_AGI_GEVER_20260707.Kataloge.Geschaeftsart TID="109338b9-ee32-5ddf-b731-80a78ae1449b">
+        <code>NOMENKLATURAUSKUNFT</code>
+        <name>Nomenklaturauskunft</name>
+        <beschreibung>Einfache Auskunft oder Vorabklaerung zu geografischen Namen ohne formellen Kommissionsentscheid.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.Geschaeftsart>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="be86dc02-b0cb-5f43-bdd0-fa990596d4f6">
+        <code>ANTRAG_EINGEGANGEN</code>
+        <name>Antrag eingegangen</name>
+        <beschreibung>Der Antrag einer Gemeinde oder Stelle ist eingetroffen und wird registriert.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>10</sortierung>
+        <initial>true</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="06b7c28f-4a87-5a3c-a5ea-1829eade9095">
+        <code>FORMELLE_PRUEFUNG</code>
+        <name>Formelle Prüfung</name>
+        <beschreibung>Pruefung, ob Antrag, Beschluss und Beilagen formell vollstaendig sind.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>20</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="24dd19a6-ee96-5e1c-91ad-49413f13fd05">
+        <code>RUECKFRAGE_GEMEINDE</code>
+        <name>Rückfrage Gemeinde</name>
+        <beschreibung>Es sind Ergaenzungen oder Praezisierungen der Gemeinde ausstehend.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>30</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="6515a04a-a0e2-53df-aa93-3bd35ccdc539">
+        <code>FACHLICHE_PRUEFUNG</code>
+        <name>Fachliche Prüfung</name>
+        <beschreibung>Fachliche Pruefung der Namensform, Schreibweise, Verwechslungsgefahr und Plausibilitaet.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>40</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="d634b096-1003-50d7-8711-e2346f6ff1ed">
+        <code>ENTSCHEIDVORLAGE</code>
+        <name>Entscheidvorlage</name>
+        <beschreibung>Die Vorlage fuer die kantonale Nomenklaturkommission wird erstellt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>50</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="65ee5c08-4cda-50c7-9ae3-a684370987ea">
+        <code>TRAKTANDIERT</code>
+        <name>Traktandiert</name>
+        <beschreibung>Das Geschaeft ist fuer eine Sitzung der Nomenklaturkommission traktandiert.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>60</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="6f403d25-297c-5451-8b4f-83dee6acdf6f">
+        <code>ENTSCHEID_GEFALLEN</code>
+        <name>Entscheid gefallen</name>
+        <beschreibung>Die Nomenklaturkommission hat einen Entscheid gefaellt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>70</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="a6424142-2dab-50e2-bee2-1e219cabe536">
+        <code>UMSETZUNG_FACHSYSTEM</code>
+        <name>Umsetzung im Fachsystem</name>
+        <beschreibung>Der Entscheid wird im Fachsystem oder in der amtlichen Vermessung nachgefuehrt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>80</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="750efb6a-81c5-553f-b2ec-9d91ccde707c">
+        <code>ABGESCHLOSSEN</code>
+        <name>Abgeschlossen</name>
+        <beschreibung>Geschaeft ist erledigt und aktenmaessig abgeschlossen.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>90</sortierung>
+        <initial>false</initial>
+        <terminal>true</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ResultatStatus TID="2e2f6a78-e071-5868-b5ff-e2eace4d3e5e">
+        <code>GENEHMIGT</code>
+        <name>Genehmigt</name>
+        <beschreibung>Der beantragte Name oder die beantragte Umbenennung wurde genehmigt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>10</sortierung>
+        <terminal>true</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ResultatStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ResultatStatus TID="14afba04-b4d3-5348-8618-9991c9917af1">
+        <code>ABGELEHNT</code>
+        <name>Abgelehnt</name>
+        <beschreibung>Der Antrag wurde abgelehnt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>20</sortierung>
+        <terminal>true</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ResultatStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ResultatStatus TID="b753ff70-72ee-5aa7-9c16-38f1fbaaac66">
+        <code>ZURUECKGESTELLT</code>
+        <name>Zurückgestellt</name>
+        <beschreibung>Der Entscheid wurde vertagt; weitere Abklaerungen sind noetig.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>30</sortierung>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ResultatStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ResultatStatus TID="023a3043-4e4d-5972-b0f1-2e42c018a748">
+        <code>TEILWEISE_GENEHMIGT</code>
+        <name>Teilweise genehmigt</name>
+        <beschreibung>Der Antrag wurde in angepasster Form genehmigt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>40</sortierung>
+        <terminal>true</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ResultatStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="ba8e2e35-6981-5824-aa02-7980d8269158">
+        <code>ANTRAGSTELLERIN</code>
+        <name>Antragstellerin</name>
+        <beschreibung>Partei, die das Geschaeft ausloest oder den formellen Antrag stellt.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="84420f7c-464f-5fb4-abc1-548b6a24b2eb">
+        <code>ADRESSATIN</code>
+        <name>Adressatin</name>
+        <beschreibung>Partei, an die Entscheid, Mitteilung oder Antwort gerichtet ist.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="e824744f-6028-5a11-b341-cbd3e2812deb">
+        <code>FACHSTELLE</code>
+        <name>Fachstelle</name>
+        <beschreibung>Fachlich beigezogene interne oder externe Stelle.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="1eadb563-05aa-545e-90c3-d01737407844">
+        <code>STELLUNGNEHMENDE_STELLE</code>
+        <name>Stellungnehmende Stelle</name>
+        <beschreibung>Stelle oder Organisation, die zum Geschaeft eine Stellungnahme abgibt.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="45e96734-e696-5b12-a623-2c5b4bcd88e6">
+        <code>ENTSCHEIDGREMIUM</code>
+        <name>Entscheidgremium</name>
+        <beschreibung>Gremium oder Behörde, die den massgeblichen Entscheid faellt.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="6ce51653-4fe8-5448-adcb-ac2e26c78829">
+        <code>AUSFUEHRENDE_STELLE</code>
+        <name>Ausführende Stelle</name>
+        <beschreibung>Stelle, die nach dem Entscheid eine Umsetzung oder Nachfuehrung vornimmt.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="05855abb-75a1-588f-b3b3-9398bde6caee">
+        <code>INFORMIERTE_STELLE</code>
+        <name>Informierte Stelle</name>
+        <beschreibung>Stelle, die ueber Geschaeft oder Entscheid informiert wird.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="4107a5d3-7ddd-5687-9974-344b4727093c">
+        <code>ANTRAG</code>
+        <name>Antrag</name>
+        <beschreibung>Formeller Antrag auf Eroeffnung oder Behandlung eines Geschaefts.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="ecc14173-0ab1-5f83-a012-e082434ee68b">
+        <code>GEMEINDERATSBESCHLUSS</code>
+        <name>Gemeinderatsbeschluss</name>
+        <beschreibung>Beschluss oder Protokollauszug der antragstellenden Gemeinde.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="f1ba31f7-e432-518b-9efe-68175f441f44">
+        <code>EMAIL_EINGANG</code>
+        <name>E-Mail Eingang</name>
+        <beschreibung>Aktenrelevante eingegangene E-Mail.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="d63944bb-68b2-5804-b834-bc39435ddb2b">
+        <code>EMAIL_AUSGANG</code>
+        <name>E-Mail Ausgang</name>
+        <beschreibung>Aktenrelevante ausgehende E-Mail.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="f69b846c-cb07-5052-a65c-7f0471870082">
+        <code>SITUATIONSPLAN</code>
+        <name>Situationsplan</name>
+        <beschreibung>Plan, Kartenausschnitt oder Lagebeilage zum Geschaeft.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="bd9b3111-e7e0-5c72-aeb2-8e657173571b">
+        <code>AKTENNOTIZ</code>
+        <name>Aktennotiz</name>
+        <beschreibung>Interne Aktennotiz oder fachliche Pruefnotiz.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="19c977b3-fd81-55fd-8d20-672e2e2375e8">
+        <code>ENTSCHEIDVORLAGE</code>
+        <name>Entscheidvorlage</name>
+        <beschreibung>Vorlage fuer die Beratung und Entscheidung durch ein Gremium.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="86e2fe2b-760a-5db3-b42a-cb07b9e3a41c">
+        <code>KOMMISSIONSBESCHLUSS</code>
+        <name>Kommissionsbeschluss</name>
+        <beschreibung>Beschluss, Protokollauszug oder Entscheid eines Gremiums.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="ea1656be-a83d-5bce-b228-102f42b6b32c">
+        <code>MITTEILUNG</code>
+        <name>Mitteilung</name>
+        <beschreibung>Ausgehende Mitteilung, Brief oder Entscheidversand.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="11e45fb6-f54e-5c50-8bba-28d5d4c1a430">
+        <code>FORMELLE_PRUEFUNG</code>
+        <name>Formelle Prüfung</name>
+        <beschreibung>Pruefen, ob ein Geschaeft formell vollstaendig eroeffnet werden kann.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="dbeaca69-0628-5ae1-9b1e-ff126fe1fc50">
+        <code>RUECKFRAGE</code>
+        <name>Rückfrage</name>
+        <beschreibung>Rueckfrage oder Einforderung fehlender Angaben bei Beteiligten.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="aa04c27e-2145-5c58-9280-dc279d0afd37">
+        <code>FACHLICHE_PRUEFUNG</code>
+        <name>Fachliche Prüfung</name>
+        <beschreibung>Fachliche Beurteilung des Geschaefts.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="471d839c-c5fd-5112-ac99-ce1ed2a12eaf">
+        <code>ENTSCHEIDVORLAGE_ERSTELLEN</code>
+        <name>Entscheidvorlage erstellen</name>
+        <beschreibung>Erstellen der Entscheidvorlage fuer das zustaendige Gremium.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="5ebabb3e-a49d-5360-b8fc-d51929589af8">
+        <code>TRAKTANDIEREN</code>
+        <name>Traktandieren</name>
+        <beschreibung>Geschaeft fuer eine Sitzung oder Entscheidrunde vormerken.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="76d2f020-2190-561f-bf4b-861d9e8b506c">
+        <code>ENTSCHEID_MITTEILEN</code>
+        <name>Entscheid mitteilen</name>
+        <beschreibung>Entscheid oder Beschluss den Beteiligten mitteilen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="ea0361aa-d686-5ea1-8b89-ebf0d96b7b6c">
+        <code>FACHSYSTEM_NACHFUEHREN</code>
+        <name>Fachsystem nachführen</name>
+        <beschreibung>Fachdaten gemaess Entscheid nachfuehren.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="da0485f3-200c-51cb-b9af-3de124f75250">
+        <code>DOSSIER_ABSCHLIESSEN</code>
+        <name>Dossier abschliessen</name>
+        <beschreibung>Dossier fachlich und aktenmaessig abschliessen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+    </SO_AGI_GEVER_20260707.Kataloge>
+  </DATASECTION>
+</TRANSFER>

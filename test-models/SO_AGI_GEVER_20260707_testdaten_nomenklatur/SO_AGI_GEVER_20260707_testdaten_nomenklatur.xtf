@@ -1,0 +1,1034 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TRANSFER xmlns="http://www.interlis.ch/INTERLIS2.4">
+  <HEADERSECTION VERSION="2.4" SENDER="ChatGPT-Testdaten">
+    <MODELS>
+      <MODEL NAME="CatalogueObjects_V2" VERSION="2021-01-06" URI="https://models.geo.admin.ch/CH/"/>
+      <MODEL NAME="SO_AGI_GEVER_20260707" VERSION="2026-07-07" URI="https://agi.so.ch/models"/>
+    </MODELS>
+  </HEADERSECTION>
+  <DATASECTION>
+    <SO_AGI_GEVER_20260707.Kataloge BID="b-c4dbb2a2-9b06-525d-b2d9-e69b8d9e7013">
+      <SO_AGI_GEVER_20260707.Kataloge.Geschaeftsart TID="d5410f91-14ed-50c7-9596-f8c227db72c1">
+        <code>NOMENKLATURMUTATION</code>
+        <name>Nomenklaturmutation</name>
+        <beschreibung>Geschaeftsart fuer die Aenderung, Festlegung oder Aufhebung eines Flur-, Orts- oder geografischen Namens.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.Geschaeftsart>
+      <SO_AGI_GEVER_20260707.Kataloge.Geschaeftsart TID="109338b9-ee32-5ddf-b731-80a78ae1449b">
+        <code>NOMENKLATURAUSKUNFT</code>
+        <name>Nomenklaturauskunft</name>
+        <beschreibung>Einfache Auskunft oder Vorabklaerung zu geografischen Namen ohne formellen Kommissionsentscheid.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.Geschaeftsart>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="be86dc02-b0cb-5f43-bdd0-fa990596d4f6">
+        <code>ANTRAG_EINGEGANGEN</code>
+        <name>Antrag eingegangen</name>
+        <beschreibung>Der Antrag einer Gemeinde oder Stelle ist eingetroffen und wird registriert.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>10</sortierung>
+        <initial>true</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="06b7c28f-4a87-5a3c-a5ea-1829eade9095">
+        <code>FORMELLE_PRUEFUNG</code>
+        <name>Formelle Prüfung</name>
+        <beschreibung>Pruefung, ob Antrag, Beschluss und Beilagen formell vollstaendig sind.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>20</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="24dd19a6-ee96-5e1c-91ad-49413f13fd05">
+        <code>RUECKFRAGE_GEMEINDE</code>
+        <name>Rückfrage Gemeinde</name>
+        <beschreibung>Es sind Ergaenzungen oder Praezisierungen der Gemeinde ausstehend.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>30</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="6515a04a-a0e2-53df-aa93-3bd35ccdc539">
+        <code>FACHLICHE_PRUEFUNG</code>
+        <name>Fachliche Prüfung</name>
+        <beschreibung>Fachliche Pruefung der Namensform, Schreibweise, Verwechslungsgefahr und Plausibilitaet.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>40</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="d634b096-1003-50d7-8711-e2346f6ff1ed">
+        <code>ENTSCHEIDVORLAGE</code>
+        <name>Entscheidvorlage</name>
+        <beschreibung>Die Vorlage fuer die kantonale Nomenklaturkommission wird erstellt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>50</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="65ee5c08-4cda-50c7-9ae3-a684370987ea">
+        <code>TRAKTANDIERT</code>
+        <name>Traktandiert</name>
+        <beschreibung>Das Geschaeft ist fuer eine Sitzung der Nomenklaturkommission traktandiert.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>60</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="6f403d25-297c-5451-8b4f-83dee6acdf6f">
+        <code>ENTSCHEID_GEFALLEN</code>
+        <name>Entscheid gefallen</name>
+        <beschreibung>Die Nomenklaturkommission hat einen Entscheid gefaellt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>70</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="a6424142-2dab-50e2-bee2-1e219cabe536">
+        <code>UMSETZUNG_FACHSYSTEM</code>
+        <name>Umsetzung im Fachsystem</name>
+        <beschreibung>Der Entscheid wird im Fachsystem oder in der amtlichen Vermessung nachgefuehrt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>80</sortierung>
+        <initial>false</initial>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ProzessStatus TID="750efb6a-81c5-553f-b2ec-9d91ccde707c">
+        <code>ABGESCHLOSSEN</code>
+        <name>Abgeschlossen</name>
+        <beschreibung>Geschaeft ist erledigt und aktenmaessig abgeschlossen.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>90</sortierung>
+        <initial>false</initial>
+        <terminal>true</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ProzessStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ResultatStatus TID="2e2f6a78-e071-5868-b5ff-e2eace4d3e5e">
+        <code>GENEHMIGT</code>
+        <name>Genehmigt</name>
+        <beschreibung>Der beantragte Name oder die beantragte Umbenennung wurde genehmigt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>10</sortierung>
+        <terminal>true</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ResultatStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ResultatStatus TID="14afba04-b4d3-5348-8618-9991c9917af1">
+        <code>ABGELEHNT</code>
+        <name>Abgelehnt</name>
+        <beschreibung>Der Antrag wurde abgelehnt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>20</sortierung>
+        <terminal>true</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ResultatStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ResultatStatus TID="b753ff70-72ee-5aa7-9c16-38f1fbaaac66">
+        <code>ZURUECKGESTELLT</code>
+        <name>Zurückgestellt</name>
+        <beschreibung>Der Entscheid wurde vertagt; weitere Abklaerungen sind noetig.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>30</sortierung>
+        <terminal>false</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ResultatStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.ResultatStatus TID="023a3043-4e4d-5972-b0f1-2e42c018a748">
+        <code>TEILWEISE_GENEHMIGT</code>
+        <name>Teilweise genehmigt</name>
+        <beschreibung>Der Antrag wurde in angepasster Form genehmigt.</beschreibung>
+        <status>aktiv</status>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <sortierung>40</sortierung>
+        <terminal>true</terminal>
+      </SO_AGI_GEVER_20260707.Kataloge.ResultatStatus>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="ba8e2e35-6981-5824-aa02-7980d8269158">
+        <code>ANTRAGSTELLERIN</code>
+        <name>Antragstellerin</name>
+        <beschreibung>Partei, die das Geschaeft ausloest oder den formellen Antrag stellt.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="84420f7c-464f-5fb4-abc1-548b6a24b2eb">
+        <code>ADRESSATIN</code>
+        <name>Adressatin</name>
+        <beschreibung>Partei, an die Entscheid, Mitteilung oder Antwort gerichtet ist.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="e824744f-6028-5a11-b341-cbd3e2812deb">
+        <code>FACHSTELLE</code>
+        <name>Fachstelle</name>
+        <beschreibung>Fachlich beigezogene interne oder externe Stelle.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="1eadb563-05aa-545e-90c3-d01737407844">
+        <code>STELLUNGNEHMENDE_STELLE</code>
+        <name>Stellungnehmende Stelle</name>
+        <beschreibung>Stelle oder Organisation, die zum Geschaeft eine Stellungnahme abgibt.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="45e96734-e696-5b12-a623-2c5b4bcd88e6">
+        <code>ENTSCHEIDGREMIUM</code>
+        <name>Entscheidgremium</name>
+        <beschreibung>Gremium oder Behörde, die den massgeblichen Entscheid faellt.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="6ce51653-4fe8-5448-adcb-ac2e26c78829">
+        <code>AUSFUEHRENDE_STELLE</code>
+        <name>Ausführende Stelle</name>
+        <beschreibung>Stelle, die nach dem Entscheid eine Umsetzung oder Nachfuehrung vornimmt.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle TID="05855abb-75a1-588f-b3b3-9398bde6caee">
+        <code>INFORMIERTE_STELLE</code>
+        <name>Informierte Stelle</name>
+        <beschreibung>Stelle, die ueber Geschaeft oder Entscheid informiert wird.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.BeteiligungsRolle>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="4107a5d3-7ddd-5687-9974-344b4727093c">
+        <code>ANTRAG</code>
+        <name>Antrag</name>
+        <beschreibung>Formeller Antrag auf Eroeffnung oder Behandlung eines Geschaefts.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="ecc14173-0ab1-5f83-a012-e082434ee68b">
+        <code>GEMEINDERATSBESCHLUSS</code>
+        <name>Gemeinderatsbeschluss</name>
+        <beschreibung>Beschluss oder Protokollauszug der antragstellenden Gemeinde.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="f1ba31f7-e432-518b-9efe-68175f441f44">
+        <code>EMAIL_EINGANG</code>
+        <name>E-Mail Eingang</name>
+        <beschreibung>Aktenrelevante eingegangene E-Mail.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="d63944bb-68b2-5804-b834-bc39435ddb2b">
+        <code>EMAIL_AUSGANG</code>
+        <name>E-Mail Ausgang</name>
+        <beschreibung>Aktenrelevante ausgehende E-Mail.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="f69b846c-cb07-5052-a65c-7f0471870082">
+        <code>SITUATIONSPLAN</code>
+        <name>Situationsplan</name>
+        <beschreibung>Plan, Kartenausschnitt oder Lagebeilage zum Geschaeft.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="bd9b3111-e7e0-5c72-aeb2-8e657173571b">
+        <code>AKTENNOTIZ</code>
+        <name>Aktennotiz</name>
+        <beschreibung>Interne Aktennotiz oder fachliche Pruefnotiz.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="19c977b3-fd81-55fd-8d20-672e2e2375e8">
+        <code>ENTSCHEIDVORLAGE</code>
+        <name>Entscheidvorlage</name>
+        <beschreibung>Vorlage fuer die Beratung und Entscheidung durch ein Gremium.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="86e2fe2b-760a-5db3-b42a-cb07b9e3a41c">
+        <code>KOMMISSIONSBESCHLUSS</code>
+        <name>Kommissionsbeschluss</name>
+        <beschreibung>Beschluss, Protokollauszug oder Entscheid eines Gremiums.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp TID="ea1656be-a83d-5bce-b228-102f42b6b32c">
+        <code>MITTEILUNG</code>
+        <name>Mitteilung</name>
+        <beschreibung>Ausgehende Mitteilung, Brief oder Entscheidversand.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.UnterlagenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="11e45fb6-f54e-5c50-8bba-28d5d4c1a430">
+        <code>FORMELLE_PRUEFUNG</code>
+        <name>Formelle Prüfung</name>
+        <beschreibung>Pruefen, ob ein Geschaeft formell vollstaendig eroeffnet werden kann.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="dbeaca69-0628-5ae1-9b1e-ff126fe1fc50">
+        <code>RUECKFRAGE</code>
+        <name>Rückfrage</name>
+        <beschreibung>Rueckfrage oder Einforderung fehlender Angaben bei Beteiligten.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="aa04c27e-2145-5c58-9280-dc279d0afd37">
+        <code>FACHLICHE_PRUEFUNG</code>
+        <name>Fachliche Prüfung</name>
+        <beschreibung>Fachliche Beurteilung des Geschaefts.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="471d839c-c5fd-5112-ac99-ce1ed2a12eaf">
+        <code>ENTSCHEIDVORLAGE_ERSTELLEN</code>
+        <name>Entscheidvorlage erstellen</name>
+        <beschreibung>Erstellen der Entscheidvorlage fuer das zustaendige Gremium.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="5ebabb3e-a49d-5360-b8fc-d51929589af8">
+        <code>TRAKTANDIEREN</code>
+        <name>Traktandieren</name>
+        <beschreibung>Geschaeft fuer eine Sitzung oder Entscheidrunde vormerken.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="76d2f020-2190-561f-bf4b-861d9e8b506c">
+        <code>ENTSCHEID_MITTEILEN</code>
+        <name>Entscheid mitteilen</name>
+        <beschreibung>Entscheid oder Beschluss den Beteiligten mitteilen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="ea0361aa-d686-5ea1-8b89-ebf0d96b7b6c">
+        <code>FACHSYSTEM_NACHFUEHREN</code>
+        <name>Fachsystem nachführen</name>
+        <beschreibung>Fachdaten gemaess Entscheid nachfuehren.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+      <SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp TID="da0485f3-200c-51cb-b9af-3de124f75250">
+        <code>DOSSIER_ABSCHLIESSEN</code>
+        <name>Dossier abschliessen</name>
+        <beschreibung>Dossier fachlich und aktenmaessig abschliessen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Kataloge.AufgabenTyp>
+    </SO_AGI_GEVER_20260707.Kataloge>
+    <SO_AGI_GEVER_20260707.Stammdaten BID="b-8f63ea47-4dd4-5dc9-9fd2-ab9a9f9f40fe">
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit TID="64d5a3f8-f3dc-580a-aecc-1479f74b878a">
+        <kuerzel>AGI</kuerzel>
+        <name>Amt für Geoinformation</name>
+        <beschreibung>Federfuehrendes Amt fuer Geoinformation und amtliche Vermessung.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit TID="2566f5fc-810b-55b2-a7f5-b78a2437df47">
+        <kuerzel>AGI-NOM</kuerzel>
+        <name>Fachstelle Nomenklatur</name>
+        <beschreibung>Interne Fachstelle fuer geografische Namen und Nomenklaturgeschaefte.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit TID="51df8697-f0ee-589f-9940-bf385dc42108">
+        <kuerzel>NOMKOM</kuerzel>
+        <name>Kantonale Nomenklaturkommission</name>
+        <beschreibung>Kantonales Entscheidgremium fuer Nomenklaturfragen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit TID="edce536b-8bea-5898-947d-b383cc558a45">
+        <kuerzel>AV-NF</kuerzel>
+        <name>Nachführung amtliche Vermessung</name>
+        <beschreibung>Stelle fuer die technische Nachfuehrung in der amtlichen Vermessung.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer TID="5e11e774-5cf9-5de9-939f-3f0072ef00a7">
+        <username>s.mueller</username>
+        <name>Sabine Müller</name>
+        <email>sabine.mueller@agi.so.ch</email>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer TID="c52b97a8-1469-56a0-8155-3dc2991b3a72">
+        <username>a.keller</username>
+        <name>Andreas Keller</name>
+        <email>andreas.keller@agi.so.ch</email>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer TID="31b922eb-caf1-553b-8258-e77f0898b7db">
+        <username>p.steiner</username>
+        <name>Peter Steiner</name>
+        <email>peter.steiner@agi.so.ch</email>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem TID="a898781f-61e5-5b0e-b48a-6f696aa44bfc">
+        <code>AGI-GEVER</code>
+        <name>Ordnungssystem Amt für Geoinformation</name>
+        <gueltigVon>2026-01-01</gueltigVon>
+        <status>Aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition TID="68a1803c-93a6-513d-9834-9bc06d3fbbba">
+        <code>4</code>
+        <titel>Geoinformation und amtliche Vermessung</titel>
+        <beschreibung>Aufgabenbereich Geoinformation, amtliche Vermessung und geografische Namen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition TID="20b050f8-f60e-5ac1-8f77-eff502e279f0">
+        <code>4.3</code>
+        <titel>Nomenklatur und geografische Namen</titel>
+        <beschreibung>Grundlagen, Einzelgeschaefte und Gremienarbeit zu geografischen Namen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition TID="c82dbebd-73a6-5282-be46-01e6bc859300">
+        <code>4.3.2</code>
+        <titel>Einzelgeschäfte Flur- und Ortsnamen</titel>
+        <beschreibung>Dossiers zu einzelnen Festlegungen, Umbenennungen oder Korrekturen von Flur- und Ortsnamen.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition TID="9d10d1e0-bccf-5489-9cb3-660631d8648f">
+        <code>4.3.3</code>
+        <titel>Kantonale Nomenklaturkommission</titel>
+        <beschreibung>Sitzungsunterlagen, Protokolle und allgemeine Unterlagen der Nomenklaturkommission.</beschreibung>
+        <status>aktiv</status>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition>
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit_Hierarchie TID="7a6f6a62-decc-5402-9f19-ff9f22bfb7d5">
+        <UebergeordneteEinheit REF="64d5a3f8-f3dc-580a-aecc-1479f74b878a"/>
+        <UntergeordneteEinheiten REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit_Hierarchie>
+      <SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit_Hierarchie TID="3c64dcc4-241d-5028-853e-bf68c7fe1273">
+        <UebergeordneteEinheit REF="64d5a3f8-f3dc-580a-aecc-1479f74b878a"/>
+        <UntergeordneteEinheiten REF="edce536b-8bea-5898-947d-b383cc558a45"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Organisationseinheit_Hierarchie>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit TID="c855f2ab-e111-5986-87e2-4036ab17ec1e">
+        <PrimaereOrganisationseinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+        <ZugeordneteBenutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit TID="fbdaa80e-5c3c-58e2-a65c-ea16d691ce31">
+        <PrimaereOrganisationseinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+        <ZugeordneteBenutzer REF="c52b97a8-1469-56a0-8155-3dc2991b3a72"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit TID="b3a1417d-7e8c-5a3f-80cf-e476858ee3e0">
+        <PrimaereOrganisationseinheit REF="edce536b-8bea-5898-947d-b383cc558a45"/>
+        <ZugeordneteBenutzer REF="31b922eb-caf1-553b-8258-e77f0898b7db"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Benutzer_Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Organisationseinheit TID="cad16bba-fe4f-59a4-a4a5-71954436cbaa">
+        <Verwaltungseinheit REF="64d5a3f8-f3dc-580a-aecc-1479f74b878a"/>
+        <OrdnungssystemeDerEinheit REF="a898781f-61e5-5b0e-b48a-6f696aa44bfc"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Organisationseinheit>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position TID="fbb59822-d185-54f3-87ac-aebf76f37497">
+        <ZugehoerigesOrdnungssystem REF="a898781f-61e5-5b0e-b48a-6f696aa44bfc"/>
+        <PositionenDesOrdnungssystems REF="68a1803c-93a6-513d-9834-9bc06d3fbbba"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position TID="4ddd824a-6880-56d2-8c2e-e8868abed575">
+        <ZugehoerigesOrdnungssystem REF="a898781f-61e5-5b0e-b48a-6f696aa44bfc"/>
+        <PositionenDesOrdnungssystems REF="20b050f8-f60e-5ac1-8f77-eff502e279f0"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position TID="5ea8104d-92cd-5605-8714-02fa6e21fca3">
+        <ZugehoerigesOrdnungssystem REF="a898781f-61e5-5b0e-b48a-6f696aa44bfc"/>
+        <PositionenDesOrdnungssystems REF="c82dbebd-73a6-5282-be46-01e6bc859300"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position>
+      <SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position TID="182132ea-9cdf-592f-941a-a5f73159922e">
+        <ZugehoerigesOrdnungssystem REF="a898781f-61e5-5b0e-b48a-6f696aa44bfc"/>
+        <PositionenDesOrdnungssystems REF="9d10d1e0-bccf-5489-9cb3-660631d8648f"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.Ordnungssystem_Position>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie TID="fcbce98b-011c-5fc3-b74b-3171beb74116">
+        <Oberposition REF="68a1803c-93a6-513d-9834-9bc06d3fbbba"/>
+        <Unterpositionen REF="20b050f8-f60e-5ac1-8f77-eff502e279f0"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie TID="61c64846-4a74-57cc-a5fe-6c382003c6bb">
+        <Oberposition REF="20b050f8-f60e-5ac1-8f77-eff502e279f0"/>
+        <Unterpositionen REF="c82dbebd-73a6-5282-be46-01e6bc859300"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie TID="f4509896-cfec-5840-bbec-735de99f8bbd">
+        <Oberposition REF="20b050f8-f60e-5ac1-8f77-eff502e279f0"/>
+        <Unterpositionen REF="9d10d1e0-bccf-5489-9cb3-660631d8648f"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Hierarchie>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Federfuehrung TID="98b0d75d-2987-538c-b393-66240bff18a0">
+        <FederfuehrendeEinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+        <FedergefuehrtePositionen REF="c82dbebd-73a6-5282-be46-01e6bc859300"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Federfuehrung>
+      <SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Federfuehrung TID="732713f4-60a1-504a-91d6-d2550d8dbed8">
+        <FederfuehrendeEinheit REF="51df8697-f0ee-589f-9940-bf385dc42108"/>
+        <FedergefuehrtePositionen REF="9d10d1e0-bccf-5489-9cb3-660631d8648f"/>
+      </SO_AGI_GEVER_20260707.Stammdaten.OrdnungssystemPosition_Federfuehrung>
+    </SO_AGI_GEVER_20260707.Stammdaten>
+    <SO_AGI_GEVER_20260707.Geschaeftsdaten BID="b-ada09d02-2110-5e46-afa6-ea7426d960bc">
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Dossier TID="dd811d7e-1890-5254-9cd9-0a93bb5635a8">
+        <dossiernummer>AGI-NOM-2026-0007</dossiernummer>
+        <titel>Umbenennung Flurname "Im alten Boden" zu "Bodenrain", Gemeinde Musterwil</titel>
+        <beschreibung>Falldossier zur beantragten Umbenennung eines Flurnamens auf dem Gebiet der Gemeinde Musterwil.</beschreibung>
+        <ordnungssystemPosition REF="c82dbebd-73a6-5282-be46-01e6bc859300"/>
+        <federfuehrung REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+        <verantwortlicher REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <status>Geschlossen</status>
+        <eroeffnetAm>2026-02-13</eroeffnetAm>
+        <geschlossenAm>2026-05-10</geschlossenAm>
+        <bemerkungen>Beispieldaten fuer ein GEVER-Testdossier Nomenklatur.</bemerkungen>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Geschaeft TID="8e2db417-33f6-5818-b052-2b0c91c48f49">
+        <geschaeftsnummer>AGI-2026-00421</geschaeftsnummer>
+        <titel>Antrag Gemeinde Musterwil: Umbenennung Flurname "Im alten Boden"</titel>
+        <kurzbeschreibung>Pruefung und Entscheid ueber die Umbenennung des Flurnamens "Im alten Boden" in "Bodenrain".</kurzbeschreibung>
+        <geschaeftsart REF="d5410f91-14ed-50c7-9596-f8c227db72c1"/>
+        <lifecycleStatus>Abgeschlossen</lifecycleStatus>
+        <prozessStatus REF="750efb6a-81c5-553f-b2ec-9d91ccde707c"/>
+        <resultatStatus REF="2e2f6a78-e071-5868-b5ff-e2eace4d3e5e"/>
+        <federfuehrung REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+        <verantwortlicher REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <eingangsdatum>2026-02-13</eingangsdatum>
+        <eroeffnungsdatum>2026-02-13</eroeffnungsdatum>
+        <faelligAm>2026-05-31</faelligAm>
+        <abgeschlossenAm>2026-05-10</abgeschlossenAm>
+        <prioritaet>2</prioritaet>
+        <erstelltAm>2026-02-13T09:14:00.000</erstelltAm>
+        <geaendertAm>2026-05-10T16:05:00.000</geaendertAm>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligter TID="016af2e9-9dc3-5a2d-b032-81fb7353eb0d">
+        <typ>Organisation</typ>
+        <name>Gemeinde Musterwil</name>
+        <organisation>Gemeindeverwaltung Musterwil</organisation>
+        <email>kanzlei@musterwil.example.ch</email>
+        <telefon>032 000 11 22</telefon>
+        <adresse>Dorfplatz 1
+4500 Musterwil</adresse>
+        <externeReferenz>GEM-9999</externeReferenz>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligter TID="c6d8876d-cea9-564e-9bab-1f94e5046327">
+        <typ>Interne_Organisationseinheit</typ>
+        <name>Kantonale Nomenklaturkommission</name>
+        <email>nomenklaturkommission@so.ch</email>
+        <externeReferenz>NOMKOM-SO</externeReferenz>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligter TID="63f1d61b-bce1-5bfa-bd1b-ac1c6ca37e26">
+        <typ>Interne_Organisationseinheit</typ>
+        <name>Amt für Geoinformation</name>
+        <email>agi@so.ch</email>
+        <adresse>Rötistrasse 4
+4500 Solothurn</adresse>
+        <externeReferenz>AGI</externeReferenz>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligter TID="0d2f1245-23b4-573c-9bd8-055c909bfa15">
+        <typ>Organisation</typ>
+        <name>Nachführungsgeometer Kreis West</name>
+        <organisation>GeoWest AG</organisation>
+        <email>av@geowest.example.ch</email>
+        <telefon>032 000 44 55</telefon>
+        <adresse>Bahnhofstrasse 8
+4500 Solothurn</adresse>
+        <externeReferenz>NG-KREIS-WEST</externeReferenz>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligter TID="163dcdf3-6af5-560d-b4e0-dfba98d99ec0">
+        <typ>Organisation</typ>
+        <name>Historischer Verein Wasseramt</name>
+        <email>info@hv-wasseramt.example.ch</email>
+        <externeReferenz>HV-WA</externeReferenz>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung TID="1b5b1cf3-3913-55a9-8586-0eda81ef98d7">
+        <rolle REF="ba8e2e35-6981-5824-aa02-7980d8269158"/>
+        <gueltigVon>2026-02-13</gueltigVon>
+        <bemerkung>Gemeinde reicht Antrag mit Gemeinderatsbeschluss und Situationsplan ein.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung TID="334e3087-daec-5ac5-b0ec-83e86303415d">
+        <rolle REF="84420f7c-464f-5fb4-abc1-548b6a24b2eb"/>
+        <gueltigVon>2026-04-29</gueltigVon>
+        <bemerkung>Gemeinde erhaelt Beschluss und Mitteilung.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung TID="59774f2e-0d2c-5b22-a2b1-781d39c99757">
+        <rolle REF="45e96734-e696-5b12-a623-2c5b4bcd88e6"/>
+        <rollenbezeichnung>Beschlussorgan</rollenbezeichnung>
+        <gueltigVon>2026-04-24</gueltigVon>
+        <bemerkung>Faellt den Entscheid an der Sitzung vom 24.04.2026.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung TID="0578275b-400a-5a6d-8439-947d5a12a74b">
+        <rolle REF="e824744f-6028-5a11-b341-cbd3e2812deb"/>
+        <rollenbezeichnung>fachliche Vorprüfung und Verfahrensführung</rollenbezeichnung>
+        <gueltigVon>2026-02-13</gueltigVon>
+        <bemerkung>Federfuehrende interne Fachstelle.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung TID="7f5e0f4d-7830-5b7d-b266-16b74bbfe3b3">
+        <rolle REF="6ce51653-4fe8-5448-adcb-ac2e26c78829"/>
+        <rollenbezeichnung>Nachführung amtliche Vermessung</rollenbezeichnung>
+        <gueltigVon>2026-04-29</gueltigVon>
+        <bemerkung>Setzt den genehmigten Namen im Fachsystem um.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung TID="d6b9efc8-3386-5dd7-917d-780cf5006310">
+        <rolle REF="1eadb563-05aa-545e-90c3-d01737407844"/>
+        <rollenbezeichnung>historische Namensform</rollenbezeichnung>
+        <gueltigVon>2026-03-01</gueltigVon>
+        <gueltigBis>2026-03-18</gueltigBis>
+        <bemerkung>Gibt eine kurze Stellungnahme zur historischen Plausibilitaet ab.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage TID="f6f77d49-6445-5120-a95d-7c0de08135ac">
+        <titel>Antrag Gemeinde Musterwil auf Umbenennung des Flurnamens</titel>
+        <typ REF="4107a5d3-7ddd-5687-9974-344b4727093c"/>
+        <unterlagenDatum>2026-02-12</unterlagenDatum>
+        <eingangsdatum>2026-02-13</eingangsdatum>
+        <registriertAm>2026-02-13T09:20:00.000</registriertAm>
+        <registriertVon REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <aktenrelevant>true</aktenrelevant>
+        <status>Registriert</status>
+        <dateiname>2026-02-12_antrag_flurname_bodenrain.pdf</dateiname>
+        <mimeType>application/pdf</mimeType>
+        <dateigroesse>342112</dateigroesse>
+        <storageUri>gever://agi/nom/2026/0007/antrag.pdf</storageUri>
+        <hashSha256>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA</hashSha256>
+        <dateiformat>PDF/A</dateiformat>
+        <bemerkungen>Antrag mit kurzer Begruendung der Gemeinde.</bemerkungen>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage TID="44d459e0-a44e-581c-810c-fd25faa012df">
+        <titel>Protokollauszug Gemeinderat Musterwil Nr. 18/2026</titel>
+        <typ REF="ecc14173-0ab1-5f83-a012-e082434ee68b"/>
+        <unterlagenDatum>2026-02-08</unterlagenDatum>
+        <eingangsdatum>2026-02-13</eingangsdatum>
+        <registriertAm>2026-02-13T09:23:00.000</registriertAm>
+        <registriertVon REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <aktenrelevant>true</aktenrelevant>
+        <status>Registriert</status>
+        <dateiname>2026-02-08_gr_beschluss_18_2026.pdf</dateiname>
+        <mimeType>application/pdf</mimeType>
+        <dateigroesse>221045</dateigroesse>
+        <storageUri>gever://agi/nom/2026/0007/gemeinderatsbeschluss.pdf</storageUri>
+        <hashSha256>BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB</hashSha256>
+        <dateiformat>PDF/A</dateiformat>
+        <bemerkungen>Beschlussgrundlage der antragstellenden Gemeinde.</bemerkungen>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage TID="b2b02b20-6dc1-5e2e-80da-a73e5295c12d">
+        <titel>Situationsplan betroffener Flurname Bodenrain</titel>
+        <typ REF="f69b846c-cb07-5052-a65c-7f0471870082"/>
+        <unterlagenDatum>2026-02-12</unterlagenDatum>
+        <eingangsdatum>2026-02-13</eingangsdatum>
+        <registriertAm>2026-02-13T09:25:00.000</registriertAm>
+        <registriertVon REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <aktenrelevant>true</aktenrelevant>
+        <status>Registriert</status>
+        <dateiname>situationsplan_bodenrain.pdf</dateiname>
+        <mimeType>application/pdf</mimeType>
+        <dateigroesse>1568890</dateigroesse>
+        <storageUri>gever://agi/nom/2026/0007/situationsplan.pdf</storageUri>
+        <hashSha256>CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC</hashSha256>
+        <dateiformat>PDF</dateiformat>
+        <bemerkungen>Kartenausschnitt mit Perimeter und betroffenem Namen.</bemerkungen>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage TID="52f6a5c9-665f-582d-b900-09b028483c57">
+        <titel>Rückfrage an Gemeinde zur Schreibweise Bodenrain</titel>
+        <typ REF="d63944bb-68b2-5804-b834-bc39435ddb2b"/>
+        <unterlagenDatum>2026-02-18</unterlagenDatum>
+        <ausgangsdatum>2026-02-18</ausgangsdatum>
+        <registriertAm>2026-02-18T14:30:00.000</registriertAm>
+        <registriertVon REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <aktenrelevant>true</aktenrelevant>
+        <status>Registriert</status>
+        <dateiname>2026-02-18_rueckfrage_gemeinde.eml</dateiname>
+        <mimeType>message/rfc822</mimeType>
+        <dateigroesse>48122</dateigroesse>
+        <storageUri>gever://agi/nom/2026/0007/rueckfrage.eml</storageUri>
+        <hashSha256>DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD</hashSha256>
+        <dateiformat>EML</dateiformat>
+        <bemerkungen>Bitte um Praezisierung der lokalen Schreibweise und bisherigen Verwendung.</bemerkungen>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage TID="28a64f46-e1e0-5052-a69b-2d667c75aeba">
+        <titel>Antwort Gemeinde Musterwil zur Schreibweise Bodenrain</titel>
+        <typ REF="f1ba31f7-e432-518b-9efe-68175f441f44"/>
+        <unterlagenDatum>2026-02-22</unterlagenDatum>
+        <eingangsdatum>2026-02-22</eingangsdatum>
+        <registriertAm>2026-02-22T10:12:00.000</registriertAm>
+        <registriertVon REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <aktenrelevant>true</aktenrelevant>
+        <status>Registriert</status>
+        <dateiname>2026-02-22_antwort_gemeinde.eml</dateiname>
+        <mimeType>message/rfc822</mimeType>
+        <dateigroesse>52344</dateigroesse>
+        <storageUri>gever://agi/nom/2026/0007/antwort_gemeinde.eml</storageUri>
+        <hashSha256>EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE</hashSha256>
+        <dateiformat>EML</dateiformat>
+        <bemerkungen>Gemeinde bestaetigt Schreibweise "Bodenrain".</bemerkungen>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage TID="6527e48a-a3e3-5d9e-9129-bf49b2e0da37">
+        <titel>Aktennotiz fachliche Prüfung Flurname Bodenrain</titel>
+        <typ REF="bd9b3111-e7e0-5c72-aeb2-8e657173571b"/>
+        <unterlagenDatum>2026-03-05</unterlagenDatum>
+        <registriertAm>2026-03-05T15:45:00.000</registriertAm>
+        <registriertVon REF="c52b97a8-1469-56a0-8155-3dc2991b3a72"/>
+        <aktenrelevant>true</aktenrelevant>
+        <status>Final</status>
+        <dateiname>2026-03-05_aktennotiz_fachpruefung.pdf</dateiname>
+        <mimeType>application/pdf</mimeType>
+        <dateigroesse>121008</dateigroesse>
+        <storageUri>gever://agi/nom/2026/0007/aktennotiz_fachpruefung.pdf</storageUri>
+        <hashSha256>FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</hashSha256>
+        <dateiformat>PDF/A</dateiformat>
+        <bemerkungen>Interne fachliche Beurteilung: keine Verwechslungsgefahr, Name plausibel.</bemerkungen>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage TID="edeada1a-f8e1-5388-af96-4e219dc748c8">
+        <titel>Entscheidvorlage an die kantonale Nomenklaturkommission</titel>
+        <typ REF="19c977b3-fd81-55fd-8d20-672e2e2375e8"/>
+        <unterlagenDatum>2026-04-10</unterlagenDatum>
+        <registriertAm>2026-04-10T11:00:00.000</registriertAm>
+        <registriertVon REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <aktenrelevant>true</aktenrelevant>
+        <status>Final</status>
+        <dateiname>2026-04-10_entscheidvorlage_nomkom.pdf</dateiname>
+        <mimeType>application/pdf</mimeType>
+        <dateigroesse>289001</dateigroesse>
+        <storageUri>gever://agi/nom/2026/0007/entscheidvorlage.pdf</storageUri>
+        <hashSha256>1111111111111111111111111111111111111111111111111111111111111111</hashSha256>
+        <dateiformat>PDF/A</dateiformat>
+        <bemerkungen>Vorlage fuer Traktandum 5 der Sitzung vom 24.04.2026.</bemerkungen>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage TID="54ad92bc-c437-59f0-8f70-e02229af5b3f">
+        <titel>Beschluss Nomenklaturkommission vom 24.04.2026</titel>
+        <typ REF="86e2fe2b-760a-5db3-b42a-cb07b9e3a41c"/>
+        <unterlagenDatum>2026-04-24</unterlagenDatum>
+        <registriertAm>2026-04-28T09:00:00.000</registriertAm>
+        <registriertVon REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <aktenrelevant>true</aktenrelevant>
+        <status>Registriert</status>
+        <dateiname>2026-04-24_beschluss_nomkom_bodenrain.pdf</dateiname>
+        <mimeType>application/pdf</mimeType>
+        <dateigroesse>198776</dateigroesse>
+        <storageUri>gever://agi/nom/2026/0007/beschluss_nomkom.pdf</storageUri>
+        <hashSha256>2222222222222222222222222222222222222222222222222222222222222222</hashSha256>
+        <dateiformat>PDF/A</dateiformat>
+        <bemerkungen>Kommission genehmigt die Umbenennung in "Bodenrain".</bemerkungen>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage TID="bd0797e4-ed2f-53ec-aafd-c1a01387164b">
+        <titel>Mitteilung Beschluss an Gemeinde Musterwil</titel>
+        <typ REF="ea1656be-a83d-5bce-b228-102f42b6b32c"/>
+        <unterlagenDatum>2026-04-29</unterlagenDatum>
+        <ausgangsdatum>2026-04-29</ausgangsdatum>
+        <registriertAm>2026-04-29T16:20:00.000</registriertAm>
+        <registriertVon REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <aktenrelevant>true</aktenrelevant>
+        <status>Registriert</status>
+        <dateiname>2026-04-29_mitteilung_gemeinde.pdf</dateiname>
+        <mimeType>application/pdf</mimeType>
+        <dateigroesse>136044</dateigroesse>
+        <storageUri>gever://agi/nom/2026/0007/mitteilung_gemeinde.pdf</storageUri>
+        <hashSha256>3333333333333333333333333333333333333333333333333333333333333333</hashSha256>
+        <dateiformat>PDF/A</dateiformat>
+        <bemerkungen>Schriftliche Mitteilung des genehmigten Entscheids an die Gemeinde.</bemerkungen>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe TID="92cd050f-7de6-54b6-8d79-eaf87dbac655">
+        <titel>Formelle Prüfung Antrag</titel>
+        <beschreibung>Prüfen, ob Antrag, Beschluss und Situationsplan vollständig sind.</beschreibung>
+        <typ REF="11e45fb6-f54e-5c50-8bba-28d5d4c1a430"/>
+        <status>Erledigt</status>
+        <prioritaet>2</prioritaet>
+        <erstelltAm>2026-02-13T09:30:00.000</erstelltAm>
+        <faelligAm>2026-02-20</faelligAm>
+        <erledigtAm>2026-02-17T16:00:00.000</erledigtAm>
+        <zugewiesenAnBenutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <zugewiesenAnOrganisationseinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe TID="001545cb-acef-51d6-8329-e645b1f57dad">
+        <titel>Rückfrage an Gemeinde</titel>
+        <beschreibung>Schreibweise und lokale Verwendung des Namens Bodenrain bestätigen lassen.</beschreibung>
+        <typ REF="dbeaca69-0628-5ae1-9b1e-ff126fe1fc50"/>
+        <status>Erledigt</status>
+        <prioritaet>2</prioritaet>
+        <erstelltAm>2026-02-18T13:00:00.000</erstelltAm>
+        <faelligAm>2026-03-01</faelligAm>
+        <erledigtAm>2026-02-22T10:30:00.000</erledigtAm>
+        <zugewiesenAnBenutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <zugewiesenAnOrganisationseinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe TID="865220ef-83ad-55b8-bf6f-b679fab59a3e">
+        <titel>Fachliche Prüfung Nomenklatur</titel>
+        <beschreibung>Historische Plausibilität, Schreibweise und Verwechslungsgefahr prüfen.</beschreibung>
+        <typ REF="aa04c27e-2145-5c58-9280-dc279d0afd37"/>
+        <status>Erledigt</status>
+        <prioritaet>3</prioritaet>
+        <erstelltAm>2026-02-23T08:30:00.000</erstelltAm>
+        <faelligAm>2026-03-15</faelligAm>
+        <erledigtAm>2026-03-05T15:50:00.000</erledigtAm>
+        <zugewiesenAnBenutzer REF="c52b97a8-1469-56a0-8155-3dc2991b3a72"/>
+        <zugewiesenAnOrganisationseinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe TID="59c97a31-e305-566a-a0ec-8e13a2bbbfdc">
+        <titel>Entscheidvorlage erstellen</titel>
+        <beschreibung>Entscheidvorlage mit Antrag auf Genehmigung erstellen.</beschreibung>
+        <typ REF="471d839c-c5fd-5112-ac99-ce1ed2a12eaf"/>
+        <status>Erledigt</status>
+        <prioritaet>3</prioritaet>
+        <erstelltAm>2026-03-06T10:00:00.000</erstelltAm>
+        <faelligAm>2026-04-10</faelligAm>
+        <erledigtAm>2026-04-10T11:05:00.000</erledigtAm>
+        <zugewiesenAnBenutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <zugewiesenAnOrganisationseinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe TID="433a867d-db74-5f85-a738-2db234ab2054">
+        <titel>Für Nomenklaturkommission traktandieren</titel>
+        <beschreibung>Geschäft für Sitzung vom 24.04.2026 traktandieren.</beschreibung>
+        <typ REF="5ebabb3e-a49d-5360-b8fc-d51929589af8"/>
+        <status>Erledigt</status>
+        <prioritaet>2</prioritaet>
+        <erstelltAm>2026-04-10T11:30:00.000</erstelltAm>
+        <faelligAm>2026-04-15</faelligAm>
+        <erledigtAm>2026-04-12T09:00:00.000</erledigtAm>
+        <zugewiesenAnBenutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <zugewiesenAnOrganisationseinheit REF="51df8697-f0ee-589f-9940-bf385dc42108"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe TID="a05a605c-a5ef-5e4f-9918-9bf37cdc7fc3">
+        <titel>Entscheid der Gemeinde mitteilen</titel>
+        <beschreibung>Beschluss an Gemeinde Musterwil versenden.</beschreibung>
+        <typ REF="76d2f020-2190-561f-bf4b-861d9e8b506c"/>
+        <status>Erledigt</status>
+        <prioritaet>2</prioritaet>
+        <erstelltAm>2026-04-28T09:30:00.000</erstelltAm>
+        <faelligAm>2026-05-05</faelligAm>
+        <erledigtAm>2026-04-29T16:30:00.000</erledigtAm>
+        <zugewiesenAnBenutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <zugewiesenAnOrganisationseinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe TID="4b78e75b-2f08-5dc6-889b-f35520fe0cd6">
+        <titel>Fachsystem nachführen</titel>
+        <beschreibung>Flurname im Nomenklatur-/AV-Fachsystem nachführen oder Nachführung beauftragen.</beschreibung>
+        <typ REF="ea0361aa-d686-5ea1-8b89-ebf0d96b7b6c"/>
+        <status>Erledigt</status>
+        <prioritaet>3</prioritaet>
+        <erstelltAm>2026-04-29T16:45:00.000</erstelltAm>
+        <faelligAm>2026-05-08</faelligAm>
+        <erledigtAm>2026-05-06T14:10:00.000</erledigtAm>
+        <zugewiesenAnBenutzer REF="31b922eb-caf1-553b-8258-e77f0898b7db"/>
+        <zugewiesenAnOrganisationseinheit REF="edce536b-8bea-5898-947d-b383cc558a45"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe TID="1c237ca0-7563-5215-a5d3-e18e94bdd0db">
+        <titel>Dossier abschliessen</titel>
+        <beschreibung>Dossier prüfen und abschliessen.</beschreibung>
+        <typ REF="da0485f3-200c-51cb-b9af-3de124f75250"/>
+        <status>Erledigt</status>
+        <prioritaet>1</prioritaet>
+        <erstelltAm>2026-05-07T09:00:00.000</erstelltAm>
+        <faelligAm>2026-05-10</faelligAm>
+        <erledigtAm>2026-05-10T16:00:00.000</erledigtAm>
+        <zugewiesenAnBenutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <zugewiesenAnOrganisationseinheit REF="2566f5fc-810b-55b2-a7f5-b78a2437df47"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz TID="d7fbc668-4025-5208-80a4-1f474f6022ae">
+        <systemCode>NOMENKLATUR</systemCode>
+        <objektTyp>Flurname</objektTyp>
+        <objektId>FLN-4500-000123</objektId>
+        <mutationId>NOM-MUT-2026-0042</mutationId>
+        <link>https://nomenklatur.example.so.ch/flurnamen/FLN-4500-000123</link>
+        <beschreibung>Referenz auf den betroffenen Flurnamen im Nomenklatur-Fachsystem.</beschreibung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz TID="3f11c3e4-d455-5c70-964a-c0e556ddfa4a">
+        <systemCode>AV</systemCode>
+        <objektTyp>Mutation</objektTyp>
+        <objektId>AV-MUT-2026-1187</objektId>
+        <mutationId>AV-MUT-2026-1187</mutationId>
+        <link>https://av.example.so.ch/mutationen/AV-MUT-2026-1187</link>
+        <beschreibung>Referenz auf die technische Nachfuehrungsmutation in der amtlichen Vermessung.</beschreibung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Archivierung TID="c9b1e1e0-254e-54b2-972c-9d9de10fcd61">
+        <status>Nicht_faellig</status>
+        <bemerkung>Dossier ist abgeschlossen; Aussonderung ist noch nicht faellig.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Archivierung>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis TID="91c44f8c-5cc2-5400-a7e9-4e33ab1399e7">
+        <objektTyp>Geschaeft</objektTyp>
+        <objektId>AGI-2026-00421</objektId>
+        <typ>Erstellt</typ>
+        <zeitpunkt>2026-02-13T09:14:00.000</zeitpunkt>
+        <benutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <bemerkung>Geschaeft und Dossier aus Antrag der Gemeinde Musterwil eroeffnet.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis TID="ac46602f-572d-57db-a8f7-4e535f425b9c">
+        <objektTyp>Unterlage</objektTyp>
+        <objektId>AGI-NOM-2026-0007/Antrag</objektId>
+        <typ>Unterlage_registriert</typ>
+        <zeitpunkt>2026-02-13T09:20:00.000</zeitpunkt>
+        <benutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <bemerkung>Antrag und Beilagen der Gemeinde registriert.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis TID="385ab169-cc14-5956-83dc-7ce0ed262aa3">
+        <objektTyp>Aufgabe</objektTyp>
+        <objektId>Rueckfrage_Gemeinde</objektId>
+        <typ>Aufgabe_erstellt</typ>
+        <zeitpunkt>2026-02-18T13:00:00.000</zeitpunkt>
+        <benutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <bemerkung>Rueckfrage zur Schreibweise an Gemeinde erstellt.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis TID="694f934a-dfcc-5ad3-b390-4048f5ddb730">
+        <objektTyp>Geschaeft</objektTyp>
+        <objektId>AGI-2026-00421</objektId>
+        <typ>Status_geaendert</typ>
+        <zeitpunkt>2026-04-12T09:00:00.000</zeitpunkt>
+        <benutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <bemerkung>Prozessstatus auf Traktandiert gesetzt.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis TID="52deb72c-9eb2-50c8-9afe-353b6a27de65">
+        <objektTyp>Geschaeft</objektTyp>
+        <objektId>AGI-2026-00421</objektId>
+        <typ>Entscheid_erfasst</typ>
+        <zeitpunkt>2026-04-28T09:00:00.000</zeitpunkt>
+        <benutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <bemerkung>Beschluss der Nomenklaturkommission: Genehmigt.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis TID="947779ad-4d44-5d00-ba2a-b6a25144e4a2">
+        <objektTyp>FachsystemReferenz</objektTyp>
+        <objektId>AV-MUT-2026-1187</objektId>
+        <typ>Geaendert</typ>
+        <zeitpunkt>2026-05-06T14:10:00.000</zeitpunkt>
+        <benutzer REF="31b922eb-caf1-553b-8258-e77f0898b7db"/>
+        <bemerkung>Nachfuehrung im Fachsystem als erledigt gemeldet.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis TID="b0242a4e-1a6c-547e-a7cf-6eb26bcc66ac">
+        <objektTyp>Dossier</objektTyp>
+        <objektId>AGI-NOM-2026-0007</objektId>
+        <typ>Dossier_abgeschlossen</typ>
+        <zeitpunkt>2026-05-10T16:05:00.000</zeitpunkt>
+        <benutzer REF="5e11e774-5cf9-5de9-939f-3f0072ef00a7"/>
+        <bemerkung>Dossier fachlich abgeschlossen.</bemerkung>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Ereignis>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Geschaeft_Dossier TID="b9a0107e-f4c7-5176-af1d-b85f80972ba9">
+        <GeschaeftsDossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <GeschaefteImDossier REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Geschaeft_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft TID="cd0ba3a9-3e70-5063-9f95-bba7d9f221fe">
+        <BeteiligtesGeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <BeteiligungenZumGeschaeft REF="1b5b1cf3-3913-55a9-8586-0eda81ef98d7"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter TID="abf5a6ec-f945-5846-9aa0-fe92c9c35412">
+        <BeteiligtePartei REF="016af2e9-9dc3-5a2d-b032-81fb7353eb0d"/>
+        <BeteiligungenDerPartei REF="1b5b1cf3-3913-55a9-8586-0eda81ef98d7"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft TID="ce3cf78a-38c4-5baa-8eae-d19e14471e7a">
+        <BeteiligtesGeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <BeteiligungenZumGeschaeft REF="334e3087-daec-5ac5-b0ec-83e86303415d"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter TID="3369b858-6ef0-549d-bbeb-dfd254ed3ad0">
+        <BeteiligtePartei REF="016af2e9-9dc3-5a2d-b032-81fb7353eb0d"/>
+        <BeteiligungenDerPartei REF="334e3087-daec-5ac5-b0ec-83e86303415d"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft TID="f9e84e20-8928-56f6-8549-6fb0e07ea2ab">
+        <BeteiligtesGeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <BeteiligungenZumGeschaeft REF="59774f2e-0d2c-5b22-a2b1-781d39c99757"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter TID="8eeb4e3d-743a-5353-b4f4-1039fa0bdcb9">
+        <BeteiligtePartei REF="c6d8876d-cea9-564e-9bab-1f94e5046327"/>
+        <BeteiligungenDerPartei REF="59774f2e-0d2c-5b22-a2b1-781d39c99757"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft TID="bef78561-ec20-5762-b4c9-dc299eda7f31">
+        <BeteiligtesGeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <BeteiligungenZumGeschaeft REF="0578275b-400a-5a6d-8439-947d5a12a74b"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter TID="61965e17-2fa7-5083-8542-75e1de053a12">
+        <BeteiligtePartei REF="63f1d61b-bce1-5bfa-bd1b-ac1c6ca37e26"/>
+        <BeteiligungenDerPartei REF="0578275b-400a-5a6d-8439-947d5a12a74b"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft TID="52631eaa-2116-53c0-a744-f424e671f810">
+        <BeteiligtesGeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <BeteiligungenZumGeschaeft REF="7f5e0f4d-7830-5b7d-b266-16b74bbfe3b3"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter TID="feb2776e-d4ba-5ccd-bc89-d922f0933197">
+        <BeteiligtePartei REF="0d2f1245-23b4-573c-9bd8-055c909bfa15"/>
+        <BeteiligungenDerPartei REF="7f5e0f4d-7830-5b7d-b266-16b74bbfe3b3"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft TID="5eb23b12-3125-592b-822f-1fcb51744570">
+        <BeteiligtesGeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <BeteiligungenZumGeschaeft REF="d6b9efc8-3386-5dd7-917d-780cf5006310"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter TID="c3233f54-3afc-5467-ba39-25aaf6e3b487">
+        <BeteiligtePartei REF="163dcdf3-6af5-560d-b4e0-dfba98d99ec0"/>
+        <BeteiligungenDerPartei REF="d6b9efc8-3386-5dd7-917d-780cf5006310"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Beteiligung_Beteiligter>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier TID="35eec51b-d502-59a0-8be2-e55075a107be">
+        <Ablagedossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <UnterlagenImDossier REF="f6f77d49-6445-5120-a95d-7c0de08135ac"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft TID="a5a070eb-f93f-5454-a07d-794a9afce043">
+        <Hauptgeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <UnterlagenZumGeschaeft REF="f6f77d49-6445-5120-a95d-7c0de08135ac"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier TID="248c11d9-c3eb-574c-8c4d-92154d9f2a06">
+        <Ablagedossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <UnterlagenImDossier REF="44d459e0-a44e-581c-810c-fd25faa012df"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft TID="c6298c9c-2a98-5f0d-b0e4-6e92207e483c">
+        <Hauptgeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <UnterlagenZumGeschaeft REF="44d459e0-a44e-581c-810c-fd25faa012df"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier TID="de62b1b6-86db-5d37-8ccb-514b3c60e40e">
+        <Ablagedossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <UnterlagenImDossier REF="b2b02b20-6dc1-5e2e-80da-a73e5295c12d"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft TID="5a69ee21-a10e-56ee-befc-09cfc4e3402b">
+        <Hauptgeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <UnterlagenZumGeschaeft REF="b2b02b20-6dc1-5e2e-80da-a73e5295c12d"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier TID="801b2953-5b3d-56bf-917d-823868327d74">
+        <Ablagedossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <UnterlagenImDossier REF="52f6a5c9-665f-582d-b900-09b028483c57"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft TID="744dd597-c245-576d-857b-b94df9c32349">
+        <Hauptgeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <UnterlagenZumGeschaeft REF="52f6a5c9-665f-582d-b900-09b028483c57"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier TID="2c1363a1-ae3b-50aa-ba8d-48265c882381">
+        <Ablagedossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <UnterlagenImDossier REF="28a64f46-e1e0-5052-a69b-2d667c75aeba"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft TID="25aead98-15e7-59ee-9e1f-87a3f70d1658">
+        <Hauptgeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <UnterlagenZumGeschaeft REF="28a64f46-e1e0-5052-a69b-2d667c75aeba"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier TID="11154cb1-c878-522d-a602-d7ece9c0a3b8">
+        <Ablagedossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <UnterlagenImDossier REF="6527e48a-a3e3-5d9e-9129-bf49b2e0da37"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft TID="91b01d7a-22bd-5e10-8275-34e5d4a338b2">
+        <Hauptgeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <UnterlagenZumGeschaeft REF="6527e48a-a3e3-5d9e-9129-bf49b2e0da37"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier TID="5addbb13-8a52-50e4-8f28-6b5e875a9153">
+        <Ablagedossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <UnterlagenImDossier REF="edeada1a-f8e1-5388-af96-4e219dc748c8"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft TID="bdac7c14-f9fd-5149-a8d9-0041919141f2">
+        <Hauptgeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <UnterlagenZumGeschaeft REF="edeada1a-f8e1-5388-af96-4e219dc748c8"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier TID="f2ba65d6-61e2-5c72-b2f9-ea106b317e1a">
+        <Ablagedossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <UnterlagenImDossier REF="54ad92bc-c437-59f0-8f70-e02229af5b3f"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft TID="901a708c-8fbb-5a90-945f-63efa1d19716">
+        <Hauptgeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <UnterlagenZumGeschaeft REF="54ad92bc-c437-59f0-8f70-e02229af5b3f"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier TID="661dffb8-9f07-518f-a114-a0ba4dd09780">
+        <Ablagedossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <UnterlagenImDossier REF="bd0797e4-ed2f-53ec-aafd-c1a01387164b"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft TID="4e6f6ddf-03b5-5b54-b829-cc6dda095107">
+        <Hauptgeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <UnterlagenZumGeschaeft REF="bd0797e4-ed2f-53ec-aafd-c1a01387164b"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Unterlage_Hauptgeschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft TID="9e4c734e-a7ea-52bb-8136-ea0f83763ad8">
+        <Aufgabengeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <AufgabenZumGeschaeft REF="92cd050f-7de6-54b6-8d79-eaf87dbac655"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft TID="58bcc7b3-e3fb-59c0-8a83-69252fabab6c">
+        <Aufgabengeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <AufgabenZumGeschaeft REF="001545cb-acef-51d6-8329-e645b1f57dad"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft TID="aa4937e5-86cb-5ad2-abf6-ffa7a3f3d075">
+        <Aufgabengeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <AufgabenZumGeschaeft REF="865220ef-83ad-55b8-bf6f-b679fab59a3e"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft TID="47938529-93e7-513f-b686-70f95dc078ed">
+        <Aufgabengeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <AufgabenZumGeschaeft REF="59c97a31-e305-566a-a0ec-8e13a2bbbfdc"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft TID="7d42fa59-54e6-5d28-b871-824ac114fc4a">
+        <Aufgabengeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <AufgabenZumGeschaeft REF="433a867d-db74-5f85-a738-2db234ab2054"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft TID="59808511-bff8-5e9f-b73b-fc9ee67e099d">
+        <Aufgabengeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <AufgabenZumGeschaeft REF="a05a605c-a5ef-5e4f-9918-9bf37cdc7fc3"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft TID="2f5ff9af-64a3-5532-9c2b-4c2ca96455e4">
+        <Aufgabengeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <AufgabenZumGeschaeft REF="4b78e75b-2f08-5dc6-889b-f35520fe0cd6"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft TID="ab76225f-5ace-5826-bf55-b03a5c77b573">
+        <Aufgabengeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <AufgabenZumGeschaeft REF="1c237ca0-7563-5215-a5d3-e18e94bdd0db"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Aufgabe_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz_Geschaeft TID="95fef751-c16e-5ce0-93bb-7c08bb919e1a">
+        <ReferenziertesGeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <FachreferenzenZumGeschaeft REF="d7fbc668-4025-5208-80a4-1f474f6022ae"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz_Dossier TID="0dfd0eac-d691-5b80-ad18-128c6722a8a4">
+        <ReferenziertesDossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <FachreferenzenZumDossier REF="d7fbc668-4025-5208-80a4-1f474f6022ae"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz_Geschaeft TID="6e089481-2af6-57e8-a5aa-677eab4c1d93">
+        <ReferenziertesGeschaeft REF="8e2db417-33f6-5818-b052-2b0c91c48f49"/>
+        <FachreferenzenZumGeschaeft REF="3f11c3e4-d455-5c70-964a-c0e556ddfa4a"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz_Geschaeft>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz_Dossier TID="d9801e04-65fd-5ae3-9f69-0809e1f71368">
+        <ReferenziertesDossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <FachreferenzenZumDossier REF="3f11c3e4-d455-5c70-964a-c0e556ddfa4a"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.FachsystemReferenz_Dossier>
+      <SO_AGI_GEVER_20260707.Geschaeftsdaten.Archivierung_Dossier TID="b809c4ed-f071-5e00-9b69-4eb58648ba84">
+        <Archivierungsdossier REF="dd811d7e-1890-5254-9cd9-0a93bb5635a8"/>
+        <ArchivierungZumDossier REF="c9b1e1e0-254e-54b2-972c-9d9de10fcd61"/>
+      </SO_AGI_GEVER_20260707.Geschaeftsdaten.Archivierung_Dossier>
+    </SO_AGI_GEVER_20260707.Geschaeftsdaten>
+  </DATASECTION>
+</TRANSFER>
