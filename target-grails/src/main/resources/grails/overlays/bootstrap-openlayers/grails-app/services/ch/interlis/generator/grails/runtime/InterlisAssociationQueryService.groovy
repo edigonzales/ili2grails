@@ -52,8 +52,12 @@ class InterlisAssociationQueryService {
         String sortField = safeSort(sort, associationType)
         String sortOrder = safeOrder(requestedOrder)
         Map<String, Object> associationDescriptor = InterlisAssociationRegistry.ASSOCIATIONS[context.associationName]
+        List<Map<String, Object>> editableRoleList = InterlisAssociationRegistrySupport.editableRoles(associationDescriptor, context)
         def results = associationType.createCriteria().list(max: pageMax, offset: pageOffset) {
             eq(fixedProperty + ".id", participantId)
+            editableRoleList.each { Map<String, Object> roleDesc ->
+                fetchMode(roleDesc.property, org.hibernate.FetchMode.JOIN)
+            }
             if (sortField == "id") {
                 order("id", sortOrder)
             } else {
@@ -164,8 +168,12 @@ class InterlisAssociationQueryService {
             return null
         }
         String fixedProperty = context.fixedProperty
+        List<Map<String, Object>> editableRoleList = InterlisAssociationRegistrySupport.editableRoles(associationDesc, context)
         def results = associationType.createCriteria().list(max: limit) {
             eq(fixedProperty + ".id", participant.id)
+            editableRoleList.each { Map<String, Object> roleDesc ->
+                fetchMode(roleDesc.property, org.hibernate.FetchMode.JOIN)
+            }
             order("id", "asc")
         }
         long total = associationType.createCriteria().get {

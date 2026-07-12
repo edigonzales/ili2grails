@@ -33,6 +33,7 @@ public class GrailsTemplateOverlayInstaller {
         "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy",
         "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy",
+        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy",
         "src/main/templates/scaffolding/_association-sections.gsp",
         "src/main/templates/scaffolding/_association-row-actions.gsp",
         "src/main/templates/scaffolding/_association-quick-add.gsp",

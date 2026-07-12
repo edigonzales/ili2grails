@@ -270,6 +270,12 @@ abstract class InterlisCrudControllerSupport<T> {
                 safeOffset(params.int("offset"))
             )
             render page as JSON
+        } catch (InterlisAssociationRegistrySupport.AssociationContextNotFoundException e) {
+            response.status = BAD_REQUEST.value()
+            render([error: e.message] as JSON)
+        } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
+            response.status = BAD_REQUEST.value()
+            render([error: e.message] as JSON)
         } catch (Exception e) {
             log.warn("associationOptions failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
             render([results: [], pagination: [more: false, total: 0, nextOffset: 0]] as JSON)
@@ -286,6 +292,12 @@ abstract class InterlisCrudControllerSupport<T> {
         String contextId = params.context?.toString()
         String targetRoleName = params.role?.toString()
         Long targetId = params.long("targetId")
+        if (contextId == null || contextId.isBlank()) {
+            response.status = BAD_REQUEST.value()
+            render([success: false, status: 400, code: "MISSING_CONTEXT",
+                    message: "Der Assoziationskontext fehlt."] as JSON)
+            return
+        }
         Map<String, Object> result
         try {
             result = associationCommandService().createQuickLink(
@@ -295,6 +307,14 @@ abstract class InterlisCrudControllerSupport<T> {
                 targetRoleName,
                 targetId as java.io.Serializable
             )
+        } catch (InterlisAssociationRegistrySupport.AssociationContextNotFoundException e) {
+            log.info("associationCreate context not found for ${domainType().simpleName}#${id}: ${e.message}")
+            result = [success: false, status: 404, code: "CONTEXT_NOT_FOUND",
+                      message: "Der Assoziationskontext wurde nicht gefunden."]
+        } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
+            log.warn("associationCreate ownership mismatch for ${domainType().simpleName}#${id}: ${e.message}")
+            result = [success: false, status: 404, code: "OWNERSHIP_MISMATCH",
+                      message: "Die Zuordnung geh&ouml;rt nicht zu diesem Datensatz."]
         } catch (Exception e) {
             log.error("associationCreate failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
             result = [success: false, status: 500, code: "INTERNAL_ERROR",
@@ -312,6 +332,12 @@ abstract class InterlisCrudControllerSupport<T> {
         }
         String contextId = params.context?.toString()
         Long associationId = params.long("associationId")
+        if (contextId == null || contextId.isBlank() || associationId == null) {
+            response.status = BAD_REQUEST.value()
+            render([success: false, status: 400, code: "MISSING_PARAMS",
+                    message: "Kontext und Assoziations-ID werden ben&ouml;tigt."] as JSON)
+            return
+        }
         Map<String, Object> result
         try {
             result = associationCommandService().deleteLink(
@@ -320,6 +346,14 @@ abstract class InterlisCrudControllerSupport<T> {
                 contextId,
                 associationId as java.io.Serializable
             )
+        } catch (InterlisAssociationRegistrySupport.AssociationContextNotFoundException e) {
+            log.info("associationDelete context not found for ${domainType().simpleName}#${id}: ${e.message}")
+            result = [success: false, status: 404, code: "CONTEXT_NOT_FOUND",
+                      message: "Der Assoziationskontext wurde nicht gefunden."]
+        } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
+            log.warn("associationDelete ownership mismatch for ${domainType().simpleName}#${id}: ${e.message}")
+            result = [success: false, status: 404, code: "OWNERSHIP_MISMATCH",
+                      message: "Die Zuordnung geh&ouml;rt nicht zu diesem Datensatz."]
         } catch (Exception e) {
             log.error("associationDelete failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
             result = [success: false, status: 500, code: "INTERNAL_ERROR",
@@ -342,6 +376,19 @@ abstract class InterlisCrudControllerSupport<T> {
             "*" {
                 response.status = status
                 render result as JSON
+            }
+        }
+    }
+
+    protected void respondAssociationError(int status, String code, String message) {
+        request.withFormat {
+            form multipartForm {
+                flash.message = message
+                redirect action: "index", method: "GET"
+            }
+            "*" {
+                response.status = status
+                render([success: false, status: status, code: code, message: message] as JSON)
             }
         }
     }
@@ -400,6 +447,9 @@ abstract class InterlisCrudControllerSupport<T> {
 
     protected Map<String, Object> formModelWithContext(T instance, Map<String, Object> contextState) {
         Map<String, Object> model = formModel(instance)
+        model.put("hiddenRelationshipFields", [])
+        model.put("fixedRelationshipLabels", [:])
+        model.put("associationContextState", null)
         if (contextState != null && !contextState.isEmpty()) {
             model.put("hiddenRelationshipFields",
                 InterlisAssociationContextSupport.hiddenRelationshipFields(contextState))

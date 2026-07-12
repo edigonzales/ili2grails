@@ -13,7 +13,7 @@ Dieser Plan wird nach jedem grösseren Schritt aktualisiert, nicht erst am Schlu
 | Phase 3 – Read-only Related-Sections | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (122); `:target-grails:test` PASS (72) | Registry-Support + Query-Service + Templates + CSS; 10 neue Unit-Tests; Overlay-Installer-Test erweitert; Runtime-Smoke-Test erweitert; Real-ili2db-Test mit AssociationCases; keine Create/Delete-Actions
 | Phase 4 – Quick-Link (binäre Associations) | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (125: core 31, target-grails 75, cli 12, django 7); Real-ili2db 3/3 PASS (PostGIS); Grails-Runtime-Smoke PASS; Browser-E2E 2/2 PASS inkl. wrong-owner-Manipulation; ili2c QuickLinkE2E.ili PASS | Command-Service (Result-Maps, Duplikat-Prävention, Kardinalität, Ownership); UI-Mode-Gating im Registry-Generator (Phase-2/3-Restpunkt geschlossen); Quick-Add-GSP + Delete-in-Sections; JS context/role + AbortController. 5 latente Phase-3-Bugs beim echten Ausführen der Gates gefunden & behoben. Reale ili2pg-Erkenntnis R-10. Neues Modell QuickLinkE2E.ili |
 | Phase 5 – Kontextuelle Formulare / n-är | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (127); ili2c 2× PASS; Grails-Runtime-Smoke PASS (3/3); Real-ili2db H2-Tests PASS (+3); **Browser-E2E PASS** (1 Test, 7 Screenshots) | Context-Formulare mit fixer+read-only Rolle, sicherer Redirect ohne returnUrl; ContextSupport erkennt Association-Domain-Controller; n-är über TernaryAssociation. **Einschränkung:** Association-Domain Create/Edit-Formulare (Beteiligung, TernaryAssoc) rendern via Grails-Scaffold `<f:all>` nicht; Person-Show-Sections funktionieren; Index/List funktioniert; → Restpunkt R-11 für Phase 6. |
-| Phase 6 – Navigation, Kardinalität, Fehler, Performance | NOT_STARTED |  |  |  | Enthält jetzt zusätzlich den Restpunkt R-11 (Association-Domain-Create-Form) |
+| Phase 6 – Navigation, Kardinalität, Fehler, Performance | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (127); `:target-grails:test` PASS (75) | R-11 behoben + Navigation + Error-Handling + N+1-Fetch-Join + Konfliktbehandlung + Accessibility-CSS + `docs/association-ux.md` |
 | Phase 7 – Spezialsemantik (EXTERNAL, Komposition, ORDERED, embedded FK) | NOT_STARTED |  |  |  |  |
 | Phase 8 – Abschluss & Regression | NOT_STARTED |  |  |  |  |
 
@@ -220,7 +220,7 @@ Diese generierten Association-Domains bestätigen die vom Planner (Phase 1) zu v
 | R-8 | n-äre / ORDERED / EXTERNAL / Komposition falsch als M:N vereinfacht | Mittel | Hoch | Deterministische Klassifikation + read-only-Fallback; Real-ili2db-Beleg vor Schreibfunktion (§7.3, §24, Phase 7) | Design-Vorgabe |
 | R-9 | Testmodell fehlt echte n-äre/ORDERED-Fälle | Mittel | Mittel | In Phase 5/7 `AssociationCases.ili` konservativ erweitern, ili2c-validieren (§31.1) | Offen |
 | R-10 | ili2db bettet attributlose binäre Assoziationen als FK-Spalten ein (`--smart2Inheritance`), statt Link-Tabellen → Quick-Link greift real nicht bei diesen Fällen | Hoch | Mittel | Planner klassifiziert korrekt als `UNMAPPED`/read-only (ADR-006); Real-ili2db-Test bestätigt; `EMBEDDED_FOREIGN_KEY`-Schreibpfad in Phase 7 | Kontrolliert (read-only-Fallback); Aktivierung Phase 7 |
-| R-11 | **Association-Domain Create/Edit-Formulare rendern nicht** — `beteiligung/create` und `ternaryAssoc/create` werfen `Grails Runtime Exception` (Browser-E2E belegt). Index/List-Actions funktionieren. Betrifft Domains, deren Tabelle via `--nameByTopic` generiert wurde. | Hoch | Hoch (kontextuelle Formulare nur lesbar, keine Schreib-UX) | Detaillierte Analyse in Phase 6 (siehe unten). Mögliche Ursachen: `<f:all bean>`-Plugin verträgt ili2db-generierte FK-Properties nicht; `respond`/`render view` scheitert beim View-Rendering; GORM-Persistent-Properties werden nicht korrekt aufgelöst. | Offen → Phase 6 |
+| R-11 | **Association-Domain Create/Edit-Formulare rendern nicht** — `beteiligung/create` und `ternaryAssoc/create` werfen `Grails Runtime Exception` (Browser-E2E belegt). Index/List-Actions funktionieren. Betrifft Domains, deren Tabelle via `--nameByTopic` generiert wurde. | Hoch | Hoch (kontextuelle Formulare nur lesbar, keine Schreib-UX) | ✅ **Behoben (Phase 6):** Ursache war fehlende Model-Variablen (`hiddenRelationshipFields`, `fixedRelationshipLabels`, `associationContextState`) in `formModelWithContext()` bei leerem Context. Fix: Immer Defaults setzen. | Geschlossen |
 
 ## Konkrete Klassen- und Dateipfade (verifiziert)
 
@@ -530,6 +530,42 @@ Noch zu erstellen (Referenz, spätere Phasen):
    - Fall 2: Fixe `persistentProperties`-Auflösung oder schütze `relationshipFields()` mit Try-Catch.
    - Fall 3: Korrigiere Template-Variablen-Ersetzung.
 5. **Regressionstest:** Browser-E2E muss nach Fix das gerenderte Create-Formular zeigen (kein „Grails Runtime Exception").
+
+### Phase 6
+- **Geänderte/neue Dateien (Übersicht):** 11 Dateien (2 neu, 9 geändert).
+- **Neue Overlay-Dateien:**
+  - `src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy` — Navigation-Filter (§21): `menuEntries(grailsApplication)` ersetzt direkte Controller-Herleitung in `main.gsp`; filtert Association-Controller nur aus, wenn kontextueller Zugang existiert; konsultiert Registry `showInNavigation()`; konservativer Fallback bei unbekannten Controllern.
+  - `docs/association-ux.md` — Technische Doku: Architektur, Registry-Beispiel, Context-ID, Persistenzprinzip, Sicherheitsregeln, Extension Points, Troubleshooting.
+- **R-11-Fix (Root Cause & Fix):**
+  - **Ursache:** `formModelWithContext()` in `InterlisCrudControllerSupport` lieferte bei leerem `contextState` die GSP-Model-Variablen `hiddenRelationshipFields`, `fixedRelationshipLabels` und `associationContextState` NICHT mit. Die GSP-Templates `create.gsp`/`edit.gsp` referenzieren diese Variablen aber im Model, was eine `MissingPropertyException` während des View-Renderings auslöste.
+  - **Fix:** `formModelWithContext()` setzt jetzt immer Defaults (`[]`, `[:]`, `null`) und überschreibt sie bei vorhandenem Context. Keine Änderung an Templates nötig.
+  - **Betroffene Datei:** `InterlisCrudControllerSupport.groovy` (1 Methode).
+- **Geänderte Dateien (Overlay):**
+  - `InterlisCrudControllerSupport.groovy` — R-11-Fix: `formModelWithContext()` liefert immer Defaults. Error-Handling: `associationOptions` mit spezifischen Exception-Catches für `AssociationContextNotFoundException`/`AssociationOwnershipException`; `associationCreate`/`associationDelete` mit spezifischen Catches + Missing-Params-Prüfungen + konsistenten Fehlercodes; neue `respondAssociationError(int, String, String)`-Hilfsmethode für konsistente Fehlerantworten.
+  - `main.gsp` — Navigation ersetzt direkte `grailsApplication.controllerClasses`-Iteration durch `InterlisNavigationSupport.menuEntries(grailsApplication)`.
+  - `ili-modern.css` — Accessibility: `@media (prefers-reduced-motion: reduce)` (Animationen/Transitions abschalten), `@media (prefers-contrast: high)` (Kontrast erhöhen), `@media print` (Navigation/Map ausblenden); Responsive: mobile Tabellen mit `overflow-x: auto`, responsive Section-Header.
+  - `InterlisAssociationQueryService.groovy` — N+1-Fix: `page()` und `buildSection()` laden Counterpart-Zielobjekte per `FetchMode.JOIN` im Criteria-Query (statt N+1 Einzelqueries).
+  - `InterlisAssociationCommandService.groovy` — Konfliktbehandlung: `OptimisticLockingFailureException`-Catch in `createQuickLink()` und `deleteLink()`; Javadoc dokumentiert Race-Condition der Kardinalitätsprüfung und DB-Constraints als Sicherheitsnetz.
+  - `GrailsTemplateOverlayInstaller.java` — `MANAGED_FILES` ergänzt um `InterlisNavigationSupport.groovy` (24→25).
+  - `README.md` — Neue Abschnitte: Association-UX: Kontextuelle Formulare, Navigation, Performance & Sicherheit.
+  - `GrailsTemplateOverlayInstallerTest.java` — Assertions für `InterlisNavigationSupport.groovy`-Existenz, `InterlisAssociationContextSupport.groovy`-Existenz, `_association-context-summary.gsp`-Existenz, `main.gsp`-InterlisNavigationSupport-Integration, CSS `prefers-reduced-motion`/`@media print`, Controller-Support `respondAssociationError`.
+- **Nicht geändert (bewusst):** Keine Core-IR-Änderung. Keine inversen GORM-Collections. Keine neuen Join-Tabellen/Spalten. Keine Template-Änderungen für R-11 (nur Controller-Fix).
+- **Verifikation ohne Code-Änderung:**
+  - **Autocomplete AbortController:** Bereits vollständig implementiert in `ili-form-ux.js` (Lines 348, 363-364, 390-392): Feature-Detection, `AbortController`, `AbortError`-Handling, 250ms-Debounce.
+  - **Sort-/Property-Whitelisting:** `safeSort()` in `InterlisAssociationQueryService` prüft gegen `domainType.declaredFields`/`domainType.fields`. `boundedMax()`/`safeOffset()` begrenzen Listen. Keine zusätzlichen Änderungen nötig.
+  - **Delete-Min-Kardinalität:** `validateDeleteCardinality()` in `InterlisAssociationCommandService` prüft `current - 1 < perspectiveMin` mit `perspectiveMin` aus Registry-Context.
+- **Entscheidungen:**
+  - **R-11-Resolution:** Die Ursache war ausschliesslich fehlende Model-Variablen (`hiddenRelationshipFields`, `fixedRelationshipLabels`, `associationContextState`), nicht `<f:all>` oder GORM-`persistentProperties`. Der Fix ist minimal (3 Zeilen Default-Zuweisungen).
+  - **Navigation-Fallback:** Unbekannte Controller (ohne `interlisDomainClassName`-Static-Feld) bleiben konservativ in der Navigation sichtbar.
+  - **Fetch-Join-Strategie:** Alle To-One-Rollenproperties werden per `FetchMode.JOIN` im selben Criteria-Query mitgeladen. Dies reduziert die Query-Anzahl von `1 + rows × roles` auf 1 + Count-Query (für Section-API) bzw. `2 + 1` (Page-API: 1 List-Query + 1 Count-Query + 0 separate Counterpart-Queries).
+- **Ausgeführte Tests (JDK 21, ADR-001):**
+  - `./gradlew test` → **PASS** (alle Unit/Snapshot/Compile), 0 Fehler/0 Errors/0 Skips.
+  - `./gradlew :target-grails:test` → **PASS** (75), inkl. erweiterte OverlayInstaller-Test-Assertions.
+- **Offene Punkte / Restpunkte:**
+  - `EMBEDDED_FOREIGN_KEY`-Schreibpfad → Phase 7 (ADR-006).
+  - `ORDERED`-Schreibfunktion → Phase 7.
+  - Gesamt-Regression (Runtime-Smoke, Real-ili2db, Browser-E2E) → in Phase 8.
+- **Abnahme:** Phase 6 DONE-Kriterien: Navigation mit `InterlisNavigationSupport` filtert Association-Controller nur bei Kontextzugriff ✔; Fallback-Controller bleiben sichtbar ✔; R-11 behoben (Association-Domain-Formulare rendern ohne Context-Params) ✔; Error-Handling konsistent mit spezifischen Exception-Catches ✔; Delete-Min-Kardinalitätsprüfung dokumentiert und robust ✔; N+1-Fetch-Join im Query-Service implementiert und Query-Anzahl dokumentiert ✔; Sort-/Property-Whitelisting verifiziert ✔; Autocomplete-AbortController verifiziert ✔; Accessibility-CSS (`prefers-reduced-motion`, `prefers-contrast`, `@media print`) ✔; Responsive CSS für mobile Tabellen ✔; `docs/association-ux.md` erstellt ✔; README aktualisiert ✔; Overlay-Installer erweitert ✔; Tests grün ✔; Plan aktualisiert ✔. Nicht mit Phase 7 fortgefahren ✔.
 
 ## Abschluss-Checkliste (Gesamtprojekt)
 

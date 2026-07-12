@@ -13,10 +13,7 @@
 
 <body>
 <g:set var="viewMenuEntries"
-       value="${grailsApplication.controllerClasses
-           .findAll { it.logicalPropertyName && it.logicalPropertyName != 'urlMappings' }
-           .collect { [controller: it.logicalPropertyName, namespace: it.namespace, label: it.shortName?.replace('Controller', '')] }
-           .sort { it.label?.toLowerCase() }}"/>
+       value="${ch.interlis.generator.grails.runtime.InterlisNavigationSupport.menuEntries(grailsApplication)}"/>
 
 <nav class="navbar navbar-expand-lg bg-white border-bottom fixed-top" aria-label="Hauptnavigation">
     <div class="container-fluid">

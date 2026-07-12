@@ -2,6 +2,7 @@ package ch.interlis.generator.grails.runtime
 
 import grails.gorm.transactions.Transactional
 import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.dao.OptimisticLockingFailureException
 
 import ch.interlis.generator.grails.generated.InterlisAssociationRegistry
 
@@ -16,6 +17,13 @@ import ch.interlis.generator.grails.generated.InterlisAssociationRegistry
  *
  * <p>All outcomes are reported through structured result maps
  * ({@code [success, status, code, message, messageCode, associationId, fieldErrors]}).
+ *
+ * <p><strong>Concurrency:</strong> Cardinality checks use a separate count query
+ * before the insert/delete. This introduces a time-of-check-to-time-of-use window.
+ * {@code lockOrGet} uses best-effort pessimistic locking (falls back to {@code get()}
+ * when {@code lock()} is not available). In case of a concurrent violation, the
+ * database-level constraints (unique, foreign key, NOT NULL) serve as a safety net
+ * and are surfaced as {@code DATA_INTEGRITY} errors.
  */
 @Transactional
 class InterlisAssociationCommandService {
@@ -102,6 +110,10 @@ class InterlisAssociationCommandService {
         } catch (DataIntegrityViolationException e) {
             log.warn("Quick-link create failed for association ${context.associationName} context ${contextId}: ${e.message}")
             return failure(409, "DATA_INTEGRITY", "Die Zuordnung konnte nicht erstellt werden.")
+        } catch (OptimisticLockingFailureException e) {
+            log.warn("Quick-link create optimistic lock failure for association ${context.associationName} context ${contextId}")
+            return failure(409, "CONCURRENT_MODIFICATION",
+                "Die Zuordnung konnte aufgrund einer gleichzeitigen Änderung nicht erstellt werden.")
         }
 
         if (instance.hasErrors() || instance.id == null) {
@@ -180,6 +192,10 @@ class InterlisAssociationCommandService {
         } catch (DataIntegrityViolationException e) {
             log.warn("Quick-link delete failed for association ${context.associationName} id ${associationId}: ${e.message}")
             return failure(409, "DATA_INTEGRITY", "Die Zuordnung kann nicht entfernt werden, weil abhängige Daten vorhanden sind.")
+        } catch (OptimisticLockingFailureException e) {
+            log.warn("Quick-link delete optimistic lock failure for association ${context.associationName} id ${associationId}")
+            return failure(409, "CONCURRENT_MODIFICATION",
+                "Die Zuordnung kann aufgrund einer gleichzeitigen Änderung nicht entfernt werden.")
         }
 
         return [

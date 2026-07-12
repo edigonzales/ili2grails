@@ -54,9 +54,12 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy")).exists();
         assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy")).exists();
         assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy")).exists();
+        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy")).exists();
+        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-sections.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-row-actions.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-quick-add.gsp")).exists();
+        assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-context-summary.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/views/layouts/main.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js")).exists();
@@ -146,6 +149,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(layoutTemplate).contains("navbar-toggler");
         assertThat(layoutTemplate).doesNotContain("ili-carbon-wc-bundle.js");
         assertThat(layoutTemplate).doesNotContain("<bx-header");
+        assertThat(layoutTemplate).contains("InterlisNavigationSupport.menuEntries");
 
         String controllerTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/Controller.groovy"));
         assertThat(controllerTemplate).contains("extends InterlisCrudControllerSupport");
@@ -179,6 +183,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("associationCreate(Long id)");
         assertThat(controllerSupport).contains("associationDelete(Long id)");
         assertThat(controllerSupport).contains("respondAssociationCommand(T instance, Map<String, Object> result)");
+        assertThat(controllerSupport).contains("respondAssociationError(int status, String code, String message)");
 
         String relationshipOptions = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"));
         assertThat(relationshipOptions).contains("interlisDisplayMeta");
@@ -212,6 +217,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(stylesheet).contains(".ili-field-help-panel");
         assertThat(stylesheet).contains(".ili-relationship-results");
         assertThat(stylesheet).contains(".ili-association-quick-form");
+        assertThat(stylesheet).contains("prefers-reduced-motion");
+        assertThat(stylesheet).contains("@media print");
     }
 
     @Test

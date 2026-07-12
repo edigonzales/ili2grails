@@ -472,6 +472,28 @@ schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
 - Das Löschen entfernt ausschliesslich die Association-Domain (den Link); Zielobjekte bleiben immer erhalten. Kompositions- und Attribut-Associations sind nicht Quick-Link-fähig und verwenden weiterhin das Association-CRUD.
 - Mit `--grails-association-ui read-only` oder `off` werden alle Schreibpfade deaktiviert (Registry `writable=false`, `createMode=NONE`).
 
+#### Association-UX: Kontextuelle Formulare (attributierte / n-äre / Selbst-Assoziationen)
+- Für `CONTEXTUAL_FORM` und `NARY_CONTEXTUAL_FORM`-Assoziationen (mit eigenen Attributen, Spezialsemantik oder >2 Rollen) wird die bestehende Association-Domain kontextuell genutzt.
+- Auf der Show-Seite erscheint ein **Hinzufügen**-Button, der auf den Association-Controller mit `associationContext` und `associationOwnerId` verweist.
+- Die feste Teilnehmerrolle wird im Formular vorgefüllt und ist nicht editierbar; sie wird serverseitig nach jedem `bindData` erneut gesetzt (Mass-Assignment-Schutz).
+- Übrige Rollen werden über den gemeinsamen Autocomplete-Mechanismus ausgewählt; eigene Attribute über das bestehende Fields-Template.
+- Selbstassoziationen verwenden getrennte Kontexte pro Rollenname (z.B. **Primary** und **Secondary**).
+- Die Rückleitung erfolgt deterministisch aus Registry-Kontext und Owner-ID; es gibt keine freie `returnUrl`.
+
+#### Association-UX: Navigation
+- `InterlisNavigationSupport` filtert die Navigationsleiste basierend auf der generierten Registry.
+- Technische Association-Controller (`BeteiligungController`, `PersonRefController`, etc.) werden standardmässig ausgeblendet, wenn mindestens ein kontextueller Zugang existiert (default: `--grails-association-navigation auto`).
+- Mit `show` bleiben alle Controller sichtbar; mit `hide` werden alle Association-Controller ausgeblendet.
+- Nicht erkannte Controller werden konservativ angezeigt (kein Reflection-Fehler zerstört das Layout).
+
+#### Association-UX: Performance & Sicherheit
+- **Fetch-Join:** Counterpart-Zielobjekte werden per `FetchMode.JOIN` im Criteria-Query mitgeladen (verhindert N+1-Abfragen).
+- **Property-Whitelisting:** Alle dynamischen Sortier-/Property-Zugriffe werden gegen GORM-Metadaten geprüft (`safeSort`).
+- **AbortController:** Der Autocomplete-JS-Client bricht laufende Requests beim neuen Suchbegriff ab.
+- **Kardinalität:** Binäre Max-/Min-Prüfung mit best-effort pessimistischem Locking; DB-Constraints als Sicherheitsnetz.
+- **Konflikt:** `DataIntegrityViolationException` und `OptimisticLockingFailureException` werden in verständliche 409-Fehlermeldungen übersetzt.
+- **Accessibility:** `prefers-reduced-motion`, `prefers-contrast` und `@media print` CSS-Regeln; ARIA-Attribute auf Sections und Tabellen.
+
 ### Django/GeoDjango Target-Spike
 - Das Paket `ch.interlis.generator.django` erzeugt aktuell nur eine repräsentative `models.py` aus der Core-IR.
 - Der Spike liest ausschließlich die Core-IR (`ModelMetadata`, `ClassMetadata`, `AssociationMetadata`, `AttributeMetadata`, `RelationshipMetadata` und `EnumMetadata`); er greift nicht auf ili2db-/ili2c-Readerdetails zu.
