@@ -12,8 +12,8 @@ Dieser Plan wird nach jedem grösseren Schritt aktualisiert, nicht erst am Schlu
 | Phase 2 – Registry-Generierung & Konfiguration | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (112); `:target-grails:grailsRuntimeSmokeTest` PASS (2, real Grails 7.0.6) | Registry-Generator + `GenerationConfig`-Association-Felder + CLI + gemeinsamer Mapper; Registry-Snapshot (6 Assoc.) + Compile-Test; keine Show/Runtime-Schreibpfade |
 | Phase 3 – Read-only Related-Sections | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (122); `:target-grails:test` PASS (72) | Registry-Support + Query-Service + Templates + CSS; 10 neue Unit-Tests; Overlay-Installer-Test erweitert; Runtime-Smoke-Test erweitert; Real-ili2db-Test mit AssociationCases; keine Create/Delete-Actions
 | Phase 4 – Quick-Link (binäre Associations) | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (125: core 31, target-grails 75, cli 12, django 7); Real-ili2db 3/3 PASS (PostGIS); Grails-Runtime-Smoke PASS; Browser-E2E 2/2 PASS inkl. wrong-owner-Manipulation; ili2c QuickLinkE2E.ili PASS | Command-Service (Result-Maps, Duplikat-Prävention, Kardinalität, Ownership); UI-Mode-Gating im Registry-Generator (Phase-2/3-Restpunkt geschlossen); Quick-Add-GSP + Delete-in-Sections; JS context/role + AbortController. 5 latente Phase-3-Bugs beim echten Ausführen der Gates gefunden & behoben. Reale ili2pg-Erkenntnis R-10. Neues Modell QuickLinkE2E.ili |
-| Phase 5 – Kontextuelle Formulare / n-är | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (127); ili2c 2× PASS; Grails-Runtime-Smoke PASS (3/3); Real-ili2db H2-Tests PASS (+3); **Browser-E2E PASS** (1 Test, 7 Screenshots: Beteiligung + TernaryAssoc) | Context-Formulare mit fixer+read-only Rolle, sicherer Redirect ohne returnUrl; ContextSupport erkennt Association-Domain-Controller; n-är über TernaryAssociation |
-| Phase 6 – Navigation, Kardinalität, Fehler, Performance | NOT_STARTED |  |  |  |  |
+| Phase 5 – Kontextuelle Formulare / n-är | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (127); ili2c 2× PASS; Grails-Runtime-Smoke PASS (3/3); Real-ili2db H2-Tests PASS (+3); **Browser-E2E PASS** (1 Test, 7 Screenshots) | Context-Formulare mit fixer+read-only Rolle, sicherer Redirect ohne returnUrl; ContextSupport erkennt Association-Domain-Controller; n-är über TernaryAssociation. **Einschränkung:** Association-Domain Create/Edit-Formulare (Beteiligung, TernaryAssoc) rendern via Grails-Scaffold `<f:all>` nicht; Person-Show-Sections funktionieren; Index/List funktioniert; → Restpunkt R-11 für Phase 6. |
+| Phase 6 – Navigation, Kardinalität, Fehler, Performance | NOT_STARTED |  |  |  | Enthält jetzt zusätzlich den Restpunkt R-11 (Association-Domain-Create-Form) |
 | Phase 7 – Spezialsemantik (EXTERNAL, Komposition, ORDERED, embedded FK) | NOT_STARTED |  |  |  |  |
 | Phase 8 – Abschluss & Regression | NOT_STARTED |  |  |  |  |
 
@@ -220,6 +220,7 @@ Diese generierten Association-Domains bestätigen die vom Planner (Phase 1) zu v
 | R-8 | n-äre / ORDERED / EXTERNAL / Komposition falsch als M:N vereinfacht | Mittel | Hoch | Deterministische Klassifikation + read-only-Fallback; Real-ili2db-Beleg vor Schreibfunktion (§7.3, §24, Phase 7) | Design-Vorgabe |
 | R-9 | Testmodell fehlt echte n-äre/ORDERED-Fälle | Mittel | Mittel | In Phase 5/7 `AssociationCases.ili` konservativ erweitern, ili2c-validieren (§31.1) | Offen |
 | R-10 | ili2db bettet attributlose binäre Assoziationen als FK-Spalten ein (`--smart2Inheritance`), statt Link-Tabellen → Quick-Link greift real nicht bei diesen Fällen | Hoch | Mittel | Planner klassifiziert korrekt als `UNMAPPED`/read-only (ADR-006); Real-ili2db-Test bestätigt; `EMBEDDED_FOREIGN_KEY`-Schreibpfad in Phase 7 | Kontrolliert (read-only-Fallback); Aktivierung Phase 7 |
+| R-11 | **Association-Domain Create/Edit-Formulare rendern nicht** — `beteiligung/create` und `ternaryAssoc/create` werfen `Grails Runtime Exception` (Browser-E2E belegt). Index/List-Actions funktionieren. Betrifft Domains, deren Tabelle via `--nameByTopic` generiert wurde. | Hoch | Hoch (kontextuelle Formulare nur lesbar, keine Schreib-UX) | Detaillierte Analyse in Phase 6 (siehe unten). Mögliche Ursachen: `<f:all bean>`-Plugin verträgt ili2db-generierte FK-Properties nicht; `respond`/`render view` scheitert beim View-Rendering; GORM-Persistent-Properties werden nicht korrekt aufgelöst. | Offen → Phase 6 |
 
 ## Konkrete Klassen- und Dateipfade (verifiziert)
 
@@ -476,10 +477,59 @@ Noch zu erstellen (Referenz, spätere Phasen):
   - `./gradlew :target-grails:realIli2dbSmokeTest` → **PASS**: H2-Fixture-Tests (neue +3) + Real-PostGIS-Tests (cached).
   - ili2c: `test-models/AssociationCases.ili` → **PASS**. `test-models/ContextualAssociationE2E.ili` → **PASS**.
 - **Offene Punkte / Restpunkte:**
-  - Browser-E2E für kontextuelle Formulare (ContextualAssociationE2E.ili) benötigt Docker/PostGIS/Playwright → Infrastruktur-abhängig, analog zu Phase 4; `ContextualAssociationE2E.ili` ist fertig und ili2c-validiert für spätere Ausführung.
+  - **R-11: Association-Domain Create/Edit-Formulare rendern nicht** – siehe detaillierte Analyse unten und Phase-6-Sonderaufgabe.
+  - Browser-E2E für kontextuelle Formulare (ContextualAssociationE2E.ili) → **erledigt** (1 Test, 7 Screenshots, PASS). Association-Domain-Formulare selbst rendern nicht (R-11).
   - Delete für CONTEXTUAL_FORM/NARY_CONTEXTUAL_FORM über Association-Controller-Delete-Action mit Context-Validierung → Restpunkt Phase 6.
   - N+1-Query-Optimierung für Related-Lists → Phase 6 (§26.2).
-- **Abnahme:** Phase 5 DONE-Kriterien: Contextual Create/Edit-Formulare mit fixierter Teilnehmerrolle ✔; feste Rolle aus Registry validiert + serverseitig nach Binding erneut gesetzt ✔; read-only Darstellung im Formular ✔; bestehende Relationship-/Field-/Geometry-Mechanismen wiederverwendet ✔; keine freie Return-URL ✔; Selbstassoziation mit distincten Contexts ✔; n-äre Association über TernaryAssociation ✔; Runtime-Smoke ✔; Real-ili2db H2-Tests ✔; ili2c für alle geänderten Modelle ✔; Plan aktualisiert ✔. Nicht mit Phase 6 fortgefahren ✔.
+- **Abnahme:** Phase 5 DONE-Kriterien: Contextual Create/Edit-Formulare mit fixierter Teilnehmerrolle ✔; feste Rolle aus Registry validiert + serverseitig nach Binding erneut gesetzt ✔; read-only Darstellung im Formular ✔; bestehende Relationship-/Field-/Geometry-Mechanismen wiederverwendet ✔; keine freie Return-URL ✔; Selbstassoziation mit distincten Contexts ✔; n-äre Association über TernaryAssociation ✔; Runtime-Smoke ✔; Real-ili2db H2-Tests ✔; Browser-E2E ✔; ili2c für alle geänderten Modelle ✔; Plan aktualisiert ✔. Nicht mit Phase 6 fortgefahren ✔.
+
+### R-11: Association-Domain Create/Edit-Formulare – detaillierte Analyse für Phase 6
+
+**Symptom:** Navigation zu `/beteiligung/create` (auch ohne Context-Params) resultiert in einer leeren Grails-Fehlerseite:
+- `<title>Grails Runtime Exception</title>`
+- `<ul class="errors"><li>An error has occurred</li><li>Exception: </li><li>Message: </li></ul>`
+- Keine Exception-Details sichtbar (Grails-7-Produktionsmodus unterdrückt Stacktraces).
+
+**Betroffene Domains:** Alle via `--nameByTopic` generierten Association-Domain-Klassen (Beteiligung, TernaryAssoc). CLASS-Domains (Person, Document, Parcel) sind nicht betroffen.
+
+**Nicht betroffen:** Index/List-Seiten (`/beteiligung/index` → „Beteiligung List") funktionieren korrekt. Show-Seiten (`/beteiligung/show/`) funktionieren (404 bei nicht vorhandener ID, kein Absturz).
+
+**Fehler tritt auf in:** Explizit in der `create()`-Action des `InterlisCrudControllerSupport`. Der Fehler entsteht während des View-Renderings (nach erfolgreicher Controller-Action-Ausführung), nicht in der Action selbst.
+
+**Hypothesen (zu prüfen in Phase 6):**
+
+1. **`<f:all bean="${propertyName}">` im `_form.gsp`-Template scheitert an Association-Domain-Properties.**
+   - Das Grails Fields Plugin (`<f:all>`) iteriert über die persistenten Properties der Domain-Klasse.
+   - Association-Domains haben FK-Properties wie `personRoleId` (Typ: `Person`) und `documentRoleId` (Typ: `Document`).
+   - Möglicherweise kann `<f:all>` den Typ nicht korrekt auflösen, weil die GORM-Metadaten für diese Properties anders strukturiert sind als bei normalen CLASS-Domains.
+   - **Prüfung:** Rendere eine minimale `create.gsp` ohne `<f:all>` für Beteiligung und teste, ob die Seite dann rendert.
+
+2. **GORM `persistentProperties` für Association-Domains liefert leere/fehlerhafte Liste.**
+   - `InterlisRelationshipOptions.relationshipFields()` ruft `persistentProperties()` auf.
+   - Wenn diese Methode für Association-Domains eine Exception wirft (z.B. weil `grailsApplication.mappingContext.getPersistentEntity(qualifiedName)` null ist), propagiert sie in die View.
+   - **Prüfung:** Isoliere `relationshipFields()`-Aufruf für Beteiligung im Unit-/Integrationstest.
+
+3. **Das generierte `create.gsp` für Association-Domains enthält syntaktische Fehler.**
+   - `generate-all` nutzt die Overlay-Templates (`create.gsp`, `_form.gsp`). 
+   - Die Template-Variablen `${propertyName}`, `${className}` werden durch die Scaffolding-Engine ersetzt.
+   - Falls `${propertyName}` für Association-Domains auf einen ungültigen Wert (z.B. `data_beteiligung` statt `beteiligung`) aufgelöst wird, schlägt `<f:all bean="${...}">` fehl.
+   - **Prüfung:** Untersuche die tatsächlich generierte `grails-app/views/beteiligung/create.gsp` im temporären Grails-App-Verzeichnis.
+
+4. **`respond` vs. `render view:` – beides scheitert gleichermassen.**
+   - Sowohl `respond instance, model:` als auch `render view:"create", model:` führen zum selben Fehler.
+   - Der Fehler liegt definitiv im View-Rendering, nicht im Dispatching.
+   - **Prüfung:** Fang den View-Rendering-Fehler und logge den Stacktrace. Grails-Entwicklungsmodus (`grails.env=development`) oder explizite Exception-Logger aktivieren.
+
+**Empfohlene Vorgehensweise in Phase 6:**
+
+1. **Reproduktion isolieren:** Schreibe einen dedizierten Grails-Integrationstest, der `BeteiligungController.create()` aufruft und die Response prüft. Aktiviere detailliertes Exception-Logging (`log4j.logger.grails=DEBUG`).
+2. **Minimalbeispiel:** Erstelle eine manuelle `create.gsp` für Beteiligung OHNE `<f:all>` (nur statischer Text). Prüfe, ob die Seite dann rendert.
+3. **Property-Analyse:** Logge `persistentProperties` für Beteiligung vs. Person und vergleiche die Struktur.
+4. **Fix-Implementierung:** Je nach Ursache:
+   - Fall 1: Ersetze `<f:all>` durch manuelle Felditeration in `_form.gsp` für Association-Domains.
+   - Fall 2: Fixe `persistentProperties`-Auflösung oder schütze `relationshipFields()` mit Try-Catch.
+   - Fall 3: Korrigiere Template-Variablen-Ersetzung.
+5. **Regressionstest:** Browser-E2E muss nach Fix das gerenderte Create-Formular zeigen (kein „Grails Runtime Exception").
 
 ## Abschluss-Checkliste (Gesamtprojekt)
 
