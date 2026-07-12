@@ -64,18 +64,20 @@ abstract class InterlisCrudControllerSupport<T> {
 
     def create() {
         applySecurityHeaders()
-        T instance = domainType().newInstance(params) as T
+        T instance = domainType().newInstance(domainBindParams()) as T
         Map<String, Object> contextState = associationContextState(instance)
         if (!contextState.isEmpty()) {
             applyAssociationContext(instance, contextState)
         }
         InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
-        respond instance, model: formModelWithContext(instance, contextState)
+        Map<String, Object> model = formModelWithContext(instance, contextState)
+        model.put(modelKey(), instance)
+        render view: "create", model: model
     }
 
     def save() {
         applySecurityHeaders()
-        T instance = domainType().newInstance(params) as T
+        T instance = domainType().newInstance(domainBindParams()) as T
         InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
         Map<String, Object> contextState = loadContextStateFromParams()
         if (!contextState.isEmpty()) {
@@ -442,6 +444,13 @@ abstract class InterlisCrudControllerSupport<T> {
             log.warn("Failed to re-load association context for ${domainType().simpleName}: ${e.message}")
             return [:]
         }
+    }
+
+    protected Map domainBindParams() {
+        Map filtered = new java.util.LinkedHashMap(params)
+        filtered.remove("associationContext")
+        filtered.remove("associationOwnerId")
+        return filtered
     }
 
     protected Map<String, Object> paginationParams(Integer maxParam, Integer offsetParam) {
