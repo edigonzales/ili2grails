@@ -2,6 +2,7 @@ package ch.interlis.generator.grails.runtime
 
 import grails.converters.JSON
 import grails.validation.ValidationException
+import groovy.util.logging.Slf4j
 import org.locationtech.jts.geom.Geometry
 import org.springframework.dao.DataIntegrityViolationException
 
@@ -11,6 +12,7 @@ import java.time.temporal.TemporalAccessor
 
 import static org.springframework.http.HttpStatus.*
 
+@Slf4j
 abstract class InterlisCrudControllerSupport<T> {
 
     private static final String CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
@@ -20,6 +22,8 @@ abstract class InterlisCrudControllerSupport<T> {
     protected abstract Object crudService()
 
     protected abstract Object associationQueryService()
+
+    protected abstract Object associationCommandService()
 
     def index(Integer max, Integer offset) {
         applySecurityHeaders()
@@ -244,6 +248,76 @@ abstract class InterlisCrudControllerSupport<T> {
         } catch (Exception e) {
             log.warn("associationOptions failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
             render([results: [], pagination: [more: false, total: 0, nextOffset: 0]] as JSON)
+        }
+    }
+
+    def associationCreate(Long id) {
+        applySecurityHeaders()
+        T instance = crudService().get(id) as T
+        if (instance == null) {
+            notFound()
+            return
+        }
+        String contextId = params.context?.toString()
+        String targetRoleName = params.role?.toString()
+        Long targetId = params.long("targetId")
+        Map<String, Object> result
+        try {
+            result = associationCommandService().createQuickLink(
+                domainType(),
+                instance.id as java.io.Serializable,
+                contextId,
+                targetRoleName,
+                targetId as java.io.Serializable
+            )
+        } catch (Exception e) {
+            log.error("associationCreate failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
+            result = [success: false, status: 500, code: "INTERNAL_ERROR",
+                      message: "Die Zuordnung konnte nicht erstellt werden."]
+        }
+        respondAssociationCommand(instance, result)
+    }
+
+    def associationDelete(Long id) {
+        applySecurityHeaders()
+        T instance = crudService().get(id) as T
+        if (instance == null) {
+            notFound()
+            return
+        }
+        String contextId = params.context?.toString()
+        Long associationId = params.long("associationId")
+        Map<String, Object> result
+        try {
+            result = associationCommandService().deleteLink(
+                domainType(),
+                instance.id as java.io.Serializable,
+                contextId,
+                associationId as java.io.Serializable
+            )
+        } catch (Exception e) {
+            log.error("associationDelete failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
+            result = [success: false, status: 500, code: "INTERNAL_ERROR",
+                      message: "Die Zuordnung kann nicht entfernt werden."]
+        }
+        respondAssociationCommand(instance, result)
+    }
+
+    protected void respondAssociationCommand(T instance, Map<String, Object> result) {
+        boolean success = result?.success == true
+        int status = (result?.status ?: (success ? 200 : 400)) as int
+        String userMessage = result?.message?.toString()
+        request.withFormat {
+            form multipartForm {
+                if (userMessage != null && !userMessage.isBlank()) {
+                    flash.message = userMessage
+                }
+                redirect action: "show", id: instance.id, method: "GET"
+            }
+            "*" {
+                response.status = status
+                render result as JSON
+            }
         }
     }
 

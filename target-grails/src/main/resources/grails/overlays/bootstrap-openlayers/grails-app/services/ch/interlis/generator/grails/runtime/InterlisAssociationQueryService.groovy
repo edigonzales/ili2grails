@@ -1,10 +1,10 @@
 package ch.interlis.generator.grails.runtime
 
-import grails.gorm.transactions.NotTransactional
 import ch.interlis.generator.grails.generated.InterlisAssociationRegistry
 
-@NotTransactional
 class InterlisAssociationQueryService {
+
+    static transactional = false
 
     def grailsApplication
 
@@ -36,7 +36,7 @@ class InterlisAssociationQueryService {
     }
 
     Map<String, Object> page(Class participantType, Serializable participantId, String contextId,
-                             Integer max, Integer offset, String sort, String order) {
+                             Integer max, Integer offset, String sort, String requestedOrder) {
         Map<String, Object> context = InterlisAssociationRegistrySupport.requireContext(participantType, contextId)
         Object participant = participantType.get(participantId)
         if (participant == null) {
@@ -50,8 +50,8 @@ class InterlisAssociationQueryService {
         }
         String fixedProperty = context.fixedProperty
         String sortField = safeSort(sort, associationType)
-        String sortOrder = safeOrder(order)
-        List<Map<String, Object>> associationDescriptor = InterlisAssociationRegistry.ASSOCIATIONS[context.associationName]
+        String sortOrder = safeOrder(requestedOrder)
+        Map<String, Object> associationDescriptor = InterlisAssociationRegistry.ASSOCIATIONS[context.associationName]
         def results = associationType.createCriteria().list(max: pageMax, offset: pageOffset) {
             eq(fixedProperty + ".id", participantId)
             if (sortField == "id") {
@@ -136,12 +136,15 @@ class InterlisAssociationQueryService {
             }
         }
         String associationDomainClass = association.domainClassQualifiedName
+        boolean deleteAllowed = (context.writable == true) &&
+            (context.removable == true) &&
+            (context.createMode == "QUICK")
         return [
             associationId: associationInstance.id?.toString(),
             associationLabel: buildAssociationLabel(associationInstance, editableRoleList, attrList),
             counterparts: counterparts,
             attributes: attrList,
-            deleteAllowed: false,
+            deleteAllowed: deleteAllowed,
             associationController: resolveAssociationController(association),
             associationDomainClass: associationDomainClass
         ]
@@ -173,6 +176,13 @@ class InterlisAssociationQueryService {
         }
         List<Map<String, String>> columns = buildColumns(associationDesc, context)
         String label = resolveLabel(context)
+        String quickTargetRole = null
+        if (context.createMode == "QUICK") {
+            List<Map<String, Object>> editableRoleList = InterlisAssociationRegistrySupport.editableRoles(associationDesc, context)
+            if (editableRoleList.size() == 1) {
+                quickTargetRole = editableRoleList.get(0).name
+            }
+        }
         return [
             contextId: context.id,
             label: label,
@@ -181,6 +191,8 @@ class InterlisAssociationQueryService {
             createMode: context.createMode,
             writable: context.writable ?: false,
             removable: context.removable ?: false,
+            quickTargetRole: quickTargetRole,
+            domId: domId(context.id),
             total: total,
             max: limit,
             offset: 0,
@@ -293,6 +305,13 @@ class InterlisAssociationQueryService {
             return null
         }
         return className[0].toLowerCase() + className[1..-1]
+    }
+
+    private String domId(String contextId) {
+        if (contextId == null) {
+            return "assoc-section"
+        }
+        return "assoc-" + contextId.replaceAll('[^a-zA-Z0-9]', '-')
     }
 
     private Integer boundedMax(Integer value) {

@@ -189,6 +189,48 @@ class GrailsAssociationRegistryGeneratorTest {
         assertGroovyCompiles(rendered);
     }
 
+    @Test
+    void readOnlyModeDisablesWritesInRegistry() throws Exception {
+        GenerationConfig config = GenerationConfig.builder(tempDir, "ch.example.association")
+            .domainPackage(DOMAIN_PACKAGE)
+            .enumPackage("ch.example.association.enums")
+            .associationUiMode(GenerationConfig.ASSOCIATION_UI_READ_ONLY)
+            .build();
+        String rendered = new GrailsAssociationRegistryGenerator()
+            .renderRegistry(mergedPlanner().plans(), config);
+
+        assertThat(rendered).contains("createMode: 'NONE'");
+        assertThat(rendered).doesNotContain("createMode: 'QUICK'");
+        assertThat(rendered).doesNotContain("createMode: 'CONTEXTUAL_FORM'");
+        assertThat(rendered).doesNotContain("writable: true");
+        assertThat(rendered).doesNotContain("removable: true");
+        assertGroovyCompiles(rendered);
+    }
+
+    @Test
+    void offModeDisablesWritesInRegistry() throws Exception {
+        GenerationConfig config = GenerationConfig.builder(tempDir, "ch.example.association")
+            .domainPackage(DOMAIN_PACKAGE)
+            .enumPackage("ch.example.association.enums")
+            .associationUiMode(GenerationConfig.ASSOCIATION_UI_OFF)
+            .build();
+        String rendered = new GrailsAssociationRegistryGenerator()
+            .renderRegistry(mergedPlanner().plans(), config);
+
+        assertThat(rendered).doesNotContain("createMode: 'QUICK'");
+        assertThat(rendered).doesNotContain("writable: true");
+        assertGroovyCompiles(rendered);
+    }
+
+    @Test
+    void autoModeKeepsQuickCreateMode() throws Exception {
+        String rendered = new GrailsAssociationRegistryGenerator()
+            .renderRegistry(mergedPlanner().plans(), config());
+
+        assertThat(rendered).contains("createMode: 'QUICK'");
+        assertThat(rendered).contains("writable: true");
+    }
+
     // ------------------------------------------------------------------
 
     private GrailsAssociationPlanner mergedPlanner() throws Exception {

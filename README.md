@@ -462,7 +462,15 @@ schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
 - Normale `ILI2DB_FK`- und `REFERENCE_ATTRIBUTE`-Beziehungen werden als typisierte Properties ausgegeben, erzeugen aber kein automatisches `belongsTo`.
 - `COMPOSITION_ATTRIBUTE` erzeugt bei `max > 1` oder `max = -1` ein `hasMany`; bei `max = 1` eine einfache Ziel-Property.
 - `belongsTo` wird nur für physisch vorhandene Composition-FKs ausgegeben. Der Generator erfindet dafür keine synthetischen DB-Spalten.
-- Association-Rollen werden in v1 als Properties auf der Association-Domain modelliert; inverse `hasMany` auf den Zielklassen und direkte Many-to-Many-Abbildungen bleiben bewusst aus.
+ - Association-Rollen werden in v1 als Properties auf der Association-Domain modelliert; inverse `hasMany` auf den Zielklassen und direkte Many-to-Many-Abbildungen bleiben bewusst aus.
+
+#### Association-UX: Quick-Link (binäre Associations)
+- Für binäre `LINK_ENTITY`-Associations ohne eigene Attribute (vom Planner als `QUICK` klassifiziert) bietet die generierte App direktes Hinzufügen und Entfernen aus der Perspektive eines beteiligten Fachobjekts.
+- Auf der Show-Seite erscheint pro Kontext ein Related-Abschnitt mit serverseitigem Autocomplete (**Zuordnen**) und einem **Entfernen**-Button je Zeile.
+- Mutationen laufen ausschliesslich über `POST` (`associationCreate`) und `DELETE` (`associationDelete`); es gibt keine GET-Mutation und keine freie Return-URL.
+- Serverseitig geprüft werden: Context-Gültigkeit, Owner-Zugehörigkeit (`fixedRoleProperty.id == participantId`, schützt gegen Manipulation über falschen Owner), zulässige Zielrolle, binäre Min/Max-Kardinalität und identische Duplikate.
+- Das Löschen entfernt ausschliesslich die Association-Domain (den Link); Zielobjekte bleiben immer erhalten. Kompositions- und Attribut-Associations sind nicht Quick-Link-fähig und verwenden weiterhin das Association-CRUD.
+- Mit `--grails-association-ui read-only` oder `off` werden alle Schreibpfade deaktiviert (Registry `writable=false`, `createMode=NONE`).
 
 ### Django/GeoDjango Target-Spike
 - Das Paket `ch.interlis.generator.django` erzeugt aktuell nur eine repräsentative `models.py` aus der Core-IR.

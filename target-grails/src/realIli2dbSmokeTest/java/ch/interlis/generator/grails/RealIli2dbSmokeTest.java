@@ -6,6 +6,7 @@ import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.testsupport.MetadataTestFixtures;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.opentest4j.TestAbortedException;
@@ -17,6 +18,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
@@ -297,25 +300,52 @@ class RealIli2dbSmokeTest {
         }
 
         assertThat(plans).hasSize(6);
-        assertThat(planner.isAssociationDomain("AssociationCases.Base.AssociationWithAttribute")).isTrue();
-        assertThat(planner.isAssociationDomain("AssociationCases.Base.EmptyAssociation")).isTrue();
-        assertThat(planner.isAssociationDomain("AssociationCases.Base.SameTargetAssociation")).isTrue();
-        assertThat(planner.isAssociationDomain("AssociationCases.Base.PhysicalMismatchAssociation")).isTrue();
-        assertThat(planner.isAssociationDomain("AssociationCases.Base.ExternalCompositeAssociation")).isTrue();
-        assertThat(planner.isAssociationDomain("AssociationCases.Extended.ExtendedTopicAssociation")).isTrue();
 
+        // Real ili2pg (--nameByTopic --smart2Inheritance) embeds the attribute-less binary
+        // associations as FK columns on the participant classes; the planner must therefore
+        // classify them as UNMAPPED and fall back to read-only (ADR-006), never quick-link.
         GrailsAssociationPlan emptyAssoc = planner.findPlan("AssociationCases.Base.EmptyAssociation").orElseThrow();
         assertThat(emptyAssoc.isBinary()).isTrue();
         assertThat(emptyAssoc.hasOwnAttributes()).isFalse();
+        assertThat(emptyAssoc.storageKind()).isEqualTo(AssociationStorageKind.UNMAPPED);
+        assertThat(emptyAssoc.writable()).isFalse();
+        assertThat(emptyAssoc.contexts())
+            .allSatisfy(ctx -> {
+                assertThat(ctx.createMode()).isEqualTo(AssociationCreateMode.NONE);
+                assertThat(ctx.presentationKind()).isEqualTo(AssociationPresentationKind.READ_ONLY);
+            });
 
+        for (String embedded : List.of(
+            "AssociationCases.Base.SameTargetAssociation",
+            "AssociationCases.Base.PhysicalMismatchAssociation",
+            "AssociationCases.Base.ExternalCompositeAssociation")) {
+            GrailsAssociationPlan plan = planner.findPlan(embedded).orElseThrow();
+            assertThat(plan.storageKind())
+                .as("embedded association %s must be UNMAPPED in real ili2pg", embedded)
+                .isEqualTo(AssociationStorageKind.UNMAPPED);
+            assertThat(plan.writable())
+                .as("embedded association %s must not be writable", embedded)
+                .isFalse();
+        }
+
+        // AssociationWithAttribute cannot be embedded (has an own attribute) => real link table.
         GrailsAssociationPlan attAssoc = planner.findPlan("AssociationCases.Base.AssociationWithAttribute").orElseThrow();
         assertThat(attAssoc.hasOwnAttributes()).isTrue();
         assertThat(attAssoc.storageKind()).isEqualTo(AssociationStorageKind.LINK_ENTITY);
+        assertThat(attAssoc.contexts())
+            .allSatisfy(ctx -> assertThat(ctx.createMode()).isEqualTo(AssociationCreateMode.CONTEXTUAL_FORM));
 
-        GrailsAssociationPlan sameTarget = planner.findPlan("AssociationCases.Base.SameTargetAssociation").orElseThrow();
-        assertThat(sameTarget.contexts()).hasSize(2);
-        assertThat(sameTarget.contexts().get(0).fixedRolePropertyName())
-            .isNotEqualTo(sameTarget.contexts().get(1).fixedRolePropertyName());
+        // ExtendedTopicAssociation is a genuine binary link table without attributes:
+        // this is the real quick-link candidate in the imported schema.
+        GrailsAssociationPlan extended = planner.findPlan("AssociationCases.Extended.ExtendedTopicAssociation")
+            .orElseThrow();
+        assertThat(extended.storageKind()).isEqualTo(AssociationStorageKind.LINK_ENTITY);
+        assertThat(extended.isBinary()).isTrue();
+        assertThat(extended.hasOwnAttributes()).isFalse();
+        assertThat(extended.writable()).isTrue();
+        assertThat(extended.contexts())
+            .as("real quick-link candidate ExtendedTopicAssociation")
+            .allSatisfy(ctx -> assertThat(ctx.createMode()).isEqualTo(AssociationCreateMode.QUICK));
 
         new GrailsCrudGenerator().generate(realSchema.metadata(), config);
         GeneratedGroovyCompiler.compileGeneratedSources(config.getOutputDir());
@@ -327,6 +357,304 @@ class RealIli2dbSmokeTest {
         assertThat(registryContent).contains("ASSOCIATIONS = [");
         assertThat(registryContent).contains("CONTEXTS = [");
         assertThat(registryContent).contains("ENTITIES = [");
+        assertThat(registryContent).contains("createMode: 'QUICK'");
+    }
+
+    @Test
+    void exercisesRealIli2pgQuickLinkInsertQueryDelete() throws Exception {
+        Path modelFile = Path.of("test-models/AssociationCases.ili");
+        if (!Files.exists(modelFile)) {
+            throw new TestAbortedException("AssociationCases.ili not available");
+        }
+        Path ili2pgHome = requireIli2pgHome();
+        requireDockerCompose();
+        startComposeDb();
+        waitForDatabase();
+
+        String schemaName = uniqueSchemaName("rt_ql_");
+        try (Connection connection = DriverManager.getConnection(JDBC_URL)) {
+            dropSchema(connection, schemaName);
+        }
+
+        try {
+            runIli2pgImport(ili2pgHome, "AssociationCases", schemaName);
+
+            ModelMetadata metadata;
+            try (Connection conn = DriverManager.getConnection(JDBC_URL)) {
+                MetadataReader reader = new MetadataReader(conn, modelFile.toFile(), schemaName, MODEL_REPOSITORIES);
+                metadata = reader.readMetadata("AssociationCases");
+            }
+
+            GenerationConfig config = GenerationConfig.builder(tempDir.resolve("ql-gen"), "ch.example.association")
+                .domainPackage("ch.example.association.domain")
+                .enumPackage("ch.example.association.enums")
+                .build();
+            TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
+            GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
+            GrailsAssociationPlanner planner = GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
+
+            GrailsAssociationPlan ext = planner.findPlan("AssociationCases.Extended.ExtendedTopicAssociation")
+                .orElseThrow();
+            assertThat(ext.storageKind()).isEqualTo(AssociationStorageKind.LINK_ENTITY);
+
+            String assocTable = ext.physicalTable();
+            String personCol = roleColumn(ext, "ExtendedPersonRole");
+            String parcelCol = roleColumn(ext, "ExtendedParcelRole");
+            String personTable = tableFor(metadata, "AssociationCases.Base.Person");
+            String extParcelTable = tableFor(metadata, "AssociationCases.Extended.ExtendedParcel");
+
+            assertThat(assocTable).isNotBlank();
+            assertThat(personCol).isNotBlank();
+            assertThat(parcelCol).isNotBlank();
+            assertThat(personTable).isNotBlank();
+            assertThat(extParcelTable).isNotBlank();
+
+            try (Connection conn = DriverManager.getConnection(JDBC_URL)) {
+                try (Statement st = conn.createStatement()) {
+                    st.execute("SET search_path TO " + schemaName);
+                }
+
+                long datasetId = insertReturningSeqId(conn,
+                    "INSERT INTO t_ili2db_dataset (t_id, datasetname) VALUES (nextval('t_ili2db_seq'), 'p4-quicklink')");
+                long basketId = insertReturningSeqId(conn,
+                    "INSERT INTO t_ili2db_basket (t_id, dataset, topic, attachmentkey) VALUES "
+                        + "(nextval('t_ili2db_seq'), " + datasetId + ", 'AssociationCases.Extended', 'p4-quicklink')");
+
+                long personId = insertReturningSeqId(conn,
+                    "INSERT INTO " + personTable + " (t_id, t_basket, aname) VALUES "
+                        + "(nextval('t_ili2db_seq'), " + basketId + ", 'Anna Muster')");
+                long parcelId = insertReturningSeqId(conn,
+                    "INSERT INTO " + extParcelTable + " (t_id, t_basket, ident) VALUES "
+                        + "(nextval('t_ili2db_seq'), " + basketId + ", 'PARCEL-QL-1')");
+
+                // Quick-link create: insert the association link row (both role FKs set).
+                long linkId = insertReturningSeqId(conn,
+                    "INSERT INTO " + assocTable + " (t_id, t_basket, " + personCol + ", " + parcelCol + ") VALUES "
+                        + "(nextval('t_ili2db_seq'), " + basketId + ", " + personId + ", " + parcelId + ")");
+                assertThat(linkId).isGreaterThan(0);
+
+                // Query from the participant (person) perspective.
+                assertThat(countWhere(conn, assocTable, personCol, personId)).isEqualTo(1);
+                // And from the counterpart (parcel) perspective.
+                assertThat(countWhere(conn, assocTable, parcelCol, parcelId)).isEqualTo(1);
+
+                // Delete only removes the link row.
+                try (PreparedStatement del = conn.prepareStatement(
+                         "DELETE FROM " + assocTable + " WHERE t_id = ?")) {
+                    del.setLong(1, linkId);
+                    assertThat(del.executeUpdate()).isEqualTo(1);
+                }
+                assertThat(countWhere(conn, assocTable, personCol, personId)).isZero();
+
+                // Target objects survive.
+                assertThat(countWhere(conn, personTable, "t_id", personId)).isEqualTo(1);
+                assertThat(countWhere(conn, extParcelTable, "t_id", parcelId)).isEqualTo(1);
+            }
+        } finally {
+            try (Connection connection = DriverManager.getConnection(JDBC_URL)) {
+                dropSchema(connection, schemaName);
+            } catch (SQLException ignored) {
+                // Temporary schema; a cleanup failure must not mask the original result.
+            }
+        }
+    }
+
+    private String roleColumn(GrailsAssociationPlan plan, String roleName) {
+        return plan.roles().stream()
+            .filter(role -> roleName.equals(role.roleName()))
+            .map(role -> role.physicalName() != null ? role.physicalName() : role.domainPropertyName())
+            .findFirst()
+            .orElseThrow();
+    }
+
+    private String tableFor(ModelMetadata metadata, String iliClassName) {
+        ClassMetadata classMetadata = metadata.getClass(iliClassName);
+        if (classMetadata == null) {
+            return null;
+        }
+        if (classMetadata.getTableName() != null && !classMetadata.getTableName().isBlank()) {
+            return classMetadata.getTableName();
+        }
+        return classMetadata.getSqlName();
+    }
+
+    private long insertReturningSeqId(Connection conn, String sql) throws SQLException {
+        try (Statement st = conn.createStatement()) {
+            st.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+            try (ResultSet rs = st.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+            }
+        }
+        throw new SQLException("No generated id for: " + sql);
+    }
+
+    private long countWhere(Connection conn, String table, String column, long value) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                 "SELECT COUNT(*) FROM " + table + " WHERE " + column + " = ?")) {
+            ps.setLong(1, value);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getLong(1);
+            }
+        }
+    }
+
+    @Test
+    void exercisesQuickLinkAssociationCreateQueryAndDeleteWithH2Fixture() throws Exception {
+        ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
+        GenerationConfig config = GenerationConfig.builder(tempDir.resolve("fixture-gen"), "ch.example.association")
+            .domainPackage("ch.example.association.domain")
+            .enumPackage("ch.example.association.enums")
+            .build();
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
+        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
+        GrailsAssociationPlanner planner = GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
+
+        GrailsAssociationPlan emptyAssoc = planner.findPlan("AssociationCases.Base.EmptyAssociation")
+            .orElseThrow();
+        assertThat(emptyAssoc.storageKind()).isEqualTo(AssociationStorageKind.LINK_ENTITY);
+        assertThat(emptyAssoc.isBinary()).isTrue();
+        assertThat(emptyAssoc.hasOwnAttributes()).isFalse();
+
+        GrailsAssociationContextPlan personCtx = emptyAssoc.contexts().stream()
+            .filter(ctx -> "PersonRole".equals(ctx.fixedRoleName()))
+            .findFirst().orElseThrow();
+        GrailsAssociationContextPlan parcelCtx = emptyAssoc.contexts().stream()
+            .filter(ctx -> "ParcelRole".equals(ctx.fixedRoleName()))
+            .findFirst().orElseThrow();
+
+        assertThat(personCtx.createMode()).isEqualTo(AssociationCreateMode.QUICK);
+        assertThat(parcelCtx.createMode()).isEqualTo(AssociationCreateMode.QUICK);
+
+        String personFixedProp = personCtx.fixedRolePropertyName();
+        String parcelFixedProp = parcelCtx.fixedRolePropertyName();
+        assertThat(personFixedProp).isEqualTo("personRoleId");
+        assertThat(parcelFixedProp).isEqualTo("parcelRoleId");
+
+        List<String> personEditableProps = new ArrayList<>(personCtx.editableRolePropertyNames());
+        List<String> parcelEditableProps = new ArrayList<>(parcelCtx.editableRolePropertyNames());
+        assertThat(personEditableProps).contains("parcelRoleId");
+        assertThat(parcelEditableProps).contains("personRoleId");
+
+        // Physical SQL columns (what the FK columns are actually called in the ili2db schema).
+        String personSqlColumn = emptyAssoc.roles().stream()
+            .filter(role -> "PersonRole".equals(role.roleName()))
+            .map(GrailsAssociationRolePlan::physicalName)
+            .findFirst().orElseThrow();
+        String parcelSqlColumn = emptyAssoc.roles().stream()
+            .filter(role -> "ParcelRole".equals(role.roleName()))
+            .map(GrailsAssociationRolePlan::physicalName)
+            .findFirst().orElseThrow();
+        assertThat(personSqlColumn).isEqualTo("person_role_id");
+        assertThat(parcelSqlColumn).isEqualTo("parcel_role_id");
+
+        String physicalTable = emptyAssoc.physicalTable();
+        assertThat(physicalTable).isEqualTo("emptyassociation");
+
+        try (Connection conn = DriverManager.getConnection("jdbc:h2:mem:quicklink;DB_CLOSE_DELAY=-1")) {
+            MetadataTestFixtures.createAssociationCasesIli2dbFixture(conn);
+
+            try (PreparedStatement insertPerson = conn.prepareStatement(
+                     "INSERT INTO person (name) VALUES (?)",
+                     Statement.RETURN_GENERATED_KEYS);
+                 PreparedStatement insertParcel = conn.prepareStatement(
+                     "INSERT INTO parcel (ident) VALUES (?)",
+                     Statement.RETURN_GENERATED_KEYS)) {
+
+                insertPerson.setString(1, "Anna Muster");
+                insertPerson.executeUpdate();
+                long personId;
+                try (ResultSet rs = insertPerson.getGeneratedKeys()) {
+                    rs.next();
+                    personId = rs.getLong(1);
+                }
+
+                insertParcel.setString(1, "PARCEL-001");
+                insertParcel.executeUpdate();
+                long parcelId;
+                try (ResultSet rs = insertParcel.getGeneratedKeys()) {
+                    rs.next();
+                    parcelId = rs.getLong(1);
+                }
+
+                try (PreparedStatement insertLink = conn.prepareStatement(
+                         "INSERT INTO " + physicalTable + " (" + personSqlColumn + ", "
+                         + parcelSqlColumn + ") VALUES (?, ?)",
+                         Statement.RETURN_GENERATED_KEYS)) {
+                    insertLink.setLong(1, personId);
+                    insertLink.setLong(2, parcelId);
+                    insertLink.executeUpdate();
+                    long linkId;
+                    try (ResultSet rs = insertLink.getGeneratedKeys()) {
+                        rs.next();
+                        linkId = rs.getLong(1);
+                    }
+                    assertThat(linkId).isGreaterThan(0);
+                }
+
+                long personViewCount;
+                try (PreparedStatement countQ = conn.prepareStatement(
+                         "SELECT COUNT(*) FROM " + physicalTable + " WHERE " + personSqlColumn + " = ?")) {
+                    countQ.setLong(1, personId);
+                    try (ResultSet rs = countQ.executeQuery()) {
+                        rs.next();
+                        personViewCount = rs.getLong(1);
+                    }
+                }
+                assertThat(personViewCount).isEqualTo(1);
+
+                long parcelViewCount;
+                try (PreparedStatement countQ = conn.prepareStatement(
+                         "SELECT COUNT(*) FROM " + physicalTable + " WHERE " + parcelSqlColumn + " = ?")) {
+                    countQ.setLong(1, parcelId);
+                    try (ResultSet rs = countQ.executeQuery()) {
+                        rs.next();
+                        parcelViewCount = rs.getLong(1);
+                    }
+                }
+                assertThat(parcelViewCount).isEqualTo(1);
+
+                // Delete the link
+                try (PreparedStatement deleteLink = conn.prepareStatement(
+                         "DELETE FROM " + physicalTable + " WHERE " + personSqlColumn + " = ?"
+                         + " AND " + parcelSqlColumn + " = ?")) {
+                    deleteLink.setLong(1, personId);
+                    deleteLink.setLong(2, parcelId);
+                    int deleted = deleteLink.executeUpdate();
+                    assertThat(deleted).isEqualTo(1);
+                }
+
+                // After delete, link is gone
+                try (PreparedStatement countQ = conn.prepareStatement(
+                         "SELECT COUNT(*) FROM " + physicalTable + " WHERE " + personSqlColumn + " = ?")) {
+                    countQ.setLong(1, personId);
+                    try (ResultSet rs = countQ.executeQuery()) {
+                        rs.next();
+                        assertThat(rs.getLong(1)).isZero();
+                    }
+                }
+
+                // Person and Parcel still exist
+                try (PreparedStatement checkPerson = conn.prepareStatement(
+                         "SELECT COUNT(*) FROM person WHERE t_id = ?")) {
+                    checkPerson.setLong(1, personId);
+                    try (ResultSet rs = checkPerson.executeQuery()) {
+                        rs.next();
+                        assertThat(rs.getLong(1)).isEqualTo(1);
+                    }
+                }
+                try (PreparedStatement checkParcel = conn.prepareStatement(
+                         "SELECT COUNT(*) FROM parcel WHERE t_id = ?")) {
+                    checkParcel.setLong(1, parcelId);
+                    try (ResultSet rs = checkParcel.executeQuery()) {
+                        rs.next();
+                        assertThat(rs.getLong(1)).isEqualTo(1);
+                    }
+                }
+            }
+        }
     }
 
     private RealSchemaMetadata importAndReadMetadata(String modelName, Path modelFile, String schemaPrefix)

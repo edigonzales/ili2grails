@@ -11,7 +11,7 @@ Dieser Plan wird nach jedem grösseren Schritt aktualisiert, nicht erst am Schlu
 | Phase 1 – Association-Planungsmodell | DONE | 2026-07-11 | 2026-07-11 | `:target-grails:test` PASS (49), `./gradlew test` PASS (99) | Planungsmodelle + `GrailsAssociationPlanner` + 16 Unit-Tests; keine Runtime/GSP/Core-IR-Änderung |
 | Phase 2 – Registry-Generierung & Konfiguration | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (112); `:target-grails:grailsRuntimeSmokeTest` PASS (2, real Grails 7.0.6) | Registry-Generator + `GenerationConfig`-Association-Felder + CLI + gemeinsamer Mapper; Registry-Snapshot (6 Assoc.) + Compile-Test; keine Show/Runtime-Schreibpfade |
 | Phase 3 – Read-only Related-Sections | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (122); `:target-grails:test` PASS (72) | Registry-Support + Query-Service + Templates + CSS; 10 neue Unit-Tests; Overlay-Installer-Test erweitert; Runtime-Smoke-Test erweitert; Real-ili2db-Test mit AssociationCases; keine Create/Delete-Actions
-| Phase 4 – Quick-Link (binäre Associations) | NOT_STARTED |  |  |  |  |
+| Phase 4 – Quick-Link (binäre Associations) | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (125: core 31, target-grails 75, cli 12, django 7); Real-ili2db 3/3 PASS (PostGIS); Grails-Runtime-Smoke PASS; Browser-E2E 2/2 PASS inkl. wrong-owner-Manipulation; ili2c QuickLinkE2E.ili PASS | Command-Service (Result-Maps, Duplikat-Prävention, Kardinalität, Ownership); UI-Mode-Gating im Registry-Generator (Phase-2/3-Restpunkt geschlossen); Quick-Add-GSP + Delete-in-Sections; JS context/role + AbortController. 5 latente Phase-3-Bugs beim echten Ausführen der Gates gefunden & behoben. Reale ili2pg-Erkenntnis R-10. Neues Modell QuickLinkE2E.ili |
 | Phase 5 – Kontextuelle Formulare / n-är | NOT_STARTED |  |  |  |  |
 | Phase 6 – Navigation, Kardinalität, Fehler, Performance | NOT_STARTED |  |  |  |  |
 | Phase 7 – Spezialsemantik (EXTERNAL, Komposition, ORDERED, embedded FK) | NOT_STARTED |  |  |  |  |
@@ -179,14 +179,15 @@ Diese generierten Association-Domains bestätigen die vom Planner (Phase 1) zu v
 - **Alternativen:** Standalone-`ili2c.jar` von jars.interlis.ch nachladen — möglich, aber unnötig, da lokal bereits identische Version vorhanden.
 - **Konsequenzen:** Validierung ist erfüllt und reproduzierbar. Der abweichende Befehl ist überall dokumentiert. Kein Committen unvalidierter `.ili`-Dateien.
 
-### ADR-003: (offen) Fehler-/Ergebnis-Strategie der Command-Services
+### ADR-003: Command-Service-Result-Strategie (entschieden Phase 4)
 - **Kontext:** Spec §25.1 lässt strukturierte Result-Maps ODER typisierte Exceptions zu; „eine einzige konsistente Strategie".
-- **Entscheidung:** OFFEN — festzulegen zu Beginn von Phase 4.
-- **Konsequenzen:** Beeinflusst Controller-HTTP-Status-Mapping (§17.6) und Tests.
+- **Entscheidung:** Strukturierte Result-Maps `[success, status, code, message, messageCode, fieldErrors]`. Interne `requireContext`-Exceptions werden gefangen und in Error-Maps übersetzt. Controller mappen Status → HTTP + Flash.
+- **Konsequenzen:** Alle Command-Outcomes sind einheitlich als Map prüfbar. Keine Exception-Hierarchie jenseits von `requireContext` nötig. Controller-`respondAssociationCommand` ist das einzige HTTP-Übersetzungs-Gate.
 
-### ADR-004: (offen) Duplikat-Regel für Quick-Links
+### ADR-004: Quick-Link-Duplikatregel (entschieden Phase 4)
 - **Kontext:** Spec §15.3 — keine erfundene globale Unique-Regel; optionale Duplikatverhinderung nur bei eindeutiger IR/Spec-Grundlage.
-- **Entscheidung:** OFFEN — konservativer Default (keine Unique-Regel) bis in Phase 4 belegt.
+- **Entscheidung:** Quick-Link verhindert identische Duplikate (gleiches fixed+target-Rollenpaar) über `createCriteria`-Count-Prüfung → 409. Begründung: Nutzerentscheid (Phase-4-Plan). Dies ist eine bewusste Abweichung vom konservativen Default.
+- **Konsequenzen:** Zwei identische Links für attributlose Assoziationen werden abgelehnt. Bei Assoziationen mit eigenen Attributen (CONTEXTUAL_FORM) keine Duplikat-Regel — nur `validate()`/DB-Constraints.
 
 ### ADR-005: Synthetische In-Memory-Metadaten für ORDERED/n-är/UNMAPPED/ambiguous Planner-Tests
 - **Kontext:** `test-models/AssociationCases.ili` und die Fixture decken ORDERED und echte n-äre Associations nicht ab (siehe Phase-0-Befund, Spec §31.1). Der Umsetzungsplan verortet Modell-Erweiterungen bewusst in Phase 5 (n-är) und Phase 7 (ORDERED/embedded).
@@ -218,6 +219,7 @@ Diese generierten Association-Domains bestätigen die vom Planner (Phase 1) zu v
 | R-7 | Sicherheitslücken (Mass Assignment, IDOR, Open Redirect, GET-Mutation) | Mittel | Hoch | Serverseitige Kontextvalidierung, feste Rolle nach Binding neu setzen, keine freie returnUrl, POST/PUT/DELETE (§27) | Design-Vorgabe (Phasen 4–6) |
 | R-8 | n-äre / ORDERED / EXTERNAL / Komposition falsch als M:N vereinfacht | Mittel | Hoch | Deterministische Klassifikation + read-only-Fallback; Real-ili2db-Beleg vor Schreibfunktion (§7.3, §24, Phase 7) | Design-Vorgabe |
 | R-9 | Testmodell fehlt echte n-äre/ORDERED-Fälle | Mittel | Mittel | In Phase 5/7 `AssociationCases.ili` konservativ erweitern, ili2c-validieren (§31.1) | Offen |
+| R-10 | ili2db bettet attributlose binäre Assoziationen als FK-Spalten ein (`--smart2Inheritance`), statt Link-Tabellen → Quick-Link greift real nicht bei diesen Fällen | Hoch | Mittel | Planner klassifiziert korrekt als `UNMAPPED`/read-only (ADR-006); Real-ili2db-Test bestätigt; `EMBEDDED_FOREIGN_KEY`-Schreibpfad in Phase 7 | Kontrolliert (read-only-Fallback); Aktivierung Phase 7 |
 
 ## Konkrete Klassen- und Dateipfade (verifiziert)
 
@@ -373,6 +375,62 @@ Noch zu erstellen (Referenz, spätere Phasen):
   - Navigations-Filterung (`InterlisNavigationSupport`) → Phase 6.
   - `associationUiMode`-Gating der Writability → Restpunkt aus Phase 2, übernommen nach Phase 4.
 - **Abnahme:** Phase 3 DONE-Kriterien: Registry-Support mit strikter Context-Prüfung ✔; Query-Service mit Sections/Page/OptionPage ✔; `associationModel()` in Show integriert ✔; Related-Sections-Templates mit Labels, leeren Zuständen, Gegenobjekt-Links, Count, Pagination ✔; CSS-Styles ✔; keine Create/Delete-Actions (read-only) ✔; keine `hasMany`-Collections ✔; Overlay-Installer aktualisiert ✔; Unit-Tests (10 neue) grün ✔; Runtime-/Real-ili2db-Compile-Tests grün ✔; Plan aktualisiert ✔. Nicht mit Phase 4 fortgefahren ✔.
+
+### Phase 4
+- **Neue Dateien (Overlay):**
+  - `grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy` — Transactional Command-Service (§15) mit `createQuickLink` (Context-/Owner-/Zielrollen-/Duplikat-/Kardinalitätsprüfung, strukturierte Result-Maps) und `deleteLink` (Ownership-Verifikation, Min-Kardinalität, Composition-Guard, nur Association löschen). Geschützte Hilfsmethoden `validateCreateCardinality`, `validateDeleteCardinality`, `verifyAssociationBelongsToParticipant`, `assignRole`. Autorisierungs-Extension-Points `canCreateAssociation`/`canDeleteAssociation` (default `true`).
+  - `src/main/templates/scaffolding/_association-quick-add.gsp` — POST-Form auf `associationCreate` mit `context`+`role` Hidden-Feldern, gemeinsamem Autocomplete-Picker (`data-relationship-context`/`data-relationship-role`), `targetId`-Select, submit-Button.
+- **Geänderte Dateien (Overlay):**
+  - `InterlisCrudControllerSupport.groovy` — abstrakter `associationCommandService()`; neue Actions `associationCreate(Long id)` (POST, Parameter `context`/`role`/`targetId`) und `associationDelete(Long id)` (DELETE, Parameter `context`/`associationId`); `respondAssociationCommand(T, Map)` als zentrales HTTP-Mapping-Gate (Success→Redirect show, Error→Flash+Redirect show, JSON→Status+Body). Kein `returnUrl`.
+  - `Controller.groovy` (Template) — Import/Injektion `InterlisAssociationCommandService`; `allowedMethods` += `associationCreate:"POST", `associationDelete:"DELETE"`; Delegationen; Override `associationCommandService()`.
+  - `InterlisAssociationQueryService.groovy` — `buildSection`: `quickTargetRole` (einzige editable Rolle) + `domId` (stabil aus `contextId` abgeleitet); `describeAssociationRow`: `deleteAllowed = writable && removable && createMode=='QUICK'`.
+  - `_association-sections.gsp` — Empty State + Quick-Add-Include; Delete-Button (`data-association-delete`) pro Row bei `row.deleteAllowed`; Hidden DELETE-Form pro Row unterhalb der Tabelle; Quick-Add unterhalb bei `writable`.
+  - `_association-quick-add.gsp` — POST-Form, gemeinsamer Picker.
+  - `ili-form-ux.js` — `relationshipUrl` unterstützt `data-relationship-context`/`data-relationship-role` (nicht nur `field`); `AbortController` in `fetchOptions` (Reset bricht laufende Requests ab); `initQuickAddForms()` (Submit-Button disable bis Ziel gewählt); `data-association-delete`-Handler in `initSubmitButtons` (Confirmation + verstecktes Form submitten).
+  - `ili-modern.css` — `.ili-association-quick-form`, `.ili-association-delete-btn`.
+- **Geänderte Dateien (Planungszeit):**
+  - `GrailsAssociationRegistryGenerator.java` — UI-Mode-Gating: `!config.isAssociationUiEditable()` ⇒ `writable=false`, `createMode=NONE`, `removable=false` in `CONTEXTS` und `ASSOCIATIONS`; neue `resolveCreateMode(plan, writable)`. Kontext-Descriptor erhält `writable`/`createMode` aus `writeEnabled`-Logik.
+  - `GrailsTemplateOverlayInstaller.java` — `MANAGED_FILES` ergänzt um Command-Service (`21→23`) und `_association-quick-add.gsp`.
+- **Neue/erweiterte Tests:**
+  - `GrailsAssociationRegistryGeneratorTest.java` — 3 neue Tests: `readOnlyModeDisablesWritesInRegistry`, `offModeDisablesWritesInRegistry`, `autoModeKeepsQuickCreateMode`.
+  - `GrailsTemplateOverlayInstallerTest.java` — Assertions für Command-Service + `_association-quick-add.gsp`-Existenz; Controller-Template prüft `InterlisAssociationCommandService`, `associationCreate`, `associationDelete`, `allowedMethods` mit POST/DELETE; JS prüft `data-relationship-context`, `data-relationship-role`, `data-association-delete`, `initQuickAddForms`; CSS prüft `.ili-association-quick-form`.
+  - `RealIli2dbSmokeTest.java` — Neuer Test `exercisesQuickLinkAssociationCreateQueryAndDeleteWithH2Fixture()`: H2-In-Memory-Fixture für `EmptyAssociation`; Insert Person+Parcel; JDBC-Insert in `emptyassociation` (`person_role_id`, `parcel_role_id`); Query-Count aus Person- und Parcel-Perspektive; Delete-Link; Verify Person und Parcel überleben; Verifikation der physischen Rollen-Spalten über `GrailsAssociationRolePlan.physicalName()`.
+  - `GrailsBrowserE2eTest.java` — Neuer Test `generatedGrailsAppSupportsQuickLinkAndAssociationDeleteInBrowser()` gegen Modell `QuickLinkE2E.ili` (basketfreie echte Link-Tabelle): Person A/B + Tag erstellen, Quick-Add-Sichtbarkeit, Quick-Link-Create + Zählung, **wrong-owner Manipulation (HTTP 404)**, rechtmässiges Delete, Counterpart überlebt; Hilfsmethoden `importAssociationSchema`, `readAssociationMetadata`, `runAssociationQuickLinkE2E`, `createRecord`, `associationTotal`.
+  - `test-models/QuickLinkE2E.ili` — neues, ili2c-validiertes Modell für den Live-Browser-E2E.
+- **Nicht geändert (bewusst):** Core-IR, `GrailsAssociationPlanner`, `GrailsRelationshipMapper`, `AssociationCases.ili`, Fixtures. Keine inversen GORM-Collections. Kein `returnUrl`. Kein automatisches Erzeugen von Zielobjekten. Keine ungeprüfte Mutation.
+- **Entscheidungen:**
+  - ADR-003 finalisiert: Strukturierte Result-Maps `[success, status, code, message, messageCode, fieldErrors]`. Interne `requireContext`-Exceptions gefangen.
+  - ADR-004 finalisiert: Quick-Link verhindert identische Duplikate (gleiche fixed+target-Rollenpaarung) via `createCriteria`-Count → 409. Abweichung vom konservativen Default (Nutzerentscheid).
+  - Write-Gating: Im Registry-Generator (analog ADR-007), nicht im Runtime Command-Service. Schliesst Phase-2/3-Restpunkt.
+  - `deleteAllowed`-Flag: Nur für `QUICK`-Kontexte die writable+removable sind. `CONTEXTUAL_FORM`-Rows zeigen keine direkten Delete-Buttons.
+  - `perspectiveMin`/`perspectiveMax` aus Registry-Context direkt verwendet für binäre Kardinalitätsprüfung.
+  - `lockOrGet` mit `type.lock(id)`-Fallback auf `get()` bei Locking-Fehler; nur dokumentiert, nicht geloggt.
+  - Keine Fetch-Join-Änderung (Phase-3-N+1-Restpunkt bleibt; Spec §26.2 akzeptiert dies für Phase 4 nicht).
+- **Ausgeführte Tests (JDK 21, ADR-001):**
+  - `./gradlew test` → **PASS** (alle Unit-/Snapshot-Tests inkl. neue Registry-Gating- und erweiterte Overlay-Installer-Tests), 0 Fehler/0 Errors/0 Skips.
+  - `./gradlew :target-grails:realIli2dbSmokeTest` (PostGIS via Docker, ili2pg 5.5.1) — 3 Association-Tests **PASS**:
+    - `validatesAssociationCasesAgainstRealIli2pgSchema` (umgeschrieben): reale Klassifikation bestätigt — `AssociationWithAttribute`=LINK_ENTITY+CONTEXTUAL_FORM, `ExtendedTopicAssociation`=LINK_ENTITY+**QUICK**, die 4 attributlosen binären (`EmptyAssociation`, `SameTargetAssociation`, `PhysicalMismatchAssociation`, `ExternalCompositeAssociation`)=**UNMAPPED/read-only** (ili2db bettet sie als FK-Spalten ein → ADR-006 validiert).
+    - `exercisesRealIli2pgQuickLinkInsertQueryDelete` (neu): echter Insert/Query/Delete auf der realen Link-Tabelle `extended_extendedtopicassociation` (mit dataset/basket-Setup) — Query aus beiden Perspektiven, Delete entfernt nur den Link, Person+ExtendedParcel überleben.
+    - `exercisesQuickLinkAssociationCreateQueryAndDeleteWithH2Fixture` (neu): SQL-Mechanik gegen H2-Fixture (`emptyassociation`).
+  - `./gradlew :target-grails:grailsRuntimeSmokeTest --tests "*associationRegistryAndRuntimeCompilesInRealGrailsApp*"` (Grails 7.0.6) → **PASS**: gesamtes Overlay (Command-Service, Controller-Support, Controller-Template, Association-Partials, Registry) kompiliert in echter App; `generate-all` rendert `_association-sections.gsp` + `_association-quick-add.gsp` fehlerfrei in den View-Ordner.
+  - `./gradlew :target-grails:browserE2eTest` (Grails 7.0.6 + ili2pg + Docker-PostGIS + Playwright) → **PASS (2/2)**:
+    - `generatedGrailsAppSupportsQuickLinkAndAssociationDeleteInBrowser` (neu, Modell `QuickLinkE2E.ili`): Person A/B + Tag anlegen; Quick-Add-Section + Autocomplete-Form auf Person-Show sichtbar; Quick-Link-Create (POST) via Command-Service; Zählung aus Teilnehmerperspektive=1; **Manipulationsversuch über falschen Owner (Person B → DELETE von A's Link) → HTTP 404 abgelehnt, Link überlebt**; rechtmässiges Delete durch Person A entfernt nur den Link; Tag überlebt.
+    - `generatedGrailsAppSupportsCrudRelationshipsAndGeometryInBrowser` (bestehend) → weiterhin grün (keine Regression durch `@Slf4j`/Query-Service-Fixes).
+  - ili2c: neue Datei `test-models/QuickLinkE2E.ili` mit `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/QuickLinkE2E.ili` → **PASS** (0 Fehler/0 Warnungen). `AssociationCases.ili` unverändert.
+- **Beim Ausführen der echten Test-Gates entdeckte & behobene latente Phase-3-Fehler** (Phase-3-Real/Runtime/E2E-Gates waren nie live ausgeführt worden):
+  1. `InterlisAssociationQueryService`: `@NotTransactional` war unzulässig auf Klassenebene → `static transactional = false` (Spec §14.1). Blockierte `compileGroovy` in echter App.
+  2. Association-Partial-GSPs (`_association-sections.gsp`, `_association-row-actions.gsp`) nutzten unescapte `${…}` → wurden zur Scaffolding-Zeit ausgewertet und `generate-all` brach ab. Alle Runtime-Ausdrücke auf `\${…}` umgestellt (wie `_relationship-fields.gsp`).
+  3. `InterlisCrudControllerSupport` (abstrakte Basisklasse, kein Grails-Artefakt) nutzte `log` → `MissingPropertyException` zur Laufzeit. `@Slf4j` ergänzt.
+  4. `InterlisAssociationQueryService.page(...)`: `List<Map> associationDescriptor = ASSOCIATIONS[name]` (ist eine Map) → `GroovyCastException`. Typ auf `Map<String, Object>` korrigiert.
+  5. `InterlisAssociationQueryService.page(...)`: Parameter `order` überdeckte die GORM-Criteria-Methode `order(...)` → `NullPointerException`. Parameter in `requestedOrder` umbenannt.
+  - Bestehender Phase-3-Test `associationRegistryAndRuntimeCompilesInRealGrailsApp` prüfte fälschlich `_association-sections` (Grails rendert `association-sections`); korrigiert + um Rendering-Verifikation der Partials erweitert.
+- **Wichtige reale ili2pg-Erkenntnis (dokumentiert, Risiko R-10):** Mit `--nameByTopic --smart2Inheritance` bettet ili2db attributlose binäre Assoziationen als FK-Spalten in die Teilnehmerklassen ein (`EMBEDDED_FOREIGN_KEY`), statt Link-Tabellen zu erzeugen. Der Planner klassifiziert diese korrekt als `UNMAPPED` → read-only (ADR-006). Der H2-Fixture (`MetadataTestFixtures`) modelliert sie als Link-Tabellen (didaktisch); die reale Quick-Link-Aktivierung greift nur bei echten Link-Entities (z.B. `ExtendedTopicAssociation`, m:n-Assoziationen, sowie das E2E-Modell `QuickLinkE2E`).
+- **Neues Testmodell:** `test-models/QuickLinkE2E.ili` — binäre `{0..*}--{0..*}`-Assoziation ohne OID/Attribute ⇒ ili2db erzeugt eine echte Link-Tabelle ohne `t_basket` ⇒ vollständig CRUD-/Quick-Link-fähig für den Browser-E2E (AssociationCases erfordert wegen `UUIDOID` `--createBasketCol`, was die generierte CRUD-App nicht bedient — daher für den Live-E2E ungeeignet; §29.6-Abweichung dokumentiert).
+- **Offene Punkte / Restpunkte:**
+  - Fetch-Join/N+1 für Related-Lists → Restpunkt Phase 6 (§26.2).
+  - `EMBEDDED_FOREIGN_KEY`-Schreibpfad (damit auch AssociationCases' eingebettete Assoziationen quick-editierbar werden) → Phase 7 (ADR-006).
+  - AssociationCases-Live-Browser-E2E benötigt Basket-Unterstützung in der generierten CRUD-App → ausserhalb Phase 4.
+- **Abnahme:** Phase 4 DONE-Kriterien: Command-Service mit Context-/Owner-/Kardinalitäts-/Duplikat-Prüfung ✔; `createQuickLink` + `deleteLink` mit strukturierten Result-Maps ✔; Controller-Support `associationCreate`/`associationDelete` nur POST/DELETE ✔; Quick-Add-GSP + Delete-in-Sections ✔; JS context/role + AbortController ✔; gemeinsamer `optionPageForTargetType` wiederverwendet (keine Duplizierung) ✔; serverseitige Context-/Owner-/Zugehörigkeitsprüfung ✔; binäre Kardinalität ✔; Löschen entfernt ausschliesslich die Association-Domain ✔; Registry-UI-Mode-Gating ✔; Unit-/Real-ili2db-/Grails-Runtime-/Playwright-Tests inkl. Manipulationsversuch über falschen Owner grün ✔; ili2c für neues Modell ✔; Plan-Doc + ADR-003/004 aktualisiert ✔. Nicht mit Phase 5 fortgefahren ✔.
 
 ## Abschluss-Checkliste (Gesamtprojekt)
 

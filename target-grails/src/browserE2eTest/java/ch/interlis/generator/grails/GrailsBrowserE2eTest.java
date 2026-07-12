@@ -3,12 +3,15 @@ package ch.interlis.generator.grails;
 import ch.interlis.generator.metadata.MetadataReader;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.PlaywrightException;
 import com.microsoft.playwright.options.LoadState;
+import com.microsoft.playwright.options.FormData;
+import com.microsoft.playwright.options.RequestOptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -39,6 +42,7 @@ class GrailsBrowserE2eTest {
     private static final Duration DB_TIMEOUT = Duration.ofSeconds(90);
     private static final String DEFAULT_JDBC_URL = "jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret";
     private static final Path MODEL_FILE = Path.of("test-models/SimpleAddressModel.ili");
+    private static final Path ASSOCIATION_MODEL_FILE = Path.of("test-models/QuickLinkE2E.ili");
     private static final List<String> MODEL_REPOSITORIES = List.of(
         "test-models",
         "https://models.interlis.ch/",
@@ -108,6 +112,60 @@ class GrailsBrowserE2eTest {
             waitForHttp("http://localhost:" + port + "/");
 
             runBrowserCrud("http://localhost:" + port);
+        } finally {
+            if (bootRun != null) {
+                bootRun.destroy();
+                if (!bootRun.waitFor(10, TimeUnit.SECONDS)) {
+                    bootRun.destroyForcibly();
+                    bootRun.waitFor();
+                }
+            }
+            dropSchema(schemaName);
+        }
+    }
+
+    @Test
+    void generatedGrailsAppSupportsQuickLinkAndAssociationDeleteInBrowser() throws Exception {
+        String externalAppUrl = externalAppUrl();
+        if (externalAppUrl != null) {
+            waitForHttp(externalAppUrl);
+            runAssociationQuickLinkE2E(externalAppUrl);
+            return;
+        }
+        if (!Files.exists(ASSOCIATION_MODEL_FILE)) {
+            throw new TestAbortedException("AssociationCases.ili not available for browser E2E");
+        }
+        startComposeDb();
+        waitForDatabase();
+
+        String schemaName = uniqueSchemaName("e2e_assoc_");
+        Path appDir = null;
+        Process bootRun = null;
+        try {
+            dropSchema(schemaName);
+            importAssociationSchema(schemaName);
+            ModelMetadata metadata = readAssociationMetadata(schemaName);
+            appDir = createGrailsApp();
+            GenerationConfig config = GenerationConfig.builder(appDir, BASE_PACKAGE)
+                .domainPackage(DOMAIN_PACKAGE)
+                .controllerPackage(BASE_PACKAGE)
+                .enumPackage(ENUM_PACKAGE)
+                .jdbcUrl(baseJdbcUrl())
+                .schema(schemaName)
+                .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+                .mapEditor(GenerationConfig.MAP_EDITOR_NONE)
+                .geometryEnabled(false)
+                .build();
+
+            new GrailsTemplateOverlayInstaller().install(appDir, config);
+            new GrailsCrudGenerator().generate(metadata, config);
+            generateScaffolding(appDir, metadata, config);
+
+            int port = freePort();
+            bootRun = startGrailsApp(appDir, port);
+            waitForHttp("http://localhost:" + port + "/");
+
+            runAssociationQuickLinkE2E("http://localhost:" + port);
         } finally {
             if (bootRun != null) {
                 bootRun.destroy();
@@ -380,6 +438,169 @@ class GrailsBrowserE2eTest {
             MetadataReader reader = new MetadataReader(connection, MODEL_FILE.toFile(), schemaName, MODEL_REPOSITORIES);
             return reader.readMetadata("SimpleAddressModel");
         }
+    }
+
+    private ModelMetadata readAssociationMetadata(String schemaName) throws Exception {
+        try (Connection connection = DriverManager.getConnection(baseJdbcUrl())) {
+            MetadataReader reader = new MetadataReader(connection,
+                ASSOCIATION_MODEL_FILE.toFile(), schemaName, MODEL_REPOSITORIES);
+            return reader.readMetadata("QuickLinkE2E");
+        }
+    }
+
+    private void importAssociationSchema(String schemaName) throws IOException, InterruptedException {
+        Path javaExecutable = Path.of(System.getProperty("java.home"), "bin", "java");
+        Path ili2pgHome = ili2pgHome();
+        String classpath = ili2pgHome.resolve("ili2pg-5.5.1.jar")
+            + File.pathSeparator
+            + ili2pgHome.resolve("libs/*");
+        List<String> command = new ArrayList<>(List.of(
+            javaExecutable.toString(),
+            "-cp", classpath,
+            "ch.ehi.ili2pg.PgMain",
+            "--dbhost", "localhost",
+            "--dbport", "54321",
+            "--dbdatabase", "edit",
+            "--dbusr", "postgres",
+            "--dbpwd", "secret",
+            "--defaultSrsCode", "2056",
+            "--createFk",
+            "--nameByTopic",
+            "--strokeArcs",
+            "--smart2Inheritance",
+            "--createEnumTabs",
+            "--modeldir", String.join(";", MODEL_REPOSITORIES),
+            "--models", "QuickLinkE2E",
+            "--dbschema", schemaName,
+            "--schemaimport"
+        ));
+        CommandResult result = runCommandResult(Path.of("."), command, COMMAND_TIMEOUT);
+        if (result.exitCode() != 0) {
+            throw new IOException("ili2pg import failed for QuickLinkE2E (exit " + result.exitCode() + "):\n" + result.output());
+        }
+    }
+
+    private void runAssociationQuickLinkE2E(String baseUrl) {
+        try (Playwright playwright = Playwright.create();
+             Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
+            Page page = browser.newPage();
+
+            // Create two participants and one counterpart via the generated CRUD UI.
+            String personAId = createRecord(page, baseUrl, "person");
+            String personBId = createRecord(page, baseUrl, "person");
+            String parcelId = createRecord(page, baseUrl, "tag");
+
+            // Person show page must render the genuine QUICK association section (ExtendedTopicAssociation).
+            page.navigate(baseUrl + "/person/show/" + personAId);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            assertThat(page.locator(".ili-association-section").count())
+                .as("association sections on Person show")
+                .isGreaterThan(0);
+            assertThat(page.locator(".ili-association-quick-form").count())
+                .as("quick-add form for the genuine QUICK association")
+                .isGreaterThan(0);
+
+            // Read the quick-add context/role straight from the rendered form (no hard-coding).
+            String contextId = (String) page.evaluate(
+                "() => document.querySelector('.ili-association-quick-form input[name=\"context\"]').value");
+            String role = (String) page.evaluate(
+                "() => document.querySelector('.ili-association-quick-form input[name=\"role\"]').value");
+            assertThat(contextId).contains("::");
+            assertThat(role).isNotBlank();
+
+            // Quick-link create (POST) through the real command service.
+            APIResponse createResp = page.request().post(
+                baseUrl + "/person/associationCreate/" + personAId
+                    + "?context=" + urlEncode(contextId)
+                    + "&role=" + urlEncode(role)
+                    + "&targetId=" + parcelId
+                    + "&format=json");
+            String createBody = createResp.text();
+            assertThat(createBody)
+                .as("quick-link create result (status=" + createResp.status() + ")")
+                .contains("\"success\":true");
+
+            long total = associationTotal(page, baseUrl, personAId, contextId);
+            assertThat(total).as("link count for owner A after create").isEqualTo(1);
+            String associationId = firstAssociationId(page, baseUrl, personAId, contextId);
+            assertThat(associationId).isNotBlank();
+
+            // Manipulation: owner B must not be able to delete owner A's link.
+            APIResponse manipResp = page.request().delete(
+                baseUrl + "/person/associationDelete/" + personBId
+                    + "?context=" + urlEncode(contextId)
+                    + "&associationId=" + associationId
+                    + "&format=json");
+            assertThat(manipResp.status())
+                .as("wrong-owner delete must be rejected (body=" + manipResp.text() + ")")
+                .isEqualTo(404);
+            assertThat(associationTotal(page, baseUrl, personAId, contextId))
+                .as("link survives the manipulation attempt")
+                .isEqualTo(1);
+
+            // Rightful delete removes only the link.
+            APIResponse deleteResp = page.request().delete(
+                baseUrl + "/person/associationDelete/" + personAId
+                    + "?context=" + urlEncode(contextId)
+                    + "&associationId=" + associationId
+                    + "&format=json");
+            assertThat(deleteResp.status()).as("rightful delete status").isBetween(200, 299);
+            assertThat(associationTotal(page, baseUrl, personAId, contextId))
+                .as("link removed after rightful delete")
+                .isZero();
+
+            // The counterpart object still exists.
+            page.navigate(baseUrl + "/tag/show/" + parcelId);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            assertThat(page.title()).doesNotContain("Page Not Found");
+            assertThat(page.url()).contains("/tag/show/" + parcelId);
+        } catch (PlaywrightException e) {
+            if (e.getMessage() != null && e.getMessage().contains("Executable doesn't exist")) {
+                throw new TestAbortedException("Playwright Chromium browser is not installed; skipping browser E2E test", e);
+            }
+            throw e;
+        }
+    }
+
+    private String createRecord(Page page, String baseUrl, String controller) {
+        page.navigate(baseUrl + "/" + controller + "/create");
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        assertThat(page.title()).doesNotContain("Page Not Found");
+        fillVisibleControls(page, "QLE2E");
+        submitForm(page);
+        assertThat(page.url()).contains("/" + controller + "/show/");
+        return page.url().replaceAll(".*/show/(\\d+).*", "$1");
+    }
+
+    private long associationTotal(Page page, String baseUrl, String ownerId, String contextId) {
+        APIResponse resp = page.request().get(
+            baseUrl + "/person/associationPage/" + ownerId + "?context=" + urlEncode(contextId) + "&format=json");
+        String body = resp.text();
+        Object total = parseJsonNumber(body, "total");
+        assertThat(total)
+            .as("associationPage did not return a JSON total (status=" + resp.status() + ", body=" + body + ")")
+            .isNotNull();
+        return ((Number) total).longValue();
+    }
+
+    private String firstAssociationId(Page page, String baseUrl, String ownerId, String contextId) {
+        APIResponse resp = page.request().get(
+            baseUrl + "/person/associationPage/" + ownerId + "?context=" + urlEncode(contextId) + "&format=json");
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("\"associationId\"\\s*:\\s*\"(\\d+)\"")
+            .matcher(resp.text());
+        return m.find() ? m.group(1) : null;
+    }
+
+    private Object parseJsonNumber(String json, String key) {
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("\"" + key + "\"\\s*:\\s*(\\d+)")
+            .matcher(json == null ? "" : json);
+        return m.find() ? Long.valueOf(m.group(1)) : null;
+    }
+
+    private static String urlEncode(String value) {
+        return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private void importSchema(String schemaName) throws IOException, InterruptedException {

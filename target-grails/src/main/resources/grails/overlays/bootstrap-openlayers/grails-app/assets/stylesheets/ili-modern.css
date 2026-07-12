@@ -587,6 +587,25 @@ body {
     white-space: nowrap;
 }
 
+.ili-association-quick-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    padding: 0.75rem 0 0 0;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--ili-border-light, #dee2e6);
+}
+
+.ili-association-quick-form .js-relationship-picker {
+    flex: 1;
+    min-width: 0;
+}
+
+.ili-association-delete-btn {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+}
+
 @media (max-width: 1100px) {
     .ili-split-layout.ili-split-with-map {
         grid-template-columns: minmax(0, 1fr);

@@ -97,6 +97,10 @@ class GrailsRuntimeSmokeTest {
             "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy");
         assertThat(queryServiceFile).exists();
 
+        Path commandServiceFile = appDir.resolve(
+            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy");
+        assertThat(commandServiceFile).exists();
+
         Path associationSectionsGsp = appDir.resolve(
             "src/main/templates/scaffolding/_association-sections.gsp");
         assertThat(associationSectionsGsp).exists();
@@ -104,6 +108,10 @@ class GrailsRuntimeSmokeTest {
         Path associationRowActionsGsp = appDir.resolve(
             "src/main/templates/scaffolding/_association-row-actions.gsp");
         assertThat(associationRowActionsGsp).exists();
+
+        Path associationQuickAddGsp = appDir.resolve(
+            "src/main/templates/scaffolding/_association-quick-add.gsp");
+        assertThat(associationQuickAddGsp).exists();
 
         runCommand(appDir, List.of("./gradlew", "compileGroovy"));
 
@@ -115,7 +123,18 @@ class GrailsRuntimeSmokeTest {
         String showGsp = Files.readString(appDir.resolve("grails-app/views")
             .resolve(registry.viewPath(personAddress))
             .resolve("show.gsp"));
-        assertThat(showGsp).contains("_association-sections");
+        assertThat(showGsp).contains("association-sections");
+
+        // generate-all must render the association partials into the view folder
+        // (proves the templates survive scaffolding-time evaluation without errors).
+        Path viewDir = appDir.resolve("grails-app/views").resolve(registry.viewPath(personAddress));
+        Path generatedSections = viewDir.resolve("_association-sections.gsp");
+        Path generatedQuickAdd = viewDir.resolve("_association-quick-add.gsp");
+        assertThat(generatedSections).exists();
+        assertThat(generatedQuickAdd).exists();
+        String generatedQuickAddContent = Files.readString(generatedQuickAdd);
+        assertThat(generatedQuickAddContent).contains("associationCreate");
+        assertThat(generatedQuickAddContent).contains("${raw(section.contextId)}");
     }
 
     private Path createGrailsApp() throws Exception {

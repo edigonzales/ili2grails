@@ -53,8 +53,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy")).exists();
         assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy")).exists();
+        assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-sections.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-row-actions.gsp")).exists();
+        assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-quick-add.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/views/layouts/main.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js")).exists();
@@ -122,6 +124,16 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(associationSectionsTemplate).contains("ili-association-table");
         assertThat(associationSectionsTemplate).contains("ili-association-empty");
         assertThat(associationSectionsTemplate).contains("Mehr anzeigen");
+        assertThat(associationSectionsTemplate).contains("association-quick-add");
+        assertThat(associationSectionsTemplate).contains("data-association-delete");
+        assertThat(associationSectionsTemplate).contains("action=\"associationDelete\"");
+
+        String associationQuickAddTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_association-quick-add.gsp"));
+        assertThat(associationQuickAddTemplate).contains("action=\"associationCreate\"");
+        assertThat(associationQuickAddTemplate).contains("name=\"targetId\"");
+        assertThat(associationQuickAddTemplate).contains("data-relationship-context");
+        assertThat(associationQuickAddTemplate).contains("data-relationship-role");
+        assertThat(associationQuickAddTemplate).contains("associationOptions");
 
         String associationRowActionsTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_association-row-actions.gsp"));
         assertThat(associationRowActionsTemplate).contains("associationController");
@@ -144,6 +156,12 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerTemplate).contains("associationPage");
         assertThat(controllerTemplate).contains("associationOptions");
         assertThat(controllerTemplate).contains("protected Object associationQueryService()");
+        assertThat(controllerTemplate).contains("InterlisAssociationCommandService");
+        assertThat(controllerTemplate).contains("associationCreate");
+        assertThat(controllerTemplate).contains("associationDelete");
+        assertThat(controllerTemplate).contains("protected Object associationCommandService()");
+        assertThat(controllerTemplate).contains("associationCreate: \"POST\"");
+        assertThat(controllerTemplate).contains("associationDelete: \"DELETE\"");
 
         String controllerSupport = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy"));
         assertThat(controllerSupport).contains("def index(Integer max, Integer offset)");
@@ -157,6 +175,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("associationModel(T instance)");
         assertThat(controllerSupport).contains("associationPage(Long id)");
         assertThat(controllerSupport).contains("associationOptions(Long id)");
+        assertThat(controllerSupport).contains("associationCommandService()");
+        assertThat(controllerSupport).contains("associationCreate(Long id)");
+        assertThat(controllerSupport).contains("associationDelete(Long id)");
+        assertThat(controllerSupport).contains("respondAssociationCommand(T instance, Map<String, Object> result)");
 
         String relationshipOptions = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"));
         assertThat(relationshipOptions).contains("interlisDisplayMeta");
@@ -175,6 +197,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(formUx).contains("pagination.nextOffset");
         assertThat(formUx).contains("data-relationship-list");
         assertThat(formUx).contains("list.addEventListener(\"scroll\"");
+        assertThat(formUx).contains("data-relationship-context");
+        assertThat(formUx).contains("data-relationship-role");
+        assertThat(formUx).contains("data-association-delete");
+        assertThat(formUx).contains("initQuickAddForms");
 
         String geometryEditor = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js"));
         assertThat(geometryEditor).contains("ol.interaction.Snap");
@@ -185,6 +211,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(stylesheet).contains("--dp-color-accent");
         assertThat(stylesheet).contains(".ili-field-help-panel");
         assertThat(stylesheet).contains(".ili-relationship-results");
+        assertThat(stylesheet).contains(".ili-association-quick-form");
     }
 
     @Test

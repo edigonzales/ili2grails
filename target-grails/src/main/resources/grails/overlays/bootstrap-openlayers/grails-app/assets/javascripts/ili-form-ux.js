@@ -140,6 +140,22 @@
                 }
                 submitNativeForm(rowDeleteForm, ".js-delete-submit");
             }
+
+            var associationDeleteAction = event.target.closest("[data-association-delete]");
+            if (associationDeleteAction) {
+                event.preventDefault();
+                if (!window.confirm("Zuordnung wirklich entfernen?")) {
+                    return;
+                }
+                var associationFormId = associationDeleteAction.getAttribute("data-delete-form");
+                var associationForm = associationFormId
+                    ? document.querySelector("form[name='" + associationFormId + "']")
+                    : null;
+                if (!associationForm) {
+                    return;
+                }
+                submitNativeForm(associationForm, ".js-delete-submit");
+            }
         });
     }
 
@@ -284,12 +300,25 @@
 
     function relationshipUrl(input, offset) {
         var url = input.getAttribute("data-relationship-url");
+        if (!url) {
+            return null;
+        }
         var field = input.getAttribute("data-relationship-field");
-        if (!url || !field) {
+        var context = input.getAttribute("data-relationship-context");
+        var role = input.getAttribute("data-relationship-role");
+        if (!field && !context) {
             return null;
         }
         var params = new URLSearchParams();
-        params.set("field", field);
+        if (field) {
+            params.set("field", field);
+        }
+        if (context) {
+            params.set("context", context);
+        }
+        if (role) {
+            params.set("role", role);
+        }
         params.set("q", input.value || "");
         params.set("max", "25");
         params.set("offset", String(offset || 0));
@@ -308,13 +337,18 @@
             loading: false,
             loaded: false,
             more: false,
-            offset: 0
+            offset: 0,
+            controller: null
         };
         var timer = null;
 
         function fetchOptions(reset) {
             if (state.loading) {
-                return;
+                if (reset && state.controller) {
+                    state.controller.abort();
+                } else {
+                    return;
+                }
             }
             if (reset) {
                 state.offset = 0;
@@ -326,11 +360,14 @@
             if (!url) {
                 return;
             }
+            var controller = typeof AbortController === "function" ? new AbortController() : null;
+            state.controller = controller;
             state.loading = true;
             window.fetch(url, {
                 headers: {
                     "Accept": "application/json"
-                }
+                },
+                signal: controller ? controller.signal : undefined
             })
                 .then(function(response) {
                     return response.ok ? response.json() : null;
@@ -348,8 +385,11 @@
                     var nextOffset = parseInt(pagination.nextOffset, 10);
                     state.offset = Number.isFinite(nextOffset) ? nextOffset : state.offset + results.length;
                 })
-                .catch(function() {
-                    // Keep the existing server-rendered options if autocomplete fails.
+                .catch(function(error) {
+                    // Keep the existing server-rendered options if autocomplete fails or is aborted.
+                    if (error && error.name === "AbortError") {
+                        return;
+                    }
                 })
                 .finally(function() {
                     state.loading = false;
@@ -396,6 +436,26 @@
         }
     }
 
+    function initQuickAddForms() {
+        document.querySelectorAll(".ili-association-quick-form").forEach(function(form) {
+            var select = form.querySelector("select[name='targetId']");
+            var submit = form.querySelector("[data-quick-add-submit]");
+            if (!select || !submit) {
+                return;
+            }
+            function syncSubmitState() {
+                submit.disabled = !select.value;
+            }
+            select.addEventListener("change", syncSubmitState);
+            form.addEventListener("submit", function(event) {
+                if (!select.value) {
+                    event.preventDefault();
+                }
+            });
+            syncSubmitState();
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         document.querySelectorAll(".js-dirty-form").forEach(initDirtyForm);
         document.querySelectorAll(".js-relationship-search").forEach(initRelationshipAutocomplete);
@@ -403,5 +463,6 @@
         initSubmitButtons();
         initUnsavedNavigationGuard();
         initDeleteModal();
+        initQuickAddForms();
     });
 })();

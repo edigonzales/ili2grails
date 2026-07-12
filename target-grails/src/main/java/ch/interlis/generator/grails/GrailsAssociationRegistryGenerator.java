@@ -55,16 +55,18 @@ public final class GrailsAssociationRegistryGenerator {
         sortedPlans.sort(Comparator.comparing(
             GrailsAssociationPlan::associationName, Comparator.nullsLast(String::compareTo)));
 
+        boolean writeEnabled = config.isAssociationUiEditable();
+
         Map<String, Map<String, Object>> associations = new LinkedHashMap<>();
         Map<String, Map<String, Object>> contexts = new TreeMap<>();
         Map<String, List<String>> contextIdsByParticipant = new TreeMap<>();
         Map<String, Map<String, Object>> entities = new TreeMap<>();
 
         for (GrailsAssociationPlan plan : sortedPlans) {
-            associations.put(plan.associationName(), associationDescriptor(plan));
+            associations.put(plan.associationName(), associationDescriptor(plan, writeEnabled));
 
             for (GrailsAssociationContextPlan context : plan.contexts()) {
-                contexts.put(context.contextId(), contextDescriptor(plan, context));
+                contexts.put(context.contextId(), contextDescriptor(plan, context, writeEnabled));
                 String participant = context.participantDomainQualifiedName();
                 if (participant != null) {
                     contextIdsByParticipant
@@ -135,7 +137,7 @@ public final class GrailsAssociationRegistryGenerator {
         return plan.showInNavigation();
     }
 
-    private Map<String, Object> associationDescriptor(GrailsAssociationPlan plan) {
+    private Map<String, Object> associationDescriptor(GrailsAssociationPlan plan, boolean writeEnabled) {
         Map<String, Object> descriptor = new LinkedHashMap<>();
         descriptor.put("associationName", plan.associationName());
         descriptor.put("iliClassName", plan.associationIliClassName());
@@ -146,7 +148,7 @@ public final class GrailsAssociationRegistryGenerator {
         descriptor.put("physicalTable", plan.physicalTable());
         descriptor.put("physicalSqlName", plan.physicalSqlName());
         descriptor.put("storageKind", plan.storageKind() != null ? plan.storageKind().name() : null);
-        descriptor.put("writable", plan.writable());
+        descriptor.put("writable", plan.writable() && writeEnabled);
         descriptor.put("showInNavigation", plan.showInNavigation());
 
         List<Object> roles = new ArrayList<>();
@@ -196,7 +198,9 @@ public final class GrailsAssociationRegistryGenerator {
     }
 
     private Map<String, Object> contextDescriptor(GrailsAssociationPlan plan,
-                                                  GrailsAssociationContextPlan context) {
+                                                  GrailsAssociationContextPlan context,
+                                                  boolean writeEnabled) {
+        boolean writable = context.writable() && writeEnabled;
         Map<String, Object> descriptor = new LinkedHashMap<>();
         descriptor.put("id", context.contextId());
         descriptor.put("associationName", plan.associationName());
@@ -209,15 +213,21 @@ public final class GrailsAssociationRegistryGenerator {
         descriptor.put("messageCode", context.messageCode());
         descriptor.put("presentation",
             context.presentationKind() != null ? context.presentationKind().name() : null);
-        descriptor.put("createMode",
-            context.createMode() != null ? context.createMode().name() : null);
-        descriptor.put("writable", context.writable());
-        descriptor.put("removable", context.removable());
+        descriptor.put("createMode", resolveCreateMode(context, writable));
+        descriptor.put("writable", writable);
+        descriptor.put("removable", context.removable() && writable);
         descriptor.put("showAssociationObjectLink", context.showAssociationObjectLink());
         descriptor.put("perspectiveMin", context.perspectiveMinCardinality());
         descriptor.put("perspectiveMax", context.perspectiveMaxCardinality());
         descriptor.put("diagnostics", new ArrayList<Object>(context.diagnostics()));
         return descriptor;
+    }
+
+    private String resolveCreateMode(GrailsAssociationContextPlan context, boolean writable) {
+        if (!writable) {
+            return AssociationCreateMode.NONE.name();
+        }
+        return context.createMode() != null ? context.createMode().name() : null;
     }
 
     // ------------------------------------------------------------------

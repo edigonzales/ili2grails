@@ -1,0 +1,24 @@
+INTERLIS 2.3;
+
+MODEL QuickLinkE2E (en)
+AT "http://www.example.ch"
+VERSION "2026-07-11" =
+
+  TOPIC Data =
+
+    CLASS Person =
+      Name: MANDATORY TEXT*50;
+    END Person;
+
+    CLASS Tag =
+      Label: MANDATORY TEXT*50;
+    END Tag;
+
+    ASSOCIATION PersonTag =
+      PersonRole -- {0..*} Person;
+      TagRole -- {0..*} Tag;
+    END PersonTag;
+
+  END Data;
+
+END QuickLinkE2E.

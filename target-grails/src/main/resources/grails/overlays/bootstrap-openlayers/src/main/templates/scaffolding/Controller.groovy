@@ -2,14 +2,17 @@
 
 import ch.interlis.generator.grails.runtime.InterlisCrudControllerSupport
 import ch.interlis.generator.grails.runtime.InterlisAssociationQueryService
+import ch.interlis.generator.grails.runtime.InterlisAssociationCommandService
 
 class ${className}Controller extends InterlisCrudControllerSupport<${className}> {
 
     ${className}Service ${propertyName}Service
     InterlisAssociationQueryService interlisAssociationQueryService
+    InterlisAssociationCommandService interlisAssociationCommandService
 
     static allowedMethods = [save: "POST", update: "PUT", delete: "DELETE", relationshipOptions: "GET",
-                             associationPage: "GET", associationOptions: "GET"]
+                             associationPage: "GET", associationOptions: "GET",
+                             associationCreate: "POST", associationDelete: "DELETE"]
 
     def index(Integer max, Integer offset) {
         super.index(max, offset)
@@ -51,6 +54,14 @@ class ${className}Controller extends InterlisCrudControllerSupport<${className}>
         super.associationOptions(id)
     }
 
+    def associationCreate(Long id) {
+        super.associationCreate(id)
+    }
+
+    def associationDelete(Long id) {
+        super.associationDelete(id)
+    }
+
     @Override
     protected Class<${className}> domainType() {
         return ${className}
@@ -64,5 +75,10 @@ class ${className}Controller extends InterlisCrudControllerSupport<${className}>
     @Override
     protected Object associationQueryService() {
         return interlisAssociationQueryService
+    }
+
+    @Override
+    protected Object associationCommandService() {
+        return interlisAssociationCommandService
     }
 }
