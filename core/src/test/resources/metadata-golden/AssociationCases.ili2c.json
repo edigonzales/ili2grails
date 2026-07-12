@@ -267,6 +267,39 @@
     "kind" : "ASSOCIATION",
     "labels" : { },
     "attributes" : [ ]
+  }, {
+    "name" : "AssociationCases.Extended.TernaryAssociation",
+    "simpleName" : "TernaryAssociation",
+    "topicName" : "AssociationCases.Extended",
+    "abstract" : false,
+    "kind" : "ASSOCIATION",
+    "labels" : { },
+    "attributes" : [ {
+      "name" : "Note",
+      "qualifiedName" : "AssociationCases.Extended.TernaryAssociation.Note",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 50,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 50,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
   } ],
   "associations" : [ {
     "name" : "AssociationCases.Base.AssociationWithAttribute",
@@ -539,6 +572,87 @@
       "mergeConfidence" : "NONE"
     } ],
     "attributes" : [ ]
+  }, {
+    "name" : "AssociationCases.Extended.TernaryAssociation",
+    "associationClass" : "AssociationCases.Extended.TernaryAssociation",
+    "roles" : [ {
+      "name" : "DocumentRole",
+      "targetClass" : "AssociationCases.Base.Document",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : 1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "AssociationCases.Extended.TernaryAssociation.DocumentRole",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    }, {
+      "name" : "ParcelRole",
+      "targetClass" : "AssociationCases.Base.Parcel",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "AssociationCases.Extended.TernaryAssociation.ParcelRole",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    }, {
+      "name" : "PersonRole",
+      "targetClass" : "AssociationCases.Base.Person",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "AssociationCases.Extended.TernaryAssociation.PersonRole",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    } ],
+    "attributes" : [ {
+      "name" : "Note",
+      "qualifiedName" : "AssociationCases.Extended.TernaryAssociation.Note",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 50,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 50,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
   } ],
   "enums" : [ ],
   "relationships" : [ {
@@ -827,6 +941,72 @@
     "composition" : false,
     "source" : "ili2c",
     "semanticName" : "AssociationCases.Extended.ExtendedTopicAssociation.ExtendedPersonRole",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
+  }, {
+    "name" : "AssociationCases.Extended.TernaryAssociation.DocumentRole",
+    "sourceClass" : "AssociationCases.Extended.TernaryAssociation",
+    "targetClass" : "AssociationCases.Base.Document",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "AssociationCases.Extended.TernaryAssociation",
+    "targetRoleName" : "DocumentRole",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : 1
+    },
+    "mandatory" : false,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c",
+    "semanticName" : "AssociationCases.Extended.TernaryAssociation.DocumentRole",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
+  }, {
+    "name" : "AssociationCases.Extended.TernaryAssociation.ParcelRole",
+    "sourceClass" : "AssociationCases.Extended.TernaryAssociation",
+    "targetClass" : "AssociationCases.Base.Parcel",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "AssociationCases.Extended.TernaryAssociation",
+    "targetRoleName" : "ParcelRole",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : -1
+    },
+    "mandatory" : false,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c",
+    "semanticName" : "AssociationCases.Extended.TernaryAssociation.ParcelRole",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
+  }, {
+    "name" : "AssociationCases.Extended.TernaryAssociation.PersonRole",
+    "sourceClass" : "AssociationCases.Extended.TernaryAssociation",
+    "targetClass" : "AssociationCases.Base.Person",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "AssociationCases.Extended.TernaryAssociation",
+    "targetRoleName" : "PersonRole",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : -1
+    },
+    "mandatory" : false,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c",
+    "semanticName" : "AssociationCases.Extended.TernaryAssociation.PersonRole",
     "mergeReason" : "ILI2C_ONLY",
     "mergeConfidence" : "NONE"
   } ]

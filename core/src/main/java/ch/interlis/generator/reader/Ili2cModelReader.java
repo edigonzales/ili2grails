@@ -523,10 +523,13 @@ public class Ili2cModelReader {
             relationship.setMergeConfidence(RelationshipMetadata.MergeConfidence.NONE);
             relationship.setAssociationName(associationDef.getScopedName(null));
             relationship.setTargetRoleName(role.getName());
-            RoleDef oppositeRole = role.getOppEnd();
-            if (oppositeRole != null) {
-                relationship.setOppositeRoleName(oppositeRole.getName());
-                relationship.setSourceRoleName(oppositeRole.getName());
+            int roleCount = countRoles(associationDef);
+            if (roleCount == 2) {
+                RoleDef oppositeRole = role.getOppEnd();
+                if (oppositeRole != null) {
+                    relationship.setOppositeRoleName(oppositeRole.getName());
+                    relationship.setSourceRoleName(oppositeRole.getName());
+                }
             }
             Cardinality cardinality = role.getCardinality();
             relationship.setCardinality(toRelationshipCardinality(cardinality));
@@ -539,6 +542,16 @@ public class Ili2cModelReader {
             association.addRole(toAssociationRole(relationship));
         }
         metadata.addAssociation(association);
+    }
+
+    private static int countRoles(AssociationDef associationDef) {
+        int count = 0;
+        Iterator<?> iter = associationDef.getRolesIterator();
+        while (iter.hasNext()) {
+            iter.next();
+            count++;
+        }
+        return count;
     }
 
     private AssociationRoleMetadata toAssociationRole(RelationshipMetadata relationship) {

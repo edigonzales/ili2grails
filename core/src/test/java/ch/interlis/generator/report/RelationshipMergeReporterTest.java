@@ -223,7 +223,7 @@ class RelationshipMergeReporterTest {
         );
 
         assertThat(root).containsEntry("modelName", "AssociationCases");
-        assertThat(root).containsEntry("totalAssociationRoles", 12);
+        assertThat(root).containsEntry("totalAssociationRoles", 15);
         List<Map<String, Object>> associationRoles =
             (List<Map<String, Object>>) root.get("associationRoles");
         assertThat(associationRoles)

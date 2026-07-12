@@ -38,6 +38,11 @@
             <g:hiddenField name="version" value="\${this.${propertyName}?.version}" />
         </g:if>
 
+        <g:if test="\${associationContextState}">
+            <g:hiddenField name="associationContext" value="\${raw(associationContextState.contextId)}" />
+            <g:hiddenField name="associationOwnerId" value="\${raw(associationContextState.ownerId)}" />
+        </g:if>
+
         <div class="ili-split-layout \${geometryFields ? 'ili-split-with-map' : 'ili-split-single'}">
             <section class="ili-form-column">
                 <section class="card ili-form-tile">

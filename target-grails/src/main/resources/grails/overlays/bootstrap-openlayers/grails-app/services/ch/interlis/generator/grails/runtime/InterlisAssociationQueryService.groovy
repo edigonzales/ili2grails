@@ -139,12 +139,15 @@ class InterlisAssociationQueryService {
         boolean deleteAllowed = (context.writable == true) &&
             (context.removable == true) &&
             (context.createMode == "QUICK")
+        boolean editAllowed = (context.writable == true) &&
+            (context.createMode == "CONTEXTUAL_FORM" || context.createMode == "NARY_CONTEXTUAL_FORM")
         return [
             associationId: associationInstance.id?.toString(),
             associationLabel: buildAssociationLabel(associationInstance, editableRoleList, attrList),
             counterparts: counterparts,
             attributes: attrList,
             deleteAllowed: deleteAllowed,
+            editAllowed: editAllowed,
             associationController: resolveAssociationController(association),
             associationDomainClass: associationDomainClass
         ]
@@ -192,6 +195,7 @@ class InterlisAssociationQueryService {
             writable: context.writable ?: false,
             removable: context.removable ?: false,
             quickTargetRole: quickTargetRole,
+            associationController: resolveAssociationController(associationDesc),
             domId: domId(context.id),
             total: total,
             max: limit,

@@ -750,6 +750,126 @@
       "enumValues" : [ ],
       "labels" : { }
     } ]
+  }, {
+    "name" : "AssociationCases.Extended.TernaryAssociation",
+    "simpleName" : "TernaryAssociation",
+    "topicName" : "AssociationCases.Extended",
+    "tableName" : "ternaryassociation",
+    "sqlName" : "ternaryassociation",
+    "abstract" : false,
+    "kind" : "ASSOCIATION",
+    "labels" : { },
+    "attributes" : [ {
+      "name" : "DocumentRole",
+      "qualifiedName" : "AssociationCases.Extended.TernaryAssociation.DocumentRole",
+      "columnName" : "document_role_id",
+      "sqlName" : "document_role_id",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : true,
+      "geometry" : false,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "referencedClass" : "AssociationCases.Base.Document",
+      "labels" : { }
+    }, {
+      "name" : "Note",
+      "qualifiedName" : "AssociationCases.Extended.TernaryAssociation.Note",
+      "columnName" : "note",
+      "sqlName" : "note",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 50,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 50,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    }, {
+      "name" : "ParcelRole",
+      "qualifiedName" : "AssociationCases.Extended.TernaryAssociation.ParcelRole",
+      "columnName" : "parcel_role_id",
+      "sqlName" : "parcel_role_id",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : true,
+      "geometry" : false,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "referencedClass" : "AssociationCases.Base.Parcel",
+      "labels" : { }
+    }, {
+      "name" : "PersonRole",
+      "qualifiedName" : "AssociationCases.Extended.TernaryAssociation.PersonRole",
+      "columnName" : "person_role_id",
+      "sqlName" : "person_role_id",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : true,
+      "geometry" : false,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "referencedClass" : "AssociationCases.Base.Person",
+      "labels" : { }
+    }, {
+      "name" : "t_id",
+      "qualifiedName" : "AssociationCases.Extended.TernaryAssociation.t_id",
+      "columnName" : "t_id",
+      "sqlName" : "t_id",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
+      "mandatory" : false,
+      "primaryKey" : true,
+      "foreignKey" : false,
+      "geometry" : false,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
   } ],
   "associations" : [ {
     "name" : "AssociationCases.Base.AssociationWithAttribute",
@@ -1084,6 +1204,103 @@
       "mergeToken" : "extendedpersonrole"
     } ],
     "attributes" : [ ]
+  }, {
+    "name" : "AssociationCases.Extended.TernaryAssociation",
+    "associationClass" : "AssociationCases.Extended.TernaryAssociation",
+    "physicalTable" : "ternaryassociation",
+    "physicalSqlName" : "ternaryassociation",
+    "roles" : [ {
+      "name" : "DocumentRole",
+      "targetClass" : "AssociationCases.Base.Document",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : 1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "sourceAttribute" : "document_role_id",
+      "targetAttribute" : "T_Id",
+      "physicalName" : "document_role_id",
+      "semanticName" : "AssociationCases.Extended.TernaryAssociation.DocumentRole",
+      "source" : "ili2db+ili2c",
+      "mergeReason" : "EXACT_TARGET_ROLE",
+      "mergeConfidence" : "EXACT",
+      "mergeToken" : "documentrole"
+    }, {
+      "name" : "ParcelRole",
+      "targetClass" : "AssociationCases.Base.Parcel",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "sourceAttribute" : "parcel_role_id",
+      "targetAttribute" : "T_Id",
+      "physicalName" : "parcel_role_id",
+      "semanticName" : "AssociationCases.Extended.TernaryAssociation.ParcelRole",
+      "source" : "ili2db+ili2c",
+      "mergeReason" : "EXACT_TARGET_ROLE",
+      "mergeConfidence" : "EXACT",
+      "mergeToken" : "parcelrole"
+    }, {
+      "name" : "PersonRole",
+      "targetClass" : "AssociationCases.Base.Person",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "sourceAttribute" : "person_role_id",
+      "targetAttribute" : "T_Id",
+      "physicalName" : "person_role_id",
+      "semanticName" : "AssociationCases.Extended.TernaryAssociation.PersonRole",
+      "source" : "ili2db+ili2c",
+      "mergeReason" : "EXACT_TARGET_ROLE",
+      "mergeConfidence" : "EXACT",
+      "mergeToken" : "personrole"
+    } ],
+    "attributes" : [ {
+      "name" : "Note",
+      "qualifiedName" : "AssociationCases.Extended.TernaryAssociation.Note",
+      "columnName" : "note",
+      "sqlName" : "note",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 50,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 50,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
   } ],
   "enums" : [ ],
   "relationships" : [ {
@@ -1422,5 +1639,83 @@
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
     "mergeToken" : "extendedpersonrole"
+  }, {
+    "name" : "AssociationCases.Extended.TernaryAssociation_DocumentRole",
+    "sourceClass" : "AssociationCases.Extended.TernaryAssociation",
+    "targetClass" : "AssociationCases.Base.Document",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "sourceAttribute" : "document_role_id",
+    "targetAttribute" : "T_Id",
+    "associationName" : "AssociationCases.Extended.TernaryAssociation",
+    "targetRoleName" : "DocumentRole",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : 1
+    },
+    "mandatory" : false,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2db+ili2c",
+    "physicalName" : "document_role_id",
+    "semanticName" : "AssociationCases.Extended.TernaryAssociation.DocumentRole",
+    "mergeReason" : "EXACT_TARGET_ROLE",
+    "mergeConfidence" : "EXACT",
+    "mergeToken" : "documentrole"
+  }, {
+    "name" : "AssociationCases.Extended.TernaryAssociation_ParcelRole",
+    "sourceClass" : "AssociationCases.Extended.TernaryAssociation",
+    "targetClass" : "AssociationCases.Base.Parcel",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "sourceAttribute" : "parcel_role_id",
+    "targetAttribute" : "T_Id",
+    "associationName" : "AssociationCases.Extended.TernaryAssociation",
+    "targetRoleName" : "ParcelRole",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : -1
+    },
+    "mandatory" : false,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2db+ili2c",
+    "physicalName" : "parcel_role_id",
+    "semanticName" : "AssociationCases.Extended.TernaryAssociation.ParcelRole",
+    "mergeReason" : "EXACT_TARGET_ROLE",
+    "mergeConfidence" : "EXACT",
+    "mergeToken" : "parcelrole"
+  }, {
+    "name" : "AssociationCases.Extended.TernaryAssociation_PersonRole",
+    "sourceClass" : "AssociationCases.Extended.TernaryAssociation",
+    "targetClass" : "AssociationCases.Base.Person",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "sourceAttribute" : "person_role_id",
+    "targetAttribute" : "T_Id",
+    "associationName" : "AssociationCases.Extended.TernaryAssociation",
+    "targetRoleName" : "PersonRole",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : -1
+    },
+    "mandatory" : false,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2db+ili2c",
+    "physicalName" : "person_role_id",
+    "semanticName" : "AssociationCases.Extended.TernaryAssociation.PersonRole",
+    "mergeReason" : "EXACT_TARGET_ROLE",
+    "mergeConfidence" : "EXACT",
+    "mergeToken" : "personrole"
   } ]
 }

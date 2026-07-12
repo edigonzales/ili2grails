@@ -1,6 +1,7 @@
 <g:set var="associationContextList" value="\${raw(associationSections ?: [])}"/>
 <g:each in="\${associationContextList}" var="section" status="sectionIdx">
     <g:set var="sectionDomId" value="\${raw(section.domId ?: 'assoc-section-' + sectionIdx)}"/>
+    <g:set var="contextualForm" value="\${section.createMode == 'CONTEXTUAL_FORM' || section.createMode == 'NARY_CONTEXTUAL_FORM'}"/>
     <section class="ili-association-section" aria-labelledby="assoc-head-\${raw(sectionDomId)}">
         <header class="ili-association-section-header">
             <h3 class="ili-association-section-title" id="assoc-head-\${raw(sectionDomId)}">
@@ -22,6 +23,13 @@
                 section: section,
                 owner: owner
             ]}"/>
+            <g:if test="\${contextualForm && section.writable}">
+                <g:link controller="\${raw(section.associationController ?: '')}" action="create"
+                        params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
+                        class="btn btn-primary btn-sm mt-2">
+                    \${raw(section.label)} hinzufügen
+                </g:link>
+            </g:if>
         </g:if>
         <g:else>
             <div class="ili-table-wrap">
@@ -63,6 +71,14 @@
                                     </td>
                                 </g:each>
                                 <td class="ili-association-row-actions">
+                                    <g:if test="\${row.editAllowed && row.associationController && row.associationId}">
+                                        <g:link controller="\${raw(row.associationController)}" action="edit"
+                                                id="\${raw(row.associationId)}"
+                                                params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
+                                                class="btn btn-sm btn-outline-primary">
+                                            Bearbeiten
+                                        </g:link>
+                                    </g:if>
                                     <g:if test="\${row.associationController && row.associationId}">
                                         <g:link controller="\${raw(row.associationController)}" action="show" id="\${raw(row.associationId)}" class="btn btn-sm btn-outline-secondary">
                                             Details
@@ -88,6 +104,14 @@
                     section: section,
                     owner: owner
                 ]}"/>
+            </g:if>
+
+            <g:if test="\${contextualForm && section.writable}">
+                <g:link controller="\${raw(section.associationController ?: '')}" action="create"
+                        params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
+                        class="btn btn-primary btn-sm mt-2">
+                    \${raw(section.label)} hinzufügen
+                </g:link>
             </g:if>
 
             <g:if test="\${section.more}">

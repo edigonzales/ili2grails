@@ -65,23 +65,31 @@ abstract class InterlisCrudControllerSupport<T> {
     def create() {
         applySecurityHeaders()
         T instance = domainType().newInstance(params) as T
+        Map<String, Object> contextState = associationContextState(instance)
+        if (!contextState.isEmpty()) {
+            applyAssociationContext(instance, contextState)
+        }
         InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
-        respond instance, model: formModel(instance)
+        respond instance, model: formModelWithContext(instance, contextState)
     }
 
     def save() {
         applySecurityHeaders()
         T instance = domainType().newInstance(params) as T
         InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
+        Map<String, Object> contextState = loadContextStateFromParams()
+        if (!contextState.isEmpty()) {
+            applyAssociationContext(instance, contextState)
+        }
         if (instance.hasErrors()) {
-            respond instance.errors, view: "create", model: formModel(instance)
+            respond instance.errors, view: "create", model: formModelWithContext(instance, contextState)
             return
         }
 
         try {
             crudService().save(instance)
         } catch (ValidationException ignored) {
-            respond instance.errors, view: "create", model: formModel(instance)
+            respond instance.errors, view: "create", model: formModelWithContext(instance, contextState)
             return
         }
 
@@ -91,7 +99,12 @@ abstract class InterlisCrudControllerSupport<T> {
                     code: "default.created.message",
                     args: [message(code: modelKey() + ".label", default: domainType().simpleName), instance.id]
                 )
-                redirect instance
+                Map<String, Object> redirectTarget = contextualRedirectTarget(instance, contextState)
+                if (redirectTarget != null) {
+                    redirect redirectTarget
+                } else {
+                    redirect instance
+                }
             }
             "*" { respond instance, [status: CREATED] }
         }
@@ -104,7 +117,8 @@ abstract class InterlisCrudControllerSupport<T> {
             notFound()
             return
         }
-        respond instance, model: formModel(instance)
+        Map<String, Object> contextState = associationContextState(instance)
+        respond instance, model: formModelWithContext(instance, contextState)
     }
 
     def update(Long id) {
@@ -117,15 +131,19 @@ abstract class InterlisCrudControllerSupport<T> {
 
         bindData(instance, params)
         InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
+        Map<String, Object> contextState = loadContextStateFromParams()
+        if (!contextState.isEmpty()) {
+            applyAssociationContext(instance, contextState)
+        }
         if (instance.hasErrors()) {
-            respond instance.errors, view: "edit", model: formModel(instance)
+            respond instance.errors, view: "edit", model: formModelWithContext(instance, contextState)
             return
         }
 
         try {
             crudService().save(instance)
         } catch (ValidationException ignored) {
-            respond instance.errors, view: "edit", model: formModel(instance)
+            respond instance.errors, view: "edit", model: formModelWithContext(instance, contextState)
             return
         }
 
@@ -135,7 +153,12 @@ abstract class InterlisCrudControllerSupport<T> {
                     code: "default.updated.message",
                     args: [message(code: modelKey() + ".label", default: domainType().simpleName), instance.id]
                 )
-                redirect instance
+                Map<String, Object> redirectTarget = contextualRedirectTarget(instance, contextState)
+                if (redirectTarget != null) {
+                    redirect redirectTarget
+                } else {
+                    redirect instance
+                }
             }
             "*" { respond instance, [status: OK] }
         }
@@ -371,6 +394,54 @@ abstract class InterlisCrudControllerSupport<T> {
         model.putAll(relationshipModel(instance))
         model.put("fieldMeta", fieldMeta())
         return model
+    }
+
+    protected Map<String, Object> formModelWithContext(T instance, Map<String, Object> contextState) {
+        Map<String, Object> model = formModel(instance)
+        if (contextState != null && !contextState.isEmpty()) {
+            model.put("hiddenRelationshipFields",
+                InterlisAssociationContextSupport.hiddenRelationshipFields(contextState))
+            model.put("fixedRelationshipLabels",
+                InterlisAssociationContextSupport.fixedRelationshipLabels(contextState))
+            model.put("associationContextState", contextState)
+        }
+        return model
+    }
+
+    protected Map<String, Object> associationContextState(T instance) {
+        try {
+            return InterlisAssociationContextSupport.prepareCreateContext(
+                grailsApplication, domainType(), params)
+        } catch (Exception e) {
+            log.info("Association context not applied for ${domainType().simpleName}: ${e.message}")
+            return [:]
+        }
+    }
+
+    protected void applyAssociationContext(T instance, Map<String, Object> state) {
+        InterlisAssociationContextSupport.applyFixedRole(instance, state)
+    }
+
+    protected Map<String, Object> contextualRedirectTarget(T instance, Map<String, Object> state) {
+        if (state == null || state.isEmpty()) {
+            return null
+        }
+        return InterlisAssociationContextSupport.redirectTarget(state)
+    }
+
+    protected Map<String, Object> loadContextStateFromParams() {
+        String contextId = params.associationContext?.toString()
+        String ownerIdStr = params.associationOwnerId?.toString()
+        if (contextId == null || contextId.isBlank() || ownerIdStr == null || ownerIdStr.isBlank()) {
+            return [:]
+        }
+        try {
+            return InterlisAssociationContextSupport.prepareCreateContext(
+                grailsApplication, domainType(), params)
+        } catch (Exception e) {
+            log.warn("Failed to re-load association context for ${domainType().simpleName}: ${e.message}")
+            return [:]
+        }
     }
 
     protected Map<String, Object> paginationParams(Integer maxParam, Integer offsetParam) {

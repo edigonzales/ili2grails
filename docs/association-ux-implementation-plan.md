@@ -12,7 +12,7 @@ Dieser Plan wird nach jedem grösseren Schritt aktualisiert, nicht erst am Schlu
 | Phase 2 – Registry-Generierung & Konfiguration | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (112); `:target-grails:grailsRuntimeSmokeTest` PASS (2, real Grails 7.0.6) | Registry-Generator + `GenerationConfig`-Association-Felder + CLI + gemeinsamer Mapper; Registry-Snapshot (6 Assoc.) + Compile-Test; keine Show/Runtime-Schreibpfade |
 | Phase 3 – Read-only Related-Sections | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (122); `:target-grails:test` PASS (72) | Registry-Support + Query-Service + Templates + CSS; 10 neue Unit-Tests; Overlay-Installer-Test erweitert; Runtime-Smoke-Test erweitert; Real-ili2db-Test mit AssociationCases; keine Create/Delete-Actions
 | Phase 4 – Quick-Link (binäre Associations) | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (125: core 31, target-grails 75, cli 12, django 7); Real-ili2db 3/3 PASS (PostGIS); Grails-Runtime-Smoke PASS; Browser-E2E 2/2 PASS inkl. wrong-owner-Manipulation; ili2c QuickLinkE2E.ili PASS | Command-Service (Result-Maps, Duplikat-Prävention, Kardinalität, Ownership); UI-Mode-Gating im Registry-Generator (Phase-2/3-Restpunkt geschlossen); Quick-Add-GSP + Delete-in-Sections; JS context/role + AbortController. 5 latente Phase-3-Bugs beim echten Ausführen der Gates gefunden & behoben. Reale ili2pg-Erkenntnis R-10. Neues Modell QuickLinkE2E.ili |
-| Phase 5 – Kontextuelle Formulare / n-är | NOT_STARTED |  |  |  |  |
+| Phase 5 – Kontextuelle Formulare / n-är | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (127); ili2c AssociationCases.ili + ContextualAssociationE2E.ili PASS; Grails-Runtime-Smoke PASS (3/3); Real-ili2db H2-Tests PASS (neue +3 Tests) | Contextual Create/Edit: feste Rolle serverseitig validiert+re-gesetzt+read-only. Keine freie returnUrl. CONTEXTUAL_FORM/NARY_CONTEXTUAL_FORM-Links in Sections. Selbstassoziation. n-är via TernaryAssociation. Core-Bugfix: ili2c-Reader n-är-fähig. Modellerweiterung AssociationCases.ili + ContextualAssociationE2E.ili |
 | Phase 6 – Navigation, Kardinalität, Fehler, Performance | NOT_STARTED |  |  |  |  |
 | Phase 7 – Spezialsemantik (EXTERNAL, Komposition, ORDERED, embedded FK) | NOT_STARTED |  |  |  |  |
 | Phase 8 – Abschluss & Regression | NOT_STARTED |  |  |  |  |
@@ -427,10 +427,59 @@ Noch zu erstellen (Referenz, spätere Phasen):
 - **Wichtige reale ili2pg-Erkenntnis (dokumentiert, Risiko R-10):** Mit `--nameByTopic --smart2Inheritance` bettet ili2db attributlose binäre Assoziationen als FK-Spalten in die Teilnehmerklassen ein (`EMBEDDED_FOREIGN_KEY`), statt Link-Tabellen zu erzeugen. Der Planner klassifiziert diese korrekt als `UNMAPPED` → read-only (ADR-006). Der H2-Fixture (`MetadataTestFixtures`) modelliert sie als Link-Tabellen (didaktisch); die reale Quick-Link-Aktivierung greift nur bei echten Link-Entities (z.B. `ExtendedTopicAssociation`, m:n-Assoziationen, sowie das E2E-Modell `QuickLinkE2E`).
 - **Neues Testmodell:** `test-models/QuickLinkE2E.ili` — binäre `{0..*}--{0..*}`-Assoziation ohne OID/Attribute ⇒ ili2db erzeugt eine echte Link-Tabelle ohne `t_basket` ⇒ vollständig CRUD-/Quick-Link-fähig für den Browser-E2E (AssociationCases erfordert wegen `UUIDOID` `--createBasketCol`, was die generierte CRUD-App nicht bedient — daher für den Live-E2E ungeeignet; §29.6-Abweichung dokumentiert).
 - **Offene Punkte / Restpunkte:**
-  - Fetch-Join/N+1 für Related-Lists → Restpunkt Phase 6 (§26.2).
-  - `EMBEDDED_FOREIGN_KEY`-Schreibpfad (damit auch AssociationCases' eingebettete Assoziationen quick-editierbar werden) → Phase 7 (ADR-006).
-  - AssociationCases-Live-Browser-E2E benötigt Basket-Unterstützung in der generierten CRUD-App → ausserhalb Phase 4.
+   - Fetch-Join/N+1 für Related-Lists → Restpunkt Phase 6 (§26.2).
+   - `EMBEDDED_FOREIGN_KEY`-Schreibpfad (damit auch AssociationCases' eingebettete Assoziationen quick-editierbar werden) → Phase 7 (ADR-006).
+   - AssociationCases-Live-Browser-E2E benötigt Basket-Unterstützung in der generierten CRUD-App → ausserhalb Phase 4.
 - **Abnahme:** Phase 4 DONE-Kriterien: Command-Service mit Context-/Owner-/Kardinalitäts-/Duplikat-Prüfung ✔; `createQuickLink` + `deleteLink` mit strukturierten Result-Maps ✔; Controller-Support `associationCreate`/`associationDelete` nur POST/DELETE ✔; Quick-Add-GSP + Delete-in-Sections ✔; JS context/role + AbortController ✔; gemeinsamer `optionPageForTargetType` wiederverwendet (keine Duplizierung) ✔; serverseitige Context-/Owner-/Zugehörigkeitsprüfung ✔; binäre Kardinalität ✔; Löschen entfernt ausschliesslich die Association-Domain ✔; Registry-UI-Mode-Gating ✔; Unit-/Real-ili2db-/Grails-Runtime-/Playwright-Tests inkl. Manipulationsversuch über falschen Owner grün ✔; ili2c für neues Modell ✔; Plan-Doc + ADR-003/004 aktualisiert ✔. Nicht mit Phase 5 fortgefahren ✔.
+
+### Phase 5
+- **Geänderte/neue Dateien (Übersicht):** 23 Dateien (3 neu, 20 geändert).
+- **Neue Overlay-Dateien:**
+  - `src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy` — Runtime-Utility für kontextuelle Association-Formulare (§16). `prepareCreateContext` (validiert Context + Owner), `prepareEditContext` (validiert Ownership), `applyFixedRole` (erzwingt fixedProperty = owner nach jedem bindData), `redirectTarget` (Controller/Action/ID aus Registry, keine freie URL), `hiddenRelationshipFields`, `fixedRelationshipLabels`, private Hilfsmethoden `loadOwner`, `safeParseId`, `verifyOwnership`.
+  - `src/main/templates/scaffolding/_association-context-summary.gsp` — Zeigt read-only Kontext-Zusammenfassung im Formular.
+- **Neues Testmodell:**
+  - `test-models/ContextualAssociationE2E.ili` — Vereinfachtes Modell für Browser-E2E: `Beteiligung` (Association mit Attribut `Funktion`), `PersonRef` (Selbstassoziation mit `Primary`/`Secondary`), `TernaryAssoc` (n-är mit `Note`). ili2c-validiert.
+- **Modellerweiterung:**
+  - `test-models/AssociationCases.ili` — Neue n-äre `TernaryAssociation` (PersonRole/ParcelRole/DocumentRole + Note) in `Extended`-Topic. ili2c-validiert.
+- **Geänderte Core-Dateien:**
+  - `core/.../Ili2cModelReader.java` — `processAssociationRoles`: `getOppEnd()` nur für binäre Associations aufrufen (fix: n-äre Assoziationen verursachten `ArrayIndexOutOfBoundsException`).
+- **Geänderte Fixtures:**
+  - `core/.../MetadataTestFixtures.java` — `createAssociationCasesIli2dbFixture` um `TernaryAssociation` erweitert (classname, table_prop, attrname ×4, CREATE TABLE).
+- **Geänderte Runtime-Klassen (Overlay):**
+  - `InterlisCrudControllerSupport.groovy` — `create()`/`save()`/`edit()`/`update()` kontextfähig: `associationContextState()` validiert Context params, `applyAssociationContext()` setzt fixedRole nach bindData, `contextualRedirectTarget()` für Rückleitung zum Owner, `loadContextStateFromParams()` für re-load nach POST. Neue `formModelWithContext()` inkludiert `hiddenRelationshipFields`, `fixedRelationshipLabels`, `associationContextState`.
+  - `InterlisAssociationQueryService.groovy` — `describeAssociationRow` erhält `editAllowed` für CONTEXTUAL_FORM/NARY_CONTEXTUAL_FORM; `buildSection` erhält `associationController` für GSP-Create-Links.
+- **Geänderte Templates (Overlay):**
+  - `_form.gsp` — Hidden-Fields `associationContext`/`associationOwnerId` bei vorhandenem Context-State.
+  - `_relationship-fields.gsp` — Fixed-Role-Handling: bei `hiddenRelationshipFields` → Hidden-Field + read-only Label statt Picker; sonst bestehender Picker.
+  - `create.gsp` / `edit.gsp` — Neue Model-Variablen an `_form` weitergegeben.
+  - `_association-sections.gsp` — Contextual-Form-Links (CONTEXTUAL_FORM/NARY_CONTEXTUAL_FORM): Create-Button bei leerem/writable-Abschnitt; Edit-Link in Row-Actions. Association-Domain-Show-Link zusätzlich erhalten.
+- **Geänderte Build-Zeit-Klassen:**
+  - `GrailsTemplateOverlayInstaller.java` — `MANAGED_FILES` um `InterlisAssociationContextSupport.groovy` und `_association-context-summary.gsp` ergänzt (22→24).
+- **CSS:**
+  - `ili-modern.css` — `.ili-fixed-relationship-value`, `.ili-context-summary`, `.ili-association-edit-btn`.
+- **Erweiterte Tests:**
+  - `RealIli2dbSmokeTest.java` — 3 neue H2-basierte Tests: `classifiesTernaryAssociationAsNaryAndContextualForm` (3 Rollen, NARY_CONTEXTUAL_FORM), `associationWithAttributeUsesContextualForm` (CONTEXTUAL_FORM, RoleNote-Attribut), `sameTargetAssociationHasDistinctContextsAndProperties` (Self-Association, verschiedene fixedProperties).
+  - `GrailsAssociationRegistrySupportTest.java` — Assertions aktualisiert (7 statt 6 Associations, 8 Person-Contexts, 2 Document-Contexts).
+- **Snapshot-Updates (nach manueller Prüfung):**
+  - Grails-Registry-Snapshot (AssociationCases + TernaryAssociation).
+  - Ili2c-Golden-JSON (AssociationCases + TernaryAssociation).
+  - Merge-Report-Golden (AssociationCases + TernaryAssociation).
+  - Django-Snapshot (AssociationCases + TernaryAssociation).
+- **Nicht geändert (bewusst):** Keine inversen GORM-Collections. Keine freie Return-URL. Keine neuen Join-Tabellen/Spalten. Keine Mass-Assignment-Lücke (fixedRole nach bindData erneut serverseitig gesetzt).
+- **Entscheidungen:**
+  - **ADR-008: InterlisAssociationContextSupport.redirectTarget()** — Keine freie `returnUrl`. Redirect-Ziel wird aus Context-State (participantDomainClass, ownerId) abgeleitet. Controller-Name via SimpleName-Konvention.
+  - **ADR-009: loadContextStateFromParams()** — Nach `save()`/`update()` wird der Context-State aus den Hidden-Params `associationContext`/`associationOwnerId` neu validiert geladen (kein Session-Stickiness). Schützt gegen Request-Manipulation.
+  - **ADR-010: n-äre Gegnerollennamen** — `Ili2cModelReader.processAssociationRoles` ruft `role.getOppEnd()` nur bei binären Assoziationen auf. Für n-äre bleiben `oppositeRoleName`/`sourceRoleName` null. Planner behandelt dies korrekt.
+- **Ausgeführte Tests (JDK 21, ADR-001):**
+  - `./gradlew test` → **PASS** (alle Unit/Snapshot/Compile, 127 Tests), 0 Fehler/0 Errors/0 Skips.
+  - `PATH=grails-7.0.6 JAVA_HOME=21.0.10 ./gradlew :target-grails:grailsRuntimeSmokeTest` → **PASS** (3/3): Association-Context-Support + neue Templates kompilieren in echter Grails-7.0.6-App.
+  - `./gradlew :target-grails:realIli2dbSmokeTest` → **PASS**: H2-Fixture-Tests (neue +3) + Real-PostGIS-Tests (cached).
+  - ili2c: `test-models/AssociationCases.ili` → **PASS**. `test-models/ContextualAssociationE2E.ili` → **PASS**.
+- **Offene Punkte / Restpunkte:**
+  - Browser-E2E für kontextuelle Formulare (ContextualAssociationE2E.ili) benötigt Docker/PostGIS/Playwright → Infrastruktur-abhängig, analog zu Phase 4; `ContextualAssociationE2E.ili` ist fertig und ili2c-validiert für spätere Ausführung.
+  - Delete für CONTEXTUAL_FORM/NARY_CONTEXTUAL_FORM über Association-Controller-Delete-Action mit Context-Validierung → Restpunkt Phase 6.
+  - N+1-Query-Optimierung für Related-Lists → Phase 6 (§26.2).
+- **Abnahme:** Phase 5 DONE-Kriterien: Contextual Create/Edit-Formulare mit fixierter Teilnehmerrolle ✔; feste Rolle aus Registry validiert + serverseitig nach Binding erneut gesetzt ✔; read-only Darstellung im Formular ✔; bestehende Relationship-/Field-/Geometry-Mechanismen wiederverwendet ✔; keine freie Return-URL ✔; Selbstassoziation mit distincten Contexts ✔; n-äre Association über TernaryAssociation ✔; Runtime-Smoke ✔; Real-ili2db H2-Tests ✔; ili2c für alle geänderten Modelle ✔; Plan aktualisiert ✔. Nicht mit Phase 6 fortgefahren ✔.
 
 ## Abschluss-Checkliste (Gesamtprojekt)
 

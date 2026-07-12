@@ -21,6 +21,9 @@
     relationshipOptions: relationshipOptions,
     relationshipValues: relationshipValues,
     relationshipRequired: relationshipRequired,
+    hiddenRelationshipFields: hiddenRelationshipFields,
+    fixedRelationshipLabels: fixedRelationshipLabels,
+    associationContextState: associationContextState,
     fieldMeta: fieldMeta
 ]}"/>
 </body>

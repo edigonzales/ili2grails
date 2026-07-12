@@ -62,6 +62,13 @@ VERSION "2026-06-09" =
       ExtendedParcelRole -- {0..1} ExtendedParcel;
     END ExtendedTopicAssociation;
 
+    ASSOCIATION TernaryAssociation =
+      PersonRole -- {0..*} Person;
+      ParcelRole -- {0..*} Parcel;
+      DocumentRole -- {0..1} Document;
+      Note: TEXT*50;
+    END TernaryAssociation;
+
   END Extended;
 
 END AssociationCases.

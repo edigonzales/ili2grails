@@ -1,32 +1,32 @@
 # Relationship Merge Report: AssociationCases
 
-Total relationships: 12
+Total relationships: 15
 
 ## Summary by mergeReason
 
 | mergeReason | Count |
 |---|---:|
-| EXACT_TARGET_ROLE | 12 |
+| EXACT_TARGET_ROLE | 15 |
 
 ## Summary by mergeConfidence
 
 | mergeConfidence | Count |
 |---|---:|
-| EXACT | 12 |
+| EXACT | 15 |
 
-Total association roles: 12
+Total association roles: 15
 
 ## Association roles by mergeReason
 
 | mergeReason | Count |
 |---|---:|
-| EXACT_TARGET_ROLE | 12 |
+| EXACT_TARGET_ROLE | 15 |
 
 ## Association roles by mergeConfidence
 
 | mergeConfidence | Count |
 |---|---:|
-| EXACT | 12 |
+| EXACT | 15 |
 
 ## Suspicious association roles
 
@@ -49,6 +49,9 @@ Total association roles: 12
 | AssociationCases.Base.SameTargetAssociation | SecondaryPerson | AssociationCases.Base.Person | secondary_person_id | AssociationCases.Base.SameTargetAssociation.SecondaryPerson | EXACT_TARGET_ROLE | EXACT | secondaryperson |
 | AssociationCases.Extended.ExtendedTopicAssociation | ExtendedParcelRole | AssociationCases.Extended.ExtendedParcel | ext_parcel_id | AssociationCases.Extended.ExtendedTopicAssociation.ExtendedParcelRole | EXACT_TARGET_ROLE | EXACT | extendedparcelrole |
 | AssociationCases.Extended.ExtendedTopicAssociation | ExtendedPersonRole | AssociationCases.Base.Person | ext_person_id | AssociationCases.Extended.ExtendedTopicAssociation.ExtendedPersonRole | EXACT_TARGET_ROLE | EXACT | extendedpersonrole |
+| AssociationCases.Extended.TernaryAssociation | DocumentRole | AssociationCases.Base.Document | document_role_id | AssociationCases.Extended.TernaryAssociation.DocumentRole | EXACT_TARGET_ROLE | EXACT | documentrole |
+| AssociationCases.Extended.TernaryAssociation | ParcelRole | AssociationCases.Base.Parcel | parcel_role_id | AssociationCases.Extended.TernaryAssociation.ParcelRole | EXACT_TARGET_ROLE | EXACT | parcelrole |
+| AssociationCases.Extended.TernaryAssociation | PersonRole | AssociationCases.Base.Person | person_role_id | AssociationCases.Extended.TernaryAssociation.PersonRole | EXACT_TARGET_ROLE | EXACT | personrole |
 
 ## Suspicious
 
@@ -76,6 +79,9 @@ Total association roles: 12
 | AssociationCases.Base.SameTargetAssociation | AssociationCases.Base.Person | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | secondary_person_id | AssociationCases.Base.SameTargetAssociation.SecondaryPerson | secondaryperson |
 | AssociationCases.Extended.ExtendedTopicAssociation | AssociationCases.Base.Person | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | ext_person_id | AssociationCases.Extended.ExtendedTopicAssociation.ExtendedPersonRole | extendedpersonrole |
 | AssociationCases.Extended.ExtendedTopicAssociation | AssociationCases.Extended.ExtendedParcel | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | ext_parcel_id | AssociationCases.Extended.ExtendedTopicAssociation.ExtendedParcelRole | extendedparcelrole |
+| AssociationCases.Extended.TernaryAssociation | AssociationCases.Base.Document | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | document_role_id | AssociationCases.Extended.TernaryAssociation.DocumentRole | documentrole |
+| AssociationCases.Extended.TernaryAssociation | AssociationCases.Base.Parcel | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | parcel_role_id | AssociationCases.Extended.TernaryAssociation.ParcelRole | parcelrole |
+| AssociationCases.Extended.TernaryAssociation | AssociationCases.Base.Person | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | person_role_id | AssociationCases.Extended.TernaryAssociation.PersonRole | personrole |
 
 ## ILI2DB_ONLY
 

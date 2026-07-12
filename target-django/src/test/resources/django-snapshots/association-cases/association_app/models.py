@@ -107,3 +107,15 @@ class ExtendedTopicAssociation(models.Model):
         managed = False
 
 
+class TernaryAssociation(models.Model):
+    document_role = models.ForeignKey("Document", on_delete=models.PROTECT, db_column="document_role_id", null=True, blank=True, related_name="+")
+    note = models.CharField(max_length=50, null=True, blank=True)
+    parcel_role = models.ForeignKey("Parcel", on_delete=models.PROTECT, db_column="parcel_role_id", null=True, blank=True, related_name="+")
+    person_role = models.ForeignKey("Person", on_delete=models.PROTECT, db_column="person_role_id", null=True, blank=True, related_name="+")
+    t_id = models.BigAutoField(primary_key=True, db_column="t_id")
+
+    class Meta:
+        db_table = "ternaryassociation"
+        managed = False
+
+

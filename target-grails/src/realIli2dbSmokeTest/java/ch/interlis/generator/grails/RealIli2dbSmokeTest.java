@@ -1201,6 +1201,112 @@ class RealIli2dbSmokeTest {
     ) {
     }
 
+    @Test
+    void classifiesTernaryAssociationAsNaryAndContextualForm() throws Exception {
+        ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
+        GenerationConfig config = GenerationConfig.builder(tempDir.resolve("nary-gen"), "ch.example.association")
+            .domainPackage("ch.example.association.domain")
+            .enumPackage("ch.example.association.enums")
+            .build();
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
+        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
+        GrailsAssociationPlanner planner = GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
+
+        GrailsAssociationPlan ternary = planner.findPlan("AssociationCases.Extended.TernaryAssociation")
+            .orElseThrow();
+        assertThat(ternary.storageKind()).isEqualTo(AssociationStorageKind.LINK_ENTITY);
+        assertThat(ternary.isBinary()).isFalse();
+        assertThat(ternary.isNary()).isTrue();
+        assertThat(ternary.roles()).hasSize(3);
+
+        GrailsAssociationContextPlan personCtx = ternary.contexts().stream()
+            .filter(ctx -> "PersonRole".equals(ctx.fixedRoleName()))
+            .findFirst().orElseThrow();
+        assertThat(personCtx.presentationKind())
+            .isEqualTo(AssociationPresentationKind.NARY_CONTEXTUAL_FORM);
+        assertThat(personCtx.createMode())
+            .isEqualTo(AssociationCreateMode.CONTEXTUAL_FORM);
+
+        GrailsAssociationContextPlan docCtx = ternary.contexts().stream()
+            .filter(ctx -> "DocumentRole".equals(ctx.fixedRoleName()))
+            .findFirst().orElseThrow();
+        assertThat(docCtx.presentationKind())
+            .isEqualTo(AssociationPresentationKind.NARY_CONTEXTUAL_FORM);
+        assertThat(docCtx.editableRoleNames()).hasSize(2);
+
+        // All three contexts exist and are distinct
+        assertThat(ternary.contexts()).hasSize(3);
+    }
+
+    @Test
+    void associationWithAttributeUsesContextualForm() throws Exception {
+        ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
+        GenerationConfig config = GenerationConfig.builder(tempDir.resolve("ctxform-gen"), "ch.example.association")
+            .domainPackage("ch.example.association.domain")
+            .enumPackage("ch.example.association.enums")
+            .build();
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
+        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
+        GrailsAssociationPlanner planner = GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
+
+        GrailsAssociationPlan attrAssoc = planner.findPlan("AssociationCases.Base.AssociationWithAttribute")
+            .orElseThrow();
+        assertThat(attrAssoc.hasOwnAttributes()).isTrue();
+        assertThat(attrAssoc.storageKind()).isEqualTo(AssociationStorageKind.LINK_ENTITY);
+
+        GrailsAssociationContextPlan personCtx = attrAssoc.contexts().stream()
+            .filter(ctx -> "PersonRole".equals(ctx.fixedRoleName()))
+            .findFirst().orElseThrow();
+        assertThat(personCtx.presentationKind())
+            .isEqualTo(AssociationPresentationKind.CONTEXTUAL_FORM);
+        assertThat(personCtx.createMode())
+            .isEqualTo(AssociationCreateMode.CONTEXTUAL_FORM);
+        assertThat(personCtx.fixedRolePropertyName()).isNotBlank();
+        assertThat(personCtx.editableRoleNames()).contains("DocumentRole");
+
+        // RoleNote attribute is present
+        GrailsAssociationAttributePlan noteAttr = attrAssoc.attributes().stream()
+            .filter(a -> "RoleNote".equals(a.iliName()))
+            .findFirst().orElseThrow();
+        assertThat(noteAttr.domainPropertyName()).isEqualTo("roleNote");
+        assertThat(noteAttr.javaType()).isNotNull();
+    }
+
+    @Test
+    void sameTargetAssociationHasDistinctContextsAndProperties() throws Exception {
+        ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
+        GenerationConfig config = GenerationConfig.builder(tempDir.resolve("selftarget-gen"), "ch.example.association")
+            .domainPackage("ch.example.association.domain")
+            .enumPackage("ch.example.association.enums")
+            .build();
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
+        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
+        GrailsAssociationPlanner planner = GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
+
+        GrailsAssociationPlan sameTarget = planner.findPlan("AssociationCases.Base.SameTargetAssociation")
+            .orElseThrow();
+        List<GrailsAssociationContextPlan> contexts = sameTarget.contexts();
+        assertThat(contexts).hasSize(2);
+
+        GrailsAssociationContextPlan primaryCtx = contexts.stream()
+            .filter(ctx -> "PrimaryPerson".equals(ctx.fixedRoleName()))
+            .findFirst().orElseThrow();
+        GrailsAssociationContextPlan secondaryCtx = contexts.stream()
+            .filter(ctx -> "SecondaryPerson".equals(ctx.fixedRoleName()))
+            .findFirst().orElseThrow();
+
+        assertThat(primaryCtx.fixedRolePropertyName())
+            .isNotEqualTo(secondaryCtx.fixedRolePropertyName());
+        assertThat(primaryCtx.contextId())
+            .isNotEqualTo(secondaryCtx.contextId());
+        assertThat(primaryCtx.contextId()).contains("::PrimaryPerson");
+        assertThat(secondaryCtx.contextId()).contains("::SecondaryPerson");
+
+        // Both target the same participant class
+        assertThat(primaryCtx.participantIliClassName())
+            .isEqualTo(secondaryCtx.participantIliClassName());
+    }
+
     private record CompositionRelationshipEntry(
         String sourceClass,
         String targetClass,

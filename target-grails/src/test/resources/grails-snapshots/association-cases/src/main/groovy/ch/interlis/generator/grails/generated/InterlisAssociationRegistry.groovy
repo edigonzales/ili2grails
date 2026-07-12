@@ -273,6 +273,75 @@ final class InterlisAssociationRegistry {
             ],
             attributes: [],
             diagnostics: []
+        ],
+        'AssociationCases.Extended.TernaryAssociation': [
+            associationName: 'AssociationCases.Extended.TernaryAssociation',
+            iliClassName: 'AssociationCases.Extended.TernaryAssociation',
+            domainClassName: 'TernaryAssociation',
+            domainClassQualifiedName: 'ch.example.association.domain.TernaryAssociation',
+            controllerName: 'ternaryAssociation',
+            viewPath: 'ternaryAssociation',
+            physicalTable: 'ternaryassociation',
+            physicalSqlName: 'ternaryassociation',
+            storageKind: 'LINK_ENTITY',
+            writable: true,
+            showInNavigation: false,
+            roles: [
+                [
+                    name: 'DocumentRole',
+                    label: 'AssociationCases.Extended.TernaryAssociation.DocumentRole',
+                    property: 'documentRoleId',
+                    targetIliClass: 'AssociationCases.Base.Document',
+                    targetDomainClass: 'ch.example.association.domain.Document',
+                    min: 0,
+                    max: 1,
+                    mandatory: false,
+                    ordered: false,
+                    external: false,
+                    composition: false
+                ],
+                [
+                    name: 'ParcelRole',
+                    label: 'AssociationCases.Extended.TernaryAssociation.ParcelRole',
+                    property: 'parcelRoleId',
+                    targetIliClass: 'AssociationCases.Base.Parcel',
+                    targetDomainClass: 'ch.example.association.domain.Parcel',
+                    min: 0,
+                    max: -1,
+                    mandatory: false,
+                    ordered: false,
+                    external: false,
+                    composition: false
+                ],
+                [
+                    name: 'PersonRole',
+                    label: 'AssociationCases.Extended.TernaryAssociation.PersonRole',
+                    property: 'personRoleId',
+                    targetIliClass: 'AssociationCases.Base.Person',
+                    targetDomainClass: 'ch.example.association.domain.Person',
+                    min: 0,
+                    max: -1,
+                    mandatory: false,
+                    ordered: false,
+                    external: false,
+                    composition: false
+                ]
+            ],
+            attributes: [
+                [
+                    iliName: 'Note',
+                    property: 'note',
+                    type: 'String',
+                    coreType: 'TEXT',
+                    label: 'Note',
+                    mandatory: false,
+                    maxLength: 50,
+                    unit: null,
+                    enumType: null,
+                    geometry: false
+                ]
+            ],
+            diagnostics: []
         ]
     ]
 
@@ -552,6 +621,81 @@ final class InterlisAssociationRegistry {
             perspectiveMin: 0,
             perspectiveMax: 1,
             diagnostics: []
+        ],
+        'AssociationCases.Extended.TernaryAssociation::DocumentRole': [
+            id: 'AssociationCases.Extended.TernaryAssociation::DocumentRole',
+            associationName: 'AssociationCases.Extended.TernaryAssociation',
+            participantDomainClass: 'ch.example.association.domain.Document',
+            fixedRole: 'DocumentRole',
+            fixedProperty: 'documentRoleId',
+            editableRoles: [
+                'ParcelRole',
+                'PersonRole'
+            ],
+            editableProperties: [
+                'parcelRoleId',
+                'personRoleId'
+            ],
+            defaultLabel: 'AssociationCases.Extended.TernaryAssociation.DocumentRole',
+            messageCode: 'interlis.association.associationCasesExtendedTernaryAssociation.documentRole.label',
+            presentation: 'NARY_CONTEXTUAL_FORM',
+            createMode: 'CONTEXTUAL_FORM',
+            writable: true,
+            removable: true,
+            showAssociationObjectLink: true,
+            perspectiveMin: null,
+            perspectiveMax: null,
+            diagnostics: []
+        ],
+        'AssociationCases.Extended.TernaryAssociation::ParcelRole': [
+            id: 'AssociationCases.Extended.TernaryAssociation::ParcelRole',
+            associationName: 'AssociationCases.Extended.TernaryAssociation',
+            participantDomainClass: 'ch.example.association.domain.Parcel',
+            fixedRole: 'ParcelRole',
+            fixedProperty: 'parcelRoleId',
+            editableRoles: [
+                'DocumentRole',
+                'PersonRole'
+            ],
+            editableProperties: [
+                'documentRoleId',
+                'personRoleId'
+            ],
+            defaultLabel: 'AssociationCases.Extended.TernaryAssociation.ParcelRole',
+            messageCode: 'interlis.association.associationCasesExtendedTernaryAssociation.parcelRole.label',
+            presentation: 'NARY_CONTEXTUAL_FORM',
+            createMode: 'CONTEXTUAL_FORM',
+            writable: true,
+            removable: true,
+            showAssociationObjectLink: true,
+            perspectiveMin: null,
+            perspectiveMax: null,
+            diagnostics: []
+        ],
+        'AssociationCases.Extended.TernaryAssociation::PersonRole': [
+            id: 'AssociationCases.Extended.TernaryAssociation::PersonRole',
+            associationName: 'AssociationCases.Extended.TernaryAssociation',
+            participantDomainClass: 'ch.example.association.domain.Person',
+            fixedRole: 'PersonRole',
+            fixedProperty: 'personRoleId',
+            editableRoles: [
+                'DocumentRole',
+                'ParcelRole'
+            ],
+            editableProperties: [
+                'documentRoleId',
+                'parcelRoleId'
+            ],
+            defaultLabel: 'AssociationCases.Extended.TernaryAssociation.PersonRole',
+            messageCode: 'interlis.association.associationCasesExtendedTernaryAssociation.personRole.label',
+            presentation: 'NARY_CONTEXTUAL_FORM',
+            createMode: 'CONTEXTUAL_FORM',
+            writable: true,
+            removable: true,
+            showAssociationObjectLink: true,
+            perspectiveMin: null,
+            perspectiveMax: null,
+            diagnostics: []
         ]
     ]
 
@@ -560,14 +704,16 @@ final class InterlisAssociationRegistry {
             'AssociationCases.Base.ExternalCompositeAssociation::Buildings'
         ],
         'ch.example.association.domain.Document': [
-            'AssociationCases.Base.AssociationWithAttribute::DocumentRole'
+            'AssociationCases.Base.AssociationWithAttribute::DocumentRole',
+            'AssociationCases.Extended.TernaryAssociation::DocumentRole'
         ],
         'ch.example.association.domain.ExtendedParcel': [
             'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedParcelRole'
         ],
         'ch.example.association.domain.Parcel': [
             'AssociationCases.Base.EmptyAssociation::ParcelRole',
-            'AssociationCases.Base.PhysicalMismatchAssociation::OwnedParcel'
+            'AssociationCases.Base.PhysicalMismatchAssociation::OwnedParcel',
+            'AssociationCases.Extended.TernaryAssociation::ParcelRole'
         ],
         'ch.example.association.domain.Person': [
             'AssociationCases.Base.AssociationWithAttribute::PersonRole',
@@ -576,7 +722,8 @@ final class InterlisAssociationRegistry {
             'AssociationCases.Base.PhysicalMismatchAssociation::SemanticOwner',
             'AssociationCases.Base.SameTargetAssociation::PrimaryPerson',
             'AssociationCases.Base.SameTargetAssociation::SecondaryPerson',
-            'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedPersonRole'
+            'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedPersonRole',
+            'AssociationCases.Extended.TernaryAssociation::PersonRole'
         ]
     ]
 
@@ -608,6 +755,11 @@ final class InterlisAssociationRegistry {
         ],
         'ch.example.association.domain.SameTargetAssociation': [
             iliName: 'AssociationCases.Base.SameTargetAssociation',
+            kind: 'ASSOCIATION',
+            showInNavigation: false
+        ],
+        'ch.example.association.domain.TernaryAssociation': [
+            iliName: 'AssociationCases.Extended.TernaryAssociation',
             kind: 'ASSOCIATION',
             showInNavigation: false
         ]

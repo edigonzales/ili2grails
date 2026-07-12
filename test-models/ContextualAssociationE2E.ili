@@ -1,0 +1,41 @@
+INTERLIS 2.3;
+
+MODEL ContextualAssociationE2E (en)
+AT "http://www.example.ch"
+VERSION "2026-07-12" =
+
+  TOPIC Data =
+
+    CLASS Person =
+      Name: MANDATORY TEXT*50;
+    END Person;
+
+    CLASS Document =
+      Title: MANDATORY TEXT*80;
+    END Document;
+
+    CLASS Parcel =
+      Number: MANDATORY TEXT*50;
+    END Parcel;
+
+    ASSOCIATION Beteiligung =
+      PersonRole -- {0..*} Person;
+      DocumentRole -- {0..*} Document;
+      Funktion: TEXT*100;
+    END Beteiligung;
+
+    ASSOCIATION PersonRef =
+      Primary -- {0..1} Person;
+      Secondary -- {0..*} Person;
+    END PersonRef;
+
+    ASSOCIATION TernaryAssoc =
+      TPersonRole -- {0..*} Person;
+      TParcelRole -- {0..1} Parcel;
+      TDocumentRole -- {0..*} Document;
+      Note: TEXT*50;
+    END TernaryAssoc;
+
+  END Data;
+
+END ContextualAssociationE2E.
