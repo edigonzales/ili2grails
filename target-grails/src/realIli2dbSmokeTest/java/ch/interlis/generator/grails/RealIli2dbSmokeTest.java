@@ -2,6 +2,7 @@ package ch.interlis.generator.grails;
 
 import ch.interlis.ili2c.Ili2cFailure;
 import ch.interlis.generator.metadata.MetadataReader;
+import ch.interlis.generator.model.AssociationMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
@@ -299,16 +300,18 @@ class RealIli2dbSmokeTest {
             }
         }
 
-        assertThat(plans).hasSize(6);
+        assertThat(plans).hasSize(8);
 
         // Real ili2pg (--nameByTopic --smart2Inheritance) embeds the attribute-less binary
         // associations as FK columns on the participant classes; the planner must therefore
-        // classify them as UNMAPPED and fall back to read-only (ADR-006), never quick-link.
+        // classify them as EMBEDDED_FOREIGN_KEY and fall back to read-only (ADR-006), never quick-link.
         GrailsAssociationPlan emptyAssoc = planner.findPlan("AssociationCases.Base.EmptyAssociation").orElseThrow();
         assertThat(emptyAssoc.isBinary()).isTrue();
         assertThat(emptyAssoc.hasOwnAttributes()).isFalse();
-        assertThat(emptyAssoc.storageKind()).isEqualTo(AssociationStorageKind.UNMAPPED);
+        assertThat(emptyAssoc.storageKind()).isEqualTo(AssociationStorageKind.EMBEDDED_FOREIGN_KEY);
         assertThat(emptyAssoc.writable()).isFalse();
+        assertThat(emptyAssoc.diagnostics())
+            .contains(GrailsAssociationPlanner.DIAGNOSTIC_EMBEDDED_FK_ASSOCIATION);
         assertThat(emptyAssoc.contexts())
             .allSatisfy(ctx -> {
                 assertThat(ctx.createMode()).isEqualTo(AssociationCreateMode.NONE);
@@ -321,12 +324,50 @@ class RealIli2dbSmokeTest {
             "AssociationCases.Base.ExternalCompositeAssociation")) {
             GrailsAssociationPlan plan = planner.findPlan(embedded).orElseThrow();
             assertThat(plan.storageKind())
-                .as("embedded association %s must be UNMAPPED in real ili2pg", embedded)
-                .isEqualTo(AssociationStorageKind.UNMAPPED);
+                .as("embedded association %s must be EMBEDDED_FOREIGN_KEY in real ili2pg", embedded)
+                .isEqualTo(AssociationStorageKind.EMBEDDED_FOREIGN_KEY);
             assertThat(plan.writable())
                 .as("embedded association %s must not be writable", embedded)
                 .isFalse();
         }
+
+        // OrderedAssociation: if it appears as a plan, it must also be EMBEDDED_FOREIGN_KEY.
+        planner.findPlan("AssociationCases.Base.OrderedAssociation").ifPresent(plan -> {
+            assertThat(plan.storageKind())
+                .as("ordered association must be EMBEDDED_FOREIGN_KEY in real ili2pg")
+                .isEqualTo(AssociationStorageKind.EMBEDDED_FOREIGN_KEY);
+            assertThat(plan.writable()).isFalse();
+        });
+
+        // OrderedAssociation: binary without own attributes; in real ili2pg it is embedded as FK columns.
+        // The 'ordered' flag on the Docs role must be preserved and must disqualify quick-link.
+        // When ili2pg embeds it (no link table), the planner classifies it as EMBEDDED_FOREIGN_KEY.
+        planner.findPlan("AssociationCases.Base.OrderedAssociation").ifPresentOrElse(ordered -> {
+            assertThat(ordered.isBinary()).isTrue();
+            assertThat(ordered.hasOwnAttributes()).isFalse();
+            assertThat(ordered.storageKind()).isEqualTo(AssociationStorageKind.EMBEDDED_FOREIGN_KEY);
+            assertThat(ordered.writable()).isFalse();
+            assertThat(ordered.diagnostics())
+                .contains(GrailsAssociationPlanner.DIAGNOSTIC_EMBEDDED_FK_ASSOCIATION);
+            assertThat(ordered.role("Docs")).hasValueSatisfying(
+                role -> assertThat(role.ordered()).isTrue());
+            assertThat(ordered.contexts())
+                .as("ORDERED association must not be quick-link eligible")
+                .noneSatisfy(ctx -> assertThat(ctx.createMode()).isEqualTo(AssociationCreateMode.QUICK));
+        }, () -> {
+            // Association may not appear as a class when ili2db embeds it entirely;
+            // verify the ili2c-only metadata still preserves the ordered flag.
+            AssociationMetadata orderedMeta = realSchema.metadata().getAssociation(
+                "AssociationCases.Base.OrderedAssociation");
+            if (orderedMeta != null) {
+                assertThat(orderedMeta.getRoles()).anySatisfy(
+                    role -> {
+                        if ("Docs".equals(role.getName())) {
+                            assertThat(role.isOrdered()).isTrue();
+                        }
+                    });
+            }
+        });
 
         // AssociationWithAttribute cannot be embedded (has an own attribute) => real link table.
         GrailsAssociationPlan attAssoc = planner.findPlan("AssociationCases.Base.AssociationWithAttribute").orElseThrow();

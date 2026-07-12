@@ -49,6 +49,11 @@ VERSION "2026-06-09" =
       Buildings -- {0..*} Building;
     END ExternalCompositeAssociation;
 
+    ASSOCIATION OrderedAssociation =
+      Owner -- {1} Person;
+      Docs (ORDERED) -- {0..*} Document;
+    END OrderedAssociation;
+
   END Base;
 
   TOPIC Extended EXTENDS Base =

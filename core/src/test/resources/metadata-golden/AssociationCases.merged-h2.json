@@ -363,6 +363,78 @@
       "labels" : { }
     } ]
   }, {
+    "name" : "AssociationCases.Base.OrderedAssociation",
+    "simpleName" : "OrderedAssociation",
+    "topicName" : "AssociationCases.Base",
+    "tableName" : "orderedassociation",
+    "sqlName" : "orderedassociation",
+    "abstract" : false,
+    "kind" : "ASSOCIATION",
+    "labels" : { },
+    "attributes" : [ {
+      "name" : "Docs",
+      "qualifiedName" : "AssociationCases.Base.OrderedAssociation.Docs",
+      "columnName" : "docs_id",
+      "sqlName" : "docs_id",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : true,
+      "geometry" : false,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "referencedClass" : "AssociationCases.Base.Document",
+      "labels" : { }
+    }, {
+      "name" : "Owner",
+      "qualifiedName" : "AssociationCases.Base.OrderedAssociation.Owner",
+      "columnName" : "owner_id",
+      "sqlName" : "owner_id",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : true,
+      "geometry" : false,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "referencedClass" : "AssociationCases.Base.Person",
+      "labels" : { }
+    }, {
+      "name" : "t_id",
+      "qualifiedName" : "AssociationCases.Base.OrderedAssociation.t_id",
+      "columnName" : "t_id",
+      "sqlName" : "t_id",
+      "coreType" : "UNKNOWN",
+      "targetHints" : {
+        "javaType" : "Object"
+      },
+      "mandatory" : false,
+      "primaryKey" : true,
+      "foreignKey" : false,
+      "geometry" : false,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
+  }, {
     "name" : "AssociationCases.Base.Parcel",
     "simpleName" : "Parcel",
     "topicName" : "AssociationCases.Base",
@@ -1052,6 +1124,57 @@
     } ],
     "attributes" : [ ]
   }, {
+    "name" : "AssociationCases.Base.OrderedAssociation",
+    "associationClass" : "AssociationCases.Base.OrderedAssociation",
+    "physicalTable" : "orderedassociation",
+    "physicalSqlName" : "orderedassociation",
+    "roles" : [ {
+      "name" : "Docs",
+      "targetClass" : "AssociationCases.Base.Document",
+      "oppositeRoleName" : "Owner",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : true,
+      "external" : false,
+      "composition" : false,
+      "sourceAttribute" : "docs_id",
+      "targetAttribute" : "T_Id",
+      "physicalName" : "docs_id",
+      "semanticName" : "AssociationCases.Base.OrderedAssociation.Docs",
+      "source" : "ili2db+ili2c",
+      "mergeReason" : "EXACT_TARGET_ROLE",
+      "mergeConfidence" : "EXACT",
+      "mergeToken" : "docs"
+    }, {
+      "name" : "Owner",
+      "targetClass" : "AssociationCases.Base.Person",
+      "oppositeRoleName" : "Docs",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 1,
+        "maxTarget" : 1
+      },
+      "mandatory" : true,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "sourceAttribute" : "owner_id",
+      "targetAttribute" : "T_Id",
+      "physicalName" : "owner_id",
+      "semanticName" : "AssociationCases.Base.OrderedAssociation.Owner",
+      "source" : "ili2db+ili2c",
+      "mergeReason" : "EXACT_TARGET_ROLE",
+      "mergeConfidence" : "EXACT",
+      "mergeToken" : "owner"
+    } ],
+    "attributes" : [ ]
+  }, {
     "name" : "AssociationCases.Base.PhysicalMismatchAssociation",
     "associationClass" : "AssociationCases.Base.PhysicalMismatchAssociation",
     "physicalTable" : "physicalmismatchassociation",
@@ -1468,6 +1591,62 @@
     "source" : "ili2db+ili2c",
     "physicalName" : "owner_id",
     "semanticName" : "AssociationCases.Base.ExternalCompositeAssociation.Owner",
+    "mergeReason" : "EXACT_TARGET_ROLE",
+    "mergeConfidence" : "EXACT",
+    "mergeToken" : "owner"
+  }, {
+    "name" : "AssociationCases.Base.OrderedAssociation_Docs",
+    "sourceClass" : "AssociationCases.Base.OrderedAssociation",
+    "targetClass" : "AssociationCases.Base.Document",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "sourceAttribute" : "docs_id",
+    "targetAttribute" : "T_Id",
+    "associationName" : "AssociationCases.Base.OrderedAssociation",
+    "sourceRoleName" : "Owner",
+    "targetRoleName" : "Docs",
+    "oppositeRoleName" : "Owner",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : -1
+    },
+    "mandatory" : false,
+    "ordered" : true,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2db+ili2c",
+    "physicalName" : "docs_id",
+    "semanticName" : "AssociationCases.Base.OrderedAssociation.Docs",
+    "mergeReason" : "EXACT_TARGET_ROLE",
+    "mergeConfidence" : "EXACT",
+    "mergeToken" : "docs"
+  }, {
+    "name" : "AssociationCases.Base.OrderedAssociation_Owner",
+    "sourceClass" : "AssociationCases.Base.OrderedAssociation",
+    "targetClass" : "AssociationCases.Base.Person",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "sourceAttribute" : "owner_id",
+    "targetAttribute" : "T_Id",
+    "associationName" : "AssociationCases.Base.OrderedAssociation",
+    "sourceRoleName" : "Docs",
+    "targetRoleName" : "Owner",
+    "oppositeRoleName" : "Docs",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 1,
+      "maxTarget" : 1
+    },
+    "mandatory" : true,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2db+ili2c",
+    "physicalName" : "owner_id",
+    "semanticName" : "AssociationCases.Base.OrderedAssociation.Owner",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
     "mergeToken" : "owner"

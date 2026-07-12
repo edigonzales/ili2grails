@@ -153,6 +153,10 @@ class InterlisAssociationCommandService {
             return failure(409, "COMPOSITION_DELETE_BLOCKED",
                 "Diese Zuordnung kann in der generischen Oberfläche nicht entfernt werden.")
         }
+        if (hasExternalRole(association)) {
+            return failure(409, "EXTERNAL_DELETE_BLOCKED",
+                "Diese externe Zuordnung kann in der generischen Oberfläche nicht entfernt werden.")
+        }
 
         Object participant = lockOrGet(participantType, participantId)
         if (participant == null) {
@@ -311,6 +315,11 @@ class InterlisAssociationCommandService {
     private boolean hasCompositionRole(Map<String, Object> association) {
         List<Map<String, Object>> roles = association.roles as List<Map<String, Object>>
         return roles != null && roles.any { it.composition == true }
+    }
+
+    private boolean hasExternalRole(Map<String, Object> association) {
+        List<Map<String, Object>> roles = association.roles as List<Map<String, Object>>
+        return roles != null && roles.any { it.external == true }
     }
 
     private Map<String, Object> validationFailure(Object instance) {

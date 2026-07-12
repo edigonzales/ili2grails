@@ -50,6 +50,16 @@ class ExternalCompositeAssociation(models.Model):
         managed = False
 
 
+class OrderedAssociation(models.Model):
+    docs = models.ForeignKey("Document", on_delete=models.PROTECT, db_column="docs_id", null=True, blank=True, related_name="+")
+    owner = models.ForeignKey("Person", on_delete=models.PROTECT, db_column="owner_id", related_name="+")
+    t_id = models.BigAutoField(primary_key=True, db_column="t_id")
+
+    class Meta:
+        db_table = "orderedassociation"
+        managed = False
+
+
 class Parcel(models.Model):
     ident = models.CharField(max_length=20)
     t_id = models.BigAutoField(primary_key=True, db_column="t_id")

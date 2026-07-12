@@ -25,7 +25,7 @@ class GrailsAssociationRegistrySupportTest {
         GrailsAssociationPlanner planner = buildPlanner(config);
 
         List<GrailsAssociationPlan> plans = planner.plans();
-        assertThat(plans).hasSize(7);
+        assertThat(plans).hasSize(8);
     }
 
     @Test
@@ -35,11 +35,11 @@ class GrailsAssociationRegistrySupportTest {
 
         List<GrailsAssociationContextPlan> personContexts =
             planner.contextsForParticipant("AssociationCases.Base.Person");
-        assertThat(personContexts).hasSize(8);
+        assertThat(personContexts).hasSize(9);
 
         List<GrailsAssociationContextPlan> documentContexts =
             planner.contextsForParticipant("AssociationCases.Base.Document");
-        assertThat(documentContexts).hasSize(2);
+        assertThat(documentContexts).hasSize(3);
     }
 
     @Test

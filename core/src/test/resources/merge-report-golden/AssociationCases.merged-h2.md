@@ -1,32 +1,32 @@
 # Relationship Merge Report: AssociationCases
 
-Total relationships: 15
+Total relationships: 17
 
 ## Summary by mergeReason
 
 | mergeReason | Count |
 |---|---:|
-| EXACT_TARGET_ROLE | 15 |
+| EXACT_TARGET_ROLE | 17 |
 
 ## Summary by mergeConfidence
 
 | mergeConfidence | Count |
 |---|---:|
-| EXACT | 15 |
+| EXACT | 17 |
 
-Total association roles: 15
+Total association roles: 17
 
 ## Association roles by mergeReason
 
 | mergeReason | Count |
 |---|---:|
-| EXACT_TARGET_ROLE | 15 |
+| EXACT_TARGET_ROLE | 17 |
 
 ## Association roles by mergeConfidence
 
 | mergeConfidence | Count |
 |---|---:|
-| EXACT | 15 |
+| EXACT | 17 |
 
 ## Suspicious association roles
 
@@ -43,6 +43,8 @@ Total association roles: 15
 | AssociationCases.Base.EmptyAssociation | PersonRole | AssociationCases.Base.Person | person_role_id | AssociationCases.Base.EmptyAssociation.PersonRole | EXACT_TARGET_ROLE | EXACT | personrole |
 | AssociationCases.Base.ExternalCompositeAssociation | Buildings | AssociationCases.Base.Building | building_id | AssociationCases.Base.ExternalCompositeAssociation.Buildings | EXACT_TARGET_ROLE | EXACT | buildings |
 | AssociationCases.Base.ExternalCompositeAssociation | Owner | AssociationCases.Base.Person | owner_id | AssociationCases.Base.ExternalCompositeAssociation.Owner | EXACT_TARGET_ROLE | EXACT | owner |
+| AssociationCases.Base.OrderedAssociation | Docs | AssociationCases.Base.Document | docs_id | AssociationCases.Base.OrderedAssociation.Docs | EXACT_TARGET_ROLE | EXACT | docs |
+| AssociationCases.Base.OrderedAssociation | Owner | AssociationCases.Base.Person | owner_id | AssociationCases.Base.OrderedAssociation.Owner | EXACT_TARGET_ROLE | EXACT | owner |
 | AssociationCases.Base.PhysicalMismatchAssociation | OwnedParcel | AssociationCases.Base.Parcel | parcel_fk | AssociationCases.Base.PhysicalMismatchAssociation.OwnedParcel | EXACT_TARGET_ROLE | EXACT | ownedparcel |
 | AssociationCases.Base.PhysicalMismatchAssociation | SemanticOwner | AssociationCases.Base.Person | owner_fk | AssociationCases.Base.PhysicalMismatchAssociation.SemanticOwner | EXACT_TARGET_ROLE | EXACT | semanticowner |
 | AssociationCases.Base.SameTargetAssociation | PrimaryPerson | AssociationCases.Base.Person | primary_person_id | AssociationCases.Base.SameTargetAssociation.PrimaryPerson | EXACT_TARGET_ROLE | EXACT | primaryperson |
@@ -73,6 +75,8 @@ Total association roles: 15
 | AssociationCases.Base.EmptyAssociation | AssociationCases.Base.Person | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | person_role_id | AssociationCases.Base.EmptyAssociation.PersonRole | personrole |
 | AssociationCases.Base.ExternalCompositeAssociation | AssociationCases.Base.Building | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | building_id | AssociationCases.Base.ExternalCompositeAssociation.Buildings | buildings |
 | AssociationCases.Base.ExternalCompositeAssociation | AssociationCases.Base.Person | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | owner_id | AssociationCases.Base.ExternalCompositeAssociation.Owner | owner |
+| AssociationCases.Base.OrderedAssociation | AssociationCases.Base.Document | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | docs_id | AssociationCases.Base.OrderedAssociation.Docs | docs |
+| AssociationCases.Base.OrderedAssociation | AssociationCases.Base.Person | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | owner_id | AssociationCases.Base.OrderedAssociation.Owner | owner |
 | AssociationCases.Base.PhysicalMismatchAssociation | AssociationCases.Base.Parcel | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | parcel_fk | AssociationCases.Base.PhysicalMismatchAssociation.OwnedParcel | ownedparcel |
 | AssociationCases.Base.PhysicalMismatchAssociation | AssociationCases.Base.Person | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | owner_fk | AssociationCases.Base.PhysicalMismatchAssociation.SemanticOwner | semanticowner |
 | AssociationCases.Base.SameTargetAssociation | AssociationCases.Base.Person | ASSOCIATION_ROLE | EXACT_TARGET_ROLE | EXACT | primary_person_id | AssociationCases.Base.SameTargetAssociation.PrimaryPerson | primaryperson |

@@ -32,6 +32,7 @@ import java.util.Set;
 public final class GrailsAssociationPlanner {
 
     static final String DIAGNOSTIC_UNMAPPED_ASSOCIATION = "UNMAPPED_ASSOCIATION";
+    static final String DIAGNOSTIC_EMBEDDED_FK_ASSOCIATION = "EMBEDDED_FK_ASSOCIATION";
     static final String DIAGNOSTIC_AMBIGUOUS_ROLE_PROPERTY = "AMBIGUOUS_ROLE_PROPERTY";
     static final String DIAGNOSTIC_ROLE_PROPERTY_NOT_FOUND = "ROLE_PROPERTY_NOT_FOUND";
     static final String DIAGNOSTIC_TARGET_DOMAIN_NOT_GENERATED = "TARGET_DOMAIN_NOT_GENERATED";
@@ -129,6 +130,9 @@ public final class GrailsAssociationPlanner {
         if (storageKind == AssociationStorageKind.UNMAPPED) {
             diagnostics.add(DIAGNOSTIC_UNMAPPED_ASSOCIATION);
         }
+        if (storageKind == AssociationStorageKind.EMBEDDED_FOREIGN_KEY) {
+            diagnostics.add(DIAGNOSTIC_EMBEDDED_FK_ASSOCIATION);
+        }
 
         List<GrailsAssociationRolePlan> roles = buildRolePlans(association, associationClass, domainMapping, diagnostics);
         List<GrailsAssociationAttributePlan> attributes =
@@ -136,7 +140,8 @@ public final class GrailsAssociationPlanner {
         List<GrailsAssociationContextPlan> contexts =
             buildContextPlans(association, roles, attributes, storageKind);
 
-        boolean physicalMappingPresent = storageKind == AssociationStorageKind.LINK_ENTITY;
+        boolean physicalMappingPresent = storageKind == AssociationStorageKind.LINK_ENTITY
+            || storageKind == AssociationStorageKind.EMBEDDED_FOREIGN_KEY;
         boolean writable = contexts.stream().anyMatch(GrailsAssociationContextPlan::writable);
         boolean showInNavigation = !(physicalMappingPresent && !contexts.isEmpty());
 
@@ -178,18 +183,22 @@ public final class GrailsAssociationPlanner {
     }
 
     private AssociationStorageKind resolveStorageKind(AssociationMetadata association,
-                                                      ClassMetadata associationClass,
-                                                      GrailsRelationshipMapper.DomainMapping domainMapping) {
-        if (associationClass == null
-            || domainMapping == null
-            || !relationshipMapper.shouldGenerate(associationClass)) {
+                                                       ClassMetadata associationClass,
+                                                       GrailsRelationshipMapper.DomainMapping domainMapping) {
+        if (associationClass == null) {
             return AssociationStorageKind.UNMAPPED;
         }
-        boolean physicallyMapped = notBlank(association.getPhysicalTable())
-            || notBlank(association.getPhysicalSqlName())
-            || notBlank(associationClass.getTableName())
-            || notBlank(associationClass.getSqlName());
-        return physicallyMapped ? AssociationStorageKind.LINK_ENTITY : AssociationStorageKind.UNMAPPED;
+        if (domainMapping != null && relationshipMapper.shouldGenerate(associationClass)) {
+            boolean physicallyMapped = notBlank(association.getPhysicalTable())
+                || notBlank(association.getPhysicalSqlName())
+                || notBlank(associationClass.getTableName())
+                || notBlank(associationClass.getSqlName());
+            return physicallyMapped ? AssociationStorageKind.LINK_ENTITY : AssociationStorageKind.UNMAPPED;
+        }
+        if (associationClass.getKind() == ClassMetadata.ClassKind.ASSOCIATION) {
+            return AssociationStorageKind.EMBEDDED_FOREIGN_KEY;
+        }
+        return AssociationStorageKind.UNMAPPED;
     }
 
     private List<GrailsAssociationRolePlan> buildRolePlans(AssociationMetadata association,

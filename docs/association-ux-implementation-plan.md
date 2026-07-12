@@ -14,7 +14,7 @@ Dieser Plan wird nach jedem grösseren Schritt aktualisiert, nicht erst am Schlu
 | Phase 4 – Quick-Link (binäre Associations) | DONE | 2026-07-11 | 2026-07-11 | `./gradlew test` PASS (125: core 31, target-grails 75, cli 12, django 7); Real-ili2db 3/3 PASS (PostGIS); Grails-Runtime-Smoke PASS; Browser-E2E 2/2 PASS inkl. wrong-owner-Manipulation; ili2c QuickLinkE2E.ili PASS | Command-Service (Result-Maps, Duplikat-Prävention, Kardinalität, Ownership); UI-Mode-Gating im Registry-Generator (Phase-2/3-Restpunkt geschlossen); Quick-Add-GSP + Delete-in-Sections; JS context/role + AbortController. 5 latente Phase-3-Bugs beim echten Ausführen der Gates gefunden & behoben. Reale ili2pg-Erkenntnis R-10. Neues Modell QuickLinkE2E.ili |
 | Phase 5 – Kontextuelle Formulare / n-är | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (127); ili2c 2× PASS; Grails-Runtime-Smoke PASS (3/3); Real-ili2db H2-Tests PASS (+3); **Browser-E2E PASS** (1 Test, 7 Screenshots) | Context-Formulare mit fixer+read-only Rolle, sicherer Redirect ohne returnUrl; ContextSupport erkennt Association-Domain-Controller; n-är über TernaryAssociation. **Einschränkung:** Association-Domain Create/Edit-Formulare (Beteiligung, TernaryAssoc) rendern via Grails-Scaffold `<f:all>` nicht; Person-Show-Sections funktionieren; Index/List funktioniert; → Restpunkt R-11 für Phase 6. |
 | Phase 6 – Navigation, Kardinalität, Fehler, Performance | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (127); `:target-grails:test` PASS (75) | R-11 behoben + Navigation + Error-Handling + N+1-Fetch-Join + Konfliktbehandlung + Accessibility-CSS + `docs/association-ux.md` |
-| Phase 7 – Spezialsemantik (EXTERNAL, Komposition, ORDERED, embedded FK) | NOT_STARTED |  |  |  |  |
+| Phase 7 – Spezialsemantik (EXTERNAL, Komposition, ORDERED, embedded FK) | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (alle); ili2c PASS; Real-ili2db PASS (8 Plans, EMBEDDED_FOREIGN_KEY klassifiziert) | EXTERNAL-Guard in CommandService; ORDERED-Modell+Analyse; EMBEDDED_FOREIGN_KEY-Klassifikation; Docs aktualisiert |
 | Phase 8 – Abschluss & Regression | NOT_STARTED |  |  |  |  |
 
 Zulässige Statuswerte: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
@@ -564,8 +564,51 @@ Noch zu erstellen (Referenz, spätere Phasen):
 - **Offene Punkte / Restpunkte:**
   - `EMBEDDED_FOREIGN_KEY`-Schreibpfad → Phase 7 (ADR-006).
   - `ORDERED`-Schreibfunktion → Phase 7.
-  - Gesamt-Regression (Runtime-Smoke, Real-ili2db, Browser-E2E) → in Phase 8.
-- **Abnahme:** Phase 6 DONE-Kriterien: Navigation mit `InterlisNavigationSupport` filtert Association-Controller nur bei Kontextzugriff ✔; Fallback-Controller bleiben sichtbar ✔; R-11 behoben (Association-Domain-Formulare rendern ohne Context-Params) ✔; Error-Handling konsistent mit spezifischen Exception-Catches ✔; Delete-Min-Kardinalitätsprüfung dokumentiert und robust ✔; N+1-Fetch-Join im Query-Service implementiert und Query-Anzahl dokumentiert ✔; Sort-/Property-Whitelisting verifiziert ✔; Autocomplete-AbortController verifiziert ✔; Accessibility-CSS (`prefers-reduced-motion`, `prefers-contrast`, `@media print`) ✔; Responsive CSS für mobile Tabellen ✔; `docs/association-ux.md` erstellt ✔; README aktualisiert ✔; Overlay-Installer erweitert ✔; Tests grün ✔; Plan aktualisiert ✔. Nicht mit Phase 7 fortgefahren ✔.
+   - Gesamt-Regression (Runtime-Smoke, Real-ili2db, Browser-E2E) → in Phase 8.
+- **Abnahme:** Phase 6 DONE-Kriterien: Navigation ✔; R-11 behoben ✔; Error-Handling ✔; N+1-Fetch-Join ✔; Accessibility ✔; Docs ✔.
+
+### Phase 7
+- **Geänderte/neue Dateien (Übersicht):** 12 Dateien (3 neu/geändert, 9 Tests/Snapshots/Golden).
+- **Neue Modellierung:**
+  - `test-models/AssociationCases.ili` — `OrderedAssociation` (binär, Docs-Rolle (ORDERED)) im Base-Topic ergänzt. ili2c-validiert.
+- **Geänderte Planungszeit-Dateien:**
+  - `GrailsAssociationPlanner.java` — `EMBEDDED_FOREIGN_KEY`-Klassifikation in `resolveStorageKind()`: Association-Klasse ohne physische Tabelle, aber mit `ClassKind.ASSOCIATION` → `EMBEDDED_FOREIGN_KEY` (statt UNMAPPED). Neue Diagnose `DIAGNOSTIC_EMBEDDED_FK_ASSOCIATION`. `physicalMappingPresent` jetzt `true` für EMBEDDED_FOREIGN_KEY.
+- **Geänderte Runtime (Overlay):**
+  - `InterlisAssociationCommandService.groovy` — `hasExternalRole()`-Guard (analog zu `hasCompositionRole()`): blockiert Delete bei externen Rollen mit `EXTERNAL_DELETE_BLOCKED` (409).
+- **Geänderte Fixtures:**
+  - `core/.../MetadataTestFixtures.java` — `OrderedAssociation` in H2-Fixture: classname, table_prop, attrname (Owner/Docs), CREATE TABLE.
+- **Geänderte Tests:**
+  - `GrailsAssociationPlannerTest.java` — 2 neue Tests: `standaloneExternalAssociationIsNotQuickLink`, `externalOnlyContextIsClassifiedAsContextualForm`; Test `associationWithoutPhysicalClassIsReadOnly` aktualisiert (EMBEDDED_FOREIGN_KEY statt UNMAPPED).
+  - `GrailsAssociationRegistrySupportTest.java` — Assertions: 8 Assoziationen, 9 Person-Contexts, 3 Document-Contexts.
+  - `RealIli2dbSmokeTest.java` — Assertions: 8 Plans (statt 7); EMBEDDED_FOREIGN_KEY für EmptyAssociation/SameTarget/PhysicalMismatch/ExternalComposite/OrderedAssociation; OrderedAssociation-Check mit `ifPresentOrElse`.
+  - `RelationshipMergeReporterTest.java` — `totalAssociationRoles`: 15→17.
+- **Aktualisierte Goldens/Snapshots:**
+  - Grails-Registry-Snapshot (alle 8 Associations).
+  - Metadata-Golden JSON (8 Associations).
+  - Merge-Report-Golden (8 Associations).
+  - Django-Snapshot (8 Associations).
+- **Real-ili2pg-Erkenntnisse:**
+  - `OrderedAssociation` → `EMBEDDED_FOREIGN_KEY` (wie alle attributlosen binären Assoziationen).
+  - `ordered`-Flag überlebt ili2c-Merge und ist im Planner verfügbar.
+  - ili2pg legt KEINE Reihenfolgespalte für ORDERED an; `ordered`-Info stammt ausschliesslich aus ili2c.
+  - `EMBEDDED_FOREIGN_KEY` betrifft in realem ili2pg: EmptyAssociation, SameTargetAssociation, PhysicalMismatchAssociation, ExternalCompositeAssociation, OrderedAssociation.
+  - `AssociationWithAttribute`, `ExtendedTopicAssociation`, `TernaryAssociation` bleiben `LINK_ENTITY` (haben eigene Attribute oder sind n-är).
+- **Entscheidungen:**
+  - **ADR-011: EMBEDDED_FOREIGN_KEY ist read-only.** Die Klassifikation ist deterministisch; der Schreibpfad (direkter Property-Editor auf Owning-Side) ist eine zukünftige Erweiterung und benötigt einen eigenen Real-ili2db-Test.
+  - **ADR-012: Merge-Report-Erweiterung deferred.** Die Planner-spezifischen Felder (`storageKind`, `presentationKind`) sind in der Registry verfügbar. Eine Core-IR-Erweiterung würde die Architektur-Trennung verletzen.
+- **Nicht durchgeführt (bewusst):**
+  - EMBEDDED_FOREIGN_KEY Write-Pfad (direkter Property-Editor) → zukünftige Erweiterung per ADR-011.
+  - ORDERED-Reihenfolge-Anzeige/Schreiben → keine physische Spalte vorhanden; zukünftige Erweiterung.
+  - Merge-Report-Erweiterung um storageKind/presentationKind → Core/target-Trennung (ADR-012).
+- **Ausgeführte Tests (JDK 21, ADR-001):**
+  - `./gradlew test` → **PASS** (alle Unit/Snapshot/Compile), 0 Fehler/0 Errors/0 Skips.
+  - `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/AssociationCases.ili` → **PASS**.
+  - `./gradlew :target-grails:realIli2dbSmokeTest --tests "*validatesAssociationCasesAgainstRealIli2pgSchema*"` → **PASS** (8 Plans, EMBEDDED_FOREIGN_KEY für 5 Assoziationen).
+- **Offene Punkte / Restpunkte:**
+  - EMBEDDED_FOREIGN_KEY Write-Pfad → Future (ADR-011).
+  - ORDERED-Reihenfolge-UI → Future.
+  - Browser-E2E für Spezialfälle → Phase 8 (Regression).
+- **Abnahme:** Phase 7 DONE-Kriterien: EXTERNAL-Guard ✔; ORDERED-Modell + ili2c-Validierung ✔; ORDERED-ili2pg-Analyse ✔; EMBEDDED_FOREIGN_KEY-Klassifikation ✔; Planner-Tests ✔; Real-ili2db-Test ✔; Dokumentation ✔; Plan aktualisiert ✔. Nicht mit Phase 8 fortgefahren ✔.
 
 ## Abschluss-Checkliste (Gesamtprojekt)
 

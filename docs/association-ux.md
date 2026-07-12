@@ -95,6 +95,38 @@ Beispiel: `ContextualAssociationE2E.Data.Beteiligung::PersonRole`
 | `NARY_CONTEXTUAL_FORM` | Drei oder mehr Rollen | Kontextuelles Formular mit fixierter Rolle |
 | `READ_ONLY` | Keine sichere physische Schreibabbildung | Nur Anzeige, keine Mutation |
 
+## Speichersarten
+
+| StorageKind | Beschreibung | Schreibbar |
+|---|---|---|
+| `LINK_ENTITY` | Eigene Link-Tabelle mit FK-Spalten | Ja (wenn QUICK/CONTEXTUAL_FORM) |
+| `EMBEDDED_FOREIGN_KEY` | FK-Spalten in Teilnehmerklassen eingebettet (ili2db `--smart2Inheritance`) | Nein (read-only) |
+| `UNMAPPED` | Keine ableitbare physische Abbildung | Nein (read-only) |
+
+## Spezialsemantik
+
+### EXTERNAL
+- **Planner:** Blockiert QUICK_LINK; Klassifiziert CONTEXTUAL_FORM
+- **CommandService:** `hasExternalRole()`-Guard blockiert Delete; Create nur über kontextuelles Formular
+- **Real-ili2pg:** Wie alle attributlosen binären Assoziationen eingebettet → `EMBEDDED_FOREIGN_KEY` → read-only
+
+### Komposition (`-<#>`)
+- **Planner:** Blockiert QUICK_LINK; Klassifiziert CONTEXTUAL_FORM
+- **CommandService:** `hasCompositionRole()`-Guard blockiert Delete; kein Cascade-Delete
+- **Real-ili2pg:** Wie EXTERNAL → `EMBEDDED_FOREIGN_KEY` → read-only
+
+### ORDERED
+- **Planner:** Blockiert QUICK_LINK; Klassifiziert CONTEXTUAL_FORM
+- **Physische Abbildung:** ili2pg legt keine Reihenfolgespalte an; `ordered`-Flag stammt ausschliesslich aus ili2c
+- **Real-ili2pg:** Attributlose binäre Assoziation → `EMBEDDED_FOREIGN_KEY` → read-only
+- **Testmodell:** `OrderedAssociation` in `AssociationCases.ili` (H2-Fixture: LINK_ENTITY, real: EMBEDDED_FOREIGN_KEY)
+
+### EMBEDDED_FOREIGN_KEY
+- **Erkennung:** Assoziationsklasse existiert in ili2db-Metadaten, hat aber keine physische Tabelle (FK-Spalten wurden in Teilnehmerklassen eingebettet)
+- **Planner:** Klassifiziert `EMBEDDED_FOREIGN_KEY` (statt UNMAPPED) für Assoziationen ohne Link-Tabelle
+- **Status:** Read-only mit Diagnose `EMBEDDED_FK_ASSOCIATION`
+- **Schreibpfad:** Zukünftige Erweiterung; benötigt direkten Property-Editor auf der Owning-Side und inverse Related-List auf der Non-Owning-Side
+
 ## Sicherheitsregeln
 
 - **Context-Validierung:** `requireContext()` prüft Context-ID, Teilnehmer-Klasse, Association-Existenz, feste Rolle und Property.
@@ -167,8 +199,19 @@ Unterstützung auf ein einfaches `get()` zurück.
 ### Quick-Link "Zuordnen" wird nicht angezeigt
 
 1. Prüfe in der Registry, ob `createMode == "QUICK"` und `writable == true`.
-2. Prüfe, ob die Assoziation als `LINK_ENTITY` klassifiziert ist (ili2db bettet attributlose binäre Assoziationen teilweise als FK-Spalten ein → `UNMAPPED`).
+2. Prüfe, ob die Assoziation als `LINK_ENTITY` klassifiziert ist (ili2db bettet attributlose binäre Assoziationen teilweise als FK-Spalten ein → `EMBEDDED_FOREIGN_KEY`).
 3. Prüfe, ob `associationUiMode` auf `editable` oder `auto` steht.
+4. Prüfe, ob die Rollen `ordered`, `external` oder `composition` haben (diese blockieren QUICK_LINK).
+
+### Assoziation wird als read-only angezeigt
+
+1. Prüfe `storageKind` in der Registry: `EMBEDDED_FOREIGN_KEY` und `UNMAPPED` sind immer read-only.
+2. Bei `EMBEDDED_FOREIGN_KEY`: ili2db hat die FK-Spalten in Teilnehmerklassen eingebettet (`--smart2Inheritance`). Schreibzugriff ist eine zukünftige Erweiterung.
+3. Bei externen Rollen (`external: true`): Schreibschutz durch `hasExternalRole()`-Guard.
+
+### INTERLIS ORDERED wird nicht als Reihenfolge dargestellt
+
+Die `ORDERED`-Semantik wird vom Planner korrekt erfasst und blockiert QUICK_LINK. Eine physische Reihenfolgespalte wird von ili2pg nicht angelegt; die geordnete Darstellung und Schreibfunktion sind zukünftige Erweiterungen.
 
 ## Testbefehle
 

@@ -145,6 +145,49 @@ final class InterlisAssociationRegistry {
             attributes: [],
             diagnostics: []
         ],
+        'AssociationCases.Base.OrderedAssociation': [
+            associationName: 'AssociationCases.Base.OrderedAssociation',
+            iliClassName: 'AssociationCases.Base.OrderedAssociation',
+            domainClassName: 'OrderedAssociation',
+            domainClassQualifiedName: 'ch.example.association.domain.OrderedAssociation',
+            controllerName: 'orderedAssociation',
+            viewPath: 'orderedAssociation',
+            physicalTable: 'orderedassociation',
+            physicalSqlName: 'orderedassociation',
+            storageKind: 'LINK_ENTITY',
+            writable: true,
+            showInNavigation: false,
+            roles: [
+                [
+                    name: 'Docs',
+                    label: 'AssociationCases.Base.OrderedAssociation.Docs',
+                    property: 'docsId',
+                    targetIliClass: 'AssociationCases.Base.Document',
+                    targetDomainClass: 'ch.example.association.domain.Document',
+                    min: 0,
+                    max: -1,
+                    mandatory: false,
+                    ordered: true,
+                    external: false,
+                    composition: false
+                ],
+                [
+                    name: 'Owner',
+                    label: 'AssociationCases.Base.OrderedAssociation.Owner',
+                    property: 'ownerId',
+                    targetIliClass: 'AssociationCases.Base.Person',
+                    targetDomainClass: 'ch.example.association.domain.Person',
+                    min: 1,
+                    max: 1,
+                    mandatory: true,
+                    ordered: false,
+                    external: false,
+                    composition: false
+                ]
+            ],
+            attributes: [],
+            diagnostics: []
+        ],
         'AssociationCases.Base.PhysicalMismatchAssociation': [
             associationName: 'AssociationCases.Base.PhysicalMismatchAssociation',
             iliClassName: 'AssociationCases.Base.PhysicalMismatchAssociation',
@@ -484,6 +527,52 @@ final class InterlisAssociationRegistry {
             perspectiveMax: -1,
             diagnostics: []
         ],
+        'AssociationCases.Base.OrderedAssociation::Docs': [
+            id: 'AssociationCases.Base.OrderedAssociation::Docs',
+            associationName: 'AssociationCases.Base.OrderedAssociation',
+            participantDomainClass: 'ch.example.association.domain.Document',
+            fixedRole: 'Docs',
+            fixedProperty: 'docsId',
+            editableRoles: [
+                'Owner'
+            ],
+            editableProperties: [
+                'ownerId'
+            ],
+            defaultLabel: 'Person',
+            messageCode: 'interlis.association.associationCasesBaseOrderedAssociation.docs.label',
+            presentation: 'RELATED_TO_ONE',
+            createMode: 'CONTEXTUAL_FORM',
+            writable: true,
+            removable: true,
+            showAssociationObjectLink: true,
+            perspectiveMin: 1,
+            perspectiveMax: 1,
+            diagnostics: []
+        ],
+        'AssociationCases.Base.OrderedAssociation::Owner': [
+            id: 'AssociationCases.Base.OrderedAssociation::Owner',
+            associationName: 'AssociationCases.Base.OrderedAssociation',
+            participantDomainClass: 'ch.example.association.domain.Person',
+            fixedRole: 'Owner',
+            fixedProperty: 'ownerId',
+            editableRoles: [
+                'Docs'
+            ],
+            editableProperties: [
+                'docsId'
+            ],
+            defaultLabel: 'Documents',
+            messageCode: 'interlis.association.associationCasesBaseOrderedAssociation.owner.label',
+            presentation: 'RELATED_LIST',
+            createMode: 'CONTEXTUAL_FORM',
+            writable: true,
+            removable: true,
+            showAssociationObjectLink: true,
+            perspectiveMin: 0,
+            perspectiveMax: -1,
+            diagnostics: []
+        ],
         'AssociationCases.Base.PhysicalMismatchAssociation::OwnedParcel': [
             id: 'AssociationCases.Base.PhysicalMismatchAssociation::OwnedParcel',
             associationName: 'AssociationCases.Base.PhysicalMismatchAssociation',
@@ -705,6 +794,7 @@ final class InterlisAssociationRegistry {
         ],
         'ch.example.association.domain.Document': [
             'AssociationCases.Base.AssociationWithAttribute::DocumentRole',
+            'AssociationCases.Base.OrderedAssociation::Docs',
             'AssociationCases.Extended.TernaryAssociation::DocumentRole'
         ],
         'ch.example.association.domain.ExtendedParcel': [
@@ -719,6 +809,7 @@ final class InterlisAssociationRegistry {
             'AssociationCases.Base.AssociationWithAttribute::PersonRole',
             'AssociationCases.Base.EmptyAssociation::PersonRole',
             'AssociationCases.Base.ExternalCompositeAssociation::Owner',
+            'AssociationCases.Base.OrderedAssociation::Owner',
             'AssociationCases.Base.PhysicalMismatchAssociation::SemanticOwner',
             'AssociationCases.Base.SameTargetAssociation::PrimaryPerson',
             'AssociationCases.Base.SameTargetAssociation::SecondaryPerson',
@@ -745,6 +836,11 @@ final class InterlisAssociationRegistry {
         ],
         'ch.example.association.domain.ExternalCompositeAssociation': [
             iliName: 'AssociationCases.Base.ExternalCompositeAssociation',
+            kind: 'ASSOCIATION',
+            showInNavigation: false
+        ],
+        'ch.example.association.domain.OrderedAssociation': [
+            iliName: 'AssociationCases.Base.OrderedAssociation',
             kind: 'ASSOCIATION',
             showInNavigation: false
         ],

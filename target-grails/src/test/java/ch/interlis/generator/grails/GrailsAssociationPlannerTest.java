@@ -288,7 +288,7 @@ class GrailsAssociationPlannerTest {
         ModelMetadata metadata = new ModelMetadata("Unmapped");
         ClassMetadata person = persistentClass("Unmapped.Person", "person");
         ClassMetadata parcel = persistentClass("Unmapped.Parcel", "parcel");
-        // Association class without a physical table -> not generated.
+        // Association class without a physical table -> embedded FK.
         ClassMetadata link = new ClassMetadata("Unmapped.UnmappedAssociation");
         link.setKind(ClassMetadata.ClassKind.ASSOCIATION);
         metadata.addClass(person);
@@ -304,16 +304,78 @@ class GrailsAssociationPlannerTest {
         GrailsAssociationPlanner planner = planner(metadata);
         GrailsAssociationPlan plan = plan(planner, "Unmapped.UnmappedAssociation");
 
-        assertThat(plan.storageKind()).isEqualTo(AssociationStorageKind.UNMAPPED);
-        assertThat(plan.physicalMappingPresent()).isFalse();
+        assertThat(plan.storageKind()).isEqualTo(AssociationStorageKind.EMBEDDED_FOREIGN_KEY);
+        assertThat(plan.physicalMappingPresent()).isTrue();
         assertThat(plan.writable()).isFalse();
-        assertThat(plan.diagnostics()).contains(GrailsAssociationPlanner.DIAGNOSTIC_UNMAPPED_ASSOCIATION);
+        assertThat(plan.diagnostics())
+            .contains(GrailsAssociationPlanner.DIAGNOSTIC_EMBEDDED_FK_ASSOCIATION);
         assertThat(plan.contexts()).allSatisfy(context -> {
             assertThat(context.presentationKind()).isEqualTo(AssociationPresentationKind.READ_ONLY);
             assertThat(context.createMode()).isEqualTo(AssociationCreateMode.NONE);
             assertThat(context.writable()).isFalse();
         });
-        assertThat(planner.showDomainInNavigation("Unmapped.UnmappedAssociation")).isTrue();
+        assertThat(planner.showDomainInNavigation("Unmapped.UnmappedAssociation")).isFalse();
+    }
+
+    @Test
+    void standaloneExternalAssociationIsNotQuickLink() {
+        ModelMetadata metadata = new ModelMetadata("ExternalOnly");
+        ClassMetadata person = persistentClass("ExternalOnly.Person", "person");
+        ClassMetadata building = persistentClass("ExternalOnly.Building", "building");
+        ClassMetadata link = associationClass("ExternalOnly.ExternalOnlyAssociation", "externalonlyassociation");
+        metadata.addClass(person);
+        metadata.addClass(building);
+        metadata.addClass(link);
+
+        AssociationMetadata association = new AssociationMetadata("ExternalOnly.ExternalOnlyAssociation");
+        association.setAssociationClass(link.getName());
+        association.setPhysicalTable("externalonlyassociation");
+        association.addRole(role("PersonRole", person.getName(), 1, 1));
+        AssociationRoleMetadata externalRole = role("ExternalRole", building.getName(), 0, -1);
+        externalRole.setExternal(true);
+        association.addRole(externalRole);
+        metadata.addAssociation(association);
+
+        GrailsAssociationPlanner planner = planner(metadata);
+        GrailsAssociationPlan plan = plan(planner, "ExternalOnly.ExternalOnlyAssociation");
+
+        assertThat(plan.role("ExternalRole")).hasValueSatisfying(role -> {
+            assertThat(role.external()).isTrue();
+            assertThat(role.composition()).isFalse();
+        });
+        assertThat(plan.contexts())
+            .noneSatisfy(context -> assertThat(context.createMode()).isEqualTo(AssociationCreateMode.QUICK));
+        assertThat(plan.contexts())
+            .allSatisfy(context -> assertThat(context.createMode()).isEqualTo(AssociationCreateMode.CONTEXTUAL_FORM));
+    }
+
+    @Test
+    void externalOnlyContextIsClassifiedAsContextualForm() {
+        ModelMetadata metadata = new ModelMetadata("ExternalOnly2");
+        ClassMetadata person = persistentClass("ExternalOnly2.Person", "person");
+        ClassMetadata building = persistentClass("ExternalOnly2.Building", "building");
+        ClassMetadata link = associationClass("ExternalOnly2.ExternalOnly2Assoc", "externalonly2_assoc");
+        metadata.addClass(person);
+        metadata.addClass(building);
+        metadata.addClass(link);
+
+        AssociationMetadata association = new AssociationMetadata("ExternalOnly2.ExternalOnly2Assoc");
+        association.setAssociationClass(link.getName());
+        association.setPhysicalTable("externalonly2_assoc");
+        association.addRole(role("PersonRole", person.getName(), 1, 1));
+        AssociationRoleMetadata externalRole = role("ExternalRole", building.getName(), 0, -1);
+        externalRole.setExternal(true);
+        association.addRole(externalRole);
+        metadata.addAssociation(association);
+
+        GrailsAssociationPlanner planner = planner(metadata);
+        GrailsAssociationPlan plan = plan(planner, "ExternalOnly2.ExternalOnly2Assoc");
+
+        assertThat(plan.contexts())
+            .allSatisfy(context ->
+                assertThat(context.presentationKind()).isNotEqualTo(AssociationPresentationKind.READ_ONLY));
+        assertThat(plan.contexts())
+            .allSatisfy(context -> assertThat(context.writable()).isTrue());
     }
 
     @Test

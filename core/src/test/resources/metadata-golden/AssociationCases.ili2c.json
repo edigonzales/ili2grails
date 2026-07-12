@@ -119,6 +119,14 @@
     "labels" : { },
     "attributes" : [ ]
   }, {
+    "name" : "AssociationCases.Base.OrderedAssociation",
+    "simpleName" : "OrderedAssociation",
+    "topicName" : "AssociationCases.Base",
+    "abstract" : false,
+    "kind" : "ASSOCIATION",
+    "labels" : { },
+    "attributes" : [ ]
+  }, {
     "name" : "AssociationCases.Base.Parcel",
     "simpleName" : "Parcel",
     "topicName" : "AssociationCases.Base",
@@ -444,6 +452,47 @@
       "external" : true,
       "composition" : true,
       "semanticName" : "AssociationCases.Base.ExternalCompositeAssociation.Owner",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    } ],
+    "attributes" : [ ]
+  }, {
+    "name" : "AssociationCases.Base.OrderedAssociation",
+    "associationClass" : "AssociationCases.Base.OrderedAssociation",
+    "roles" : [ {
+      "name" : "Docs",
+      "targetClass" : "AssociationCases.Base.Document",
+      "oppositeRoleName" : "Owner",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : true,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "AssociationCases.Base.OrderedAssociation.Docs",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    }, {
+      "name" : "Owner",
+      "targetClass" : "AssociationCases.Base.Person",
+      "oppositeRoleName" : "Docs",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 1,
+        "maxTarget" : 1
+      },
+      "mandatory" : true,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "AssociationCases.Base.OrderedAssociation.Owner",
       "source" : "ili2c",
       "mergeReason" : "ILI2C_ONLY",
       "mergeConfidence" : "NONE"
@@ -797,6 +846,54 @@
     "composition" : true,
     "source" : "ili2c",
     "semanticName" : "AssociationCases.Base.ExternalCompositeAssociation.Owner",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
+  }, {
+    "name" : "AssociationCases.Base.OrderedAssociation.Docs",
+    "sourceClass" : "AssociationCases.Base.OrderedAssociation",
+    "targetClass" : "AssociationCases.Base.Document",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "AssociationCases.Base.OrderedAssociation",
+    "sourceRoleName" : "Owner",
+    "targetRoleName" : "Docs",
+    "oppositeRoleName" : "Owner",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : -1
+    },
+    "mandatory" : false,
+    "ordered" : true,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c",
+    "semanticName" : "AssociationCases.Base.OrderedAssociation.Docs",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
+  }, {
+    "name" : "AssociationCases.Base.OrderedAssociation.Owner",
+    "sourceClass" : "AssociationCases.Base.OrderedAssociation",
+    "targetClass" : "AssociationCases.Base.Person",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "AssociationCases.Base.OrderedAssociation",
+    "sourceRoleName" : "Docs",
+    "targetRoleName" : "Owner",
+    "oppositeRoleName" : "Docs",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 1,
+      "maxTarget" : 1
+    },
+    "mandatory" : true,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c",
+    "semanticName" : "AssociationCases.Base.OrderedAssociation.Owner",
     "mergeReason" : "ILI2C_ONLY",
     "mergeConfidence" : "NONE"
   }, {
