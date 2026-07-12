@@ -188,11 +188,8 @@ class InterlisAssociationQueryService {
         List<Map<String, String>> columns = buildColumns(associationDesc, context)
         String label = resolveLabel(context)
         String quickTargetRole = null
-        if (context.createMode == "QUICK") {
-            List<Map<String, Object>> editableRoleList = InterlisAssociationRegistrySupport.editableRoles(associationDesc, context)
-            if (editableRoleList.size() == 1) {
-                quickTargetRole = editableRoleList.get(0).name
-            }
+        if (context.createMode == "QUICK" && editableRoleList.size() == 1) {
+            quickTargetRole = editableRoleList.get(0).name
         }
         return [
             contextId: context.id,

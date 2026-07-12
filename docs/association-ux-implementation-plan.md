@@ -15,7 +15,7 @@ Dieser Plan wird nach jedem grösseren Schritt aktualisiert, nicht erst am Schlu
 | Phase 5 – Kontextuelle Formulare / n-är | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (127); ili2c 2× PASS; Grails-Runtime-Smoke PASS (3/3); Real-ili2db H2-Tests PASS (+3); **Browser-E2E PASS** (1 Test, 7 Screenshots) | Context-Formulare mit fixer+read-only Rolle, sicherer Redirect ohne returnUrl; ContextSupport erkennt Association-Domain-Controller; n-är über TernaryAssociation. **Einschränkung:** Association-Domain Create/Edit-Formulare (Beteiligung, TernaryAssoc) rendern via Grails-Scaffold `<f:all>` nicht; Person-Show-Sections funktionieren; Index/List funktioniert; → Restpunkt R-11 für Phase 6. |
 | Phase 6 – Navigation, Kardinalität, Fehler, Performance | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (127); `:target-grails:test` PASS (75) | R-11 behoben + Navigation + Error-Handling + N+1-Fetch-Join + Konfliktbehandlung + Accessibility-CSS + `docs/association-ux.md` |
 | Phase 7 – Spezialsemantik (EXTERNAL, Komposition, ORDERED, embedded FK) | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (alle); ili2c PASS; Real-ili2db PASS (8 Plans, EMBEDDED_FOREIGN_KEY klassifiziert) | EXTERNAL-Guard in CommandService; ORDERED-Modell+Analyse; EMBEDDED_FOREIGN_KEY-Klassifikation; Docs aktualisiert |
-| Phase 8 – Abschluss & Regression | NOT_STARTED |  |  |  |  |
+| Phase 8 – Abschluss & Regression | DONE | 2026-07-12 | 2026-07-12 | `./gradlew clean test --rerun-tasks` PASS; Grails-Runtime-Smoke PASS (3/3) nach Fix; Real-ili2db 9/9 PASS; Browser-E2E 3/3 PASS; ili2c 3× PASS | Variable-Shadowing-Bug in `InterlisAssociationQueryService.buildSection()` gefunden & behoben (Groovy-Compiler in realer Grails-App fand `editableRoleList`-Redeklaration, Unit-Tests mit `GeneratedGroovyCompiler` tolerierten dies). Keine weiteren Regressionen. |
 
 Zulässige Statuswerte: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
@@ -610,16 +610,45 @@ Noch zu erstellen (Referenz, spätere Phasen):
   - Browser-E2E für Spezialfälle → Phase 8 (Regression).
 - **Abnahme:** Phase 7 DONE-Kriterien: EXTERNAL-Guard ✔; ORDERED-Modell + ili2c-Validierung ✔; ORDERED-ili2pg-Analyse ✔; EMBEDDED_FOREIGN_KEY-Klassifikation ✔; Planner-Tests ✔; Real-ili2db-Test ✔; Dokumentation ✔; Plan aktualisiert ✔. Nicht mit Phase 8 fortgefahren ✔.
 
+### Phase 8
+- **Geänderte Dateien:** `InterlisAssociationQueryService.groovy` (1 Zeile: Variable-Shadowing-Fix in `buildSection()`).
+- **Gefundene & behobene Regressionen:**
+  - **Bug:** `editableRoleList` in `InterlisAssociationQueryService.buildSection()` (Zeile 192) wurde als neue Variable deklariert, obwohl dieselbe Variable bereits in Zeile 171 im selben Methodenscope existierte. Der Groovy-Compiler in der echten Grails-7.0.6-App (Runtime-Smoke) fand diese Redeklaration und verweigerte die Kompilierung. Die Unit-Tests (Java `GeneratedGroovyCompiler`) tolerierten diese Shadowing stillschweigend.
+  - **Fix:** Deklaration entfernt; `editableRoleList` aus Zeile 171 wird wiederverwendet. Logik vereinfacht: `if (context.createMode == "QUICK" && editableRoleList.size() == 1)`. Kein `LIST_LIKE_QUICK`-Fallback (nicht spezifiziert, Plan erwähnt nur `QUICK`). Bedingung in if-Ausdruck integriert.
+- **Verifikation gegen Spec (§34 DoD):**
+  - **Architektur (7 Punkte):** Alle erfüllt. Core-IR unverändert (`Ili2cModelReader`-n-ary-Fix in Phase 5 war minimal). Keine synthetischen Join-Tabellen. Keine pauschalen `hasMany`. Planner + Domain-Generator nutzen denselben Mapper (`GrailsCrudGenerator.generate()`). Registry deterministisch (TreeMap + stabile Sortierung). Unsichere Fälle read-only (`UNMAPPED`/`EMBEDDED_FOREIGN_KEY`).
+  - **Funktion (12 Punkte):** Alle erfüllt. Related-Sections auf Show-Seiten. Serverseitiges Paging (`boundedMax`/`safeOffset`). Einheitlicher Autocomplete (`optionPageForTargetType`). Quick-Link für binäre `LINK_ENTITY` ohne Attribute. Kontextuelle Formulare mit Association-Attributen. Selbstassoziationen mit distinkten Kontexten. n-äre Associations (`TernaryAssociation`). Sichere Redirects (keine `returnUrl`). Sichere Delete-Zugehörigkeitsprüfung (`verifyAssociationBelongsToParticipant`). Binäre Max-/Min-Kardinalität (`validateCreateCardinality`/`validateDeleteCardinality`). Navigation ohne technische Menüflut (`InterlisNavigationSupport`). Fallback-CRUD bleibt erreichbar (`showInNavigation`-Fallback bei fehlenden Kontexten).
+  - **Qualität (9 Punkte):** Alle erfüllt. Verständliche Fehler (strukturierte Result-Maps). Keine Mass-Assignment-Lücke (fixedRole nach `bindData` erneut gesetzt). Keine Open Redirects. Keine Mutation über GET (POST/DELETE). Keine unbeschränkten Listen. N+1 vermieden (FetchMode.JOIN). Responsive (CSS-Media-Queries für mobile/print). Barrierearm (`prefers-reduced-motion`, `prefers-contrast`, ARIA). Keine externen CDNs.
+  - **Tests (15 Punkte):** Alle erfüllt. Planner-Unit-Tests (18). Registry-Tests (11). Snapshot-Tests (3). Groovy-Compile (1). Grails-Runtime-Smoke (3). Service-Integration (Runtime-Smoke). Real-ili2db-Smoke (9, davon 4 H2 + 5 PostGIS). Browser-E2E (3). Manipulationsschutz (wrong-owner-404 im E2E). Kardinalität (binäre max/min). Selbstassoziation (SameTargetAssociation). Association-Attribute (`AssociationWithAttribute`/`RoleNote`). n-är (`TernaryAssociation`). ili2c (3 Modelle). ilivalidator (0 XTF-Dateien — nicht anwendbar).
+  - **Dokumentation (6 Punkte):** Alle erfüllt. README (detaillierte Association-UX-Abschnitte). `docs/association-ux.md` (Architektur, Registry, Sicherheit, Extension Points). `docs/association-ux-implementation-plan.md` (dieses Dokument, alle Phasen). Ausgeführte Tests dokumentiert. Offene Spezialfälle dokumentiert (Future-Liste). Keine irreführenden Behauptungen.
+- **Code-Qualität:** Keine duplizierte Implementation (`optionPageForTargetType` 1× definiert, 2× via Delegation aufgerufen). Keine toten experimentellen Klassen. Keine deaktivierten Tests (`@Disabled`/`@Ignore` nicht vorhanden). Keine Dangling-Files. CLI-Help zeigt alle `--grails-association-*` Optionen. `GrailsTemplateOverlayInstaller.MANAGED_FILES` enthält alle 25 Dateien.
+- **Ausgeführte Tests (JDK 21, ADR-001):**
+  - `JAVA_HOME=.../21.0.10-tem ./gradlew clean test --rerun-tasks` → **PASS** (26 Aufgaben, alle Module)
+  - `PATH=grails-7.0.6 JAVA_HOME=21.0.10 ./gradlew :target-grails:grailsRuntimeSmokeTest -PgrailsSmokeVersion=7.0.6` → **PASS (3/3)**
+  - `JAVA_HOME=.../21.0.10-tem ./gradlew :target-grails:realIli2dbSmokeTest --rerun-tasks -Pili2pgHome=/Users/stefan/apps/ili2pg-5.5.1` → **PASS (9/9, 0 skipped)**
+  - `PATH=grails-7.0.6 JAVA_HOME=21.0.10 ./gradlew :target-grails:browserE2eTest --rerun-tasks -PgrailsSmokeVersion=7.0.6 -Pili2pgHome=/Users/stefan/apps/ili2pg-5.5.1 -PbrowserE2eJdbcUrl='...'` → **PASS (3/3)**
+  - `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/AssociationCases.ili` → **PASS**
+  - `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/QuickLinkE2E.ili` → **PASS**
+  - `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/ContextualAssociationE2E.ili` → **PASS**
+- **Offene Punkte (Future, nicht im Scope):**
+  - `EMBEDDED_FOREIGN_KEY` Write-Pfad (direkter Property-Editor) → Future (ADR-011)
+  - `ORDERED`-Reihenfolge-UI/Schreiben → Future (keine physische Spalte in ili2pg)
+  - AssociationCases-Live-Browser-E2E benötigt Basket-Unterstützung → ausserhalb Scope
+  - Merge-Report-Erweiterung um `storageKind`/`presentationKind` → Future (ADR-012)
+  - Gradle-Toolchain-Pinning → Future (ADR-001-Empfehlung)
+  - `associationUiMode`-Gating in Planner (nicht Registry) → Future (minor)
+- **Abnahme:** Phase 8 DONE-Kriterien: Alle Phasen verifiziert ✔; Regression erkannt & behoben ✔; Keine toten/duplizierten Implementationen ✔; DoD-Checkliste vollständig abgehakt ✔; README + CLI-Help aktuell ✔; ili2c alle Modelle ✔; Kein ilivalidator (0 XTF) ✔; Keine deaktivierten Tests ✔; Abschlussbericht präzise ✔; Alle Restpunkte als "Future" markiert ✔. **Projekt DONE.**
+
 ## Abschluss-Checkliste (Gesamtprojekt)
 
-- [ ] Alle Phasen DONE
-- [ ] `./gradlew test` (mit JDK 21 / ADR-001)
-- [ ] Grails Runtime Smoke
-- [ ] Real ili2db Smoke
-- [ ] Browser E2E
-- [ ] ili2c für alle geänderten Modelle
-- [ ] ilivalidator für alle geänderten XTF
-- [ ] README
-- [ ] docs/association-ux.md
-- [ ] Keine deaktivierten Tests
-- [ ] Keine ungeklärten High-Risk-Punkte
+- [x] Alle Phasen DONE
+- [x] `./gradlew test` (mit JDK 21 / ADR-001)
+- [x] Grails Runtime Smoke
+- [x] Real ili2db Smoke
+- [x] Browser E2E
+- [x] ili2c für alle geänderten Modelle
+- [x] ilivalidator für alle geänderten XTF (n/a, 0 XTF-Dateien)
+- [x] README
+- [x] docs/association-ux.md
+- [x] Keine deaktivierten Tests
+- [x] Keine ungeklärten High-Risk-Punkte
