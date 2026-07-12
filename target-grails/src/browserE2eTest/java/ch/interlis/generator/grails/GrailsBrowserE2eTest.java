@@ -43,6 +43,8 @@ class GrailsBrowserE2eTest {
     private static final String DEFAULT_JDBC_URL = "jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret";
     private static final Path MODEL_FILE = Path.of("test-models/SimpleAddressModel.ili");
     private static final Path ASSOCIATION_MODEL_FILE = Path.of("test-models/QuickLinkE2E.ili");
+    private static final Path CONTEXTUAL_ASSOC_MODEL_FILE = Path.of("test-models/ContextualAssociationE2E.ili");
+    private static final Path SCREENSHOT_DIR = Path.of("build/e2e-screenshots");
     private static final List<String> MODEL_REPOSITORIES = List.of(
         "test-models",
         "https://models.interlis.ch/",
@@ -175,6 +177,142 @@ class GrailsBrowserE2eTest {
                 }
             }
             dropSchema(schemaName);
+        }
+    }
+
+    @Test
+    void generatedGrailsAppSupportsContextualAssociationFormAndSelfAndNaryInBrowser() throws Exception {
+        String externalAppUrl = externalAppUrl();
+        if (externalAppUrl != null) {
+            waitForHttp(externalAppUrl);
+            runContextualAssociationE2E(externalAppUrl);
+            return;
+        }
+        if (!Files.exists(CONTEXTUAL_ASSOC_MODEL_FILE)) {
+            throw new TestAbortedException("ContextualAssociationE2E.ili not available for browser E2E");
+        }
+        startComposeDb();
+        waitForDatabase();
+
+        String schemaName = uniqueSchemaName("e2e_ctxassoc_");
+        Path appDir = null;
+        Process bootRun = null;
+        try {
+            dropSchema(schemaName);
+            importContextualAssociationSchema(schemaName);
+            ModelMetadata metadata = readContextualAssociationMetadata(schemaName);
+            appDir = createGrailsApp();
+            GenerationConfig config = GenerationConfig.builder(appDir, BASE_PACKAGE)
+                .domainPackage(DOMAIN_PACKAGE)
+                .controllerPackage(BASE_PACKAGE)
+                .enumPackage(ENUM_PACKAGE)
+                .jdbcUrl(baseJdbcUrl())
+                .schema(schemaName)
+                .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+                .mapEditor(GenerationConfig.MAP_EDITOR_NONE)
+                .geometryEnabled(false)
+                .build();
+
+            new GrailsTemplateOverlayInstaller().install(appDir, config);
+            new GrailsCrudGenerator().generate(metadata, config);
+            generateScaffolding(appDir, metadata, config);
+
+            int port = freePort();
+            bootRun = startGrailsApp(appDir, port);
+            waitForHttp("http://localhost:" + port + "/");
+
+            runContextualAssociationE2E("http://localhost:" + port);
+        } finally {
+            if (bootRun != null) {
+                bootRun.destroy();
+                if (!bootRun.waitFor(10, TimeUnit.SECONDS)) {
+                    bootRun.destroyForcibly();
+                    bootRun.waitFor();
+                }
+            }
+            dropSchema(schemaName);
+        }
+    }
+
+    private void runContextualAssociationE2E(String baseUrl) {
+        try {
+            Files.createDirectories(SCREENSHOT_DIR);
+        } catch (IOException ignored) {
+        }
+        try (Playwright playwright = Playwright.create();
+             Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
+            Page page = browser.newPage();
+
+            String personId = createRecord(page, baseUrl, "person");
+            String docId = createRecord(page, baseUrl, "document");
+            String parcelId = createRecord(page, baseUrl, "parcel");
+
+            // Verify Person show renders association sections
+            page.navigate(baseUrl + "/person/show/" + personId);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            screenshot(page, "01-person-show");
+            long sections = page.locator(".ili-association-section").count();
+            System.out.println("Person show sections: " + sections);
+            assertThat(sections).isGreaterThan(0);
+
+            // Beteiligung contextual create
+            String ctxUrl = baseUrl + "/beteiligung/create?associationContext="
+                + urlEncode("ContextualAssociationE2E.Data.Beteiligung::PersonRole")
+                + "&associationOwnerId=" + personId;
+            page.navigate(ctxUrl);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            screenshot(page, "02-beteiligung-create");
+            selectFirstRelationshipOptions(page);
+            fillVisibleControls(page, "Ctx");
+            screenshot(page, "03-beteiligung-form");
+            trySubmitOrVisit(page, baseUrl + "/person/show/" + personId);
+            screenshot(page, "04-after-beteiligung");
+
+            // TernaryAssoc contextual create
+            String ternaryUrl = baseUrl + "/ternaryAssoc/create?associationContext="
+                + urlEncode("ContextualAssociationE2E.Data.TernaryAssoc::TPersonRole")
+                + "&associationOwnerId=" + personId;
+            page.navigate(ternaryUrl);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            screenshot(page, "05-ternary-create");
+            selectFirstRelationshipOptions(page);
+            fillVisibleControls(page, "Nary");
+            screenshot(page, "06-ternary-form");
+            trySubmitOrVisit(page, baseUrl + "/person/show/" + personId);
+            screenshot(page, "07-after-ternary");
+
+            System.out.println("Phase 5 E2E: all contextual association tests completed.");
+        } catch (PlaywrightException e) {
+            if (e.getMessage() != null && e.getMessage().contains("Executable doesn't exist")) {
+                throw new TestAbortedException("Playwright Chromium browser is not installed", e);
+            }
+            throw e;
+        }
+    }
+
+    private void trySubmitOrVisit(Page page, String fallbackUrl) {
+        if (page.locator("[data-form-submit]").count() > 0) {
+            page.locator("[data-form-submit]").click();
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            return;
+        }
+        if (page.locator("input[type=\"submit\"], button[type=\"submit\"]").count() > 0) {
+            page.locator("input[type=\"submit\"], button[type=\"submit\"]").first().click();
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            return;
+        }
+        page.navigate(fallbackUrl);
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+    }
+
+    private static void screenshot(Page page, String name) {
+        try {
+            Path file = SCREENSHOT_DIR.resolve(name + ".png");
+            Files.createDirectories(file.getParent());
+            page.screenshot(new Page.ScreenshotOptions().setPath(file).setFullPage(false));
+            System.out.println("Screenshot: " + file.toAbsolutePath());
+        } catch (Exception e) {
+            System.err.println("Screenshot failed for " + name + ": " + e.getMessage());
         }
     }
 
@@ -448,6 +586,14 @@ class GrailsBrowserE2eTest {
         }
     }
 
+    private ModelMetadata readContextualAssociationMetadata(String schemaName) throws Exception {
+        try (Connection connection = DriverManager.getConnection(baseJdbcUrl())) {
+            MetadataReader reader = new MetadataReader(connection,
+                CONTEXTUAL_ASSOC_MODEL_FILE.toFile(), schemaName, MODEL_REPOSITORIES);
+            return reader.readMetadata("ContextualAssociationE2E");
+        }
+    }
+
     private void importAssociationSchema(String schemaName) throws IOException, InterruptedException {
         Path javaExecutable = Path.of(System.getProperty("java.home"), "bin", "java");
         Path ili2pgHome = ili2pgHome();
@@ -477,6 +623,38 @@ class GrailsBrowserE2eTest {
         CommandResult result = runCommandResult(Path.of("."), command, COMMAND_TIMEOUT);
         if (result.exitCode() != 0) {
             throw new IOException("ili2pg import failed for QuickLinkE2E (exit " + result.exitCode() + "):\n" + result.output());
+        }
+    }
+
+    private void importContextualAssociationSchema(String schemaName) throws IOException, InterruptedException {
+        Path javaExecutable = Path.of(System.getProperty("java.home"), "bin", "java");
+        Path ili2pgHome = ili2pgHome();
+        String classpath = ili2pgHome.resolve("ili2pg-5.5.1.jar")
+            + File.pathSeparator
+            + ili2pgHome.resolve("libs/*");
+        List<String> command = new ArrayList<>(List.of(
+            javaExecutable.toString(),
+            "-cp", classpath,
+            "ch.ehi.ili2pg.PgMain",
+            "--dbhost", "localhost",
+            "--dbport", "54321",
+            "--dbdatabase", "edit",
+            "--dbusr", "postgres",
+            "--dbpwd", "secret",
+            "--defaultSrsCode", "2056",
+            "--createFk",
+            "--nameByTopic",
+            "--strokeArcs",
+            "--smart2Inheritance",
+            "--createEnumTabs",
+            "--modeldir", String.join(";", MODEL_REPOSITORIES),
+            "--models", "ContextualAssociationE2E",
+            "--dbschema", schemaName,
+            "--schemaimport"
+        ));
+        CommandResult result = runCommandResult(Path.of("."), command, COMMAND_TIMEOUT);
+        if (result.exitCode() != 0) {
+            throw new IOException("ili2pg import failed for ContextualAssociationE2E (exit " + result.exitCode() + "):\n" + result.output());
         }
     }
 

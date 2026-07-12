@@ -8,9 +8,9 @@ final class InterlisAssociationContextSupport {
     }
 
     static Map<String, Object> prepareCreateContext(def grailsApplication,
-                                                     Class participantType,
-                                                     Map params) {
-        if (participantType == null || params == null) {
+                                                      Class domainType,
+                                                      Map params) {
+        if (domainType == null || params == null) {
             return [:]
         }
         String contextId = params.associationContext?.toString()
@@ -19,8 +19,28 @@ final class InterlisAssociationContextSupport {
             return [:]
         }
 
-        Map<String, Object> context = InterlisAssociationRegistrySupport.requireContext(participantType, contextId)
+        Map<String, Object> context = InterlisAssociationRegistry.CONTEXTS[contextId]
+        if (context == null) {
+            throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
+                    "Unknown association context: ${contextId}")
+        }
         Map<String, Object> association = InterlisAssociationRegistry.association(context.associationName)
+
+        if (InterlisAssociationRegistrySupport.isAssociationDomain(domainType)) {
+            verifyContextMatchesAssociation(domainType, context, association)
+        }
+
+        String participantDomainClass = context.participantDomainClass
+        Class participantType = InterlisAssociationRegistrySupport.resolveDomainClass(grailsApplication,
+                participantDomainClass)
+        if (participantType == null) {
+            throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
+                    "Could not resolve participant domain: ${participantDomainClass}")
+        }
+
+        if (!InterlisAssociationRegistrySupport.isAssociationDomain(domainType)) {
+            InterlisAssociationRegistrySupport.requireContext(domainType, contextId)
+        }
 
         Object owner = loadOwner(participantType, ownerIdStr)
         if (owner == null) {
