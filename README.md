@@ -149,6 +149,26 @@ Manuell (Grails CLI):
 grails create-app my-grails-app
 ```
 
+Für die wiederholbare Erzeugung einer Test-App mit dem Generator kann das
+Hilfsscript verwendet werden. Der erste Parameter ist der gewünschte App-Name;
+standardmässig wird das Bootstrap-Theme mit OpenLayers verwendet:
+
+```bash
+./scripts/create-grails-app.sh styling-lab
+```
+
+Das Script baut zuerst `:cli:installDist` und erzeugt danach die App unter
+`generated-grails/styling-lab`. Modell, Datenbank, Package und Theme können über
+die im Script dokumentierten Umgebungsvariablen überschrieben werden, zum Beispiel:
+
+```bash
+MODEL_FILE=test-models/AssociationCases.ili \
+MODEL_NAME=AssociationCases \
+DB_SCHEMA=association_cases \
+BASE_PACKAGE=ch.example.association \
+./scripts/create-grails-app.sh association-lab
+```
+
 Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch keine Grails-Struktur vorhanden ist (bei `appName` wird ein Unterordner erzeugt):
 ```bash
 ./gradlew :cli:run --args="generate \
