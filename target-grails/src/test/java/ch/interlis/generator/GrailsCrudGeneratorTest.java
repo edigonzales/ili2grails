@@ -31,9 +31,12 @@ class GrailsCrudGeneratorTest {
 
         Path domainFile = outputDir.resolve("grails-app/domain/com/example/domain/Person.groovy");
         Path enumFile = outputDir.resolve("src/main/groovy/com/example/enums/Status.groovy");
+        Path uiRegistryFile = outputDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy");
 
         assertThat(domainFile).exists();
         assertThat(enumFile).exists();
+        assertThat(uiRegistryFile).exists();
 
         String domainContent = Files.readString(domainFile);
         assertThat(domainContent).contains("package com.example.domain");
@@ -49,6 +52,7 @@ class GrailsCrudGeneratorTest {
         assertThat(enumContent).contains("package com.example.enums");
         assertThat(enumContent).contains("enum Status");
         assertThat(enumContent).contains("active, inactive");
+        assertThat(Files.readString(uiRegistryFile)).contains("iliName: 'SampleModel.Person'");
     }
 
     @Test

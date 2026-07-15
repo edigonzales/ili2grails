@@ -51,6 +51,13 @@ class GeneratedGrailsCompileSmokeTest {
         assertThat(registry).contains("package ch.interlis.generator.grails.generated");
         assertThat(registry).contains("final class InterlisAssociationRegistry");
 
+        Path uiRegistryFile = tempDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy");
+        assertThat(uiRegistryFile).exists();
+        String uiRegistry = Files.readString(uiRegistryFile);
+        assertThat(uiRegistry).contains("final class InterlisUiRegistry");
+        assertThat(uiRegistry).contains("TestModel.TopicA.Gebaeude");
+
         GeneratedGroovyCompiler.compileGeneratedSources(tempDir);
     }
 

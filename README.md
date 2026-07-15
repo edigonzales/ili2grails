@@ -13,6 +13,8 @@ Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und e
 - [Programmatische Nutzung](#programmatische-nutzung)
 - [Ausgabe verstehen](#ausgabe-verstehen)
 - [Architektur & Design-Entscheidungen](#architektur--design-entscheidungen)
+- [Bootstrap UI-Metadaten (Phase 0)](#bootstrap-ui-metadaten-phase-0)
+- [Bootstrap Application Shell (Phase 1)](#bootstrap-application-shell-phase-1)
 - [Projektstruktur](#projektstruktur)
 - [Tests](#tests)
 - [Dependencies](#dependencies)
@@ -531,6 +533,113 @@ schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
 - Enum-Konstanten werden ebenfalls als gültige, eindeutige Groovy-Identifier ausgegeben.
 - `--grails-generate-all` nutzt dieselbe Registry wie die Domain-Dateien und ruft dadurch die kollisionsfreien Grails-Klassennamen auf.
 
+### Bootstrap UI-Metadaten (Phase 0)
+Phase 0 ergänzt ausschliesslich das Grails-Target. Das Modul `core` bleibt frei von
+Grails-/GORM-/UI-Typen; `ModelMetadata`, `ClassMetadata` und die bestehende
+Relationship-IR bleiben der framework-agnostische Vertrag.
+
+Der Generator schreibt zusätzlich zur unveränderten
+`InterlisAssociationRegistry` die deterministische
+`ch.interlis.generator.grails.generated.InterlisUiRegistry`. Ihre `DOMAINS`-Einträge
+enthalten `domainClassName`, `controller`, `iliName`, `modelName`, den aus
+`ClassMetadata.topicName` abgeleiteten `topicName` ohne führenden Modellnamen,
+`className`, ein deterministisches `label`, `navigationVisible` und
+`associationDomain`. Die Einträge sind nach vollständigem INTERLIS-Namen sortiert.
+`domain(iliName)` und die Konfigurationsreferenzen verwenden den exakten
+INTERLIS-Namen; `domainForClassName` verbindet die Registry mit einer Grails-Domain.
+Klassennamen und Controllerpfade kommen ausschliesslich aus `TargetNameRegistry`.
+Association-Sichtbarkeit und `associationDomain` werden ausschliesslich vom
+`GrailsAssociationPlanner` bezogen; die bestehende Association-/Relationship-Runtime
+wird dadurch nicht dupliziert oder umgebaut.
+
+`InterlisUiDescriptorSupport` wird als managed Bootstrap-Overlay-Datei installiert.
+`descriptor(grailsApplication, domainType)` liefert eine zentrale Map mit Registry-
+Metadaten, Label/App-Titel, Listen-Spalten, Suchfeldern, Filterdefinitionen,
+prominenten Filtern, Form-/Detail-Sektionen sowie den vorhandenen Relationship- und
+Geometry-Metadaten. Ohne Konfiguration sind `id`, ein bevorzugtes Display-Feld und
+bis zu vier kompakte skalare Felder vorgesehen; Geometrien, Collections, `version`
+und erkennbar lange Textfelder werden aus den Listen-Defaults ausgeschlossen.
+
+Die optionale Konfiguration bleibt unter `ili2grails.ui` und referenziert Domains
+ausschliesslich über `iliName`:
+
+```yaml
+ili2grails:
+  ui:
+    appTitle: "Fachdatenverwaltung"
+    domains:
+      - iliName: "SimpleAddressModel.Addresses.Address"
+        label: "Adresse"
+        list:
+          columns: [id, name, year]
+          searchFields: [name]
+          prominentFilters: [year]
+        form:
+          sections:
+            - title: "Allgemein"
+              fields: [name, year]
+```
+
+Unbekannte Domains und Felder werden mit `IllegalArgumentException` und
+`iliName`, Feldname sowie betroffener Konfigurationssektion diagnostiziert.
+
+#### Phase-0-Altlasteninventur und Phase-1-Migration
+Phase 0 hat die historischen `--dp-*`-Namen und die ursprünglichen Inline-SVGs
+inventarisiert. Phase 1 hat diese Altlasten aus dem gemanagten Bootstrap-Overlay
+entfernt; `ili-modern.css` verwendet jetzt Bootstrap-Variablen und native Werte.
+Die frühere Tokenliste bleibt hier als historische Referenz dokumentiert:
+
+```text
+--dp-color-accent, --dp-color-accent-hover, --dp-color-bg,
+--dp-color-border, --dp-color-border-strong, --dp-color-danger-bg,
+--dp-color-danger-text, --dp-color-ink, --dp-color-line, --dp-color-surface,
+--dp-color-surface-alt, --dp-color-surface-subtle, --dp-color-text,
+--dp-color-text-muted, --dp-control-radius, --dp-focus-ring, --dp-radius-md,
+--dp-radius-sm, --dp-space-1, --dp-space-2, --dp-space-3, --dp-space-4,
+--dp-space-6, --dp-space-8
+```
+
+Im aktuellen managed Bootstrap-UI-Code dürfen diese Namen nicht mehr vorkommen;
+es gibt keine Alias-Kompatibilitätsschicht. Rot wird nur für Bootstrap-Danger- und
+Fehlersemantik verwendet.
+
+Generische UI-Icons werden in Phase 1 zentral über die Whitelist-basierte
+`ili:icon`-TagLib als lokal eingebettete Bootstrap-Icons-SVGs gerendert. Es gibt
+weder Icon-Webfont noch CDN; auch die berührten CRUD-Action- und Shell-Icons
+duplizieren keine direkten Standard-Action-SVGs in Templates.
+
+Die Shell hat keine Login-, User-, Principal- oder Security-Plugin-Kopplung. Die
+vorhandene Security-Logik beschränkt sich auf CSP-/HTTP-Security-Header in
+`InterlisCrudControllerSupport`; Datenbank-Credentials in der Grails-Konfiguration
+sind keine Authentifizierung. Authentisierung, Rollen, Autorisierung und Auditierung
+bleiben separate Produktionsaufgaben.
+
+### Bootstrap Application Shell (Phase 1)
+Der Bootstrap-Modus verwendet ab Phase 1 eine server-rendered Application Shell:
+
+- `main.gsp` rendert Topbar, App-Titel, globalen Domain Finder, Breadcrumb-Kontext,
+  responsive Sidebar und den Layout-Body. Der obere rechte Bereich ist nur der leere,
+  auth-unabhängige Extension Point `data-ili-extension-point="user-slot"`; es gibt
+  keinen Principal, keinen Dummy-Benutzer und keine Login-Funktion.
+- `InterlisNavigationSupport.navigationModel(grailsApplication)` verwendet die
+  generierte `InterlisUiRegistry` als Primärquelle und gruppiert sichtbare Domains
+  deterministisch nach Modell, Topic und Label. Technische Association-Domains bleiben
+  gemäss Registry-/Planner-Semantik verborgen; unbekannte Nicht-Domain-Controller
+  erscheinen nur crash-sicher in einer neutralen Fallback-Gruppe.
+- Der Explorer ist unter `/interlisUi/index` erreichbar. Die serverseitige Suche
+  läuft als normales GET unter `/interlisUi/domains?q=...` und durchsucht nur
+  Navigation-Metadaten nach Label, Klassenname, Topic, Modell und INTERLIS-Name.
+  Es gibt keine globalen Counts und keine Datensatzsuche.
+- `ili-navigation.js` ergänzt den Finder progressiv mit clientseitiger Filterung,
+  Pfeil-/Enter-/Escape-Steuerung sowie optionalen localStorage-Favoriten und Recents
+  (`ili2grails.ui.favorites`, `ili2grails.ui.recents`). Nicht verfügbare oder
+  fehlerhafte lokale Speicherung deaktiviert nur diese Komfortfunktionen; normale
+  Links und serverseitige GET-Fallbacks bleiben nutzbar.
+- Bootstrap 5.3, OpenLayers, proj4 und das neue lokale Navigationsskript bleiben in
+  der bestehenden Asset-Pipeline. CSP und Security-Header bleiben restriktiv und
+  auth-unabhängig; Phase 2-Funktionen wie vollständige Domain-Listenfilter,
+  Enum-/Range-Filter und ein Detail-Workspace sind nicht Teil dieser Phase.
+
 ### Typ-Inferenz (Beispiele)
 | Quelle | `coreType` | `targetHints.javaType` |
 | --- | --- | --- |
@@ -549,7 +658,7 @@ schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
 - Mit `--grails-map-editor openlayers` erhalten Scaffold-`create/edit/show` bei Geometrie-Attributen eine Webkarte.
 - Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt. Die Runtime prüft erwarteten Geometrietyp, Empty-Geometrien, JTS-Validität und konvertiert Single-Geometrien bei erwarteten Multi-Typen in Multi-Geometrien.
 - Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen und Snapping auf vorhandene Editor-Vertices. Fachliche Topologie-Regeln bleiben ein projektspezifischer Extension Point.
-- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis, wird aber mit ruhigen Datenportal-Tokens (`ili-modern.css`) gestaltet: kleine Radien, dünne Linien, rote Akzente und keine Card-Shadows. Bootstrap, OpenLayers und proj4 werden über lokale WebJars/Asset-Pipeline eingebunden, nicht über CDN.
+- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis und bleibt no-frills: kleine Radien, dünne Linien, Bootstrap-Standardfarben und keine Card-Shadows. Rot erscheint nur semantisch für Danger-/Fehlerzustände. Bootstrap, OpenLayers, proj4 und die Navigation werden über die lokale WebJar-/Asset-Pipeline eingebunden, nicht über CDN.
 - `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
   links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
 - Dokumentation und Units aus der Core-IR werden als zurückhaltende Feldhinweise im Formular angezeigt. Übersetzte Labels bleiben weiterhin über Grails-Message-Codes überschreibbar.

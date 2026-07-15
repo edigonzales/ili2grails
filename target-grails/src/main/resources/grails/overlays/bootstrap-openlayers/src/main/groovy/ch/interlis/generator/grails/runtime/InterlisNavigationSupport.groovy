@@ -1,40 +1,95 @@
 package ch.interlis.generator.grails.runtime
 
 import ch.interlis.generator.grails.generated.InterlisAssociationRegistry
+import ch.interlis.generator.grails.generated.InterlisUiRegistry
+
+import java.util.Locale
 
 final class InterlisNavigationSupport {
 
-    private static final List<String> EXCLUDE_LOGICAL_NAMES = ["urlMappings", "assets"]
+    private static final List<String> EXCLUDE_LOGICAL_NAMES = ["urlMappings", "assets", "interlisUi"]
 
     private InterlisNavigationSupport() {
     }
 
     static List<Map<String, Object>> menuEntries(def grailsApplication) {
-        List<Map<String, Object>> entries = []
-        def controllerClasses = grailsApplication?.controllerClasses
-        if (controllerClasses == null) {
-            return entries
+        return navigationModel(grailsApplication).allEntries as List<Map<String, Object>>
+    }
+
+    static Map<String, Object> navigationModel(def grailsApplication) {
+        Map<String, Object> controllers = controllerIndex(grailsApplication)
+        Set<String> representedControllers = new LinkedHashSet<>()
+        List<Map<String, Object>> domains = []
+
+        InterlisUiRegistry.domains().each { Map<String, Object> registryEntry ->
+            String controller = text(registryEntry.controller)
+            if (controller == null) {
+                return
+            }
+            // Mark hidden registry entries as represented as well, so that an
+            // association domain is not reintroduced by the fallback scan.
+            representedControllers.add(controller)
+            if (registryEntry.navigationVisible == false) {
+                return
+            }
+            def artefact = controllers[controller]
+            if (artefact == null || !shouldIncludeArtefact(artefact)) {
+                return
+            }
+            domains << domainEntry(registryEntry, artefact)
         }
-        controllerClasses.each { def artefact ->
-            if (!shouldIncludeArtefact(artefact)) {
+
+        List<Map<String, Object>> fallback = []
+        (grailsApplication?.controllerClasses ?: []).each { def artefact ->
+            String logicalName = artefact?.logicalPropertyName?.toString()
+            if (representedControllers.contains(logicalName) || !shouldIncludeArtefact(artefact)) {
                 return
             }
             Class domainType = domainTypeForController(artefact)
-            boolean visible = domainType != null
-                ? InterlisAssociationRegistrySupport.showInNavigation(domainType)
-                : showUnknownController(artefact)
-            if (!visible) {
+            if (domainType != null && !showController(artefact, domainType)) {
                 return
             }
-            String label = defaultLabel(artefact, domainType)
-            entries.add([
-                controller: artefact.logicalPropertyName?.toString(),
+            fallback << [
+                controller: logicalName,
                 namespace : artefact.namespace?.toString(),
-                label     : label
-            ])
+                label     : defaultLabel(artefact, domainType),
+                className : artefact.shortName?.toString()?.replaceFirst(/Controller$/, ''),
+                modelName : null,
+                topicName : null,
+                topicLabel: null,
+                iliName   : null,
+                domainClassName: domainType?.name,
+                associationDomain: false,
+                navigationVisible: true,
+                fallback  : true
+            ]
         }
-        entries.sort { it.label?.toLowerCase() }
-        return entries
+
+        domains = sortEntries(domains)
+        fallback = sortEntries(fallback)
+        List<Map<String, Object>> models = groupByModel(domains)
+        List<Map<String, Object>> allEntries = new ArrayList<>(domains)
+        allEntries.addAll(fallback)
+
+        return [
+            models      : models,
+            domains     : domains,
+            fallback    : fallback,
+            allEntries  : allEntries,
+            singleModel : models.size() == 1
+        ]
+    }
+
+    static List<Map<String, Object>> searchDomains(Map<String, Object> model, Object rawQuery) {
+        String query = text(rawQuery)?.toLowerCase(Locale.ROOT)
+        List<Map<String, Object>> domains = (model?.domains ?: []) as List<Map<String, Object>>
+        if (query == null) {
+            return domains
+        }
+        return domains.findAll { Map<String, Object> domain ->
+            [domain.label, domain.className, domain.topicName, domain.modelName, domain.iliName]
+                .find { value -> text(value)?.toLowerCase(Locale.ROOT)?.contains(query) } != null
+        }
     }
 
     static Class domainTypeForController(def controllerArtefact) {
@@ -88,6 +143,106 @@ final class InterlisNavigationSupport {
         } catch (Exception ignored) {
         }
         return shortName
+    }
+
+    private static Map<String, Object> domainEntry(Map<String, Object> registryEntry, def artefact) {
+        String topicName = text(registryEntry.topicName)
+        String modelName = text(registryEntry.modelName) ?: "Unbekanntes Modell"
+        String label = text(registryEntry.label) ?: defaultLabel(artefact, null)
+        return [
+            controller       : text(registryEntry.controller),
+            namespace        : artefact.namespace?.toString(),
+            label            : label,
+            className        : text(registryEntry.className) ?: label,
+            modelName        : modelName,
+            topicName        : topicName,
+            topicLabel       : topicLabel(topicName),
+            iliName          : text(registryEntry.iliName),
+            domainClassName  : text(registryEntry.domainClassName),
+            associationDomain: registryEntry.associationDomain == true,
+            navigationVisible: registryEntry.navigationVisible != false,
+            fallback         : false
+        ]
+    }
+
+    private static Map<String, Object> controllerIndex(def grailsApplication) {
+        Map<String, Object> result = [:]
+        (grailsApplication?.controllerClasses ?: []).each { def artefact ->
+            String logicalName = artefact?.logicalPropertyName?.toString()
+            if (logicalName != null && !logicalName.isBlank()) {
+                result[logicalName] = artefact
+            }
+        }
+        return result
+    }
+
+    private static List<Map<String, Object>> sortEntries(List<Map<String, Object>> entries) {
+        return entries.sort { left, right ->
+            compareValues(
+                [left.modelName, left.topicName, left.label, left.iliName],
+                [right.modelName, right.topicName, right.label, right.iliName]
+            )
+        }
+    }
+
+    private static List<Map<String, Object>> groupByModel(List<Map<String, Object>> domains) {
+        Map<String, Map<String, Object>> models = [:]
+        domains.each { Map<String, Object> domain ->
+            String modelName = text(domain.modelName) ?: "Unbekanntes Modell"
+            Map<String, Object> model = models[modelName]
+            if (model == null) {
+                model = [name: modelName, topics: []]
+                models[modelName] = model
+            }
+            String topicName = text(domain.topicName) ?: ""
+            Map<String, Object> topic = (model.topics as List<Map<String, Object>>)
+                .find { it.name == topicName }
+            if (topic == null) {
+                topic = [name: topicName, label: topicLabel(topicName), domains: []]
+                (model.topics as List<Map<String, Object>>) << topic
+            }
+            (topic.domains as List<Map<String, Object>>) << domain
+        }
+        return models.values().sort { left, right ->
+            compareText(left.name, right.name)
+        }.collect { Map<String, Object> model ->
+            model.topics = (model.topics as List<Map<String, Object>>).sort { left, right ->
+                compareText(left.name, right.name)
+            }
+            model.topics.each { Map<String, Object> topic ->
+                topic.domains = sortEntries(topic.domains as List<Map<String, Object>>)
+            }
+            model
+        }
+    }
+
+    private static String topicLabel(String topicName) {
+        if (topicName == null || topicName.isBlank()) {
+            return "Ohne Topic"
+        }
+        int lastDot = topicName.lastIndexOf('.')
+        return lastDot >= 0 ? topicName.substring(lastDot + 1) : topicName
+    }
+
+    private static int compareValues(List<Object> left, List<Object> right) {
+        for (int index = 0; index < left.size(); index++) {
+            int comparison = compareText(left[index], right[index])
+            if (comparison != 0) {
+                return comparison
+            }
+        }
+        return 0
+    }
+
+    private static int compareText(Object left, Object right) {
+        String leftText = text(left)?.toLowerCase(Locale.ROOT) ?: ""
+        String rightText = text(right)?.toLowerCase(Locale.ROOT) ?: ""
+        return leftText <=> rightText
+    }
+
+    private static String text(Object value) {
+        String text = value?.toString()?.trim()
+        return text == null || text.isBlank() ? null : text
     }
 
     private static boolean shouldIncludeArtefact(def artefact) {

@@ -52,10 +52,18 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy")).exists();
+        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy")).exists();
         assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy")).exists();
         assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy")).exists();
+        assertThat(projectDir.resolve("grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy")).exists();
+        assertThat(projectDir.resolve("grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy")).exists();
+        assertThat(projectDir.resolve("grails-app/views/interlisUi/index.gsp")).exists();
+        assertThat(projectDir.resolve("grails-app/views/interlisUi/_explorer-results.gsp")).exists();
+        assertThat(projectDir.resolve("grails-app/views/interlisUi/_sidebar.gsp")).exists();
+        assertThat(projectDir.resolve("grails-app/views/interlisUi/_navigation-groups.gsp")).exists();
+        assertThat(projectDir.resolve("grails-app/views/interlisUi/_domain-link.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-sections.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-row-actions.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-quick-add.gsp")).exists();
@@ -63,6 +71,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("grails-app/views/layouts/main.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js")).exists();
+        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-wc-bundle.js")).doesNotExist();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js")).doesNotExist();
@@ -73,6 +82,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(updatedApplicationJs).contains("//= require webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js");
         assertThat(updatedApplicationJs).contains("//= require ili-geometry-editor.js");
         assertThat(updatedApplicationJs).contains("//= require ili-form-ux.js");
+        assertThat(updatedApplicationJs).contains("//= require ili-navigation.js");
         assertThat(updatedApplicationJs).doesNotContain("//= require ili-carbon-input-bridge.js");
         assertThat(updatedApplicationJs.indexOf("//= require ili-geometry-editor.js"))
             .isEqualTo(updatedApplicationJs.lastIndexOf("//= require ili-geometry-editor.js"));
@@ -146,10 +156,14 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(layoutTemplate).contains("<asset:stylesheet src=\"application.css\"/>");
         assertThat(layoutTemplate).contains("<asset:javascript src=\"application.js\"/>");
         assertThat(layoutTemplate).doesNotContain("https://cdn.jsdelivr.net");
-        assertThat(layoutTemplate).contains("navbar-toggler");
+        assertThat(layoutTemplate).contains("ili-sidebar-toggle");
         assertThat(layoutTemplate).doesNotContain("ili-carbon-wc-bundle.js");
         assertThat(layoutTemplate).doesNotContain("<bx-header");
-        assertThat(layoutTemplate).contains("InterlisNavigationSupport.menuEntries");
+        assertThat(layoutTemplate).contains("InterlisNavigationSupport.navigationModel");
+        assertThat(layoutTemplate).contains("data-ili-domain-finder-form");
+        assertThat(layoutTemplate).contains("data-ili-extension-point=\"user-slot\"");
+        assertThat(layoutTemplate).doesNotContain("principal");
+        assertThat(layoutTemplate).doesNotContain("navbar-toggler-icon");
 
         String controllerTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/Controller.groovy"));
         assertThat(controllerTemplate).contains("extends InterlisCrudControllerSupport");
@@ -185,6 +199,26 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("respondAssociationCommand(T instance, Map<String, Object> result)");
         assertThat(controllerSupport).contains("respondAssociationError(int status, String code, String message)");
 
+        String uiDescriptorSupport = Files.readString(projectDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy"));
+        assertThat(uiDescriptorSupport).contains("static Map<String, Object> descriptor");
+        assertThat(uiDescriptorSupport).contains("Unknown field");
+
+        String uiController = Files.readString(projectDir.resolve(
+            "grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy"));
+        assertThat(uiController).contains("static allowedMethods = [index: \"GET\", domains: \"GET\"]");
+        assertThat(uiController).contains("Content-Security-Policy");
+        assertThat(uiController).doesNotContain("unsafe-inline");
+        assertThat(uiController).doesNotContain("unsafe-eval");
+        assertThat(uiController).doesNotContain("UrlMappings");
+
+        String uiTagLib = Files.readString(projectDir.resolve(
+            "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy"));
+        assertThat(uiTagLib).contains("static namespace = \"ili\"");
+        assertThat(uiTagLib).contains("ICON_PATHS");
+        assertThat(uiTagLib).doesNotContain("icon-font");
+        assertThat(uiTagLib).doesNotContain("cdn");
+
         String relationshipOptions = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"));
         assertThat(relationshipOptions).contains("interlisDisplayMeta");
         assertThat(relationshipOptions).contains("nextOffset");
@@ -213,12 +247,47 @@ class GrailsTemplateOverlayInstallerTest {
         String stylesheet = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
         assertThat(stylesheet).contains(".ili-list-tools");
         assertThat(stylesheet).contains(".ili-pagination-bar");
-        assertThat(stylesheet).contains("--dp-color-accent");
+        assertThat(stylesheet).doesNotContain("--dp-");
+        assertThat(stylesheet).doesNotContain("--ili-");
+        assertThat(stylesheet).contains(".ili-domain-finder");
+        assertThat(stylesheet).contains(".ili-sidebar");
+        assertThat(stylesheet).doesNotContain("#D3121B");
+        assertThat(stylesheet).doesNotContain("#B80F17");
         assertThat(stylesheet).contains(".ili-field-help-panel");
         assertThat(stylesheet).contains(".ili-relationship-results");
         assertThat(stylesheet).contains(".ili-association-quick-form");
         assertThat(stylesheet).contains("prefers-reduced-motion");
         assertThat(stylesheet).contains("@media print");
+
+        String navigationJs = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-navigation.js"));
+        assertThat(navigationJs).contains("ili2grails.ui.favorites");
+        assertThat(navigationJs).contains("ili2grails.ui.recents");
+        assertThat(navigationJs).contains("ArrowDown");
+        assertThat(navigationJs).contains("localStorage");
+
+        String actionIndexTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/index.gsp"));
+        assertThat(actionIndexTemplate).contains("<ili:icon name=\"eye\"/>");
+        assertThat(actionIndexTemplate).contains("<ili:icon name=\"pencil\"/>");
+        assertThat(actionIndexTemplate).contains("<ili:icon name=\"trash\"/>");
+        assertThat(actionIndexTemplate).doesNotContain("<svg");
+
+        String actionShowTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/show.gsp"));
+        assertThat(actionShowTemplate).contains("<ili:icon name=\"x-lg\"/>");
+        assertThat(actionShowTemplate).doesNotContain("<svg");
+
+        try (var paths = Files.walk(projectDir.resolve("grails-app"))) {
+            paths.filter(Files::isRegularFile)
+                .filter(path -> path.toString().endsWith(".gsp") || path.toString().endsWith(".css"))
+                .forEach(path -> {
+                    try {
+                        String content = Files.readString(path);
+                        assertThat(content).as(path.toString()).doesNotContain("--dp-");
+                        assertThat(content).as(path.toString()).doesNotContain("--ili-");
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+        }
     }
 
     @Test

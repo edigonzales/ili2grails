@@ -89,6 +89,35 @@ class GrailsRuntimeSmokeTest {
             "src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy");
         assertThat(registryFile).exists();
 
+        Path uiRegistryFile = appDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy");
+        assertThat(uiRegistryFile).exists();
+
+        Path descriptorSupportFile = appDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy");
+        assertThat(descriptorSupportFile).exists();
+
+        Path navigationSupportFile = appDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy");
+        assertThat(navigationSupportFile).exists();
+
+        Path uiControllerFile = appDir.resolve(
+            "grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy");
+        assertThat(uiControllerFile).exists();
+
+        Path uiTagLibFile = appDir.resolve(
+            "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy");
+        assertThat(uiTagLibFile).exists();
+
+        Path explorerViewFile = appDir.resolve("grails-app/views/interlisUi/index.gsp");
+        assertThat(explorerViewFile).exists();
+
+        Path explorerResultsFile = appDir.resolve("grails-app/views/interlisUi/_explorer-results.gsp");
+        assertThat(explorerResultsFile).exists();
+
+        Path navigationJsFile = appDir.resolve("grails-app/assets/javascripts/ili-navigation.js");
+        assertThat(navigationJsFile).exists();
+
         Path supportFile = appDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy");
         assertThat(supportFile).exists();

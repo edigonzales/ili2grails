@@ -30,10 +30,18 @@ public class GrailsTemplateOverlayInstaller {
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy",
+        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy",
         "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy",
         "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy",
+        "grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy",
+        "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy",
+        "grails-app/views/interlisUi/index.gsp",
+        "grails-app/views/interlisUi/_explorer-results.gsp",
+        "grails-app/views/interlisUi/_sidebar.gsp",
+        "grails-app/views/interlisUi/_navigation-groups.gsp",
+        "grails-app/views/interlisUi/_domain-link.gsp",
         "src/main/templates/scaffolding/_association-sections.gsp",
         "src/main/templates/scaffolding/_association-row-actions.gsp",
         "src/main/templates/scaffolding/_association-quick-add.gsp",
@@ -41,6 +49,7 @@ public class GrailsTemplateOverlayInstaller {
         "grails-app/views/layouts/main.gsp",
         "grails-app/assets/javascripts/ili-geometry-editor.js",
         "grails-app/assets/javascripts/ili-form-ux.js",
+        "grails-app/assets/javascripts/ili-navigation.js",
         "grails-app/assets/stylesheets/ili-modern.css"
     );
     private static final List<String> APPLICATION_JS_REQUIRES = List.of(
@@ -48,7 +57,8 @@ public class GrailsTemplateOverlayInstaller {
         "//= require webjars/ol/9.2.4/dist/ol.js",
         "//= require webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js",
         "//= require ili-geometry-editor.js",
-        "//= require ili-form-ux.js"
+        "//= require ili-form-ux.js",
+        "//= require ili-navigation.js"
     );
     private static final List<String> APPLICATION_CSS_REQUIRES = List.of(
         "*= require webjars/bootstrap/5.3.3/css/bootstrap.min.css",

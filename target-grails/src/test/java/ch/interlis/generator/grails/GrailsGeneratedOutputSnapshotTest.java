@@ -35,7 +35,8 @@ class GrailsGeneratedOutputSnapshotTest {
         assertSnapshots("simple-address", outputDir, List.of(
             "grails-app/domain/ch/example/simple/domain/Address.groovy",
             "grails-app/domain/ch/example/simple/domain/Person.groovy",
-            "src/main/groovy/ch/example/simple/enums/AddressStatus.groovy"
+            "src/main/groovy/ch/example/simple/enums/AddressStatus.groovy",
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy"
         ));
     }
 
@@ -54,7 +55,8 @@ class GrailsGeneratedOutputSnapshotTest {
 
         assertSnapshots("structure-composition", outputDir, List.of(
             "grails-app/domain/ch/example/structure/domain/Asset.groovy",
-            "grails-app/domain/ch/example/structure/domain/Part.groovy"
+            "grails-app/domain/ch/example/structure/domain/Part.groovy",
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy"
         ));
     }
 
@@ -75,6 +77,7 @@ class GrailsGeneratedOutputSnapshotTest {
             "grails-app/domain/ch/example/association/domain/ExternalCompositeAssociation.groovy",
             "grails-app/domain/ch/example/association/domain/PhysicalMismatchAssociation.groovy",
             "grails-app/domain/ch/example/association/domain/SameTargetAssociation.groovy",
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy",
             "src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy"
         ));
     }

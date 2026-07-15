@@ -16,6 +16,8 @@ public class GrailsCrudGenerator {
     private final GrailsEnumGenerator enumGenerator = new GrailsEnumGenerator();
     private final GrailsAssociationRegistryGenerator associationRegistryGenerator =
         new GrailsAssociationRegistryGenerator();
+    private final GrailsUiRegistryGenerator uiRegistryGenerator =
+        new GrailsUiRegistryGenerator();
     private final GrailsBuildGradleUpdater buildGradleUpdater = new GrailsBuildGradleUpdater();
     private final GrailsApplicationYamlUpdater applicationYamlUpdater = new GrailsApplicationYamlUpdater();
 
@@ -30,6 +32,7 @@ public class GrailsCrudGenerator {
         enumGenerator.generate(metadata, config, registry);
         domainGenerator.generate(metadata, config, registry, relationshipMapper);
         associationRegistryGenerator.generate(metadata, config, registry, associationPlanner);
+        uiRegistryGenerator.generate(metadata, config, registry, relationshipMapper, associationPlanner);
         //controllerGenerator.generate(metadata, config, registry);
         //viewGenerator.generate(metadata, config, registry);
         buildGradleUpdater.ensureDependencies(

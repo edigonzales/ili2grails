@@ -111,7 +111,7 @@ class GrailsBrowserE2eTest {
 
             int port = freePort();
             bootRun = startGrailsApp(appDir, port);
-            waitForHttp("http://localhost:" + port + "/");
+            waitForHttp("http://localhost:" + port + "/interlisUi/index");
 
             runBrowserCrud("http://localhost:" + port);
         } finally {
@@ -165,7 +165,7 @@ class GrailsBrowserE2eTest {
 
             int port = freePort();
             bootRun = startGrailsApp(appDir, port);
-            waitForHttp("http://localhost:" + port + "/");
+            waitForHttp("http://localhost:" + port + "/interlisUi/index");
 
             runAssociationQuickLinkE2E("http://localhost:" + port);
         } finally {
@@ -219,7 +219,7 @@ class GrailsBrowserE2eTest {
 
             int port = freePort();
             bootRun = startGrailsApp(appDir, port);
-            waitForHttp("http://localhost:" + port + "/");
+            waitForHttp("http://localhost:" + port + "/interlisUi/index");
 
             runContextualAssociationE2E("http://localhost:" + port);
         } finally {
@@ -321,6 +321,7 @@ class GrailsBrowserE2eTest {
              Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
             Page page = browser.newPage();
 
+            verifyApplicationShell(page, browser, baseUrl);
             createAddress(page, baseUrl);
             String addressShowUrl = page.url();
             editCurrentRecordGeometry(page);
@@ -337,6 +338,60 @@ class GrailsBrowserE2eTest {
             }
             throw e;
         }
+    }
+
+    private void verifyApplicationShell(Page page, Browser browser, String baseUrl) {
+        page.navigate(baseUrl + "/interlisUi/index");
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        assertThat(page.locator("[data-ili-sidebar]").count()).isEqualTo(1);
+        assertThat(page.locator("[data-ili-domain-finder-input]").count()).isEqualTo(1);
+        assertThat(page.locator("[data-ili-extension-point=\"user-slot\"]").count()).isEqualTo(1);
+        assertThat(page.locator("[data-ili-extension-point=\"user-slot\"]").textContent()).isBlank();
+
+        page.locator("[data-ili-domain-finder-input]").fill("Person");
+        page.locator("[data-ili-domain-finder-input]").press("ArrowDown");
+        page.locator("[data-ili-domain-finder-input]").press("Enter");
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        assertThat(page.url()).contains("/person/index");
+
+        page.navigate(baseUrl + "/interlisUi/domains?q=Address");
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        assertThat(page.locator(".ili-explorer-search-results").count()).isEqualTo(1);
+        assertThat(page.locator(".ili-explorer-search-results").textContent()).contains("Address");
+
+        page.navigate(baseUrl + "/interlisUi/index");
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        page.locator("[data-ili-favorite-toggle]").first().click();
+        String favorites = (String) page.evaluate("() => window.localStorage.getItem('ili2grails.ui.favorites')");
+        assertThat(favorites).isNotBlank();
+        page.locator("[data-ili-domain-link]").first().click();
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        String recents = (String) page.evaluate("() => window.localStorage.getItem('ili2grails.ui.recents')");
+        assertThat(recents).isNotBlank();
+
+        page.setViewportSize(390, 844);
+        page.navigate(baseUrl + "/interlisUi/index");
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        page.locator("[data-ili-sidebar-toggle]").click();
+        page.waitForTimeout(500);
+        String sidebarClass = (String) page.locator("#iliSidebar").getAttribute("class");
+        assertThat(sidebarClass).as("mobile sidebar class").contains("show");
+        page.locator("[data-ili-sidebar-close]").click();
+        page.setViewportSize(1280, 900);
+
+        Page storageDisabledPage = browser.newPage();
+        List<String> pageErrors = new ArrayList<>();
+        storageDisabledPage.onPageError(pageErrors::add);
+        storageDisabledPage.addInitScript("""
+            () => Object.defineProperty(window, 'localStorage', {
+              configurable: true,
+              get() { throw new Error('localStorage disabled'); }
+            })
+            """);
+        storageDisabledPage.navigate(baseUrl + "/interlisUi/index");
+        storageDisabledPage.waitForLoadState(LoadState.NETWORKIDLE);
+        assertThat(pageErrors).isEmpty();
+        storageDisabledPage.close();
     }
 
     private void createAddress(Page page, String baseUrl) {
@@ -383,7 +438,7 @@ class GrailsBrowserE2eTest {
         page.waitForLoadState(LoadState.NETWORKIDLE);
         String indexUrl = (String) page.evaluate("""
             (menuLabel) => {
-              const link = Array.from(document.querySelectorAll('nav a.nav-link'))
+              const link = Array.from(document.querySelectorAll('[data-ili-domain-link]'))
                 .find(item => item.textContent.trim() === menuLabel);
               return link ? link.href : null;
             }
@@ -543,7 +598,10 @@ class GrailsBrowserE2eTest {
             "--args=--server.port=" + port
         );
         builder.directory(appDir.toFile());
+        Path logFile = appDir.resolve("build/browser-e2e.log");
+        Files.createDirectories(logFile.getParent());
         builder.redirectErrorStream(true);
+        builder.redirectOutput(logFile.toFile());
         builder.environment().put("DB_USERNAME", jdbcQueryValue("user", "username", "postgres"));
         builder.environment().put("DB_PASSWORD", jdbcQueryValue("password", null, "secret"));
         return builder.start();
