@@ -3102,7 +3102,6 @@ Mit lokalen Pfaden:
   -Pili2pgHome=/Users/stefan/apps/ili2pg-5.5.1
 
 ./gradlew :target-grails:browserE2eTest \
-  -PgrailsSmokeVersion=7.0.6 \
   -Pili2pgHome=/Users/stefan/apps/ili2pg-5.5.1 \
   -PbrowserE2eJdbcUrl='jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret'
 ```
@@ -3786,7 +3785,6 @@ Die Funktion als konsistente, dokumentierte und vollständig getestete Erweiteru
   -Pili2pgHome=/Users/stefan/apps/ili2pg-5.5.1
 
 ./gradlew :target-grails:browserE2eTest \
-  -PgrailsSmokeVersion=7.0.6 \
   -Pili2pgHome=/Users/stefan/apps/ili2pg-5.5.1 \
   -PbrowserE2eJdbcUrl='jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret'
 

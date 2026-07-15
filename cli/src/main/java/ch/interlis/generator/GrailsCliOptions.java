@@ -20,9 +20,6 @@ final class GrailsCliOptions {
     )
     private String initAppName;
 
-    @Option(names = "--grails-version", paramLabel = "<x.y>", description = "Grails version for --grails-init.")
-    private String version;
-
     @Option(
         names = "--grails-package",
         paramLabel = "<package>",
@@ -98,7 +95,6 @@ final class GrailsCliOptions {
     boolean isConfigured() {
         return outputDir != null
             || initAppName != null
-            || version != null
             || basePackage != null
             || domainPackage != null
             || controllerPackage != null
@@ -125,10 +121,6 @@ final class GrailsCliOptions {
             return null;
         }
         return initAppName;
-    }
-
-    String version() {
-        return version;
     }
 
     String basePackage() {

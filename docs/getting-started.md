@@ -209,7 +209,6 @@ rm -rf "$REPO_ROOT/build/getting-started/grails-simple"
   --model-file '$REPO_ROOT/docs/getting-started/models/GsSimpleModel.ili' \
   --grails-output '$REPO_ROOT/build/getting-started/grails-simple' \
   --grails-init simple-app \
-  --grails-version 7.0.6 \
   --grails-package ch.example.gssimple \
   --grails-ui-theme bootstrap \
   --grails-map-editor none \
@@ -358,7 +357,6 @@ rm -rf "$REPO_ROOT/build/getting-started/grails-advanced"
   --model-file '$REPO_ROOT/docs/getting-started/models/GsAdvancedModel.ili' \
   --grails-output '$REPO_ROOT/build/getting-started/grails-advanced' \
   --grails-init advanced-app \
-  --grails-version 7.0.6 \
   --grails-package ch.example.gsadvanced \
   --grails-ui-theme bootstrap \
   --grails-map-editor openlayers \

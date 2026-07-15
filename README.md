@@ -126,7 +126,6 @@ Weitere Optionen:
 - `--metadata-json <file>` (optional: schreibt eine deterministische JSON-Ausgabe der Core-IR)
 - `--merge-report <dir>` (optional: schreibt Merge-Diagnostik für Relationships und Association-Rollen als Markdown und JSON)
 - `--grails-init [appName]` (optional: erzeugt ein Grails-Projekt im Zielverzeichnis; mit `appName` wird ein Unterordner erstellt)
-- `--grails-version <x.y>` (nur mit `--grails-init`)
 - `--grails-domain-package` (Default: Basis-Package)
 - `--grails-enum-package` (Default: `<Basis-Package>.enums`)
 - `--grails-ui-theme <default|bootstrap>` (Default: `default`)
@@ -179,7 +178,6 @@ Alternativ kann der Generator das Projekt anlegen, wenn im Zielverzeichnis noch 
   --model-file test-models/SimpleAddressModel.ili \
   --grails-output ./generated-grails \
   --grails-init my-grails-app \
-  --grails-version 7.0.6 \
   --grails-package ch.example.demo"
 ```
 Der Scaffold-Schritt wird blockiert, wenn im Zielverzeichnis bereits `build.gradle`, `settings.gradle` oder `grails-app/` vorhanden sind.
@@ -663,10 +661,10 @@ Optional kann zusätzlich eine echte temporäre Grails-App erzeugt und kompilier
 
 Dieser Runtime-Smoke-Test benötigt eine lokale `grails`-CLI im `PATH`, erzeugt seine App
 in einem temporären Verzeichnis, kompiliert generierte Domains/Enums mit `compileGroovy`
-und prüft zusätzlich `grailsw generate-all` mit den Registry-Klassennamen. Die getestete
-Grails-Version ist standardmäßig `7.0.6` und kann überschrieben werden:
+und prüft zusätzlich `grailsw generate-all` mit den Registry-Klassennamen. Die aktive
+Grails-Version wird durch die `grails`-CLI im `PATH` bestimmt:
 ```bash
-./gradlew :target-grails:grailsRuntimeSmokeTest -PgrailsSmokeVersion=7.0.6
+PATH=/path/to/grails-7.0.6/bin:$PATH ./gradlew :target-grails:grailsRuntimeSmokeTest
 ```
 
 Für eine echte ili2pg/PostGIS-Validierung der Structure-/Composition-Abbildung gibt es
@@ -687,11 +685,10 @@ Der Browser-E2E-Track schließt zusätzlich den generierten Grails-Browser-Pfad:
 ```
 
 Der Test benötigt dieselben lokalen Dienste wie der ili2db-Smoke-Test, zusätzlich
-eine lokale `grails`-CLI und Playwright Chromium. Die Grails-Version, ili2pg-Home
-und JDBC-URL können überschrieben werden:
+eine lokale `grails`-CLI und Playwright Chromium. Grails-CLI-Pfad, ili2pg-Home
+und JDBC-URL können angepasst werden:
 ```bash
 ./gradlew :target-grails:browserE2eTest \
-  -PgrailsSmokeVersion=7.0.6 \
   -Pili2pgHome=/path/to/ili2pg-5.5.1 \
   -PbrowserE2eJdbcUrl='jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret'
 ```

@@ -10,7 +10,6 @@ import picocli.CommandLine;
 import picocli.CommandLine.ParameterException;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -44,9 +43,6 @@ final class GrailsCliTarget implements CliTargetAdapter {
         }
         if (options.initRequested() && options.outputDir() == null) {
             throw new ParameterException(commandLine, "Option --grails-init requires --grails-output.");
-        }
-        if (options.version() != null && !options.initRequested()) {
-            throw new ParameterException(commandLine, "Option --grails-version requires --grails-init.");
         }
         if (options.generateAll() && !options.initRequested()) {
             throw new ParameterException(commandLine, "Option --grails-generate-all requires --grails-init.");
@@ -97,7 +93,9 @@ final class GrailsCliTarget implements CliTargetAdapter {
         Path grailsProjectDir = resolveProjectDir();
         GenerationConfig config = buildConfig(metadata, grailsProjectDir);
 
+        System.out.println("Installing Grails UI overlay...");
         new GrailsTemplateOverlayInstaller().install(grailsProjectDir, config);
+        System.out.println("Generating Grails domains and supporting artifacts...");
         new GrailsCrudGenerator().generate(metadata, config);
         if (options.generateAll()) {
             runGrailsGenerateAll(metadata, config, grailsProjectDir);
@@ -201,7 +199,7 @@ final class GrailsCliTarget implements CliTargetAdapter {
         Path workingDir = appDir.equals(outputDir)
             ? resolveWorkingDir(outputDir)
             : outputDir.toAbsolutePath().normalize();
-        runGrailsCreateApp(workingDir, appName, options.version());
+        runGrailsCreateApp(workingDir, appName);
         return appDir;
     }
 
@@ -217,7 +215,7 @@ final class GrailsCliTarget implements CliTargetAdapter {
         }
     }
 
-    private void runGrailsCreateApp(Path workingDir, String appName, String grailsVersion)
+    private void runGrailsCreateApp(Path workingDir, String appName)
         throws IOException, InterruptedException {
         Files.createDirectories(workingDir);
 
@@ -225,20 +223,16 @@ final class GrailsCliTarget implements CliTargetAdapter {
         command.add("grails");
         command.add("create-app");
         command.add(appName);
-        if (grailsVersion != null && !grailsVersion.isBlank()) {
-            command.add("--grails-version");
-            command.add(grailsVersion);
-        }
 
+        System.out.println("Creating Grails application with: " + String.join(" ", command));
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(workingDir.toFile());
-        builder.redirectErrorStream(true);
+        builder.inheritIO();
         Process process = builder.start();
-        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         int exitCode = process.waitFor();
         if (exitCode != 0) {
             throw new IOException("Grails CLI failed (exit " + exitCode + ") while creating app in "
-                + workingDir.toAbsolutePath().normalize().resolve(appName) + ". Output:\n" + output);
+                + workingDir.toAbsolutePath().normalize().resolve(appName));
         }
     }
 
@@ -256,15 +250,15 @@ final class GrailsCliTarget implements CliTargetAdapter {
             .toList();
         for (String domainClass : domainClasses) {
             List<String> command = List.of("./grailsw", "generate-all", domainClass);
+            System.out.println("Running Grails generate-all for " + domainClass + "...");
             ProcessBuilder builder = new ProcessBuilder(command);
             builder.directory(grailsProjectDir.toFile());
-            builder.redirectErrorStream(true);
+            builder.inheritIO();
             Process process = builder.start();
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             int exitCode = process.waitFor();
             if (exitCode != 0) {
                 throw new IOException("Grails generate-all failed (exit " + exitCode + ") for "
-                    + domainClass + ". Output:\n" + output);
+                    + domainClass);
             }
         }
     }

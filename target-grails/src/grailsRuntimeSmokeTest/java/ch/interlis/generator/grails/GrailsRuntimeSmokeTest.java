@@ -138,7 +138,7 @@ class GrailsRuntimeSmokeTest {
     }
 
     private Path createGrailsApp() throws Exception {
-        runCommand(tempDir, List.of("grails", "create-app", APP_NAME, "--grails-version", grailsVersion()));
+        runCommand(tempDir, List.of("grails", "create-app", APP_NAME));
         Path appDir = tempDir.resolve(APP_NAME);
         appDir.resolve("gradlew").toFile().setExecutable(true);
         appDir.resolve("grailsw").toFile().setExecutable(true);
@@ -171,11 +171,6 @@ class GrailsRuntimeSmokeTest {
         } catch (IOException e) {
             return false;
         }
-    }
-
-    private static String grailsVersion() {
-        String version = System.getProperty("grailsSmokeVersion");
-        return version == null || version.isBlank() ? "7.0.6" : version;
     }
 
     private static void runCommand(Path workingDir, List<String> command)

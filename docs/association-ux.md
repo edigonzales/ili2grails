@@ -220,14 +220,13 @@ Die `ORDERED`-Semantik wird vom Planner korrekt erfasst und blockiert QUICK_LINK
 JAVA_HOME=.../21.0.10-tem ./gradlew test
 
 # Grails Runtime Smoke (braucht grails CLI)
-PATH=.../grails-7.0.6/bin:$PATH ./gradlew :target-grails:grailsRuntimeSmokeTest -PgrailsSmokeVersion=7.0.6
+PATH=.../grails-7.0.6/bin:$PATH ./gradlew :target-grails:grailsRuntimeSmokeTest
 
 # Real ili2db Smoke (braucht Docker + ili2pg)
 ./gradlew :target-grails:realIli2dbSmokeTest -Pili2pgHome=/path/to/ili2pg-5.6.1
 
 # Browser E2E (braucht Docker + ili2pg + grails + Playwright Chromium)
 ./gradlew :target-grails:browserE2eTest \
-  -PgrailsSmokeVersion=7.0.6 \
   -Pili2pgHome=/path/to/ili2pg-5.6.1 \
   -PbrowserE2eJdbcUrl='jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret'
 

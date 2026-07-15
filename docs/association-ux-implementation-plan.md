@@ -31,7 +31,7 @@ Zulässige Statuswerte: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - **Gradle:** Wrapper **8.14.3** (Kotlin 2.0.21, Groovy 3.0.24, Ant 1.10.15). Läuft mit JDK 21.
 - **Build-Toolchain-Ziel:** `sourceCompatibility`/`targetCompatibility = 17` (root `build.gradle`).
 - **Wichtige Abhängigkeitsversionen (root `build.gradle` `ext`):** ili2c 5.6.8, iox-ili 1.24.4, ehibasics 1.4.1, postgres 42.7.7, groovy 4.0.24, jts 1.19.0, junit 5.10.1, assertj 3.24.2, h2 2.2.224, playwright 1.60.0, picocli 4.7.7.
-- **Grails (Smoke/E2E-Ziel):** Default `grailsSmokeVersion = 7.0.6` (überschreibbar via `-PgrailsSmokeVersion`).
+- **Grails (Smoke/E2E-Ziel):** Die Grails-Version wird durch die aktive `grails`-CLI im `PATH` bestimmt; die Tests sind auf Grails 7.0.6 ausgelegt.
 - **ili2c:** 5.6.8.
   - ✅ Erwarteter Spec-Pfad `/Users/stefan/apps/ili2c-5.6.8/` ist inzwischen **installiert** (ADR-002-Fallback damit nicht mehr nötig; für neue/veränderte `.ili` kann direkt `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar …` verwendet werden). In Phase 0/2 wurde kein `.ili` verändert.
   - Verfügbar zusätzlich über `ilivalidator-1.15.0/libs/*` (`ili2c-core-5.6.8.jar`, `ili2c-tool-5.6.8.jar`), Hauptklasse `ch.interlis.ili2c.Main`. Siehe ADR-002.
@@ -146,7 +146,7 @@ Neue Runtime-Klassen/Services/Templates müssen ab Phase 3 hier ergänzt werden.
 Unit/Snapshot (`target-grails/src/test/java/ch/interlis/generator/grails/`): `GrailsBuildGradleUpdaterTest`, `GrailsTemplateOverlayInstallerTest`, `GrailsCrudGeneratorTest`, `GrailsApplicationYamlUpdaterTest`, `GrailsGeneratedOutputSnapshotTest`, `TargetNameRegistryTest`, `GrailsRelationshipMapperTest`, `GrailsDomainGeneratorTest`, `GeneratedGrailsCompileSmokeTest`, `LargeModelNamingTest` (+ Helper `GeneratedGroovyCompiler`).
 
 Opt-in Source-Sets (`target-grails/build.gradle`, group `verification`, `upToDateWhen { false }`):
-- `grailsRuntimeSmokeTest` → `GrailsRuntimeSmokeTest` — braucht `grails` CLI, `-PgrailsSmokeVersion` (default 7.0.6).
+- `grailsRuntimeSmokeTest` → `GrailsRuntimeSmokeTest` — braucht eine passende `grails`-CLI im `PATH` (Tests sind auf Grails 7.0.6 ausgelegt).
 - `realIli2dbSmokeTest` → `RealIli2dbSmokeTest` — braucht `ili2pg` (`-Pili2pgHome`, default `/Users/stefan/apps/ili2pg-5.5.1`) + Docker PostGIS.
 - `browserE2eTest` → `GrailsBrowserE2eTest` — braucht grails + ili2pg + `-PbrowserE2eJdbcUrl` (default `jdbc:postgresql://localhost:54321/edit?...&dbSchema=sa`) + Playwright; optional `-PbrowserE2eAppUrl` gegen laufende Instanz.
 
@@ -329,7 +329,7 @@ Noch zu erstellen (Referenz, spätere Phasen):
   - `./gradlew :target-grails:test --tests "*GrailsAssociationRegistryGeneratorTest" --tests "*GenerationConfigTest" --tests "*GeneratedGrailsCompileSmokeTest"` → **PASS** (13).
   - `./gradlew test` → **PASS total 112** (core 31, target-grails 62, cli 12, target-django 7), 0 Fehler/0 Errors/0 Skips. Delta +13 = 8 Registry- + 5 Config-Tests.
   - Snapshot: mit `UPDATE_GRAILS_SNAPSHOTS=true` erzeugt, Inhalt **manuell inhaltlich geprüft** (alle 6 Associations, deterministische Sortierung, EXTERNAL+COMPOSITE ⇒ `CONTEXTUAL_FORM` statt `QUICK`, physisch abweichend ⇒ `ownerFk`/`parcelFk`, Selbstassoziation ⇒ zwei distinkte Person-Kontexte, `-1`/`null` korrekt) und danach committet.
-  - `PATH=grails-7.0.6 JAVA_HOME=21.0.10 ./gradlew :target-grails:grailsRuntimeSmokeTest -PgrailsSmokeVersion=7.0.6` → **PASS** (2 Tests, 0 Skips): echte Grails-7.0.6-App via `create-app`, Overlay + Generierung, `./gradlew compileGroovy` grün ⇒ generierte Registry kompiliert in echter App. Der frühere R-2-Blocker ist damit behoben.
+  - `PATH=grails-7.0.6 JAVA_HOME=21.0.10 ./gradlew :target-grails:grailsRuntimeSmokeTest` → **PASS** (2 Tests, 0 Skips): echte Grails-7.0.6-App via `create-app`, Overlay + Generierung, `./gradlew compileGroovy` grün ⇒ generierte Registry kompiliert in echter App. Der frühere R-2-Blocker ist damit behoben.
   - Kein `.ili`/XTF geändert ⇒ keine ili2c/ilivalidator-Neu-Validierung erforderlich.
 - **Offene Punkte / Restpunkte:**
   - `associationUiMode`/`isAssociationUiEditable()` fließen noch nicht in `writable`/`createMode` der Registry ein → Phase 4 (Schreibpfad-Gating).
@@ -624,9 +624,9 @@ Noch zu erstellen (Referenz, spätere Phasen):
 - **Code-Qualität:** Keine duplizierte Implementation (`optionPageForTargetType` 1× definiert, 2× via Delegation aufgerufen). Keine toten experimentellen Klassen. Keine deaktivierten Tests (`@Disabled`/`@Ignore` nicht vorhanden). Keine Dangling-Files. CLI-Help zeigt alle `--grails-association-*` Optionen. `GrailsTemplateOverlayInstaller.MANAGED_FILES` enthält alle 25 Dateien.
 - **Ausgeführte Tests (JDK 21, ADR-001):**
   - `JAVA_HOME=.../21.0.10-tem ./gradlew clean test --rerun-tasks` → **PASS** (26 Aufgaben, alle Module)
-  - `PATH=grails-7.0.6 JAVA_HOME=21.0.10 ./gradlew :target-grails:grailsRuntimeSmokeTest -PgrailsSmokeVersion=7.0.6` → **PASS (3/3)**
+  - `PATH=grails-7.0.6 JAVA_HOME=21.0.10 ./gradlew :target-grails:grailsRuntimeSmokeTest` → **PASS (3/3)**
   - `JAVA_HOME=.../21.0.10-tem ./gradlew :target-grails:realIli2dbSmokeTest --rerun-tasks -Pili2pgHome=/Users/stefan/apps/ili2pg-5.5.1` → **PASS (9/9, 0 skipped)**
-  - `PATH=grails-7.0.6 JAVA_HOME=21.0.10 ./gradlew :target-grails:browserE2eTest --rerun-tasks -PgrailsSmokeVersion=7.0.6 -Pili2pgHome=/Users/stefan/apps/ili2pg-5.5.1 -PbrowserE2eJdbcUrl='...'` → **PASS (3/3)**
+  - `PATH=grails-7.0.6 JAVA_HOME=21.0.10 ./gradlew :target-grails:browserE2eTest --rerun-tasks -Pili2pgHome=/Users/stefan/apps/ili2pg-5.5.1 -PbrowserE2eJdbcUrl='...'` → **PASS (3/3)**
   - `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/AssociationCases.ili` → **PASS**
   - `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/QuickLinkE2E.ili` → **PASS**
   - `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/ContextualAssociationE2E.ili` → **PASS**

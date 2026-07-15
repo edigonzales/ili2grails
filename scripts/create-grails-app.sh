@@ -20,7 +20,6 @@ Environment overrides:
   DB_SCHEMA        Database schema (default: sa)
   JDBC_URL         JDBC URL including credentials (default: local Docker DB)
   BASE_PACKAGE     Java/Groovy base package (default: ch.example.demo)
-  GRAILS_VERSION   Grails version (default: 7.0.6)
   UI_THEME         UI theme: default|bootstrap (default: bootstrap)
   MAP_EDITOR       Map editor: none|openlayers (default: openlayers)
   OUTPUT_ROOT      Parent output directory relative to repo root
@@ -44,7 +43,6 @@ MODEL_NAME="${MODEL_NAME:-SimpleAddressModel}"
 DB_SCHEMA="${DB_SCHEMA:-sa}"
 JDBC_URL="${JDBC_URL:-jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=$DB_SCHEMA}"
 BASE_PACKAGE="${BASE_PACKAGE:-ch.example.demo}"
-GRAILS_VERSION="${GRAILS_VERSION:-7.0.6}"
 UI_THEME="${UI_THEME:-bootstrap}"
 MAP_EDITOR="${MAP_EDITOR:-openlayers}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-generated-grails}"
@@ -119,7 +117,6 @@ echo "    Modell: $MODEL_NAME"
     --model-file "$MODEL_FILE_ABSOLUTE" \
     --grails-output "$APP_DIR" \
     --grails-init \
-    --grails-version "$GRAILS_VERSION" \
     --grails-package "$BASE_PACKAGE" \
     --grails-ui-theme "$UI_THEME" \
     --grails-map-editor "$MAP_EDITOR" \

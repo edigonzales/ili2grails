@@ -564,7 +564,7 @@ class GrailsBrowserE2eTest {
     }
 
     private Path createGrailsApp() throws IOException, InterruptedException {
-        runCommand(tempDir, List.of("grails", "create-app", "browser-e2e", "--grails-version", grailsVersion()), COMMAND_TIMEOUT);
+        runCommand(tempDir, List.of("grails", "create-app", "browser-e2e"), COMMAND_TIMEOUT);
         Path appDir = tempDir.resolve("browser-e2e");
         appDir.resolve("gradlew").toFile().setExecutable(true);
         appDir.resolve("grailsw").toFile().setExecutable(true);
@@ -878,11 +878,6 @@ class GrailsBrowserE2eTest {
 
     private static Path ili2pgHome() {
         return Path.of(System.getProperty("ili2pgHome", "/Users/stefan/apps/ili2pg-5.5.1"));
-    }
-
-    private static String grailsVersion() {
-        String version = System.getProperty("grailsSmokeVersion");
-        return version == null || version.isBlank() ? "7.0.6" : version;
     }
 
     private static String baseJdbcUrl() {
