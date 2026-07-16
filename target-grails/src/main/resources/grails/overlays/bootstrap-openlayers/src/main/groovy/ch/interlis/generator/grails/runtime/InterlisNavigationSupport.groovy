@@ -18,7 +18,11 @@ final class InterlisNavigationSupport {
 
     static Map<String, Object> navigationModel(def grailsApplication) {
         Map<String, Object> controllers = controllerIndex(grailsApplication)
+        List<Map<String, Object>> workspaces = workspaceEntries(grailsApplication, controllers)
         Set<String> representedControllers = new LinkedHashSet<>()
+        workspaces.each { Map<String, Object> workspace ->
+            representedControllers.add(workspace.controller.toString())
+        }
         List<Map<String, Object>> domains = []
 
         InterlisUiRegistry.domains().each { Map<String, Object> registryEntry ->
@@ -70,13 +74,15 @@ final class InterlisNavigationSupport {
         List<Map<String, Object>> models = groupByModel(domains)
         List<Map<String, Object>> allEntries = new ArrayList<>(domains)
         allEntries.addAll(fallback)
+        allEntries.addAll(workspaces)
 
         return [
-            models      : models,
-            domains     : domains,
-            fallback    : fallback,
-            allEntries  : allEntries,
-            singleModel : models.size() == 1
+        models      : models,
+        domains     : domains,
+        fallback    : fallback,
+        workspaces  : workspaces,
+        allEntries  : allEntries,
+        singleModel : models.size() == 1
         ]
     }
 
@@ -174,6 +180,72 @@ final class InterlisNavigationSupport {
             }
         }
         return result
+    }
+
+    private static List<Map<String, Object>> workspaceEntries(def grailsApplication,
+                                                               Map<String, Object> controllers) {
+        Object rawWorkspaces = grailsApplication?.config?.ili2grails?.ui?.workspaces
+        // ConfigSlurper/Grails represents a missing nested YAML path as an
+        // empty ConfigObject (a Map), not necessarily as null. Treat both as
+        // the optional, unconfigured state; non-empty maps remain invalid.
+        if (rawWorkspaces == null || (rawWorkspaces instanceof Map && rawWorkspaces.isEmpty())) {
+            return []
+        }
+        if (!(rawWorkspaces instanceof Collection)) {
+            throw invalidWorkspaceConfiguration(null, "muss eine Liste von Einträgen sein")
+        }
+
+        Set<String> ids = new LinkedHashSet<>()
+        Set<String> controllerNames = new LinkedHashSet<>()
+        List<Map<String, Object>> entries = []
+        rawWorkspaces.eachWithIndex { Object rawWorkspace, int index ->
+            if (!(rawWorkspace instanceof Map)) {
+                throw invalidWorkspaceConfiguration("Eintrag #${index + 1}", "muss eine Map sein")
+            }
+            Map workspace = rawWorkspace as Map
+            String id = text(workspace.id)
+            String label = text(workspace.label)
+            String controller = text(workspace.controller)
+            String action = text(workspace.action)
+            String context = "id=${id ?: "<leer>"}, controller=${controller ?: "<leer>"}"
+            if (id == null || label == null || controller == null || action == null) {
+                throw invalidWorkspaceConfiguration(context, "benötigt id, label, controller und action")
+            }
+            if (!id.matches(/[A-Za-z0-9][A-Za-z0-9_-]*/)) {
+                throw invalidWorkspaceConfiguration(context, "id enthält ungültige Zeichen")
+            }
+            if (!controller.matches(/[A-Za-z][A-Za-z0-9_-]*/)
+                || !action.matches(/[A-Za-z][A-Za-z0-9_]*/)) {
+                throw invalidWorkspaceConfiguration(context, "controller oder action enthält ungültige Zeichen")
+            }
+            if (!ids.add(id)) {
+                throw invalidWorkspaceConfiguration(context, "id ist nicht eindeutig")
+            }
+            if (!controllerNames.add(controller)) {
+                throw invalidWorkspaceConfiguration(context, "controller ist nicht eindeutig")
+            }
+            if (!controllers.containsKey(controller)) {
+                throw invalidWorkspaceConfiguration(context, "Controller ist nicht registriert")
+            }
+            entries << [
+                kind       : "workspace",
+                id         : id,
+                label      : label,
+                controller : controller,
+                action     : action,
+                fallback   : false,
+                navigationVisible: true
+            ]
+        }
+        return entries.sort { left, right -> compareValues([left.label, left.id], [right.label, right.id]) }
+    }
+
+    private static IllegalArgumentException invalidWorkspaceConfiguration(String context,
+                                                                            String reason) {
+        String suffix = context == null ? "" : " (${context})"
+        return new IllegalArgumentException(
+            "Ungültige ili2grails.ui.workspaces-Konfiguration${suffix}: ${reason}"
+        )
     }
 
     private static List<Map<String, Object>> sortEntries(List<Map<String, Object>> entries) {

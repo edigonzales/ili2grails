@@ -30,6 +30,17 @@
                       singleModel: navigationModel?.singleModel,
                       showFavorite: true
                   ]}"/>
+        <g:if test="${navigationModel?.workspaces}">
+            <section class="ili-navigation-workspaces" data-ili-navigation-group="workspaces">
+                <h3 class="h6">Fachliche Arbeitsseiten</h3>
+                <ul class="ili-domain-list">
+                    <g:each in="${navigationModel.workspaces}" var="workspace">
+                        <g:render template="/interlisUi/workspace-link"
+                                  model="${[workspace: workspace, itemClass: 'ili-domain-list-item']}"/>
+                    </g:each>
+                </ul>
+            </section>
+        </g:if>
         <g:if test="${navigationModel?.fallback}">
             <section class="ili-navigation-fallback">
                 <h3 class="h6">Weitere Seiten</h3>

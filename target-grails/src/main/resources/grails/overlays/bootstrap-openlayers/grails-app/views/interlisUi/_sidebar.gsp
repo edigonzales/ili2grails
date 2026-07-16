@@ -32,6 +32,18 @@
                       ]}"/>
         </nav>
 
+        <g:if test="${navigationModel?.workspaces}">
+            <section class="ili-navigation-workspaces" data-ili-navigation-group="workspaces">
+                <h2 class="ili-navigation-section-title">Fachliche Arbeitsseiten</h2>
+                <ul class="ili-domain-list">
+                    <g:each in="${navigationModel.workspaces}" var="workspace">
+                        <g:render template="/interlisUi/workspace-link"
+                                  model="${[workspace: workspace, itemClass: 'ili-domain-list-item']}"/>
+                    </g:each>
+                </ul>
+            </section>
+        </g:if>
+
         <g:if test="${navigationModel?.fallback}">
             <section class="ili-navigation-fallback">
                 <h2 class="ili-navigation-section-title">Weitere Seiten</h2>

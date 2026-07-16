@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InterlisNavigationSupportTest {
 
@@ -71,6 +72,52 @@ class InterlisNavigationSupportTest {
         assertThat(secondRun).isEqualTo(model);
     }
 
+    @Test
+    void exposesConfiguredWorkspacesAsSeparateNavigationGroup() throws Exception {
+        Class<?> supportType = runtimeType();
+        Object application = workspaceApplication(supportType.getClassLoader(), List.of(
+            Map.of("id", "parcel-workspace", "label", "Parzellen-Workspace",
+                "controller", "parcelWorkspace", "action", "index")
+        ));
+
+        Map<String, Object> model = invoke(supportType, "navigationModel", application);
+        List<Map<String, Object>> workspaces = list(model.get("workspaces"));
+
+        assertThat(workspaces).singleElement().satisfies(workspace -> {
+            assertThat(workspace).containsEntry("kind", "workspace")
+                .containsEntry("id", "parcel-workspace")
+                .containsEntry("controller", "parcelWorkspace")
+                .containsEntry("action", "index")
+                .doesNotContainKeys("iliName", "domainClassName");
+        });
+        assertThat(list(model.get("fallback"))).extracting(entry -> entry.get("controller"))
+            .doesNotContain("parcelWorkspace");
+        assertThat(list(model.get("allEntries"))).extracting(entry -> entry.get("controller"))
+            .contains("parcelWorkspace");
+    }
+
+    @Test
+    void rejectsInvalidWorkspaceConfigurationWithContext() throws Exception {
+        Class<?> supportType = runtimeType();
+        Object application = workspaceApplication(supportType.getClassLoader(), List.of(
+            Map.of("id", "broken-workspace", "label", "Broken",
+                "controller", "doesNotExist", "action", "index")
+        ));
+
+        assertThatThrownBy(() -> invoke(supportType, "navigationModel", application))
+            .hasRootCauseInstanceOf(IllegalArgumentException.class)
+            .hasRootCauseMessage("Ungültige ili2grails.ui.workspaces-Konfiguration " +
+                "(id=broken-workspace, controller=doesNotExist): Controller ist nicht registriert");
+    }
+
+    @Test
+    void treatsMissingWorkspaceConfigurationAsUnconfigured() throws Exception {
+        Class<?> supportType = runtimeType();
+        Map<String, Object> model = invoke(supportType, "navigationModel", baseApplication(supportType));
+
+        assertThat(list(model.get("workspaces"))).isEmpty();
+    }
+
     private Class<?> runtimeType() throws Exception {
         GroovyClassLoader classLoader = new GroovyClassLoader(getClass().getClassLoader());
         classLoader.parseClass("""
@@ -125,6 +172,7 @@ class InterlisNavigationSupportTest {
         Class<?> applicationType = ((GroovyClassLoader) classLoader).parseClass("""
             class FakeApplication {
                 List controllerClasses
+                Object config
             }
             """, "FakeApplication.groovy");
 
@@ -147,6 +195,48 @@ class InterlisNavigationSupportTest {
         Object application = applicationType.getConstructor().newInstance();
         applicationType.getMethod("setControllerClasses", List.class).invoke(application,
             List.of(address, zebra, hidden, fallback, ui));
+        return application;
+    }
+
+    private Object workspaceApplication(ClassLoader classLoader, List<Map<String, String>> workspaces)
+        throws Exception {
+        GroovyClassLoader groovyClassLoader = (GroovyClassLoader) classLoader;
+        Class<?> artefactType = groovyClassLoader.parseClass("""
+            class WorkspaceFakeArtefact {
+                String logicalPropertyName
+                String namespace
+                String shortName
+                Class clazz
+            }
+            """, "WorkspaceFakeArtefact.groovy");
+        Class<?> applicationType = groovyClassLoader.parseClass("""
+            class WorkspaceFakeApplication {
+                List controllerClasses
+                Object config
+            }
+            """, "WorkspaceFakeApplication.groovy");
+        Object application = applicationType.getConstructor().newInstance();
+        Object workspace = artefactType.getConstructor().newInstance();
+        setString(artefactType, workspace, "logicalPropertyName", "parcelWorkspace");
+        setString(artefactType, workspace, "shortName", "ParcelWorkspaceController");
+        applicationType.getMethod("setControllerClasses", List.class).invoke(application, List.of(workspace));
+        applicationType.getMethod("setConfig", Object.class).invoke(application,
+            Map.of("ili2grails", Map.of("ui", Map.of("workspaces", workspaces))));
+        return application;
+    }
+
+    private Object baseApplication(Class<?> supportType) throws Exception {
+        GroovyClassLoader groovyClassLoader = (GroovyClassLoader) supportType.getClassLoader();
+        Class<?> applicationType = groovyClassLoader.parseClass("""
+            class EmptyWorkspaceFakeApplication {
+                List controllerClasses
+                Object config
+            }
+            """, "EmptyWorkspaceFakeApplication.groovy");
+        Object application = applicationType.getConstructor().newInstance();
+        applicationType.getMethod("setControllerClasses", List.class).invoke(application, List.of());
+        applicationType.getMethod("setConfig", Object.class).invoke(application,
+            Map.of("ili2grails", Map.of("ui", Map.of("workspaces", Map.of()))));
         return application;
     }
 
