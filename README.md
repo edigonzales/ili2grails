@@ -664,6 +664,7 @@ Der Bootstrap-Modus verwendet ab Phase 1 eine server-rendered Application Shell:
 - Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt. Die Runtime prüft erwarteten Geometrietyp, Empty-Geometrien, JTS-Validität und konvertiert Single-Geometrien bei erwarteten Multi-Typen in Multi-Geometrien.
 - Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen und Snapping auf vorhandene Editor-Vertices. Fachliche Topologie-Regeln bleiben ein projektspezifischer Extension Point.
 - Die Oberfläche nutzt Bootstrap 5.3 als technische Basis und bleibt no-frills: kleine Radien, dünne Linien, Bootstrap-Standardfarben und keine Card-Shadows. Rot erscheint nur semantisch für Danger-/Fehlerzustände. Bootstrap, OpenLayers, proj4 und die Navigation werden über die lokale WebJar-/Asset-Pipeline eingebunden, nicht über CDN.
+- Die Bootstrap-GUI verwendet lokal eingebettetes Noto Sans v42 statt Frutiger. Die fünf WOFF2-Schnitte für 400, 500, 600, 700 und 400 italic liegen im managed Overlay unter `grails-app/assets/fonts/noto-sans/` und werden über `ili-modern.css` mit `font-display: swap` geladen. Es gibt keine externe Font-CDN-Abhängigkeit; die Font-Dateien werden zusammen mit dem Overlay in neu erzeugte Bootstrap-Grails-Apps kopiert. Noto Sans steht unter der SIL Open Font License; der Lizenztext liegt unter `src/main/resources/fonts/noto-sans/OFL.txt`.
 - `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
   links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
 - Dokumentation und Units aus der Core-IR werden als zurückhaltende Feldhinweise im Formular angezeigt. Übersetzte Labels bleiben weiterhin über Grails-Message-Codes überschreibbar.
@@ -980,6 +981,8 @@ Die Härtungsregeln sind verbindlich:
 - Es gibt keine `--dp-*`-CSS-Custom-Properties oder Aliase im gemanagten Bootstrap-Code.
 - Generische Aktionen verwenden den zentralen `ili:icon`-Renderpfad mit lokal eingebetteten
   Bootstrap-Icons-SVGs. Icon-Webfonts, CDN-Icons und externe Icon-Services sind ausgeschlossen.
+- Die Bootstrap-Typografie verwendet die lokalen Noto-Sans-WOFF2-Ressourcen des Overlays;
+  externe Font-CDNs und Frutiger gehören nicht zum managed Bootstrap-Code.
 - Alle dynamischen Association-/Workspace-Werte werden escaped gerendert; Sortierung, Filter,
   Controller, Actions, IDs, Ownership und Delete-Flows bleiben whitelisted und serverseitig geprüft.
 - Navigation, Listen und Relationship-Picker bleiben serverseitig begrenzt und paginiert. Der

@@ -4,9 +4,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,6 +18,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GrailsTemplateOverlayInstallerTest {
 
+    private static final List<String> NOTO_SANS_FONT_FILES = List.of(
+        "NotoSans-Regular.woff2",
+        "NotoSans-Medium.woff2",
+        "NotoSans-SemiBold.woff2",
+        "NotoSans-Bold.woff2",
+        "NotoSans-Italic.woff2"
+    );
     private static final Pattern ICON_DECLARATION = Pattern.compile(
         "(?m)^\\s*(?:\\\"([^\\\"]+)\\\"|([A-Za-z0-9_-]+)): \\\'\\\'\\\'<path"
     );
@@ -101,8 +110,23 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).exists();
+        NOTO_SANS_FONT_FILES.forEach(fileName -> assertThat(projectDir.resolve(
+            "grails-app/assets/fonts/noto-sans/" + fileName)).exists());
+        assertThat(projectDir.resolve("src/main/resources/fonts/noto-sans/OFL.txt")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-wc-bundle.js")).doesNotExist();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js")).doesNotExist();
+
+        NOTO_SANS_FONT_FILES.forEach(fileName -> {
+            try {
+                byte[] content = Files.readAllBytes(projectDir.resolve(
+                    "grails-app/assets/fonts/noto-sans/" + fileName));
+                assertThat(content.length).as(fileName).isGreaterThan(4);
+                assertThat(new String(content, 0, 4, StandardCharsets.US_ASCII))
+                    .as(fileName).isEqualTo("wOF2");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
 
         String updatedApplicationJs = Files.readString(applicationJs);
         assertThat(updatedApplicationJs).contains("//= require webjars/proj4/2.11.0/dist/proj4.js");
@@ -335,6 +359,27 @@ class GrailsTemplateOverlayInstallerTest {
 
         String stylesheet = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
         assertThat(stylesheet).contains(".ili-list-tools");
+        assertThat(stylesheet).contains(
+            "@font-face",
+            "font-family: \"Noto Sans\"",
+            "font-display: swap",
+            "font-weight: 400",
+            "font-weight: 500",
+            "font-weight: 600",
+            "font-weight: 700",
+            "font-style: italic",
+            "NotoSans-Regular.woff2",
+            "NotoSans-Medium.woff2",
+            "NotoSans-SemiBold.woff2",
+            "NotoSans-Bold.woff2",
+            "NotoSans-Italic.woff2"
+        );
+        assertThat(stylesheet).doesNotContain(
+            "Frutiger",
+            "fonts.gstatic.com",
+            "fonts.googleapis.com",
+            "https://"
+        );
         assertThat(stylesheet).contains(".ili-pagination-bar");
         assertThat(stylesheet).doesNotContain("--dp-");
         assertThat(stylesheet).doesNotContain("--ili-");
@@ -443,12 +488,13 @@ class GrailsTemplateOverlayInstallerTest {
 
         try (var paths = Files.walk(overlayRoot)) {
             paths.filter(Files::isRegularFile)
+                .filter(path -> !path.toString().endsWith(".woff2"))
                 .forEach(path -> {
                     try {
                         String content = Files.readString(path);
                         assertThat(content).as(path.toString()).doesNotContain("--dp-");
                         assertThat(content).as(path.toString())
-                            .doesNotContain("bootstrap-icons.woff", "cdn.jsdelivr.net", "@font-face",
+                            .doesNotContain("bootstrap-icons.woff", "cdn.jsdelivr.net",
                                 "springSecurity", "envers", "currentUser", "principal", "login", "logout",
                                 "audit", "timeline", "restore", "Verlauf", "Protokoll");
                     } catch (Exception e) {
@@ -469,6 +515,7 @@ class GrailsTemplateOverlayInstallerTest {
         new GrailsTemplateOverlayInstaller().install(projectDir, config);
 
         assertThat(projectDir.resolve("src/main/templates/scaffolding/Controller.groovy")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/assets/fonts/noto-sans")).doesNotExist();
     }
 
     @Test

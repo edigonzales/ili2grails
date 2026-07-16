@@ -67,7 +67,13 @@ public class GrailsTemplateOverlayInstaller {
         "grails-app/assets/javascripts/ili-geometry-editor.js",
         "grails-app/assets/javascripts/ili-form-ux.js",
         "grails-app/assets/javascripts/ili-navigation.js",
-        "grails-app/assets/stylesheets/ili-modern.css"
+        "grails-app/assets/stylesheets/ili-modern.css",
+        "grails-app/assets/fonts/noto-sans/NotoSans-Regular.woff2",
+        "grails-app/assets/fonts/noto-sans/NotoSans-Medium.woff2",
+        "grails-app/assets/fonts/noto-sans/NotoSans-SemiBold.woff2",
+        "grails-app/assets/fonts/noto-sans/NotoSans-Bold.woff2",
+        "grails-app/assets/fonts/noto-sans/NotoSans-Italic.woff2",
+        "src/main/resources/fonts/noto-sans/OFL.txt"
     );
     private static final List<String> APPLICATION_JS_REQUIRES = List.of(
         "//= require webjars/proj4/2.11.0/dist/proj4.js",
