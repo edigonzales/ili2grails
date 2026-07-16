@@ -1,0 +1,40 @@
+INTERLIS 2.3;
+
+MODEL ListQueryE2E (en)
+AT "http://www.example.ch"
+VERSION "2026-07-15" =
+
+  TOPIC Lists =
+    OID AS INTERLIS.UUIDOID;
+
+    DOMAIN
+      RecordStatus = (
+        !!@ ili2db.dispName="Aktiv"
+        active,
+        !!@ ili2db.dispName="Archiviert"
+        archived,
+        !!@ ili2db.dispName="Entwurf"
+        draft
+      );
+
+    CLASS Municipality =
+      Name: MANDATORY TEXT*100;
+    END Municipality;
+
+    CLASS Record =
+      Name: MANDATORY TEXT*120;
+      Status: RecordStatus;
+      Active: BOOLEAN;
+      !! Record year
+      !!@ ch.ehi.ili2db.unit=Jahr
+      Year: 1900 .. 2200;
+      ValidFrom: INTERLIS.XMLDate;
+    END Record;
+
+    ASSOCIATION RecordMunicipality =
+      MunicipalityRole -- {1} Municipality;
+      RecordRole -- {0..*} Record;
+    END RecordMunicipality;
+  END Lists;
+
+END ListQueryE2E.
