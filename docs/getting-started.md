@@ -87,6 +87,42 @@ Die JDBC-URL fuer dieses Tutorial:
 jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret
 ```
 
+## Automatisierter kompletter Ablauf
+
+Der komplette Ablauf kann direkt mit dem mitgelieferten Bash-Skript ausgefuehrt
+werden. Die Variante `simple` oder `advanced` waehlt das jeweilige Modell. Das
+Skript startet die Docker-Datenbank selbst, importiert Schema und Demodaten,
+liest die Metadaten und erzeugt die Grails-App. `bootRun` wird nicht automatisch
+gestartet.
+
+```bash
+./scripts/getting-started.sh simple
+```
+
+Fuer das Advanced-Modell:
+
+```bash
+./scripts/getting-started.sh advanced
+```
+
+Ein erneuter Aufbau erfordert bewusst die explizite Option `--reset`. Sie loescht
+nur das ausgewaehlte `gs_*`-Schema und die dazugehoerigen Artefakte unter
+`build/getting-started/`:
+
+```bash
+./scripts/getting-started.sh simple --reset
+```
+
+Wenn ili2pg nicht unter dem lokalen Default-Pfad installiert ist, kann der Pfad
+ueber `ILI2PG_HOME` gesetzt werden:
+
+```bash
+ILI2PG_HOME=/opt/ili2pg-5.5.1 ./scripts/getting-started.sh simple
+```
+
+Die folgenden Abschnitte zeigen denselben Ablauf noch einmal manuell und sind
+hilfreich, wenn einzelne Schritte oder ili2pg-Optionen angepasst werden sollen.
+
 ## Fall 1: Simples Modell ohne Geometrien
 
 Das Modell liegt in

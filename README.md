@@ -57,6 +57,16 @@ Für absolute Beginner gibt es ein Schritt-für-Schritt-Tutorial mit Docker-DB,
 ili2pg-Schemaimport, optionalem Seed-Datenimport und Grails-App-Erzeugung:
 [docs/getting-started.md](docs/getting-started.md).
 
+Der komplette Ablauf kann direkt automatisiert werden:
+
+```bash
+./scripts/getting-started.sh simple
+```
+
+Mit `advanced` wird das Advanced-Modell verwendet; fuer einen bewussten
+Neuaufbau steht `--reset` zur Verfuegung. Der ili2pg-Pfad kann ueber
+`ILI2PG_HOME` ueberschrieben werden.
+
 ## Schnellstart (CLI)
 **PostgreSQL:**
 
