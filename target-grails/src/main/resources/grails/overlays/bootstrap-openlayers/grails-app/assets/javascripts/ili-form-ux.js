@@ -90,6 +90,12 @@
         if (!form) {
             return;
         }
+        var actionType = (actionElement.getAttribute("type") || "").toLowerCase();
+        if (actionType === "submit" && actionElement.name && actionElement.form === form) {
+            // Keep the browser submitter. Its name/value carries the explicit
+            // save mode and native constraint validation must run first.
+            return;
+        }
         var nativeSubmit = form.querySelector(".js-native-submit");
         event.preventDefault();
         if (nativeSubmit) {
@@ -119,6 +125,14 @@
         form.submit();
     }
 
+    function findForm(formId) {
+        if (!formId) {
+            return null;
+        }
+        return document.getElementById(formId)
+            || document.querySelector("form[name='" + CSS.escape(formId) + "']");
+    }
+
     function initSubmitButtons() {
         document.addEventListener("click", function(event) {
             var submitAction = event.target.closest("[data-form-submit]");
@@ -134,7 +148,7 @@
                     return;
                 }
                 var rowDeleteFormId = rowDeleteAction.getAttribute("data-delete-form");
-                var rowDeleteForm = rowDeleteFormId ? document.getElementById(rowDeleteFormId) : null;
+                var rowDeleteForm = findForm(rowDeleteFormId);
                 if (!rowDeleteForm) {
                     return;
                 }
@@ -161,8 +175,19 @@
 
     function initUnsavedNavigationGuard() {
         document.addEventListener("click", function(event) {
-            var navAction = event.target.closest("[data-unsaved-nav]");
+            var navAction = event.target.closest("a[href]");
             if (!navAction || !hasDirtyForm()) {
+                return;
+            }
+            if (navAction.getAttribute("data-unsaved-bypass") === "true"
+                || navAction.getAttribute("data-unsaved-nav") === "false"
+                || navAction.hasAttribute("download")
+                || navAction.target && navAction.target !== "_self"
+                || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                return;
+            }
+            var href = navAction.getAttribute("href") || "";
+            if (!href || href.charAt(0) === "#") {
                 return;
             }
             var proceed = window.confirm("Es gibt ungespeicherte Änderungen. Seite wirklich verlassen?");
@@ -182,14 +207,42 @@
     }
 
     function initDeleteModal() {
+        document.addEventListener("show.bs.modal", function(event) {
+            var modal = event.target.closest ? event.target.closest("[data-delete-modal]") : null;
+            if (!modal || !event.relatedTarget) {
+                return;
+            }
+            modal._iliReturnFocus = event.relatedTarget;
+        });
+
+        document.addEventListener("hidden.bs.modal", function(event) {
+            var modal = event.target.closest ? event.target.closest("[data-delete-modal]") : null;
+            var returnFocus = modal && modal._iliReturnFocus;
+            if (!returnFocus || !document.contains(returnFocus)) {
+                return;
+            }
+            window.setTimeout(function() {
+                returnFocus.focus();
+            }, 0);
+        });
+
         document.addEventListener("click", function(event) {
+            var modalTrigger = event.target.closest("[data-delete-open]");
+            if (modalTrigger) {
+                var modalId = modalTrigger.getAttribute("data-delete-open");
+                var modal = modalId ? document.getElementById(modalId) : null;
+                if (modal) {
+                    modal._iliReturnFocus = modalTrigger;
+                }
+            }
+
             var confirmAction = event.target.closest("[data-delete-confirm]");
             if (!confirmAction) {
                 return;
             }
             event.preventDefault();
             var formId = confirmAction.getAttribute("data-delete-form");
-            var form = formId ? document.getElementById(formId) : null;
+            var form = findForm(formId);
             hideModal(confirmAction.closest(".modal"));
             if (!form) {
                 return;
@@ -272,6 +325,7 @@
             var option = document.createElement("button");
             option.type = "button";
             option.className = "list-group-item list-group-item-action ili-relationship-result";
+            option.id = (list.id || "ili-relationship-results") + "-option-" + list.children.length;
             option.setAttribute("role", "option");
             option.setAttribute("data-relationship-value", item.id);
             option.setAttribute("data-relationship-label", item.label || item.id);
@@ -341,6 +395,35 @@
             controller: null
         };
         var timer = null;
+        var activeIndex = -1;
+
+        function closeResults() {
+            if (list) {
+                list.hidden = true;
+            }
+            input.setAttribute("aria-expanded", "false");
+            input.removeAttribute("aria-activedescendant");
+            activeIndex = -1;
+        }
+
+        function setActive(index) {
+            if (!list) {
+                return;
+            }
+            var options = Array.from(list.querySelectorAll("[role='option']"));
+            if (!options.length) {
+                closeResults();
+                return;
+            }
+            activeIndex = (index + options.length) % options.length;
+            options.forEach(function(option, optionIndex) {
+                var active = optionIndex === activeIndex;
+                option.classList.toggle("active", active);
+                option.setAttribute("aria-selected", active ? "true" : "false");
+            });
+            input.setAttribute("aria-activedescendant", options[activeIndex].id);
+            options[activeIndex].scrollIntoView({ block: "nearest" });
+        }
 
         function fetchOptions(reset) {
             if (state.loading) {
@@ -380,6 +463,13 @@
                     var pagination = payload.pagination || {};
                     appendRelationshipOptions(select, results, reset);
                     renderRelationshipList(list, results, select, reset);
+                    if (list && !list.hidden) {
+                        input.setAttribute("aria-expanded", "true");
+                    } else {
+                        closeResults();
+                    }
+                    activeIndex = -1;
+                    input.removeAttribute("aria-activedescendant");
                     state.loaded = true;
                     state.more = pagination.more === true;
                     var nextOffset = parseInt(pagination.nextOffset, 10);
@@ -408,6 +498,23 @@
                 fetchOptions(true);
             } else if (list && list.children.length) {
                 list.hidden = false;
+                input.setAttribute("aria-expanded", "true");
+            }
+        });
+
+        input.addEventListener("keydown", function(event) {
+            var options = list ? list.querySelectorAll("[role='option']") : [];
+            if (event.key === "ArrowDown" && options.length) {
+                event.preventDefault();
+                setActive(activeIndex + 1);
+            } else if (event.key === "ArrowUp" && options.length) {
+                event.preventDefault();
+                setActive(activeIndex - 1);
+            } else if (event.key === "Enter" && activeIndex >= 0 && options[activeIndex]) {
+                event.preventDefault();
+                options[activeIndex].click();
+            } else if (event.key === "Escape") {
+                closeResults();
             }
         });
 
@@ -426,6 +533,7 @@
                 input.value = option.getAttribute("data-relationship-label") || "";
                 markRelationshipSelection(list, select.value);
                 select.dispatchEvent(new Event("change", { bubbles: true }));
+                closeResults();
             });
 
             list.addEventListener("scroll", function() {

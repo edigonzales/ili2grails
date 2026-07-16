@@ -24,6 +24,18 @@ class InterlisUiDescriptorSupportTest {
         "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
             "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy"
     );
+    private static final Path RELATIONSHIP_OPTIONS_SOURCE = Path.of(
+        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"
+    );
+    private static final Path TABLE_MODEL_SOURCE = Path.of(
+        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy"
+    );
+    private static final Path WORKSPACE_SOURCE = Path.of(
+        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy"
+    );
 
     @TempDir
     Path tempDir;
@@ -39,13 +51,20 @@ class InterlisUiDescriptorSupportTest {
 
         assertThat(defaults.get("label")).isEqualTo("Address");
         assertThat(defaultList.get("columns"))
-            .isEqualTo(List.of("id", "name", "description", "year", "active"));
+            .isEqualTo(List.of("id", "name", "description", "year", "active", "status"));
         assertThat(defaultList.get("searchFields"))
             .isEqualTo(List.of("name", "description"));
         assertThat(defaultList.get("prominentFilters"))
             .isEqualTo(List.of("name", "description", "year"));
         assertThat(map(defaults.get("form")).get("sections").toString())
             .contains("Allgemein", "longText");
+        assertThat(map(defaults.get("form")).get("sections").toString())
+            .doesNotContain("position");
+        assertThat(map(defaults.get("fieldMeta")).get("description").toString())
+            .contains("Dokumentation", "m");
+        assertThat(map(defaults.get("detail")).get("sections").toString())
+            .contains("name", "longText")
+            .doesNotContain("municipality", "id", "version");
 
         Map<String, Object> configuredDomain = new LinkedHashMap<>();
         configuredDomain.put("iliName", "UiModel.Topic.Address");
@@ -82,7 +101,10 @@ class InterlisUiDescriptorSupportTest {
             .isEqualTo(List.of("active"));
         assertThat(map(configured.get("form")).get("sections").toString())
             .contains("name", "active")
-            .doesNotContain("longText");
+            .contains("Weitere Felder", "description", "year", "status", "municipality", "longText");
+        assertThat(map(configured.get("detail")).get("sections").toString())
+            .contains("name", "active", "longText")
+            .doesNotContain("municipality", "id", "version");
     }
 
     @Test
@@ -140,8 +162,105 @@ class InterlisUiDescriptorSupportTest {
             .hasMessageContaining("ili2grails.ui.domains");
     }
 
+    @Test
+    void exposesEnumOptionsRelationshipsAndWhitelistedSearchPaths() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Map<String, Object> configuredDomain = new LinkedHashMap<>();
+        configuredDomain.put("iliName", "UiModel.Topic.Address");
+        configuredDomain.put("list", Map.of(
+            "searchFields", List.of("municipality.name"),
+            "sortableColumns", List.of("year", "status"),
+            "displayField", "name",
+            "filters", Map.of("status", Map.of("label", "Bearbeitungsstatus"))
+        ));
+        Map<String, Object> configured = invokeDescriptor(runtime, Map.of(
+            "config", Map.of("ili2grails", Map.of("ui", Map.of("domains", List.of(configuredDomain))))
+        ));
+
+        Map<String, Object> list = map(configured.get("list"));
+        assertThat(list.get("displayField")).isEqualTo("name");
+        assertThat(list.get("sortableColumns")).isEqualTo(List.of("id", "year", "status"));
+        assertThat(list.get("searchFields")).isEqualTo(List.of("municipality.name"));
+        assertThat(list.get("searchDefinitions").toString()).contains("municipalitySearch.name");
+        Map<String, Object> filters = map(list.get("filters"));
+        assertThat(map(filters.get("status")).get("type")).isEqualTo("enum");
+        assertThat(map(filters.get("status")).get("options").toString())
+            .contains("ACTIVE", "ARCHIVED");
+        assertThat(map(filters.get("status")).get("label")).isEqualTo("Bearbeitungsstatus");
+        assertThat(map(filters.get("municipality")).get("type")).isEqualTo("relationship");
+    }
+
+    @Test
+    void rejectsUnsafeSearchPathConfiguration() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Map<String, Object> configuredDomain = new LinkedHashMap<>();
+        configuredDomain.put("iliName", "UiModel.Topic.Address");
+        configuredDomain.put("list", Map.of("searchFields", List.of("municipality.name.code")));
+        InvocationTargetException thrown = invocationFailure(runtime, Map.of(
+            "config", Map.of("ili2grails", Map.of("ui", Map.of("domains", List.of(configuredDomain))))
+        ));
+
+        assertThat(thrown.getCause())
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("municipality.name.code")
+            .hasMessageContaining("exactly one whitelisted relationship hop");
+    }
+
+    @Test
+    void workspaceUsesDisplayLabelAndIdFallback() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Object address = runtime.domainType.getDeclaredConstructor().newInstance();
+        runtime.domainType.getMethod("setId", Long.class).invoke(address, 7L);
+        runtime.domainType.getMethod("setName", String.class).invoke(address, "Bahnhofstrasse");
+
+        Method displayLabel = runtime.workspaceType.getMethod("displayLabel", Object.class);
+        assertThat(displayLabel.invoke(null, address)).isEqualTo("Bahnhofstrasse");
+
+        Class<?> municipalityType = runtime.classLoader.loadClass("com.example.ui.Municipality");
+        Object municipality = municipalityType.getDeclaredConstructor().newInstance();
+        municipalityType.getMethod("setId", Long.class).invoke(municipality, 42L);
+        assertThat(displayLabel.invoke(null, municipality)).isEqualTo("42");
+    }
+
+    @Test
+    void workspaceBuildsScalarDetailsAndSafeToOneRelationshipLinks() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Object address = runtime.domainType.getDeclaredConstructor().newInstance();
+        runtime.domainType.getMethod("setId", Long.class).invoke(address, 7L);
+        runtime.domainType.getMethod("setName", String.class).invoke(address, "Bahnhofstrasse");
+        runtime.domainType.getMethod("setDescription", String.class).invoke(address, "Zentrum");
+
+        Class<?> municipalityType = runtime.classLoader.loadClass("com.example.ui.Municipality");
+        Object municipality = municipalityType.getDeclaredConstructor().newInstance();
+        municipalityType.getMethod("setId", Long.class).invoke(municipality, 42L);
+        municipalityType.getMethod("setName", String.class).invoke(municipality, "Bern");
+        runtime.domainType.getMethod("setMunicipality", municipalityType).invoke(address, municipality);
+
+        Map<String, Object> descriptor = invokeDescriptor(runtime, Map.of("config", Map.of()));
+        Method showModel = runtime.workspaceType.getMethod(
+            "showModel", Object.class, Class.class, Object.class, Map.class
+        );
+        Map<String, Object> model = map(showModel.invoke(null, Map.of(), runtime.domainType, address, descriptor));
+
+        String detailText = model.get("workspaceDetailSections").toString();
+        assertThat(detailText)
+            .contains("name", "description")
+            .doesNotContain("municipality", "id", "version");
+        assertThat(model.get("workspaceRelationshipLinks").toString())
+            .contains("municipality", "42", "controller", "Bern")
+            .doesNotContain("java.util.ArrayList");
+
+        runtime.domainType.getMethod("setMunicipality", municipalityType).invoke(address, new Object[] {null});
+        Map<String, Object> emptyModel = map(showModel.invoke(null, Map.of(), runtime.domainType, address, descriptor));
+        assertThat(emptyModel.get("workspaceRelationshipLinks").toString())
+            .contains("municipality", "empty=true");
+    }
+
     private GeneratedRuntime generatedRuntime() throws Exception {
         ModelMetadata metadata = new ModelMetadata("UiModel");
+        ClassMetadata municipality = new ClassMetadata("UiModel.Topic.Municipality");
+        municipality.addAttribute(attribute("name", "String"));
+        metadata.addClass(municipality);
         ClassMetadata address = new ClassMetadata("UiModel.Topic.Address");
         address.addAttribute(attribute("name", "String"));
         address.addAttribute(attribute("description", "String"));
@@ -167,9 +286,16 @@ class InterlisUiDescriptorSupportTest {
         assertThat(Files.readString(registrySource))
             .contains("domainClassName: 'com.example.ui.Address'");
         classLoader.parseClass(registrySource.toFile());
-        Class<?> domainType = classLoader.parseClass(domainSource(), "Address.groovy");
+        classLoader.parseClass(domainSource(), "Address.groovy");
+        Class<?> domainType = classLoader.loadClass("com.example.ui.Address");
+        Class<?> municipalityType = classLoader.loadClass("com.example.ui.Municipality");
+        assertThat(Files.readString(registrySource))
+            .contains("domainClassName: 'com.example.ui.Municipality'");
+        classLoader.parseClass(Files.readString(TABLE_MODEL_SOURCE), "InterlisTableModel.groovy");
+        classLoader.parseClass(Files.readString(RELATIONSHIP_OPTIONS_SOURCE), "InterlisRelationshipOptions.groovy");
         Class<?> supportType = classLoader.parseClass(Files.readString(RUNTIME_SOURCE), "InterlisUiDescriptorSupport.groovy");
-        return new GeneratedRuntime(supportType, domainType);
+        Class<?> workspaceType = classLoader.parseClass(Files.readString(WORKSPACE_SOURCE), "InterlisWorkspaceSupport.groovy");
+        return new GeneratedRuntime(supportType, domainType, municipalityType, workspaceType, classLoader);
     }
 
     private AttributeMetadata attribute(String name, String javaType) {
@@ -182,13 +308,28 @@ class InterlisUiDescriptorSupportTest {
         return """
             package com.example.ui
 
+            enum AddressStatus { ACTIVE, ARCHIVED }
+
+            class Municipality {
+                Long id
+                String name
+                static constrainedProperties = [id: [:], name: [maxSize: 80]]
+                static interlisDisplayMeta = [displayFields: ['name'], searchFields: ['name']]
+                static interlisFieldMeta = [name: [coreType: 'TEXT']]
+                static interlisRelationshipMeta = [:]
+                static geometryMeta = [:]
+            }
+
             class Address {
                 Long id
                 String name
                 String description
                 Integer year
                 Boolean active
+                AddressStatus status
+                Municipality municipality
                 String longText
+                String position
 
                 static constrainedProperties = [
                     id: [:],
@@ -196,7 +337,10 @@ class InterlisUiDescriptorSupportTest {
                     description: [maxSize: 80],
                     year: [:],
                     active: [:],
-                    longText: [maxSize: 1000]
+                    status: [:],
+                    municipality: [nullable: true],
+                    longText: [maxSize: 1000],
+                    position: [nullable: true]
                 ]
                 static interlisDisplayMeta = [
                     displayFields: ['name'],
@@ -204,13 +348,14 @@ class InterlisUiDescriptorSupportTest {
                 ]
                 static interlisFieldMeta = [
                     name: [coreType: 'TEXT'],
-                    description: [coreType: 'TEXT'],
+                    description: [coreType: 'TEXT', documentation: 'Dokumentation', unit: 'm'],
                     year: [coreType: 'NUMERIC'],
                     active: [coreType: 'BOOLEAN'],
+                    status: [coreType: 'ENUM'],
                     longText: [coreType: 'MTEXT']
                 ]
-                static interlisRelationshipMeta = [:]
-                static geometryMeta = [:]
+                static interlisRelationshipMeta = [municipality: [targetClass: 'com.example.ui.Municipality']]
+                static geometryMeta = [position: [kind: 'POINT']]
             }
             """;
     }
@@ -242,6 +387,10 @@ class InterlisUiDescriptorSupportTest {
         return (Map<String, Object>) value;
     }
 
-    private record GeneratedRuntime(Class<?> supportType, Class<?> domainType) {
+    private record GeneratedRuntime(Class<?> supportType,
+                                    Class<?> domainType,
+                                    Class<?> municipalityType,
+                                    Class<?> workspaceType,
+                                    GroovyClassLoader classLoader) {
     }
 }

@@ -5,7 +5,7 @@
             <p class="ili-page-subtitle">\${pageSubtitle}</p>
         </div>
         <div class="ili-page-actions">
-            <span class="badge text-bg-warning ili-unsaved-badge" hidden data-unsaved-badge>Unsaved changes</span>
+            <span class="badge text-bg-warning ili-unsaved-badge" hidden data-unsaved-badge role="status" aria-live="polite">Ungespeicherte Änderungen</span>
             <g:link class="btn btn-outline-secondary" action="index" data-unsaved-nav="true">
                 <g:message code="default.list.label" args="\${[entityName]}" />
             </g:link>
@@ -22,10 +22,14 @@
     </g:if>
 
     <g:hasErrors bean="\${this.${propertyName}}">
-        <div class="alert alert-danger" role="alert">Validierung fehlgeschlagen. Bitte korrigiere die markierten Werte.</div>
-        <ul class="ili-error-list" role="alert">
+        <div class="alert alert-danger ili-validation-summary" role="alert" tabindex="-1" data-validation-summary>
+            <strong>Validierung fehlgeschlagen.</strong> Bitte korrigiere die markierten Werte.
+        </div>
+        <ul class="ili-error-list ili-validation-summary-list" role="list">
             <g:eachError bean="\${this.${propertyName}}" var="error">
-                <li><g:message error="\${error}"/></li>
+                <li>
+                    <a href="#field-\${error.field}"><g:message error="\${error}"/></a>
+                </li>
             </g:eachError>
         </ul>
     </g:hasErrors>
@@ -39,8 +43,8 @@
         </g:if>
 
         <g:if test="\${associationContextState}">
-            <g:hiddenField name="associationContext" value="\${raw(associationContextState.contextId)}" />
-            <g:hiddenField name="associationOwnerId" value="\${raw(associationContextState.ownerId)}" />
+            <g:hiddenField name="associationContext" value="\${associationContextState.contextId}" />
+            <g:hiddenField name="associationOwnerId" value="\${associationContextState.ownerId}" />
         </g:if>
 
         <div class="ili-split-layout \${geometryFields ? 'ili-split-with-map' : 'ili-split-single'}">
@@ -48,45 +52,20 @@
                 <section class="card ili-form-tile">
                     <div class="card-body ili-native-form-host">
                         <fieldset class="form">
-                            <g:render template="relationship-fields" model="\${[
-                                relationshipFields: relationshipFields,
-                                relationshipOptions: relationshipOptions,
-                                relationshipValues: relationshipValues,
-                                relationshipRequired: relationshipRequired
-                            ]}"/>
-                            <f:all bean="${propertyName}"
-                                   except="\${((geometryFields ?: []) + (relationshipFields ?: [])).unique()}"
-                                   class="ili-native-grid"
-                                   requiredClass="ili-field-row required mb-3"
-                                   labelClass="form-label"
-                                   divClass="ili-native-control"
-                                   widget-class="form-control"
-                                   widget-invalidClass="form-control is-invalid"
-                                   widget-selectDateClass="form-control"
-                                   widget-checkBoxClass="form-check-input" />
+                            <g:each in="\${formSections ?: [[title: 'Allgemein', fields: []]]}" var="formSection">
+                                <g:render template="form-section" model="\${[
+                                    section: formSection,
+                                    propertyName: '${propertyName}',
+                                    relationshipFields: relationshipFields,
+                                    relationshipOptions: relationshipOptions,
+                                    relationshipValues: relationshipValues,
+                                    relationshipRequired: relationshipRequired,
+                                    hiddenRelationshipFields: hiddenRelationshipFields,
+                                    fixedRelationshipLabels: fixedRelationshipLabels,
+                                    fieldMeta: fieldMeta
+                                ]}"/>
+                            </g:each>
                         </fieldset>
-                        <g:if test="\${fieldMeta}">
-                            <section class="ili-field-help-panel" aria-label="Feldhinweise">
-                                <h2 class="ili-section-title h6 mb-2">Feldhinweise</h2>
-                                <dl class="ili-field-help-list">
-                                    <g:each in="\${fieldMeta}" var="fieldEntry">
-                                        <g:if test="\${fieldEntry.value?.documentation || fieldEntry.value?.unit}">
-                                            <div class="ili-field-help-item">
-                                                <dt>
-                                                    \${message(code: '${propertyName}.' + fieldEntry.key + '.label', default: fieldEntry.value?.label ?: fieldEntry.key)}
-                                                    <g:if test="\${fieldEntry.value?.unit}">
-                                                        <span class="ili-unit-badge">\${fieldEntry.value.unit}</span>
-                                                    </g:if>
-                                                </dt>
-                                                <g:if test="\${fieldEntry.value?.documentation}">
-                                                    <dd>\${fieldEntry.value.documentation}</dd>
-                                                </g:if>
-                                            </div>
-                                        </g:if>
-                                    </g:each>
-                                </dl>
-                            </section>
-                        </g:if>
                     </div>
                 </section>
             </section>
@@ -104,12 +83,14 @@
             </g:if>
         </div>
 
-        <footer class="ili-form-actions">
-            <button type="button" class="btn btn-primary" data-form-submit="true">
+        <footer class="ili-form-actions" data-sticky-form-actions>
+            <button type="submit" class="btn btn-primary" name="submitMode" value="save" data-form-submit="true">
                 \${message(code: submitCode, default: submitDefault)}
             </button>
+            <button type="submit" class="btn btn-outline-primary" name="submitMode" value="saveAndContinue" data-form-submit="true">
+                Speichern und weiter
+            </button>
             <g:link class="btn btn-outline-secondary" action="index" data-unsaved-nav="true">Abbrechen</g:link>
-            <button type="submit" class="ili-native-submit js-native-submit">Submit</button>
         </footer>
     </g:form>
 </div>

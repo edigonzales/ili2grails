@@ -3,6 +3,7 @@ package ch.interlis.generator.grails.runtime
 import ch.interlis.generator.grails.generated.InterlisUiRegistry
 
 import java.time.temporal.Temporal
+import java.util.regex.Pattern
 
 /**
  * Builds the framework-neutral UI descriptor consumed by later Bootstrap UI
@@ -48,22 +49,32 @@ final class InterlisUiDescriptorSupport {
         List<String> defaultProminentFilters = filters.keySet().take(3) as List<String>
         List<Map<String, Object>> defaultSections = [[
             title : "Allgemein",
-            fields: editableFields(properties)
+            fields: editableFormFields(properties)
         ]]
 
         List<String> columns = configuredList(
             listConfig, "columns", defaultColumns, knownFields, iliName, "list.columns"
         )
-        List<String> searchFields = configuredList(
-            listConfig, "searchFields", defaultSearchFields, knownFields, iliName, "list.searchFields"
+        List<Map<String, Object>> searchDefinitions = searchDefinitions(
+            listConfig, defaultSearchFields, properties, iliName
         )
+        List<String> searchFields = searchDefinitions.collect { it.path as String }
+        List<String> sortableColumns = configuredList(
+            listConfig, "sortableColumns", columns, knownFields, iliName, "list.sortableColumns"
+        )
+        if (!sortableColumns.contains("id")) {
+            sortableColumns = ["id"] + sortableColumns
+        }
+        String displayField = configuredDisplayField(listConfig, columns, properties, iliName)
         List<String> prominentFilters = configuredList(
             listConfig, "prominentFilters", defaultProminentFilters,
             filters.keySet() as Set<String>, iliName, "list.prominentFilters"
         )
+        filters = configuredFilterOverrides(listConfig, filters, iliName)
         List<Map<String, Object>> sections = configuredSections(
-            formConfig, defaultSections, knownFields, iliName
+            formConfig, defaultSections, properties, knownFields, iliName
         )
+        List<Map<String, Object>> detailSections = detailSections(sections, properties)
 
         String label = configuredDomain.containsKey("label")
             ? requireText(configuredDomain.label, iliName, "label")
@@ -76,11 +87,15 @@ final class InterlisUiDescriptorSupport {
             list        : [
                 columns          : columns,
                 searchFields     : searchFields,
+                searchDefinitions: searchDefinitions,
+                sortableColumns  : sortableColumns,
+                displayField     : displayField,
                 prominentFilters : prominentFilters,
                 filters          : filters
             ],
             form        : [sections: sections],
-            detail      : [sections: sections],
+            detail      : [sections: detailSections],
+            fieldMeta   : staticDomainMap(domainType, "interlisFieldMeta"),
             relationships: staticDomainMap(domainType, "interlisRelationshipMeta"),
             geometry    : staticDomainMap(domainType, "geometryMeta")
         ]
@@ -89,9 +104,10 @@ final class InterlisUiDescriptorSupport {
     static String appTitle(def grailsApplication) {
         Object configured = grailsApplication?.config?.ili2grails?.ui?.appTitle
         String configuredText = configured?.toString()
-        return configuredText == null || configuredText.isBlank()
-            ? "INTERLIS CRUD"
-            : configuredText
+        if (configuredText == null) {
+            return "INTERLIS CRUD"
+        }
+        return configuredText.isBlank() ? "INTERLIS CRUD" : configuredText
     }
 
     private static Map<String, Object> configuredDomain(def grailsApplication, String iliName) {
@@ -101,7 +117,7 @@ final class InterlisUiDescriptorSupport {
 
         domains.eachWithIndex { Object rawDomain, int index ->
             Map<String, Object> domain = asMap(rawDomain)
-            String configuredIliName = domain.iliName?.toString()
+            String configuredIliName = domain?.iliName?.toString()
             if (configuredIliName == null || configuredIliName.isBlank()) {
                 throw new IllegalArgumentException(
                     "Invalid ili2grails.ui.domains[" + index + "]: iliName is required"
@@ -228,10 +244,19 @@ final class InterlisUiDescriptorSupport {
                 Map<String, Object> definition = [
                     name     : property.name,
                     type     : type,
-                    className: property.typeName
+                    className: property.typeName,
+                    propertyType: property.type,
+                    label    : humanize(property.name),
+                    labelCode: null
                 ]
                 if (property.relationship) {
                     definition.targetClass = property.typeName
+                    definition.targetType = property.type
+                    definition.targetDisplayField = relationshipDisplayField(property.type)
+                    definition.optionUrl = "relationshipOptions"
+                }
+                if (property.enum) {
+                    definition.options = enumOptions(property.type, property.name)
                 }
                 definitions[property.name] = definition
             }
@@ -270,6 +295,143 @@ final class InterlisUiDescriptorSupport {
         return property.coreType?.toString()
     }
 
+    private static List<Map<String, Object>> enumOptions(Class enumType, String fieldName) {
+        if (enumType == null || !enumType.isEnum()) {
+            return []
+        }
+        return enumType.enumConstants.collect { Object constant ->
+            String value = ((Enum) constant).name()
+            [
+                value    : value,
+                label    : humanize(value),
+                labelCode: fieldName + "." + value + ".label"
+            ]
+        }
+    }
+
+    private static String relationshipDisplayField(Class targetType) {
+        if (targetType == null) {
+            return "id"
+        }
+        Map<String, Object> displayMeta = staticDomainMap(targetType, "interlisDisplayMeta")
+        List<String> configured = normalizeList(displayMeta.displayFields).collect { it.toString() }
+        return configured ? configured.first() : "id"
+    }
+
+    private static String humanize(String value) {
+        if (value == null) {
+            return ""
+        }
+        return value.replaceAll("([a-z])([A-Z])", '$1 $2')
+            .replace('_', ' ')
+            .replace('-', ' ')
+            .split(' ')
+            .findAll { !it.isBlank() }
+            .collect { String part -> part.substring(0, 1).toUpperCase(Locale.ROOT) + part.substring(1) }
+            .join(' ')
+    }
+
+    private static List<Map<String, Object>> searchDefinitions(Map<String, Object> config,
+                                                                 List<String> defaults,
+                                                                 List<Map<String, Object>> properties,
+                                                                 String iliName) {
+        Set<String> knownFields = properties.collect { it.name as String } as LinkedHashSet<String>
+        List<String> fields = configuredList(
+            config, "searchFields", defaults, knownFields, iliName, "list.searchFields", true
+        )
+        Map<String, Map<String, Object>> byName = properties.collectEntries { [(it.name): it] }
+        return fields.collect { String path ->
+            if (!path.contains('.')) {
+                Map<String, Object> property = byName[path]
+                if (property == null || !textProperty(property)) {
+                    throw new IllegalArgumentException(
+                        "Search field '" + path + "' for iliName '" + iliName + "' must be a direct text property"
+                    )
+                }
+                return [path: path, criteriaPath: path, relationship: false, field: path]
+            }
+            List<String> parts = path.split('\\.') as List<String>
+            if (parts.size() != 2 || parts.any { it == null || it.isBlank() }) {
+                throw new IllegalArgumentException(
+                    "Search path '" + path + "' for iliName '" + iliName +
+                        "' must contain exactly one whitelisted relationship hop"
+                )
+            }
+            Map<String, Object> relationship = byName[parts[0]]
+            Class targetType = relationship?.type as Class
+            if (relationship == null || !relationship.relationship || relationship.collection || targetType == null) {
+                throw new IllegalArgumentException(
+                    "Search path '" + path + "' for iliName '" + iliName + "' must start with a to-one relationship"
+                )
+            }
+            List<Map<String, Object>> targetProperties = propertyDescriptors(null, targetType)
+            Map<String, Object> targetProperty = targetProperties.find { it.name == parts[1] }
+            if (targetProperty == null || !textProperty(targetProperty)) {
+                throw new IllegalArgumentException(
+                    "Search path '" + path + "' for iliName '" + iliName +
+                        "' must end in a text property of " + targetType.name
+                )
+            }
+            String alias = parts[0] + "Search"
+            return [
+                path             : path,
+                criteriaPath     : alias + "." + parts[1],
+                relationship    : true,
+                relationshipField: parts[0],
+                field            : parts[1],
+                alias            : alias,
+                targetClass      : targetType.name
+            ]
+        }
+    }
+
+    private static String configuredDisplayField(Map<String, Object> config,
+                                                  List<String> columns,
+                                                  List<Map<String, Object>> properties,
+                                                  String iliName) {
+        String configured = config != null && config.containsKey("displayField")
+            ? config.displayField?.toString()
+            : null
+        String candidate = configured ?: columns.find { it != "id" } ?: "id"
+        if (!columns.contains(candidate)) {
+            invalidField(iliName, candidate, "list.displayField")
+        }
+        Map<String, Object> property = properties.find { it.name == candidate }
+        if (candidate != "id" && (property == null || property.relationship || property.collection || property.geometry)) {
+            throw new IllegalArgumentException(
+                "Display field '" + candidate + "' for iliName '" + iliName + "' must be a scalar list column"
+            )
+        }
+        return candidate
+    }
+
+    private static Map<String, Map<String, Object>> configuredFilterOverrides(Map<String, Object> config,
+                                                                                Map<String, Map<String, Object>> defaults,
+                                                                                String iliName) {
+        if (config == null || !config.containsKey("filters")) {
+            return defaults
+        }
+        Map<String, Object> overrides = asMap(config.filters)
+        overrides.each { String field, Object rawOverride ->
+            if (!defaults.containsKey(field)) {
+                invalidField(iliName, field, "list.filters")
+            }
+            Map<String, Object> override = asMap(rawOverride)
+            Map<String, Object> definition = defaults[field]
+            if (override.containsKey("type") && override.type?.toString() != definition.type) {
+                throw new IllegalArgumentException(
+                    "Filter type for '" + field + "' in iliName '" + iliName + "' cannot change from " + definition.type
+                )
+            }
+            ["label", "labelCode"].each { String key ->
+                if (override.containsKey(key)) {
+                    definition[key] = requireText(override[key], iliName, "list.filters." + field + "." + key)
+                }
+            }
+        }
+        return defaults
+    }
+
     private static boolean compactScalar(Map<String, Object> property) {
         if (property.geometry || property.collection || property.relationship
             || property.name in ["id", "version"]) {
@@ -305,9 +467,12 @@ final class InterlisUiDescriptorSupport {
             : staticCoreType(property) in ["TEXT", "MTEXT"]
     }
 
-    private static List<String> editableFields(List<Map<String, Object>> properties) {
+    private static List<String> editableFormFields(List<Map<String, Object>> properties) {
         return properties
-            .findAll { it.name != "id" && it.name != "version" }
+            .findAll {
+                it.name != "id" && it.name != "version"
+                    && it.geometry != true && it.collection != true
+            }
             .collect { it.name }
     }
 
@@ -316,13 +481,15 @@ final class InterlisUiDescriptorSupport {
                                                List<String> defaults,
                                                Set<String> knownFields,
                                                String iliName,
-                                               String section) {
-        if (!config.containsKey(key)) {
+                                               String section,
+                                               boolean allowSearchPaths = false) {
+        Object configuredValue = configuredValue(config, key)
+        if (configuredValue == null) {
             return defaults
         }
-        List<String> values = normalizeList(config[key]).collect { it.toString() }
+        List<String> values = normalizeList(configuredValue).collect { it.toString() }
         values.each { String field ->
-            if (!knownFields.contains(field)) {
+            if (!knownFields.contains(field) && !(allowSearchPaths && field.contains('.'))) {
                 invalidField(iliName, field, section)
             }
         }
@@ -331,13 +498,17 @@ final class InterlisUiDescriptorSupport {
 
     private static List<Map<String, Object>> configuredSections(Map<String, Object> config,
                                                                 List<Map<String, Object>> defaults,
+                                                                List<Map<String, Object>> properties,
                                                                 Set<String> knownFields,
                                                                 String iliName) {
-        if (!config.containsKey("sections")) {
+        Object configuredValue = configuredValue(config, "sections")
+        if (configuredValue == null) {
             return defaults
         }
-        List<?> rawSections = normalizeList(config.sections)
+        Set<String> editableFields = editableFormFields(properties) as LinkedHashSet<String>
+        List<?> rawSections = normalizeList(configuredValue)
         List<Map<String, Object>> sections = []
+        Set<String> coveredFields = new LinkedHashSet<String>()
         rawSections.eachWithIndex { Object rawSection, int index ->
             Map<String, Object> section = asMap(rawSection)
             String title = section.title?.toString()
@@ -352,9 +523,80 @@ final class InterlisUiDescriptorSupport {
                     invalidField(iliName, field, "form.sections[" + index + "]")
                 }
             }
-            sections << [title: title, fields: fields.unique()]
+            List<String> sectionFields = fields.unique().findAll { String field ->
+                editableFields.contains(field) && !coveredFields.contains(field)
+            }
+            coveredFields.addAll(sectionFields)
+            if (!sectionFields.isEmpty()) {
+                sections << [title: title, fields: sectionFields]
+            }
+        }
+        List<String> remainingFields = editableFields.findAll { !coveredFields.contains(it) }.toList()
+        if (!remainingFields.isEmpty()) {
+            sections << [title: "Weitere Felder", fields: remainingFields]
+        }
+        if (sections.isEmpty()) {
+            sections = [[title: "Allgemein", fields: []]]
         }
         return sections
+    }
+
+    private static Object configuredValue(Map<String, Object> config, String key) {
+        if (config == null) {
+            return null
+        }
+        if (config.containsKey(key)) {
+            return config[key]
+        }
+
+        Pattern indexedKey = Pattern.compile(Pattern.quote(key) + "\\[(\\d+)]")
+        Map<Integer, Object> indexedValues = [:]
+        config.each { Object rawKey, Object value ->
+            def matcher = indexedKey.matcher(rawKey.toString())
+            if (matcher.matches()) {
+                indexedValues[Integer.valueOf(matcher.group(1))] = value
+            }
+        }
+        return indexedValues.isEmpty()
+            ? null
+            : indexedValues.keySet().sort().collect { Integer index -> indexedValues[index] }
+    }
+
+    private static List<Map<String, Object>> detailSections(List<Map<String, Object>> sections,
+                                                            List<Map<String, Object>> properties) {
+        Set<String> scalarFields = properties
+            .findAll { scalarDetailProperty(it) }
+            .collect { it.name as String } as LinkedHashSet<String>
+
+        List<Map<String, Object>> configured = sections.collect { Map<String, Object> section ->
+            [
+                title : section.title,
+                fields: (section.fields ?: []).collect { it.toString() }
+                    .findAll { scalarFields.contains(it) }
+                    .unique()
+            ]
+        }.findAll { Map<String, Object> section -> !section.fields.isEmpty() }
+
+        if (configured.isEmpty()) {
+            return [[title: "Allgemein", fields: scalarFields.toList()]]
+        }
+
+        Set<String> coveredFields = new LinkedHashSet<String>()
+        configured.each { Map<String, Object> section ->
+            coveredFields.addAll(section.fields as Collection<String>)
+        }
+        List<String> remainingFields = scalarFields.findAll { !coveredFields.contains(it) }.toList()
+        if (!remainingFields.isEmpty()) {
+            configured << [title: "Allgemein", fields: remainingFields]
+        }
+        return configured
+    }
+
+    private static boolean scalarDetailProperty(Map<String, Object> property) {
+        return !(property?.name in ["id", "version"])
+            && property?.relationship != true
+            && property?.geometry != true
+            && property?.collection != true
     }
 
     private static String requireText(Object value, String iliName, String section) {
@@ -396,7 +638,7 @@ final class InterlisUiDescriptorSupport {
             return value as List
         }
         if (value instanceof Map) {
-            return [value]
+            return value.isEmpty() ? [] : [value]
         }
         throw new IllegalArgumentException("Expected a list or map configuration value but got " + value.class.name)
     }

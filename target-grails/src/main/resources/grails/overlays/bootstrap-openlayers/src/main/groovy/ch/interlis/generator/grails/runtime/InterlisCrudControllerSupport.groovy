@@ -27,23 +27,50 @@ abstract class InterlisCrudControllerSupport<T> {
 
     def index(Integer max, Integer offset) {
         applySecurityHeaders()
-        Map<String, Object> pagination = paginationParams(max, offset)
-        String query = normalizedQuery(params.q)
+        Map<String, Object> descriptor = uiDescriptor()
+        Map<String, Object> listQuery = InterlisListQuerySupport.parse(params, descriptor)
+        if (max != null) {
+            listQuery.max = boundedMax(max)
+        }
+        if (offset != null) {
+            listQuery.offset = safeOffset(offset)
+        }
+        listQuery.params = InterlisListQuerySupport.urlParams(listQuery)
+        listQuery.chips = InterlisListQuerySupport.activeFilterChips(listQuery)
         List<String> columns = tableColumns()
-        Map<String, Object> page = pagedRecords(query, pagination)
+        Map<String, Object> page = InterlisListQuerySupport.page(
+            crudService(), domainType(), descriptor, listQuery
+        )
         List<T> records = page.records as List<T>
+        List<Map<String, Object>> filters = filterFields()
+        Map<String, Object> filterOptions = relationshipFilterOptions(filters, listQuery)
         respond records, model: [
             (modelKey() + "List"): records,
             (modelKey() + "Count"): page.total,
+            uiDescriptor: descriptor,
+            listQuery: listQuery,
+            listQueryWarnings: listQuery.warnings,
             tableColumns: columns,
             tableRows: tableRows(records, columns),
-            typedFilters: filterFields(),
-            activeFilters: activeFilters(),
-            q: query,
-            max: pagination.max,
-            offset: pagination.offset,
-            sort: pagination.sort,
-            order: pagination.order
+            displayColumn: descriptor.list.displayField,
+            typedFilters: filters,
+            prominentFilterFields: filters.findAll { listQueryProminent(descriptor, it.name) },
+            advancedFilterFields: filters.findAll { !listQueryProminent(descriptor, it.name) },
+            filterOptions: filterOptions,
+            activeFilters: listQuery.activeFilters,
+            activeFilterChips: listQuery.chips,
+            domainHasRecords: page.domainHasRecords == true,
+            hasActiveListQuery: listQuery.q != null || !listQuery.filters.isEmpty(),
+            sortUrls: columns.collectEntries { String column ->
+                [(column): InterlisListQuerySupport.sortParams(listQuery, column)]
+            },
+            pagination: InterlisListQuerySupport.paginationModel(listQuery, page.total as Number),
+            q: listQuery.q,
+            max: listQuery.max,
+            offset: listQuery.offset,
+            sort: listQuery.sort,
+            order: listQuery.order,
+            listUrlParams: listQuery.params
         ]
     }
 
@@ -54,11 +81,14 @@ abstract class InterlisCrudControllerSupport<T> {
             notFound()
             return
         }
+        Map<String, Object> descriptor = uiDescriptor()
         Map<String, Object> model = [:]
         model.putAll(geometryModel(instance))
         model.putAll(relationshipModel(instance))
         model.putAll(detailModel(instance))
         model.putAll(associationModel(instance))
+        model.putAll(InterlisWorkspaceSupport.showModel(grailsApplication, domainType(), instance, descriptor))
+        model.put("uiDescriptor", descriptor)
         respond instance, model: model
     }
 
@@ -66,6 +96,13 @@ abstract class InterlisCrudControllerSupport<T> {
         applySecurityHeaders()
         T instance = domainType().newInstance(domainBindParams()) as T
         Map<String, Object> contextState = associationContextState(instance)
+        if (contextState == null) {
+            respondAssociationError(
+                BAD_REQUEST.value(), "invalid_association_context",
+                "Der Kontext der Assoziation ist ungültig."
+            )
+            return
+        }
         if (!contextState.isEmpty()) {
             applyAssociationContext(instance, contextState)
         }
@@ -77,21 +114,29 @@ abstract class InterlisCrudControllerSupport<T> {
 
     def save() {
         applySecurityHeaders()
+        String submitMode = InterlisFormSupport.submitMode(params.submitMode)
         T instance = domainType().newInstance(domainBindParams()) as T
-        InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
         Map<String, Object> contextState = loadContextStateFromParams()
+        if (contextState == null) {
+            respondAssociationError(
+                BAD_REQUEST.value(), "invalid_association_context",
+                "Der Kontext der Assoziation ist ungültig."
+            )
+            return
+        }
         if (!contextState.isEmpty()) {
             applyAssociationContext(instance, contextState)
         }
+        InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
         if (instance.hasErrors()) {
-            respond instance.errors, view: "create", model: formModelWithContext(instance, contextState)
+            renderValidationForm("create", instance, contextState)
             return
         }
 
         try {
             crudService().save(instance)
         } catch (ValidationException ignored) {
-            respond instance.errors, view: "create", model: formModelWithContext(instance, contextState)
+            renderValidationForm("create", instance, contextState)
             return
         }
 
@@ -101,7 +146,9 @@ abstract class InterlisCrudControllerSupport<T> {
                     code: "default.created.message",
                     args: [message(code: modelKey() + ".label", default: domainType().simpleName), instance.id]
                 )
-                Map<String, Object> redirectTarget = contextualRedirectTarget(instance, contextState)
+                Map<String, Object> redirectTarget = InterlisFormSupport.saveAndContinue(submitMode)
+                    ? InterlisFormSupport.continueRedirect(instance, contextState)
+                    : contextualRedirectTarget(instance, contextState)
                 if (redirectTarget != null) {
                     redirect redirectTarget
                 } else {
@@ -119,7 +166,14 @@ abstract class InterlisCrudControllerSupport<T> {
             notFound()
             return
         }
-        Map<String, Object> contextState = associationContextState(instance)
+        Map<String, Object> contextState = associationContextState(instance, true)
+        if (contextState == null) {
+            respondAssociationError(
+                BAD_REQUEST.value(), "invalid_association_context",
+                "Der Kontext der Assoziation ist ungültig oder gehört nicht zum Datensatz."
+            )
+            return
+        }
         respond instance, model: formModelWithContext(instance, contextState)
     }
 
@@ -131,21 +185,29 @@ abstract class InterlisCrudControllerSupport<T> {
             return
         }
 
-        bindData(instance, params)
+        String submitMode = InterlisFormSupport.submitMode(params.submitMode)
+        Map<String, Object> contextState = loadContextStateFromParams(instance, true)
+        if (contextState == null) {
+            respondAssociationError(
+                BAD_REQUEST.value(), "invalid_association_context",
+                "Der Kontext der Assoziation ist ungültig oder gehört nicht zum Datensatz."
+            )
+            return
+        }
+        bindData(instance, domainBindParams())
         InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
-        Map<String, Object> contextState = loadContextStateFromParams()
         if (!contextState.isEmpty()) {
             applyAssociationContext(instance, contextState)
         }
         if (instance.hasErrors()) {
-            respond instance.errors, view: "edit", model: formModelWithContext(instance, contextState)
+            renderValidationForm("edit", instance, contextState)
             return
         }
 
         try {
             crudService().save(instance)
         } catch (ValidationException ignored) {
-            respond instance.errors, view: "edit", model: formModelWithContext(instance, contextState)
+            renderValidationForm("edit", instance, contextState)
             return
         }
 
@@ -155,7 +217,9 @@ abstract class InterlisCrudControllerSupport<T> {
                     code: "default.updated.message",
                     args: [message(code: modelKey() + ".label", default: domainType().simpleName), instance.id]
                 )
-                Map<String, Object> redirectTarget = contextualRedirectTarget(instance, contextState)
+                Map<String, Object> redirectTarget = InterlisFormSupport.saveAndContinue(submitMode)
+                    ? InterlisFormSupport.continueRedirect(instance, contextState)
+                    : contextualRedirectTarget(instance, contextState)
                 if (redirectTarget != null) {
                     redirect redirectTarget
                 } else {
@@ -175,13 +239,20 @@ abstract class InterlisCrudControllerSupport<T> {
 
         try {
             crudService().delete(id)
-        } catch (DataIntegrityViolationException ignored) {
+        } catch (Exception failure) {
+            if (!isDeleteIntegrityConflict(failure)) {
+                throw failure
+            }
+            String conflictMessage = "Datensatz ${id} kann nicht gelöscht werden, weil eine Datenbank-Integritätsbedingung das Löschen verhindert."
             request.withFormat {
                 form multipartForm {
-                    flash.message = "Datensatz ${id} kann nicht geloescht werden, weil abhaengige Daten vorhanden sind."
+                    flash.message = conflictMessage
                     redirect action: "index", method: "GET"
                 }
-                "*" { render status: CONFLICT }
+                "*" {
+                    response.status = CONFLICT.value()
+                    render([error: conflictMessage] as JSON)
+                }
             }
             return
         }
@@ -196,6 +267,21 @@ abstract class InterlisCrudControllerSupport<T> {
             }
             "*" { render status: NO_CONTENT }
         }
+    }
+
+    private static boolean isDeleteIntegrityConflict(Throwable failure) {
+        Throwable current = failure
+        while (current != null) {
+            if (current instanceof DataIntegrityViolationException ||
+                current.class.name in [
+                    'org.hibernate.exception.ConstraintViolationException',
+                    'org.postgresql.util.PSQLException'
+                ] && current.message?.toLowerCase()?.contains('foreign key constraint')) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
     }
 
     def relationshipOptions() {
@@ -437,16 +523,18 @@ abstract class InterlisCrudControllerSupport<T> {
         response.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
     }
 
-    protected Map<String, Object> formModel(T instance) {
-        Map<String, Object> model = [:]
-        model.putAll(geometryModel(instance))
-        model.putAll(relationshipModel(instance))
+    protected Map<String, Object> formModel(T instance, Map sourceParams = params) {
+        Map<String, Object> model = InterlisFormSupport.formViewModel(uiDescriptor())
+        model.putAll(geometryModel(instance, sourceParams))
+        model.putAll(relationshipModel(instance, sourceParams))
         model.put("fieldMeta", fieldMeta())
         return model
     }
 
-    protected Map<String, Object> formModelWithContext(T instance, Map<String, Object> contextState) {
-        Map<String, Object> model = formModel(instance)
+    protected Map<String, Object> formModelWithContext(T instance,
+                                                      Map<String, Object> contextState,
+                                                      Map sourceParams = params) {
+        Map<String, Object> model = formModel(instance, sourceParams)
         model.put("hiddenRelationshipFields", [])
         model.put("fixedRelationshipLabels", [:])
         model.put("associationContextState", null)
@@ -461,10 +549,22 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     protected Map<String, Object> associationContextState(T instance) {
+        return associationContextState(instance, false)
+    }
+
+    protected Map<String, Object> associationContextState(T instance, boolean edit) {
         try {
+            if (edit && hasAssociationContext(params)) {
+                return InterlisAssociationContextSupport.prepareEditContext(
+                    grailsApplication, domainType(), instance, params)
+            }
             return InterlisAssociationContextSupport.prepareCreateContext(
                 grailsApplication, domainType(), params)
         } catch (Exception e) {
+            if (hasAssociationContext(params)) {
+                log.warn("Association context rejected for ${domainType().simpleName}: ${e.message}")
+                return null
+            }
             log.info("Association context not applied for ${domainType().simpleName}: ${e.message}")
             return [:]
         }
@@ -481,26 +581,87 @@ abstract class InterlisCrudControllerSupport<T> {
         return InterlisAssociationContextSupport.redirectTarget(state)
     }
 
-    protected Map<String, Object> loadContextStateFromParams() {
+    protected Map<String, Object> loadContextStateFromParams(T instance = null, boolean edit = false) {
         String contextId = params.associationContext?.toString()
         String ownerIdStr = params.associationOwnerId?.toString()
         if (contextId == null || contextId.isBlank() || ownerIdStr == null || ownerIdStr.isBlank()) {
             return [:]
         }
         try {
+            if (edit && instance != null) {
+                return InterlisAssociationContextSupport.prepareEditContext(
+                    grailsApplication, domainType(), instance, params)
+            }
             return InterlisAssociationContextSupport.prepareCreateContext(
                 grailsApplication, domainType(), params)
         } catch (Exception e) {
             log.warn("Failed to re-load association context for ${domainType().simpleName}: ${e.message}")
+            if (hasAssociationContext(params)) {
+                return null
+            }
             return [:]
         }
     }
 
     protected Map domainBindParams() {
-        Map filtered = new java.util.LinkedHashMap(params)
-        filtered.remove("associationContext")
-        filtered.remove("associationOwnerId")
+        Set<String> allowedFields = new LinkedHashSet<String>()
+        (uiDescriptor()?.form?.sections ?: []).each { Map<String, Object> section ->
+            (section.fields ?: []).each { Object field -> allowedFields.add(field.toString()) }
+        }
+        allowedFields.addAll(relationshipFields())
+        allowedFields.add("version")
+
+        Map filtered = new java.util.LinkedHashMap()
+        allowedFields.each { String field ->
+            if (params.containsKey(field)) {
+                filtered[field] = params.get(field)
+            } else if (booleanDomainField(field)) {
+                // An unchecked HTML checkbox submits no value. Bind its native
+                // false value explicitly while keeping the whitelist intact.
+                filtered[field] = false
+            }
+            String nestedId = field + ".id"
+            if (params.containsKey(nestedId)) {
+                filtered[nestedId] = params.get(nestedId)
+            }
+            ["day", "month", "year", "hour", "minute", "second"].each { String component ->
+                String structuredField = field + "_" + component
+                if (params.containsKey(structuredField)) {
+                    filtered[structuredField] = params.get(structuredField)
+                }
+            }
+        }
         return filtered
+    }
+
+    protected boolean booleanDomainField(String field) {
+        try {
+            Class fieldType = domainType().getDeclaredField(field).type
+            return fieldType == Boolean || fieldType == Boolean.TYPE
+        } catch (NoSuchFieldException ignored) {
+            return false
+        }
+    }
+
+    protected boolean hasAssociationContext(Map sourceParams) {
+        String contextId = sourceParams?.associationContext?.toString()
+        String ownerId = sourceParams?.associationOwnerId?.toString()
+        return contextId != null && !contextId.isBlank() && ownerId != null && !ownerId.isBlank()
+    }
+
+    protected void renderValidationForm(String viewName,
+                                         T instance,
+                                         Map<String, Object> contextState) {
+        Map<String, Object> model = formModelWithContext(instance, contextState)
+        model.put(modelKey(), instance)
+        request.withFormat {
+            form multipartForm {
+                render view: viewName, model: model
+            }
+            "*" {
+                respond instance.errors, [status: BAD_REQUEST]
+            }
+        }
     }
 
     protected Map<String, Object> paginationParams(Integer maxParam, Integer offsetParam) {
@@ -523,7 +684,7 @@ abstract class InterlisCrudControllerSupport<T> {
 
     protected String safeSort(Object value) {
         String requested = value?.toString()
-        if (requested != null && tableColumns().contains(requested)) {
+        if (requested != null && (uiDescriptor().list.sortableColumns ?: ["id"]).contains(requested)) {
             return requested
         }
         return "id"
@@ -540,60 +701,33 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     protected Map<String, Object> pagedRecords(String query, Map<String, Object> pagination) {
-        Map<String, Object> filters = activeFilters()
-        if (query != null || !filters.isEmpty()) {
-            return searchedRecords(query, filters, pagination)
-        }
-        List<T> records = crudService().list(pagination) as List<T>
-        return [
-            records: records,
-            total: crudService().count()
-        ]
+        Map<String, Object> requestParameters = new LinkedHashMap<>(params as Map)
+        requestParameters.q = query
+        requestParameters.max = pagination.max
+        requestParameters.offset = pagination.offset
+        requestParameters.sort = pagination.sort
+        requestParameters.order = pagination.order
+        return InterlisListQuerySupport.page(
+            crudService(), domainType(), uiDescriptor(),
+            InterlisListQuerySupport.parse(requestParameters, uiDescriptor())
+        )
     }
 
     protected Map<String, Object> searchedRecords(String query,
                                                   Map<String, Object> filters,
                                                   Map<String, Object> pagination) {
-        List<String> columns = InterlisTableModel.searchableColumns(grailsApplication, domainType(), geometryFields())
-        if (query != null && columns.isEmpty() && filters.isEmpty()) {
-            return [records: [], total: 0]
-        }
-        String pattern = query != null ? "%" + query + "%" : null
-        Map<String, Map<String, Object>> filterDefinitions = InterlisTableModel.filterDefinitions(
-            grailsApplication,
-            domainType(),
-            geometryFields()
-        )
-        def results = domainType().createCriteria().list(
+        Map<String, Object> requestParameters = [
+            q: query,
+            filter: filters,
             max: pagination.max,
             offset: pagination.offset,
             sort: pagination.sort,
             order: pagination.order
-        ) {
-            if (pattern != null) {
-                or {
-                    columns.each { String column ->
-                        ilike(column, pattern)
-                    }
-                }
-            }
-            filters.each { String field, Object rawValue ->
-                Map<String, Object> definition = filterDefinitions[field]
-                Object value = coerceFilterValue(rawValue, definition)
-                if (value == null) {
-                    return
-                }
-                if ((definition?.type ?: "text") == "text") {
-                    ilike(field, "%" + value.toString() + "%")
-                } else {
-                    eq(field, value)
-                }
-            }
-        }
-        return [
-            records: results as List<T>,
-            total: results.totalCount ?: results.size()
         ]
+        return InterlisListQuerySupport.page(
+            crudService(), domainType(), uiDescriptor(),
+            InterlisListQuerySupport.parse(requestParameters, uiDescriptor())
+        )
     }
 
     protected Map<Object, Map<String, String>> tableRows(List<T> records, List<String> columns) {
@@ -609,7 +743,7 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     protected Map<String, Object> detailModel(T instance) {
-        List<String> columns = tableColumns()
+        List<String> columns = detailColumns()
         Map<String, String> values = [:]
         columns.each { String column ->
             values[column] = renderFieldValue(instance?."${column}")
@@ -621,95 +755,55 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     protected List<String> tableColumns() {
+        return (uiDescriptor().list.columns ?: ["id"]).collect { it.toString() }
+    }
+
+    protected List<String> detailColumns() {
         return InterlisTableModel.tableColumns(grailsApplication, domainType(), geometryFields())
     }
 
+    protected Map<String, Object> uiDescriptor() {
+        return InterlisUiDescriptorSupport.descriptor(grailsApplication, domainType())
+    }
+
     protected List<Map<String, Object>> filterFields() {
-        return InterlisTableModel.filterableColumns(grailsApplication, domainType(), geometryFields())
+        Map<String, Object> definitions = uiDescriptor().list.filters instanceof Map
+            ? uiDescriptor().list.filters as Map<String, Object>
+            : [:]
+        return definitions.values().collect { Map<String, Object> definition ->
+            new LinkedHashMap<String, Object>(definition)
+        } as List<Map<String, Object>>
     }
 
     protected Map<String, Object> activeFilters() {
-        Map<String, Object> filters = [:]
-        Object rawFilterParams = params.filter
-        if (rawFilterParams == null) {
-            return filters
+        return InterlisListQuerySupport.parse(params, uiDescriptor()).activeFilters as Map<String, Object>
+    }
+
+    protected boolean listQueryProminent(Map<String, Object> descriptor, String field) {
+        return (descriptor?.list?.prominentFilters ?: []).collect { it.toString() }.contains(field)
+    }
+
+    protected Map<String, Object> relationshipFilterOptions(List<Map<String, Object>> definitions,
+                                                             Map<String, Object> query) {
+        Map<String, Object> options = [:]
+        definitions.findAll { it.type?.toString() == "relationship" }.each { Map<String, Object> definition ->
+            String selected = query?.filterValues?.get(definition.name)?.value?.toString()
+            options[definition.name] = InterlisListQuerySupport.relationshipOptions(
+                grailsApplication, domainType(), definition, selected, 25
+            )
         }
-        Map<String, Map<String, Object>> definitions = InterlisTableModel.filterDefinitions(
-            grailsApplication,
-            domainType(),
-            geometryFields()
-        )
-        definitions.keySet().each { String field ->
-            Object value = rawFilterParams[field]
-            if (value != null && !value.toString().trim().isEmpty()) {
-                filters[field] = value.toString().trim()
-            }
-        }
-        return filters
+        return options
     }
 
     protected Object coerceFilterValue(Object value, Map<String, Object> definition) {
-        if (value == null) {
-            return null
-        }
-        String type = definition?.type?.toString()
-        String className = definition?.className?.toString()
-        String raw = value.toString().trim()
-        if (raw.isEmpty()) {
-            return null
-        }
-        try {
-            if (type == "number") {
-                return raw.contains(".") ? new BigDecimal(raw) : Long.valueOf(raw)
-            }
-            if (type == "boolean") {
-                return raw == "true"
-            }
-            if (type == "date") {
-                LocalDate date = LocalDate.parse(raw)
-                if (className == "java.sql.Date") {
-                    return java.sql.Date.valueOf(date)
-                }
-                if (className == "java.util.Date") {
-                    return java.sql.Date.valueOf(date)
-                }
-                return date
-            }
-            return raw
-        } catch (Exception ignored) {
-            return null
-        }
+        return InterlisListQuerySupport.coerceFilterValue(value, definition)
     }
 
     protected String renderFieldValue(Object value) {
-        if (value == null) {
-            return ""
-        }
-        if (value instanceof Enum) {
-            return ((Enum) value).name()
-        }
-        if (value instanceof TemporalAccessor) {
-            return value.toString()
-        }
-        if (value instanceof Date) {
-            return value.format("yyyy-MM-dd HH:mm:ss")
-        }
-        if (value instanceof Collection) {
-            return ((Collection) value).collect { Object item -> renderFieldValue(item) }
-                .findAll { String item -> item != null && !item.isBlank() }
-                .join(", ")
-        }
-        if (value instanceof Geometry) {
-            return value.geometryType
-        }
-        String relationshipLabel = InterlisRelationshipOptions.displayLabel(value)
-        if (relationshipLabel != null) {
-            return relationshipLabel
-        }
-        return value.toString()
+        return InterlisWorkspaceSupport.renderValue(value)
     }
 
-    protected Map<String, Object> relationshipModel(T instance) {
+    protected Map<String, Object> relationshipModel(T instance, Map sourceParams = params) {
         List<String> fields = relationshipFields()
         Map<String, List<Map<String, String>>> options = [:]
         Map<String, String> values = [:]
@@ -717,11 +811,16 @@ abstract class InterlisCrudControllerSupport<T> {
 
         fields.each { String field ->
             options[field] = relationshipOptionPage(field, null, 25, 0).results as List<Map<String, String>>
-            Map<String, String> selected = selectedRelationshipOption(instance, field)
+            boolean submitted = submittedRelationshipValue(sourceParams, field)
+            String submittedId = relationshipSubmittedId(sourceParams, field)
+            Map<String, String> selected = submitted
+                ? InterlisRelationshipOptions.optionForId(
+                    grailsApplication, domainType(), field, submittedId, geometryFields())
+                : selectedRelationshipOption(instance, field)
             if (selected != null && options[field].every { Map<String, String> option -> option.id != selected.id }) {
                 options[field] = [selected] + options[field]
             }
-            values[field] = selectedRelationshipId(instance, field)
+            values[field] = submitted ? submittedId : selectedRelationshipId(instance, field)
             required[field] = relationshipFieldRequired(field)
         }
 
@@ -733,11 +832,41 @@ abstract class InterlisCrudControllerSupport<T> {
         ]
     }
 
+    protected boolean submittedRelationshipValue(Map sourceParams, String field) {
+        if (sourceParams == null || field == null) {
+            return false
+        }
+        if (sourceParams.containsKey(field + ".id")) {
+            return true
+        }
+        Object nested = sourceParams.get(field)
+        return nested instanceof Map && (nested as Map).containsKey("id")
+    }
+
+    protected String relationshipSubmittedId(Map sourceParams, String field) {
+        if (sourceParams == null || field == null) {
+            return null
+        }
+        Object flattened = sourceParams.get(field + ".id")
+        if (flattened != null) {
+            return flattened.toString()
+        }
+        Object nested = sourceParams.get(field)
+        if (nested instanceof Map) {
+            Object id = (nested as Map).get("id")
+            return id?.toString()
+        }
+        return null
+    }
+
     protected List<String> relationshipFields() {
         return InterlisRelationshipOptions.relationshipFields(grailsApplication, domainType(), geometryFields())
     }
 
     protected Map<String, Object> relationshipOptionPage(String field, String query, Integer max, Integer offset) {
+        if (!InterlisListQuerySupport.whitelistedRelationshipField(uiDescriptor(), field)) {
+            return [results: [], pagination: [more: false, total: 0, nextOffset: safeOffset(offset)]]
+        }
         return InterlisRelationshipOptions.optionPage(
             grailsApplication,
             domainType(),
@@ -784,7 +913,7 @@ abstract class InterlisCrudControllerSupport<T> {
         }
     }
 
-    protected Map<String, Object> geometryModel(T instance) {
+    protected Map<String, Object> geometryModel(T instance, Map sourceParams = params) {
         List<String> fields = geometryFields()
         Map<String, String> values = [:]
         Map<String, String> kinds = [:]
@@ -792,7 +921,10 @@ abstract class InterlisCrudControllerSupport<T> {
 
         fields.each { String field ->
             Object currentValue = instance?."${field}"
-            values[field] = currentValue != null ? currentValue.toText() : ""
+            String submittedWkt = sourceParams?.get(field + "Wkt")?.toString()
+            values[field] = submittedWkt != null
+                ? submittedWkt
+                : (currentValue != null ? currentValue.toText() : "")
             kinds[field] = geometryKind(field)
             srids[field] = geometrySrid(field)
         }
