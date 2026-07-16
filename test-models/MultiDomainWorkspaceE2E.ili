@@ -1,0 +1,31 @@
+INTERLIS 2.3;
+
+MODEL MultiDomainWorkspaceE2E (en)
+AT "http://www.example.ch"
+VERSION "2026-07-16" =
+  TOPIC Cases =
+    OID AS INTERLIS.UUIDOID;
+
+    CLASS Parcel =
+      Number: MANDATORY TEXT*50;
+    END Parcel;
+
+    CLASS Building =
+      Name: MANDATORY TEXT*80;
+    END Building;
+
+    CLASS Owner =
+      Name: MANDATORY TEXT*80;
+    END Owner;
+
+    ASSOCIATION BuildingParcel =
+      Parcel -- {1} Parcel;
+      Building -- {0..*} Building;
+    END BuildingParcel;
+
+    ASSOCIATION OwnerParcel =
+      Parcel -- {1} Parcel;
+      Owner -- {0..*} Owner;
+    END OwnerParcel;
+  END Cases;
+END MultiDomainWorkspaceE2E.
