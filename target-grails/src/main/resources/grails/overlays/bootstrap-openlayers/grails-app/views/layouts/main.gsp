@@ -18,7 +18,7 @@
        value="${ch.interlis.generator.grails.runtime.InterlisUiDescriptorSupport.appTitle(grailsApplication)}"/>
 <g:set var="explorerUrl" value="${createLink(controller: 'interlisUi', action: 'index')}"/>
 <g:set var="currentNavigationEntry"
-       value="${navigationModel?.domains?.find { it.controller == params.controller }}"/>
+       value="${navigationModel?.allEntries?.find { it.controller == params.controller }}"/>
 
 <header class="navbar bg-body border-bottom sticky-top ili-topbar" data-ili-topbar>
     <div class="container-fluid gap-2">
@@ -54,6 +54,9 @@
                        value="${params.q ?: ''}"
                        placeholder="Domain suchen …"
                        autocomplete="off"
+                       role="combobox"
+                       aria-autocomplete="list"
+                       aria-haspopup="listbox"
                        aria-controls="ili-domain-finder-results"
                        aria-expanded="false"
                        data-ili-domain-finder-input/>

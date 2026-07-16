@@ -21,16 +21,26 @@ public class GrailsTemplateOverlayInstaller {
         "src/main/templates/scaffolding/edit.gsp",
         "src/main/templates/scaffolding/show.gsp",
         "src/main/templates/scaffolding/index.gsp",
+        "src/main/templates/scaffolding/_list-header.gsp",
+        "src/main/templates/scaffolding/_list-filters.gsp",
+        "src/main/templates/scaffolding/_list-filter-field.gsp",
+        "src/main/templates/scaffolding/_list-table.gsp",
+        "src/main/templates/scaffolding/_list-pagination.gsp",
+        "src/main/templates/scaffolding/_list-empty.gsp",
         "src/main/templates/scaffolding/_form.gsp",
+        "src/main/templates/scaffolding/_form-section.gsp",
         "src/main/templates/scaffolding/_geometry-panel.gsp",
         "src/main/templates/scaffolding/_relationship-fields.gsp",
         "src/main/templates/scaffolding/_show-details.gsp",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy",
+        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisFormSupport.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy",
+        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisListQuerySupport.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy",
+        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy",
         "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy",
         "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy",
@@ -42,6 +52,13 @@ public class GrailsTemplateOverlayInstaller {
         "grails-app/views/interlisUi/_sidebar.gsp",
         "grails-app/views/interlisUi/_navigation-groups.gsp",
         "grails-app/views/interlisUi/_domain-link.gsp",
+        "grails-app/views/interlisUi/_workspace-link.gsp",
+        "grails-app/views/interlisUi/_workspace-header.gsp",
+        "grails-app/views/interlisUi/_workspace-details.gsp",
+        "grails-app/views/interlisUi/_workspace-relationships.gsp",
+        "grails-app/views/interlisUi/_workspace-danger-zone.gsp",
+        "grails-app/views/interlisUi/_workspace-table.gsp",
+        "grails-app/views/interlisUi/_workspace-empty.gsp",
         "src/main/templates/scaffolding/_association-sections.gsp",
         "src/main/templates/scaffolding/_association-row-actions.gsp",
         "src/main/templates/scaffolding/_association-quick-add.gsp",
@@ -71,6 +88,18 @@ public class GrailsTemplateOverlayInstaller {
     private static final List<String> LEGACY_APPLICATION_JS_REQUIRES = List.of(
         "//= require ili-carbon-input-bridge.js"
     );
+
+    static List<String> managedFilesForTesting() {
+        return MANAGED_FILES;
+    }
+
+    static List<String> applicationJsRequiresForTesting() {
+        return APPLICATION_JS_REQUIRES;
+    }
+
+    static List<String> applicationCssRequiresForTesting() {
+        return APPLICATION_CSS_REQUIRES;
+    }
 
     public void install(Path grailsProjectDir, GenerationConfig config) throws IOException {
         Objects.requireNonNull(grailsProjectDir, "grailsProjectDir");

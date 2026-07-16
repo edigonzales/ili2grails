@@ -198,6 +198,7 @@
         function closeResults() {
             results.hidden = true;
             input.setAttribute("aria-expanded", "false");
+            input.removeAttribute("aria-activedescendant");
             activeIndex = -1;
         }
 
@@ -213,6 +214,7 @@
                 option.classList.toggle("active", active);
                 option.setAttribute("aria-selected", active ? "true" : "false");
             });
+            input.setAttribute("aria-activedescendant", options[activeIndex].id);
             options[activeIndex].scrollIntoView({ block: "nearest" });
         }
 
@@ -235,9 +237,10 @@
                 empty.textContent = "Keine Domain gefunden";
                 results.appendChild(empty);
             } else {
-                matches.forEach(function(domain) {
+                matches.forEach(function(domain, optionIndex) {
                     var option = document.createElement("a");
                     option.className = "list-group-item list-group-item-action";
+                    option.id = "ili-finder-option-" + optionIndex;
                     option.href = domain.url;
                     option.setAttribute("role", "option");
                     option.setAttribute("aria-selected", "false");

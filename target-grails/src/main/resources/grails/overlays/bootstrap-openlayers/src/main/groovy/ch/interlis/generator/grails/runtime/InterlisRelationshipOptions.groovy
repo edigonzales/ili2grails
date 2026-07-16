@@ -38,6 +38,38 @@ final class InterlisRelationshipOptions {
         return optionPageForTargetType(grailsApplication, targetType, query, max, offset)
     }
 
+    /**
+     * Resolves one submitted relationship id for a validation re-render. The
+     * fallback keeps the submitted value visible even when the referenced row
+     * is no longer available in the current option page.
+     */
+    static Map<String, String> optionForId(def grailsApplication,
+                                           Class domainType,
+                                           String field,
+                                           String id,
+                                           Collection<String> geometryFields) {
+        if (id == null || id.isBlank()) {
+            return null
+        }
+        Class targetType = relationshipTargetType(grailsApplication, domainType, field)
+        if (targetType == null) {
+            return [id: id, label: id]
+        }
+        Object record = null
+        try {
+            record = targetType.get(id)
+        } catch (Exception ignored) {
+            // The submitted value is still returned below for a stable error re-render.
+        }
+        if (record == null) {
+            return [id: id, label: id]
+        }
+        return [
+            id   : record.id?.toString() ?: id,
+            label: optionLabel(record, displayFieldsFor(grailsApplication, targetType))
+        ]
+    }
+
     static Map<String, Object> optionPageForTargetType(def grailsApplication,
                                                        Class targetType,
                                                        String query,

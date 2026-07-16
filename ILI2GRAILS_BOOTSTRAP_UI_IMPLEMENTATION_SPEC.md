@@ -2,7 +2,7 @@
 
 ## Spezifikation und Umsetzungsanweisung für einen LLM Coding Agent
 
-**Stand:** 2026-07-15
+**Stand:** 2026-07-16
 **Repository:** `edigonzales/ili2grails`
 **Zielbereich:** Grails-Target, UI-Theme `bootstrap`
 **Nicht betroffen:** Grails-Default-Scaffolding/UI-Theme `default`
@@ -32,13 +32,13 @@ Der Coding Agent muss dieses Dokument während der Umsetzung aktualisieren. Für
 | Phase | Inhalt | Status |
 |---|---|---|
 | Phase 0 | Bestandsaufnahme, UI-Metadaten und Architekturgrundlage | `DONE` |
-| Phase 1 | Application Shell, Navigation und Domain Explorer | `NOT_STARTED` |
-| Phase 2 | Domain-Liste, Suche, Filter und Tabellen-UX | `NOT_STARTED` |
-| Phase 3 | Objektansicht als Domain Workspace | `NOT_STARTED` |
-| Phase 4 | Create/Edit-Formulare und Editor-UX | `NOT_STARTED` |
-| Phase 5 | Fachliche Multi-Domain-Workspaces | `NOT_STARTED` |
-| Phase 6 | Multi-Domain-Edit mit einem gemeinsamen Save | `NOT_STARTED` |
-| Phase 7 | Härtung, Regression, E2E, Dokumentation und Abnahme | `NOT_STARTED` |
+| Phase 1 | Application Shell, Navigation und Domain Explorer | `DONE` |
+| Phase 2 | Domain-Liste, Suche, Filter und Tabellen-UX | `DONE` |
+| Phase 3 | Objektansicht als Domain Workspace | `DONE` |
+| Phase 4 | Create/Edit-Formulare und Editor-UX | `DONE` |
+| Phase 5 | Fachliche Multi-Domain-Workspaces | `DONE` |
+| Phase 6 | Multi-Domain-Edit mit einem gemeinsamen Save | `DONE` |
+| Phase 7 | Härtung, Regression, E2E, Dokumentation und Abnahme | `DONE` |
 
 ### Verbindliche Arbeitsregel für den Coding Agent
 
@@ -2001,7 +2001,7 @@ Offene Punkte für Phase 2:
 
 # Phase 2 – Domain-Liste, Suche, Filter und Tabellen-UX
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
 
 ## Ziel
 
@@ -2111,13 +2111,59 @@ Eine generische Domain-Liste, die produktiv zum Suchen und Filtern grosser Daten
 ## Fortschrittsprotokoll
 
 ```text
-Status:
+Status: DONE
+
 Query-Vertrag:
+- GET-Parameter sind q, filter.<field>, filter.<field>.min/max, filter.<field>.from/to,
+  sort, order=asc|desc, max und offset.
+- Text verwendet contains, Enumwerte werden gegen echte Enum-Konstanten geprüft,
+  Boolean akzeptiert ausschliesslich true/false, Zahlen/Datum verwenden typisierte
+  Bereichsgrenzen und To-One-Filter ausschliesslich numerische Ziel-IDs.
+- Filter, Sortierung, Suchpfade und Criteria-Property-Namen stammen nur aus dem
+  whitelisted UI-Descriptor. Unbekannte/ungültige Parameter werden ignoriert und als
+  sichtbare Warnung gerendert; ungültige Sortierung fällt auf id zurück.
+- URL-Modelle für Chips, Sortierung, Seitengrösse und Paging erhalten aktive Filter;
+  Formularänderungen starten bei offset=0. Relationship-Optionen bleiben paginiert.
+
 Geänderte Dateien:
+- InterlisUiDescriptorSupport.groovy um sichere Suchdefinitionen, Display-/Sortier-Spalten,
+  Filterlabels, Enumoptionen, Range-Typen und To-One-Zielinformationen erweitert.
+- Neue InterlisListQuerySupport.groovy für Parsing, Coercion, Criteria, Warnungen, URLs,
+  Chips, Paging und Relationship-Optionen; InterlisCrudControllerSupport delegiert dorthin.
+- Neue server-rendered managed GSP-Partials für Header, Suche/Filter, Chips, Tabelle,
+  Pagination und Empty States; index.gsp ist nur noch Orchestrator.
+- Bootstrap-Overlay-Installer und ili-modern.css aktualisiert; core und default-Theme unverändert.
+- test-models/ListQueryE2E.ili ergänzt.
+- README.md und diese Spezifikation aktualisiert.
+
 Neue/angepasste Tests:
+- Descriptor-Tests für Enumoptionen, Relationship-Definitionen, Suchpfad-Whitelist und
+  Konfigurationsüberschreibungen.
+- InterlisListQuerySupport-Unit-Tests für Typ-Coercion, Bereiche, Warnungen, sichere Sortierung,
+  URL-/Chip-Modelle und ungeprüfte Request-Felder.
+- Overlay-/Template-Tests für die neuen managed Dateien.
+- Grails/H2-Integrationstest in einer temporären Grails-Anwendung mit echter GORM-Criteria-
+  Suche, Enum-/Boolean-/Number-/Date-/Relationship-Filterung, Sortierung und Paging.
+- Browser-E2E für die ListQueryE2E-Domain mit Suche, Filtern, Chips, Sortierung, Paging,
+  Filtererhalt, Empty State und Parameterwarnung.
+
 Ausgeführte Tests:
+- ./gradlew test --rerun-tasks --no-daemon (grün)
+- ./gradlew :target-grails:test --rerun-tasks --no-daemon (grün)
+- ./gradlew :target-grails:grailsRuntimeSmokeTest --rerun-tasks --no-daemon (4 Tests, grün; inklusive echter H2-Criteria-Integration)
+- ./gradlew :target-grails:realIli2dbSmokeTest --rerun-tasks --no-daemon (grün)
+- ./gradlew :target-grails:browserE2eTest --rerun-tasks --no-daemon (4 Tests, grün; inklusive ListQueryE2E-Suche/Filter/Sort/Paging/Empty-State)
+
 Performance-Beobachtungen:
-Offene Punkte für Phase 3:
+- Ungefilterte Listen verwenden den vorhandenen paginierten Service-Pfad.
+- Criteria zählt nur die aktuelle Domain; Relationship-Optionen laden nur paginierte Zielseiten
+  plus eine ausgewählte ID. Es gibt keine globalen Counts, keine Collection-Fetches und keine
+  unpaginierten Relationship-Loads.
+- Such-Relationship-Pfade werden nur bei expliziter Konfiguration über einen festen Alias-
+  Namen gejoint; Request-Pfade werden nie direkt in Criteria übernommen.
+
+Phase 3 ist abgeschlossen; Relationship-, Association- und Geometry-Support aus Phase 1/2 blieb
+die technische Grundlage für den Domain Workspace.
 ```
 
 ## Prompt für Coding Agent – Phase 2
@@ -2128,7 +2174,7 @@ Offene Punkte für Phase 3:
 
 # Phase 3 – Objektansicht als Domain Workspace
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
 
 ## Ziel
 
@@ -2202,12 +2248,58 @@ Ein vollständiger, generischer Domain Workspace für jedes Objekt.
 ## Fortschrittsprotokoll
 
 ```text
-Status:
+Status: DONE
+
 Geänderte Dateien:
-Wiederverwendete Association-Komponenten:
+- InterlisWorkspaceSupport als fokussierte managed Bootstrap-Runtime ergänzt. Display Labels
+  verwenden die bestehende InterlisRelationshipOptions-Fallbacklogik; direkte To-One-Links werden
+  ausschließlich über whitelisted InterlisUiRegistry-Einträge aufgelöst.
+- InterlisUiDescriptorSupport liefert additive descriptor-basierte Detailsektionen. Direkte
+  skalare Attribute werden angezeigt; id, version, Geometrien, Collections und Relationships
+  bleiben aus Detailzeilen ausgeschlossen. form.sections kann zusätzliche Sektionen liefern,
+  ersetzt aber nicht die übrigen skalaren Attribute.
+- InterlisCrudControllerSupport.show delegiert die Workspace-Aufbereitung und behält Geometry-,
+  Relationship- und Association-Modelle bei. Delete-Konflikte liefern technisch korrekte Flash-
+  bzw. JSON-Fehlertexte mit Hinweis auf referenzielle Beziehungen oder andere Datenbank-
+  Integritätsbedingungen.
+- show.gsp ist ein dünner Orchestrator. Header, Details, direkte Relationship-Navigation und
+  Danger Zone liegen als managed GSP-Komponenten unter grails-app/views/interlisUi/.
+- Association-Sections, Quick Add, kontextuelle Formulare und Geometry Panel werden unverändert
+  als bestehende Semantikquellen eingebettet. Die Delete-Form verwendet eine separate
+  Formularkennung und übergibt die Domain-ID explizit.
+- Responsive Workspace-Stile und die Formularauflösung für benannte Delete-Forms wurden in den
+  managed Bootstrap-Assets ergänzt. Default-Theme und core blieben unverändert.
+
+Wiederverwendete Association-/Geometry-Komponenten:
+- _association-sections.gsp, _association-quick-add.gsp, _association-context-summary.gsp,
+  _association-row-actions.gsp sowie _geometry-panel.gsp bleiben die fachlichen Quellen.
+- Es gibt keine zweite Relationship-, Association- oder Geometry-Engine.
+
+Explizite Grenze:
+- Keine Audit-, Verlaufs-, Protokoll-, Timeline- oder Restore-Funktion, keine Audit-Tabs und
+  keine neue Persistenz dafür.
+
 Ausgeführte Tests:
-E2E-Pfade:
+- ./gradlew test --rerun-tasks --no-daemon (grün)
+- ./gradlew :target-grails:test --rerun-tasks --no-daemon (grün)
+- ./gradlew :target-grails:grailsRuntimeSmokeTest --rerun-tasks --no-daemon (grün; H2-Workspace-
+  View-Model, Registry-Relationship-Link und Delete-FK-Konflikt)
+- ./gradlew :target-grails:realIli2dbSmokeTest --rerun-tasks --no-daemon (grün)
+- ./gradlew :target-grails:browserE2eTest --rerun-tasks --no-daemon (grün; 4 Tests inklusive
+  Workspace, Relationship-Navigation, Geometry, Quick Add, Kontextformular, Delete-Dialog und
+  sichtbarem Integritätsfehler)
+- git diff --check (grün)
+
+Visuelle Review / Mockup 03:
+- Der Workspace übernimmt die strukturelle Reihenfolge aus Mockup 03: Object Header, Detail-
+  bereich, Relationship-Navigation, integrierte Association-/Geometry-Bereiche und Danger Zone.
+- Bootstrap-no-frills, Standardfarben und die vorhandene Shell bleiben bewusst erhalten; die
+  blaue Mockup-Farbwelt, Benutzeranzeige sowie illustrative Verlauf-/Protokoll-Tabs wurden nicht
+  als Produktfunktion übernommen.
+- Browser-Screenshots werden durch den E2E-Harness unter build/e2e-screenshots erzeugt.
+
 Offene Punkte für Phase 4:
+- Create/Edit-Form-Sektionen, feldnahe Dokumentation/Units und verbesserte Editor-UX.
 ```
 
 ## Prompt für Coding Agent – Phase 3
@@ -2218,7 +2310,7 @@ Offene Punkte für Phase 4:
 
 # Phase 4 – Create/Edit-Formulare und Editor-UX
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
 
 ## Ziel
 
@@ -2296,12 +2388,63 @@ Eine produktiv nutzbare generische Create/Edit-Oberfläche.
 ## Fortschrittsprotokoll
 
 ```text
-Status:
+Status: DONE
+
 Geänderte Dateien:
+- InterlisUiDescriptorSupport erweitert den Bootstrap-Descriptor um deterministische Form-Sektionen.
+  Ohne Konfiguration wird `Allgemein` verwendet; konfigurierte Felder folgen ihrer Reihenfolge,
+  nicht konfigurierte editierbare Scalar- und To-One-Felder werden in `Weitere Felder` ergänzt.
+  Geometrien, Collections, id und version bleiben ausserhalb der Form-Sektionen. Unbekannte Felder
+  und ungültige Sektionen liefern diagnostische IllegalArgumentExceptions; Grails-Config-Listen in
+  der `sections[0]`-Darstellung werden ebenfalls deterministisch normalisiert.
+- InterlisFormSupport ist die fokussierte managed Runtime für Form-View-Modelle, `save`/
+  `saveAndContinue`, sichere Fallbacks bei unbekannten Submit-Modi und den Edit-PRG-Redirect mit
+  erhaltenem Association-Context.
+- `_form.gsp` und `_form-section.gsp` rendern normale `f:field`-Felder, feldnahe INTERLIS-
+  Dokumentation/Units, Message-Code-vor-Fallback-Labels, Validation-Summary, verlinkte Fehler,
+  `is-invalid` und `aria-invalid`. Der vorhandene paginierte Relationship Picker wird je Sektion
+  eingebettet; ausgewählte Optionen und Geometry-WKT bleiben beim Fehler-Re-Render erhalten.
+- InterlisCrudControllerSupport whitelisted Domain-Binding, setzt unchecked Boolean-Felder sicher
+  auf false, prüft `prepareEditContext` für kontextuelle Edit-/Update-Pfade und erhält Fehler-,
+  Relationship-, Context- und Geometry-State. Normales Speichern behält den Show-/Context-Redirect;
+  `saveAndContinue` führt per PRG zum Edit-Formular.
+- `ili-form-ux.js` übernimmt keinen ausgewählten Submitter; Dirty State umfasst Scalar-Felder,
+  Relationship-Auswahl und Geometry-WKT, zeigt das Badge `Ungespeicherte Änderungen`, warnt vor
+  relevanter Navigation und via `beforeunload` und bleibt bei clientseitig blockierter Validation
+  aktiv. Die Action-Bar ist responsive sticky mit Safe-Area-Abstand.
+- Installer, Compile-Smoke, Runtime-/H2-Tests und Browser-Harness wurden um die neuen managed
+  Runtime-/Template-Dateien und Phase-4-Fälle ergänzt. Default-Theme, core, Geometry Editor,
+  Association- und Relationship-Semantik bleiben unverändert; es gibt keine SPA.
+
 Form-Descriptor-Vertrag:
+- `form.sections` referenziert nur bekannte editierbare Feldnamen. Sektionstitel sind nicht leer;
+  doppelt konfigurierte Felder werden nur einmal in der ersten Sektion gerendert. Scalar-Felder und
+  To-One-Relationships sind descriptor-gesteuert, Geometrien bleiben im bestehenden Geometry-Panel.
+- `fieldMeta` liefert feldnahe Dokumentation, Units und Fallback-Labels. Explizite Grails-Message-
+  Codes haben Vorrang. Der Relationship-Picker lädt weiterhin paginiert und ergänzt einen
+  eingereichten/ausgewählten Wert, falls dieser nicht auf der ersten Seite liegt.
+
 Ausgeführte Tests:
+- `./gradlew test --rerun-tasks --no-daemon` (grün)
+- `./gradlew :target-grails:test --rerun-tasks --no-daemon` (grün)
+- `./gradlew :target-grails:grailsRuntimeSmokeTest --rerun-tasks --no-daemon` (grün; 4 Tests)
+- `./gradlew :target-grails:realIli2dbSmokeTest --rerun-tasks --no-daemon` (grün)
+- `./gradlew :target-grails:browserE2eTest --rerun-tasks --no-daemon` (grün; 4 Tests)
+- `git diff --check` (grün)
+
 Browserfälle:
+- Default- und konfigurierte Form-Sektionen inklusive `Weitere Felder`, feldnaher Dokumentation
+  und Unit; Relationship-Suche, Paging und Selected-Value-Fallback.
+- Required-/Range-Validation mit Summary, feldnahem Fehler, Werterhalt und erhaltenem Context-/
+  Relationship-State; `Speichern` sowie `Speichern und weiter` mit PRG.
+- Dirty-Badge, Navigation-Dialog und Geometry-WKT-Änderung; Geometry-Erstellen/Ändern/Speichern.
+- Kontextuelle Association-Create/Edit-Formulare und Redirects sowie bestehende Quick-Add-/Delete-
+  und Relationship-Navigation.
+
 Offene Punkte für Phase 5:
+- Fachliche Multi-Domain-Workspaces und gemeinsame fachliche Abläufe bleiben ausserhalb dieser
+  Phase. Audit-/Verlauf-/Protokollfunktionen, SPA-Frameworks und Multi-Domain-Edit mit gemeinsamem
+  Save bleiben ebenfalls ausdrücklich nicht Bestandteil von Phase 4.
 ```
 
 ## Prompt für Coding Agent – Phase 4
@@ -2312,7 +2455,7 @@ Offene Punkte für Phase 5:
 
 # Phase 5 – Fachliche Multi-Domain-Workspaces
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
 
 ## Ziel
 
@@ -2372,12 +2515,51 @@ Ein getesteter Multi-Domain-Workspace als Referenz plus wiederverwendbare Framew
 ## Fortschrittsprotokoll
 
 ```text
-Status:
+Status: DONE
 Workspace-API/Bausteine:
+- InterlisWorkspaceSupport um kleine Präsentations-Factory-Methoden für unveränderliche
+  Table-Sections und Rows erweitert. Die Factorys führen keine Queries, Persistenz oder
+  Fachprozesslogik aus.
+- Wiederverwendbare managed GSPs `_workspace-table.gsp`, `_workspace-empty.gsp` und
+  `_workspace-link.gsp` ergänzt; bestehende Header-, Detail-, Relationship-, Association- und
+  Geometry-Partials bleiben die Semantikquellen der generischen `show`-Seite.
+- Der View-Model-Vertrag umfasst `workspaceDetailSections`, `workspaceRelationshipLinks` und
+  `workspaceTableSections`. Table-Sections liefern `columns`, `rows`, `count` und optional
+  `emptyMessage`; Rows liefern `values` sowie optionale sichere Ziel-Links.
+- `ili2grails.ui.workspaces` als separate Navigationseinträge für Explorer, Sidebar und
+  Breadcrumbs ergänzt. Workspaces besitzen kein `iliName`, keine Domainklasse und keinen
+  `InterlisUiRegistry`-Eintrag; die Domain-Suche bleibt auf Domain-Metadaten beschränkt.
+  Ungültige Konfiguration und fehlende Controller werden mit aussagekräftigem Kontext gemeldet.
+
 Referenz-Workspace:
+- `MultiDomainWorkspaceFixture` installiert einen normalen `ParcelWorkspaceController`,
+  `ParcelWorkspaceService` und `index.gsp`/`show.gsp` in temporäre Grails-Apps.
+- `MultiDomainWorkspaceE2E.ili` stellt `Parcel`, `Building` und `Owner` bereit. Die gültige
+  INTERLIS-Klassenbeziehung wird über die expliziten Associations `BuildingParcel` und
+  `OwnerParcel` modelliert, weil `REFERENCE TO` direkt in einer Klasse von ili2c abgelehnt wird.
+- Der Service lädt nur die bekannten Domains, serverseitig begrenzt und sortiert, und verlinkt
+  Related Objects auf die normalen generierten CRUD-`show`-Seiten. Daten- und Empty-Sections
+  sind im H2- und Browser-Pfad abgedeckt.
+- Es gibt keine automatische Fachprozess-DSL, keine dynamische Klassenwahl, keine automatische
+  Objektgraph-Interpretation und kein Audit/Verlauf/Protokoll. Gemeinsames Save/Edit bleibt Phase 6.
+
 Geänderte Dateien:
+- Bootstrap-Runtime/Views/Assets: `InterlisNavigationSupport`, `InterlisWorkspaceSupport`,
+  Workspace-Partials, Shell-Navigation, Overlay-Installer und Workspace-CSS.
+- Tests/Fixtures: Workspace-Unit-/Overlay-/Navigationstests, H2-Runtime-Smoke,
+  Real-ili2db-fähige Referenz-Fixture und Browser-E2E inklusive Screenshot-Artefakt.
+- Dokumentation: `README.md` und diese Spezifikation.
+
 Ausgeführte Tests:
+- `./gradlew :target-grails:test --rerun-tasks --no-daemon`
+- `./gradlew :target-grails:grailsRuntimeSmokeTest --rerun-tasks --no-daemon`
+- `./gradlew :target-grails:realIli2dbSmokeTest --rerun-tasks --no-daemon`
+- `./gradlew :target-grails:browserE2eTest --rerun-tasks --no-daemon`
+- `./gradlew test --rerun-tasks --no-daemon`
+- `git diff --check`
+
 Offene Punkte für Phase 6:
+- Gemeinsames Multi-Domain-Edit mit einem atomaren Save und einer gemeinsamen Transaktion.
 ```
 
 ## Prompt für Coding Agent – Phase 5
@@ -2388,7 +2570,7 @@ Offene Punkte für Phase 6:
 
 # Phase 6 – Multi-Domain-Edit mit einem gemeinsamen Save
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
 
 ## Ziel
 
@@ -2481,14 +2663,52 @@ Ein realer, getesteter Multi-Domain-Edit-Workspace mit atomarem One-Save-Verhalt
 ## Fortschrittsprotokoll
 
 ```text
-Status:
+Status: DONE
 Bearbeitete Domain-Typen im Referenzfall:
+- Parcel als Workspace-Wurzel sowie Building und Owner als zwei explizite Related-Sections.
+- Gemeinsames POST-Formular mit serverseitigem PRG auf `/parcelWorkspace/show/{id}` nach Erfolg.
+
 Command-Struktur:
+- `ParcelWorkspaceCommand` whitelisted `parcelId`, `parcelVersion`, `parcelNumber`, typisierte
+  `BuildingEditCommand`-/`OwnerEditCommand`-Listen und explizite Remove-ID-Listen.
+- `ParcelWorkspaceController` bindet ausschließlich diese Commands; Domain-Objektgraphen werden
+  nicht mit `bindData`, dynamischen Klassen oder Request-Property-Namen mutiert.
+
 Transaktionsstrategie:
+- `ParcelWorkspaceCommandService` ist fachlich und mit `@Transactional` annotiert.
+- Route-/Command-ID, positive und doppelte IDs, Ownership, Versionen, Domain-Validation und
+  Edit/Remove-Überschneidungen werden vor dem Save geprüft.
+- Updates und explizite Deletes laufen in einer Transaktion; Validierungs-, Integritäts- und
+  Optimistic-Locking-Fehler propagieren als Runtime-Fehler und rollen alle Teiländerungen zurück.
+- Die technischen GORM-`version`-Felder der Referenz dienen ausschließlich Optimistic Locking und
+  sind keine Audit- oder Verlaufsdaten.
+
 Rollback-Tests:
+- H2-Integration: erfolgreicher Parcel/Building/Owner-Save, vollständiger Rollback bei ungültigem
+  Owner, stale Related-Version, fremden Related-IDs/Ownership und Remove-Operationen.
+- Explizites Entfernen löscht nur ausgewählte Kinder; ausgelassene Kinder bleiben bestehen.
+- Browser-E2E: Erfolg mit PRG/aktualisierter Anzeige sowie Fehlerdarstellung mit Werterhalt und
+  unveränderten persistierten Werten.
+
 Security-Prüfungen:
+- Nur fest verdrahtete `Parcel`-, `Building`- und `Owner`-Klassen werden geladen.
+- IDs, Ownership und Remove-Listen werden explizit geprüft; implizites Löschen und Mass Assignment
+  sind nicht möglich.
+
 Ausgeführte Tests:
+- `./gradlew :target-grails:test --tests ch.interlis.generator.grails.MultiDomainWorkspaceFixtureTest --no-daemon`
+- `./gradlew :target-grails:grailsRuntimeSmokeTest --tests '*multiDomainWorkspaceRendersExplicitRelatedSectionsAndNavigationOnH2' --rerun-tasks --no-daemon`
+- `./gradlew :target-grails:browserE2eTest --tests '*generatedGrailsAppSupportsConfiguredMultiDomainWorkspaceInBrowser' --rerun-tasks --no-daemon`
+- `./gradlew test --rerun-tasks --no-daemon`
+- `./gradlew :target-grails:grailsRuntimeSmokeTest --rerun-tasks --no-daemon`
+- `./gradlew :target-grails:realIli2dbSmokeTest --rerun-tasks --no-daemon`
+- `./gradlew :target-grails:browserE2eTest --rerun-tasks --no-daemon`
+- `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/MultiDomainWorkspaceE2E.ili`
+- `git diff --check`
+
 Offene Punkte für Phase 7:
+- Keine Phase-7-Blocker. Pixelgenaue Golden-Tests, Authentifizierung sowie Audit-/Verlaufs-
+  persistenz bleiben wie spezifiziert ausserhalb des Scopes.
 ```
 
 ## Prompt für Coding Agent – Phase 6
@@ -2499,13 +2719,16 @@ Offene Punkte für Phase 7:
 
 # Phase 7 – Härtung, Regression, E2E, Dokumentation und Abnahme
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
 
 ## Ziel
 
 Die gesamte neue Bootstrap-UX als konsistentes Framework-Feature abschliessen und gegen Regressionen absichern.
 
 ## Aufgaben
+
+Alle Phase-7-Aufgaben 7.1–7.10 sind umgesetzt und durch Overlay-, Runtime-, Real-ili2db-
+und Browser-Prüfungen sowie eine strukturelle Sichtprüfung der fünf Mockup-Artefakte abgenommen.
 
 ### 7.1 Gesamte UI auf Konsistenz prüfen
 
@@ -2597,24 +2820,24 @@ Wenn ein Opt-in-Test wegen fehlender externer Voraussetzung nicht ausgeführt we
 
 ## Abnahmekriterien
 
-- alle normalen Tests grün,
-- alle verfügbaren Smoke-/E2E-Tests grün,
-- keine Regression im `default`-Theme,
-- Bootstrap-Modus funktioniert für kleine und grosse Modelle,
-- Navigation skaliert,
-- Suche/Filter funktionieren,
-- Show/Edit/Associations/Geometry funktionieren,
-- Custom Workspace funktioniert,
-- Multi-Domain-One-Save funktioniert atomar,
-- Audit/Verlauf ist nicht implementiert,
-- README ist konsolidiert,
-- keine toten experimentellen Dateien,
-- keine deaktivierten Tests als Workaround,
-- keine parallelen Legacy-Implementierungen,
-- keine `--dp-*`-Custom-Properties im gemanagten Bootstrap-UI-Code,
-- keine rote Brand-/Primärfarbwelt,
-- Bootstrap Icons als eingebettete SVGs für generische UI-Icons,
-- keine Authentifizierungsimplementierung; nur vorbereiteter optionaler UI-Slot.
+- [x] alle normalen Tests grün,
+- [x] alle verfügbaren Smoke-/E2E-Tests grün,
+- [x] keine Regression im `default`-Theme,
+- [x] Bootstrap-Modus funktioniert für kleine und grosse Modelle,
+- [x] Navigation skaliert,
+- [x] Suche/Filter funktionieren,
+- [x] Show/Edit/Associations/Geometry funktionieren,
+- [x] Custom Workspace funktioniert,
+- [x] Multi-Domain-One-Save funktioniert atomar,
+- [x] Audit/Verlauf ist nicht implementiert,
+- [x] README ist konsolidiert,
+- [x] keine toten experimentellen Dateien,
+- [x] keine deaktivierten Tests als Workaround,
+- [x] keine parallelen Legacy-Implementierungen,
+- [x] keine `--dp-*`-Custom-Properties im gemanagten Bootstrap-UI-Code,
+- [x] keine rote Brand-/Primärfarbwelt,
+- [x] Bootstrap Icons als eingebettete SVGs für generische UI-Icons,
+- [x] keine Authentifizierungsimplementierung; nur vorbereiteter optionaler UI-Slot.
 
 ## Funktionsfähiges Phasenartefakt
 
@@ -2623,17 +2846,47 @@ Der produktionsreife, vollständig getestete neue Bootstrap-UI-Modus als zusamme
 ## Abschlussprotokoll
 
 ```text
-Gesamtstatus:
+Gesamtstatus: DONE
 Implementierte Features:
+- Bootstrap-Overlay auf Bootstrap-Semantik, lange Bezeichnungen, responsive Overflow,
+  sichtbare Focus States und semantische Danger-/Fehlerfarben gehärtet.
+- Managed-File-/Icon-/Asset-Registry geprüft; `grid-3x3-gap` ergänzt, unbekannte Icons werden
+  nicht mehr stillschweigend verschluckt, Legacy-/Doppel-Requires bleiben ausgeschlossen.
+- Delete-Modal, Finder, Relationship-Picker, Geometry-Tabs und feldnahe Validation-ARIA ergänzt.
+- Dynamische Association-/Workspace-Ausgaben escaped; XSS-, Header-, Mutation-, Ownership-,
+  ID-, Filter-/Sortier- und Paging-Verträge regressionsgetestet.
+- Fünf strukturelle Browser-Screenshot-Artefakte erzeugt und responsiv geprüft.
 Bewusst nicht implementiert:
+- Keine Authentifizierung, kein Principal, kein Dummy-Benutzer und kein Security-Plugin.
+- Kein Audit, Envers, Verlauf, Protokoll, Timeline, Restore oder Historisierungs-Schema.
+- Keine pixelgenaue Mockup-Kopie und keine blaue Mockup-Farbwelt als Brand-Vorgabe.
 Geänderte Hauptkomponenten:
-Neue Konfigurationsmöglichkeiten:
+- Ausschliesslich gemanagter Grails-`bootstrap`-Overlay sowie dessen Tests, Browser-Harness
+  und Dokumentation; `core`, `target-django` und `default`-Theme blieben unverändert.
+- Betroffen sind Overlay-GSPs, TagLib, JavaScript/CSS, Overlay-Installer, Grails-Tests,
+  Runtime-/Real-ili2db-/Browser-E2E-Tests, README und diese Spezifikation.
+Neue Konfigurationsmöglichkeiten: Keine.
 Alle ausgeführten Tests:
-Nicht ausführbare Tests und Grund:
-Security Review:
-Performance Review:
-Accessibility Review:
-Bekannte Restpunkte:
+- `./gradlew clean test --rerun-tasks --no-daemon` — erfolgreich.
+- `PATH="$HOME/.sdkman/candidates/grails/current/bin:$PATH" ./gradlew :target-grails:grailsRuntimeSmokeTest --rerun-tasks --no-daemon` — erfolgreich, 5 Tests.
+- `PATH="$HOME/.sdkman/candidates/grails/current/bin:$PATH" ./gradlew :target-grails:realIli2dbSmokeTest --rerun-tasks --no-daemon` — erfolgreich, 9 Tests.
+- `PATH="$HOME/.sdkman/candidates/grails/current/bin:$PATH" ./gradlew :target-grails:browserE2eTest --rerun-tasks --no-daemon` — erfolgreich, 5 Tests.
+- `git diff --check` — erfolgreich.
+  Die normale Matrix umfasste 157 Tests (core 31, target-django 7, cli 12,
+  target-grails 107); alle Tests wurden ohne Deaktivierung ausgeführt und meldeten
+  0 Skip, 0 Failure und 0 Error.
+Nicht ausführbare Tests und Grund: Keine; Grails-CLI, ili2db/ili2c und lokaler Browser waren verfügbar.
+Security Review: Erfolgreich — restriktive CSP-/Security-Header unverändert geprüft, keine neuen
+Raw-Ausgaben in gemanagten GSPs, zentrale Icon-Whitelist, serverseitige Allowlist-/Ownership-
+und Mutation-Prüfungen sowie XSS-Fixture mit HTML-, Script- und Event-Attribut-Payloads.
+Performance Review: Erfolgreich — serverseitiges Paging und begrenzte Relationship-Optionen
+beibehalten; Begrenzungstest und Source-Guard verhindern Counts, unpaginiertes Laden,
+Query-Schleifen und Workspace-Queries aus der Darstellung.
+Accessibility Review: Erfolgreich — Tastatur-/Focus-Rückgabe, Modal-/Offcanvas-/Combobox-/Listbox-
+ARIA, Tab-Panels, Labels, Feldfehler, Tabellen-Semantik, Focus States, Reduced Motion,
+High Contrast und responsive Overflow geprüft.
+Bekannte Restpunkte: Keine Phase-7-Blocker. Screenshot-Prüfung ist bewusst strukturell und nicht
+pixelgenau; Authentifizierung und Audit/Verlauf bleiben ausserhalb des Features.
 ```
 
 ## Prompt für Coding Agent – Phase 7
@@ -2648,93 +2901,93 @@ Das Vorhaben ist erst abgeschlossen, wenn alle folgenden Punkte erfüllt sind:
 
 ## Navigation
 
-- [ ] Sidebar nach Modell/Topic/Domain.
-- [ ] Globale Domain-Suche.
-- [ ] Viele Domains bleiben bedienbar.
-- [ ] Technische Association-Domains werden sinnvoll verborgen.
-- [ ] Favoriten/Recents funktionieren optional.
-- [ ] Login-/Benutzer-Slot ist als optionaler Extension Point vorbereitet, aber ohne Authentifizierungslogik und ohne Dummy-Benutzer.
+- [x] Sidebar nach Modell/Topic/Domain.
+- [x] Globale Domain-Suche.
+- [x] Viele Domains bleiben bedienbar.
+- [x] Technische Association-Domains werden sinnvoll verborgen.
+- [x] Favoriten/Recents funktionieren optional.
+- [x] Login-/Benutzer-Slot ist als optionaler Extension Point vorbereitet, aber ohne Authentifizierungslogik und ohne Dummy-Benutzer.
 
 ## Domain-Liste
 
-- [ ] Prominente Suche.
-- [ ] Server Side Paging.
-- [ ] Sorting.
-- [ ] Enum-Filter.
-- [ ] Boolean-Filter.
-- [ ] Number-/Date-Range-Filter.
-- [ ] To-One-Relationship-Filter.
-- [ ] Aktive Filter-Chips.
-- [ ] Sinnvolle Default-Spalten.
-- [ ] UI-Konfigurations-Overrides.
+- [x] Prominente Suche.
+- [x] Server Side Paging.
+- [x] Sorting.
+- [x] Enum-Filter.
+- [x] Boolean-Filter.
+- [x] Number-/Date-Range-Filter.
+- [x] To-One-Relationship-Filter.
+- [x] Aktive Filter-Chips.
+- [x] Sinnvolle Default-Spalten.
+- [x] UI-Konfigurations-Overrides.
 
 ## Objektansicht
 
-- [ ] Object Header.
-- [ ] Detail-Sektionen.
-- [ ] Relationship-Navigation.
-- [ ] Association-Sections.
-- [ ] Quick Add / Contextual Forms.
-- [ ] Geometry.
-- [ ] korrekte Danger Zone.
+- [x] Object Header.
+- [x] Detail-Sektionen.
+- [x] Relationship-Navigation.
+- [x] Association-Sections.
+- [x] Quick Add / Contextual Forms.
+- [x] Geometry.
+- [x] korrekte Danger Zone.
 
 ## Create/Edit
 
-- [ ] Form-Sektionen.
-- [ ] Inline-Dokumentation.
-- [ ] Units.
-- [ ] Relationship Picker.
-- [ ] Validation UX.
-- [ ] Dirty State.
-- [ ] Save.
-- [ ] Save and Continue.
-- [ ] Geometry Editor.
+- [x] Form-Sektionen.
+- [x] Inline-Dokumentation.
+- [x] Units.
+- [x] Relationship Picker.
+- [x] Validation UX.
+- [x] Dirty State.
+- [x] Save.
+- [x] Save and Continue.
+- [x] Geometry Editor.
 
 ## Workspaces
 
-- [ ] Wiederverwendbare UI-Bausteine.
-- [ ] Fachlicher Multi-Domain-Workspace als Referenz.
-- [ ] Generisches CRUD bleibt parallel verfügbar.
+- [x] Wiederverwendbare UI-Bausteine.
+- [x] Fachlicher Multi-Domain-Workspace als Referenz.
+- [x] Generisches CRUD bleibt parallel verfügbar.
 
 ## Multi-Domain-Edit
 
-- [ ] Ein gemeinsamer Submit.
-- [ ] Eine gemeinsame Transaktion.
-- [ ] Kein Partial Save.
-- [ ] Optimistic Locking.
-- [ ] Ownership-/ID-Prüfung.
-- [ ] Rollback-Test.
-- [ ] Browser-E2E.
+- [x] Ein gemeinsamer Submit.
+- [x] Eine gemeinsame Transaktion.
+- [x] Kein Partial Save.
+- [x] Optimistic Locking.
+- [x] Ownership-/ID-Prüfung.
+- [x] Rollback-Test.
+- [x] Browser-E2E.
 
 ## Audit / Verlauf
 
-- [ ] Nicht implementiert.
-- [ ] Keine Audit-Tabellen.
-- [ ] Kein Envers.
-- [ ] Keine Verlauf-/Protokoll-Tabs als Framework-Funktion.
-- [ ] Out-of-Scope-Grenze in README dokumentiert.
+- [x] Nicht implementiert.
+- [x] Keine Audit-Tabellen.
+- [x] Kein Envers.
+- [x] Keine Verlauf-/Protokoll-Tabs als Framework-Funktion.
+- [x] Out-of-Scope-Grenze in README dokumentiert.
 
 ## Visuelle Basis und Icons
 
-- [ ] No-frills Bootstrap ohne eigene rote Brand-/Primärfarbwelt.
-- [ ] Rot nur semantisch für Danger-/Fehlerzustände.
-- [ ] Keine `--dp-*`-CSS-Custom-Properties im gemanagten Bootstrap-UI-Code.
-- [ ] Generische UI-Icons verwenden Bootstrap Icons als eingebettete/inline SVGs.
-- [ ] Kein Bootstrap-Icons-Webfont und kein externes Icon-CDN.
-- [ ] Icon-only Controls sind zugänglich beschriftet.
+- [x] No-frills Bootstrap ohne eigene rote Brand-/Primärfarbwelt.
+- [x] Rot nur semantisch für Danger-/Fehlerzustände.
+- [x] Keine `--dp-*`-CSS-Custom-Properties im gemanagten Bootstrap-UI-Code.
+- [x] Generische UI-Icons verwenden Bootstrap Icons als eingebettete/inline SVGs.
+- [x] Kein Bootstrap-Icons-Webfont und kein externes Icon-CDN.
+- [x] Icon-only Controls sind zugänglich beschriftet.
 
 ## Qualität
 
-- [ ] `default`-Theme unverändert.
-- [ ] Unit Tests grün.
-- [ ] Snapshot Tests grün.
-- [ ] Compile Smoke grün.
-- [ ] Grails Runtime Smoke grün, sofern Umgebung vorhanden.
-- [ ] Real ili2db Smoke grün, sofern Umgebung vorhanden.
-- [ ] Browser E2E grün.
-- [ ] Keine deaktivierten Tests als Fehlervermeidung.
-- [ ] Keine Legacy-Duplikate.
-- [ ] README aktualisiert.
+- [x] `default`-Theme unverändert.
+- [x] Unit Tests grün.
+- [x] Snapshot Tests grün.
+- [x] Compile Smoke grün.
+- [x] Grails Runtime Smoke grün, sofern Umgebung vorhanden.
+- [x] Real ili2db Smoke grün, sofern Umgebung vorhanden.
+- [x] Browser E2E grün.
+- [x] Keine deaktivierten Tests als Fehlervermeidung.
+- [x] Keine Legacy-Duplikate.
+- [x] README aktualisiert.
 
 ---
 

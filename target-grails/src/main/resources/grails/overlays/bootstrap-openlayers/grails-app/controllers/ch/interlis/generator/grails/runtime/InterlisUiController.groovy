@@ -4,7 +4,7 @@ package ch.interlis.generator.grails.runtime
  * Server-rendered entry point for the Bootstrap application shell.
  *
  * This controller only exposes navigation metadata. It deliberately does not
- * query domain data or depend on an authentication principal.
+ * query domain data or depend on authentication state.
  */
 class InterlisUiController {
 

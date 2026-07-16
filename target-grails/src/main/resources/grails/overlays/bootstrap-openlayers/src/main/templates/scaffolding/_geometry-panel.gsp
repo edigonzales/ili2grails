@@ -13,10 +13,12 @@
                     <g:each in="\${geometryFields}" var="geomField" status="geomIndex">
                         <li class="nav-item" role="presentation">
                             <button type="button"
+                                    id="geometry-tab-\${geomField}"
                                     class="nav-link js-geometry-tab-btn \${geomIndex == 0 ? 'active' : ''}"
                                     data-geometry-tab-target="\${geomField}"
                                     role="tab"
-                                    aria-selected="\${geomIndex == 0 ? 'true' : 'false'}">
+                                    aria-selected="\${geomIndex == 0 ? 'true' : 'false'}"
+                                    aria-controls="geometry-panel-\${geomField}">
                                 \${geomField}
                             </button>
                         </li>
@@ -27,7 +29,11 @@
             <div class="ili-geometry-panels">
                 <g:each in="\${geometryFields}" var="geomField" status="geomIndex">
                     <article class="ili-geometry-tab-panel js-geometry-tab-panel \${geomIndex == 0 ? 'is-active' : ''}"
+                             id="geometry-panel-\${geomField}"
                              data-geometry-panel="\${geomField}"
+                             role="tabpanel"
+                             aria-labelledby="geometry-tab-\${geomField}"
+                             tabindex="0"
                              \${geomIndex == 0 ? '' : 'hidden'}>
                         <header class="ili-geometry-header">
                             <strong>\${geomField}</strong>
@@ -62,7 +68,8 @@
                                 </div>
                             </g:if>
 
-                            <div class="ili-geometry-map"></div>
+                            <div class="ili-geometry-map" role="img"
+                                 aria-label="Kartenansicht für \${geomField}"></div>
                         </div>
                     </article>
                 </g:each>

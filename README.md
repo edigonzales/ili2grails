@@ -15,6 +15,11 @@ Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und e
 - [Architektur & Design-Entscheidungen](#architektur--design-entscheidungen)
 - [Bootstrap UI-Metadaten (Phase 0)](#bootstrap-ui-metadaten-phase-0)
 - [Bootstrap Application Shell (Phase 1)](#bootstrap-application-shell-phase-1)
+- [Bootstrap Domain-Liste (Phase 2)](#bootstrap-domain-liste-phase-2)
+- [Bootstrap Domain Workspace (Phase 3)](#bootstrap-domain-workspace-phase-3)
+- [Bootstrap Create/Edit-Formulare und Editor-UX (Phase 4)](#bootstrap-createedit-formulare-und-editor-ux-phase-4)
+- [Bootstrap Fachliche Multi-Domain-Workspaces (Phase 5)](#bootstrap-fachliche-multi-domain-workspaces-phase-5)
+- [Bootstrap Atomarer Multi-Domain-Save (Phase 6)](#bootstrap-atomarer-multi-domain-save-phase-6)
 - [Projektstruktur](#projektstruktur)
 - [Tests](#tests)
 - [Dependencies](#dependencies)
@@ -702,6 +707,229 @@ Browser-CRUD-Pfad weiterhin auf eine externe URL gerichtet werden:
 - Security-Header sind Betriebsdefaults, ersetzen aber keine Authentisierung, Rollen,
   Autorisierung oder Audit-Logs.
 
+### Bootstrap Domain-Liste (Phase 2)
+
+Die Bootstrap-Indexseite ist eine serverseitig gerenderte Arbeitsseite. Sie verwendet
+den `InterlisUiDescriptorSupport` für kompakte Default-Spalten, die verlinkte
+Display-Spalte, sichere Sortierspalten, Suchfelder und typisierte Filter. Die
+Controller-Signatur `index(Integer max, Integer offset)` bleibt kompatibel; Parsing,
+Coercion, Criteria, Paging- und URL-Modelle liegen in
+`InterlisListQuerySupport`. Das Default-Theme und `core` werden dadurch nicht berührt.
+
+Der GET-Vertrag lautet:
+
+| Zweck | Parameter |
+| --- | --- |
+| Freitext | `q` |
+| Text/Enum/Boolean/To-One | `filter.<field>` |
+| Zahlenbereich | `filter.<field>.min`, `filter.<field>.max` |
+| Datumsbereich | `filter.<field>.from`, `filter.<field>.to` |
+| Sortierung | `sort`, `order=asc|desc` |
+| Paging | `max`, `offset` |
+
+Textfilter verwenden `contains`. Enumwerte werden exakt gegen die generierten
+Enum-Konstanten geprüft; Boolean akzeptiert nur `true` oder `false`; Relationship-
+Filter nur numerische Ziel-IDs. Ungültige oder unbekannte Filter werden ignoriert
+und als sichtbare Warnung angezeigt. Eine ungültige Sortierung fällt auf `id` zurück.
+Filter-/Suchformulare und alle serverseitig erzeugten Chip-, Sortier- und Paging-URLs
+setzen bei einer Filteränderung `offset=0` und erhalten die übrigen aktiven Filter.
+
+Criteria erhält Property-Namen, Relationship-Pfade und Klassen ausschliesslich aus
+dem Descriptor. Suchpfade dürfen nur explizit konfiguriert und maximal ein
+whitelisted To-One-Hop sein, zum Beispiel:
+
+```yaml
+ili2grails:
+  ui:
+    domains:
+      - iliName: "ListQueryE2E.Lists.Record"
+        list:
+          searchFields: [name, municipality.name]
+          displayField: name
+          sortableColumns: [year, status, name]
+          filters:
+            status:
+              label: "Status"
+```
+
+Ungültige Suchpfade schlagen beim Erzeugen des Descriptors mit Domain-, Pfad- und
+Kontextinformation fehl. To-One-Filteroptionen werden über den vorhandenen
+Relationship-Options-Endpunkt paginiert geladen; die erste Seite und ein gewählter
+Wert werden serverseitig als normale `<select>`-Optionen gerendert. JavaScript bleibt
+damit ein optionales Progressive Enhancement und keine Voraussetzung.
+
+Die managed GSP-Struktur besteht aus einem dünnen `index.gsp`-Orchestrator sowie
+Partials für Header, Suche/Quick-/Advanced-Filter, Filter-Chips, Tabelle, Pagination
+und die getrennten Empty States für leere Domains bzw. keine Treffer. Die Gestaltung
+folgt Mockup 02 strukturell mit Bootstrap-Standardsemantik, ohne neue Farbwelt,
+globale Counts, Collection-Fetches oder unpaginierten Relationship-Loads.
+
+### Bootstrap Domain Workspace (Phase 3)
+
+Die Bootstrap-`show`-Seite ist eine serverseitig gerenderte Domain-Workspace-Seite. Der
+`InterlisCrudControllerSupport` behält seine Controller-API und die vorhandenen Geometry-,
+Relationship- und Association-Modelle; die zusätzliche Workspace-Aufbereitung delegiert er an
+`InterlisWorkspaceSupport`.
+
+Der Workspace-Header verwendet die bestehende
+`InterlisRelationshipOptions`-Fallbacklogik für Display Labels und zeigt Domain-Label, ID sowie
+die Primäraktionen Liste, Neu und Bearbeiten. `InterlisUiDescriptorSupport` liefert additive
+Detailsektionen: direkte skalare Attribute werden aus dem Descriptor dargestellt, während `id`,
+`version`, Geometrien, Collections und Relationships nicht als Detailzeilen dupliziert werden.
+Message-Codes haben Vorrang; `interlisFieldMeta` liefert die Fallback-Labels. Konfigurierte
+`form.sections` ergänzen die Darstellung, ersetzen aber nicht die übrigen skalaren Attribute.
+
+`show.gsp` ist nur noch Orchestrator. Wiederverwendbare managed GSP-Komponenten liegen unter
+`grails-app/views/interlisUi/`:
+
+- `_workspace-header.gsp`, `_workspace-details.gsp`, `_workspace-relationships.gsp` und
+  `_workspace-danger-zone.gsp` bilden die generische Workspace-Struktur.
+- `_association-sections.gsp`, Quick Add, kontextuelle Association-Formulare und
+  `_geometry-panel.gsp` bleiben unverändert die Semantikquellen und werden nur eingebettet.
+- Direkte Relationships werden nur für whitelisted To-One-Domainobjekte als Links zur über die
+  `InterlisUiRegistry` aufgelösten Controller-Route gerendert. Association-Collections bleiben
+  beim bestehenden Association-Service.
+
+Die Danger Zone erklärt technisch korrekt, dass das Löschen serverseitig geprüft wird und
+referenzielle Beziehungen oder andere Datenbank-Integritätsbedingungen das Löschen verhindern
+können. Der Controller macht den Konflikt sowohl als Flash-Meldung für Formulare als auch als
+409-Fehlerantwort für andere Formate sichtbar. Es gibt ausdrücklich keine Audit-, Verlaufs-,
+Protokoll-, Timeline- oder Restore-Funktion und keine Persistenz dafür.
+
+Die Workspace-Stile erweitern `ili-modern.css` responsiv im bestehenden Bootstrap-no-frills-
+System. Es werden keine `--dp-*`-Tokens und keine neue Farbwelt eingeführt; generische Aktionen
+verwenden weiterhin die vorhandene `ili:icon`-TagLib.
+
+Die vollständige Abnahme deckt Unit-/Overlay-Tests, `generate-all`/`compileGroovy`, H2-Workspace-
+View-Model und FK-Konflikt, Real-ili2db sowie Browser-E2E ab. Der Browser-Harness erzeugt die
+visuellen Prüfartefakte unter `build/e2e-screenshots` und prüft unter anderem Objektöffnung,
+Relationship-Navigation zur Municipality, Geometry, leere Associations mit Quick Add,
+kontextuelle Formulare, Delete-Dialog und sichtbare Integritätsfehler. Mockup 03 ist als
+strukturelle Referenz erkennbar; illustrative blaue Brand-Farben, Benutzeranzeige und
+Verlauf-/Protokoll-Tabs sind nicht Bestandteil der Implementierung.
+
+### Bootstrap Create/Edit-Formulare und Editor-UX (Phase 4)
+
+Create- und Edit-Formulare des managed Bootstrap-Overlays bleiben normale Grails-Forms mit
+serverseitigem PRG. `InterlisUiDescriptorSupport` liefert standardmässig die Sektion `Allgemein`;
+`form.sections` kann bekannte editierbare Scalar- und To-One-Felder deterministisch gruppieren.
+Nicht konfigurierte editierbare Felder erscheinen automatisch in `Weitere Felder`. Geometrien,
+Collections, `id` und `version` bleiben ausserhalb dieser Sektionen im bestehenden Geometry-Panel
+beziehungsweise in den bestehenden Relationship-/Association-Komponenten.
+
+Die feldnahe Metadatenanzeige verwendet INTERLIS-Dokumentation und Units aus `fieldMeta`.
+Message-Codes haben Vorrang vor den Metadaten-Fallback-Labels. Eine Validation-Summary verlinkt
+auf feldnahe Fehler; ungültige Controls erhalten `is-invalid`, `aria-invalid` und behalten bereits
+eingegebene Werte. Der vorhandene paginierte Relationship Picker bleibt je Sektion aktiv und
+ergänzt eine eingereichte Auswahl, wenn sie nicht auf der ersten Optionsseite liegt.
+
+`InterlisFormSupport` whitelisted die Submit-Modi `save` und `saveAndContinue`; unbekannte Werte
+fallen sicher auf `save` zurück. `Speichern` nutzt den bisherigen Show-/Context-Redirect,
+`Speichern und weiter` führt per PRG zum Edit-Formular des gespeicherten Objekts und erhält den
+Association-Context. Kontextsensitive Create-/Edit-/Update-Pfade prüfen Ownership über
+`prepareEditContext`; Fixed-Relationships bleiben serverseitig geschützt.
+
+Die Editor-UX zeigt das Badge `Ungespeicherte Änderungen`, berücksichtigt Scalar-/Relationship-
+Änderungen und Geometry-WKT und warnt vor relevanter Navigation sowie beim Verlassen des Fensters.
+Nach einem gültigen Submit wird die Warnung entfernt; bei clientseitig blockierter Validation bleibt
+sie bestehen. Die responsive sticky Action-Bar berücksichtigt Safe-Area-Abstände. Das JavaScript
+ist fokussiertes Progressive Enhancement und überschreibt niemals den ausgewählten HTML-Submitter;
+es wird keine SPA eingeführt. Geometry Editor, Map-Split, Multi-Geometry-Tabs und kontextuelle
+Association-Formulare bleiben funktional unverändert.
+
+Die Phase-4-Abnahme umfasst Unit-/Descriptor-/Runtime-/Overlay-Tests, Grails-/H2- und Real-ili2db-
+Smoke sowie vier Browser-E2E-Tests für Sektionen, Inline-Metadaten, Relationship-Paging und
+Selected-Value-Fallback, Validation/Werterhalt, Context-State, beide Submit-Modi, Dirty State,
+Geometry und kontextuelle Associations. Der Default-Theme und `core` bleiben unangetastet.
+
+### Bootstrap Fachliche Multi-Domain-Workspaces (Phase 5)
+
+Fachliche Arbeitsseiten werden als normale Grails-Erweiterung gebaut: ein eigener Controller
+nimmt die Route entgegen, ein anwendungsspezifischer Service lädt die ausdrücklich benötigten
+Domains und eine GSP orchestriert die vorhandenen Bootstrap-Workspace-Partials. Dadurch bleibt
+generisches CRUD parallel verfügbar; es ist weder ein Fork der Scaffold-Templates noch eine
+automatische Fachprozess-DSL nötig.
+
+Workspaces können zusätzlich zur Domain-Navigation konfiguriert werden:
+
+```yaml
+ili2grails:
+  ui:
+    workspaces:
+      - id: parcel-workspace
+        label: Parzellen-Workspace
+        controller: parcelWorkspace
+        action: index
+```
+
+Die Einträge erscheinen in der separaten Navigationsgruppe **Fachliche Arbeitsseiten** in
+Explorer, Sidebar und Breadcrumbs. Sie sind keine Domain-Metadaten: Sie erhalten kein `iliName`,
+keine Domainklasse und keinen `InterlisUiRegistry`-Eintrag; die Domain-Suche bleibt auf registrierte
+Domain-Metadaten beschränkt. Ungültige Konfigurationen sowie nicht vorhandene Controller werden
+mit ID- und Controller-Kontext abgewiesen.
+
+Für eigene Seiten können `grails-app/views/interlisUi/_workspace-link.gsp`,
+`_workspace-table.gsp` und `_workspace-empty.gsp` direkt neben den bestehenden Partials verwendet
+werden. Der kleine View-Model-Vertrag besteht aus:
+
+```groovy
+[
+  workspaceDetailSections: [...],
+  workspaceRelationshipLinks: [...],
+  workspaceTableSections: [[
+    key: 'buildings', title: 'Gebäude', columns: [[key: 'name', label: 'Name']],
+    rows: [[values: [name: 'Haus A'], links: [name: [controller: 'building', action: 'show', id: id]]]],
+    emptyMessage: 'Keine Gebäude vorhanden.'
+  ]]
+]
+```
+
+`InterlisWorkspaceSupport.tableSection(...)` und `tableRow(...)` kopieren und validieren diese
+Präsentationsdaten; sie enthalten keine Query-, Persistenz- oder Prozesslogik. Sections definieren
+`columns` und `rows`; Rows liefern `values` sowie optionale sichere Ziel-Links pro Zelle. Ein
+`emptyMessage` beschreibt den leeren Zustand. `workspaceDetailSections` und
+`workspaceRelationshipLinks` bleiben die bestehenden Detail-/Relationship-Semantiken der
+generischen `show`-Seite und werden von fachlichen Seiten nur bei Bedarf ergänzt.
+
+Die Referenz-Fixture liegt in `target-grails/src/test/java/.../MultiDomainWorkspaceFixture.java`
+und verwendet `test-models/MultiDomainWorkspaceE2E.ili` mit `Parcel`, `Building` und `Owner`.
+Der Service fragt nur diese bekannten Domains ab, begrenzt und sortiert die Ergebnisse serverseitig
+und verlinkt Related Objects auf ihre normalen generierten CRUD-`show`-Seiten. Das INTERLIS-Modell
+bildet die beiden Klassenbeziehungen über explizite Associations ab: `REFERENCE TO` ist in ili2c
+nicht direkt als Klassenattribut zulässig, sondern für Strukturen vorgesehen. Die fachliche
+Referenzsemantik bleibt dadurch gültig und wird ohne dynamische Klassenwahl oder automatische
+Objektgraph-Interpretation ausgewertet.
+
+Die Referenz zeigt Daten- und Empty-Sections im H2-Runtime-Smoke und im Browser-E2E. Sie enthält
+in Phase 5 bewusst noch keine gemeinsame Save-/Edit-Transaktion; diese wird für denselben
+Referenz-Workspace in Phase 6 ergänzt. Audit, Verlauf und Protokoll werden auch in Phase 5 nicht
+eingeführt.
+
+### Bootstrap Atomarer Multi-Domain-Save (Phase 6)
+
+Der Referenz-`ParcelWorkspace` besitzt einen ausdrücklichen Edit-Pfad mit einem gemeinsamen
+POST-Formular für `Parcel`, `Building` und `Owner`. Die Request-Grenze besteht aus den typisierten
+Grails Command Objects `ParcelWorkspaceCommand`, `BuildingEditCommand` und `OwnerEditCommand`.
+Das Formular überträgt nur die bekannten IDs, Versionen, Namen, die Parzellennummer und explizite
+`removedBuildingIds`-/`removedOwnerIds`-Listen.
+
+`ParcelWorkspaceCommandService` ist ein fachlicher `@Transactional` Service. Er lädt ausschließlich
+die drei fest verdrahteten Domainklassen, prüft Route-/Command-ID, positive und doppelte IDs,
+Ownership, Versionen, Domain-Validation sowie Remove-Konflikte und weist die Whitelist-Felder
+explizit zu. Omitted Related Objects bleiben erhalten; gelöscht wird nur eine ausdrücklich
+übertragene, besessene Remove-ID. Ein Fehler, eine Integritätsverletzung oder ein Optimistic-Lock-
+Konflikt wird als Runtime-Fehler aus der Transaktion propagiert, sodass alle Teiländerungen
+zurückgerollt werden. Erfolg endet per PRG auf der Workspace-Show-Seite; Fehler rendern das gleiche
+Formular mit sectionbezogenen Fehlern und den eingereichten Werten.
+
+Das Framework stellt hierfür die normalen Grails-/GSP-/Dirty-State-Bausteine bereit. Die fachliche
+Command-Struktur, die Ownership-Regeln und die erlaubten Remove-Operationen bleiben Verantwortung
+des Fachentwicklers im konkreten Workspace. Beliebiges Objektgraph-Editing, dynamische Klassen- oder
+Property-Namen und generisches Mass Assignment werden ausdrücklich nicht automatisch generiert.
+Die `version`-Felder der Referenz-Fixture sind ausschließlich technische GORM-Optimistic-Locking-
+Tokens; sie sind keine Audit-, Verlaufs-, Historisierungs- oder Restore-Daten. Audit und Verlauf
+bleiben vollständig außerhalb dieser Phase.
+
 ### Strukturen im Domain-Model
 - INTERLIS-Strukturen werden als eigene `STRUCTURE`-Klassen im Metamodell geführt.
 - In Grails v1 werden Structures konservativ nur dann als Domain ausgegeben, wenn sie
@@ -737,6 +965,57 @@ Die Gradle-Module bilden die Architekturgrenzen ab:
 - `target-grails`: Grails/GORM-Generator, Template-Overlay, Grails-spezifisches Naming und Grails-Smoke-Tests.
 - `target-django`: Django/GeoDjango-Spike gegen die Core-IR.
 - `cli`: Kommandozeilen-Orchestrierung und Application-Entry-Point.
+
+## Bootstrap-UI: Phase-7-Härtung und Abnahme
+
+Der gemanagte `bootstrap`-Overlay ist server-rendered mit Grails/GSP und Progressive
+Enhancement. Phase 7 ergänzt keine neue öffentliche Core-API, keine Authentifizierung und
+kein Audit-/Verlaufssystem.
+
+Die Härtungsregeln sind verbindlich:
+
+- `core`, `target-django` und das Grails-`default`-Theme bleiben ausserhalb des Bootstrap-Overlays.
+- Das Overlay verwendet Bootstrap-no-frills ohne eigene rote oder blaue Brand-Palette. Rot bleibt
+  auf semantische Danger-/Fehlerzustände über Bootstrap-Variablen beschränkt.
+- Es gibt keine `--dp-*`-CSS-Custom-Properties oder Aliase im gemanagten Bootstrap-Code.
+- Generische Aktionen verwenden den zentralen `ili:icon`-Renderpfad mit lokal eingebetteten
+  Bootstrap-Icons-SVGs. Icon-Webfonts, CDN-Icons und externe Icon-Services sind ausgeschlossen.
+- Alle dynamischen Association-/Workspace-Werte werden escaped gerendert; Sortierung, Filter,
+  Controller, Actions, IDs, Ownership und Delete-Flows bleiben whitelisted und serverseitig geprüft.
+- Navigation, Listen und Relationship-Picker bleiben serverseitig begrenzt und paginiert. Der
+  Workspace-Display-Support führt selbst keine Queries oder Persistenzoperationen aus.
+- Der Benutzer-/Login-Slot ist nur ein leerer Extension Point. Es gibt keine Principal-, Login-,
+  Rollen- oder Security-Plugin-Abhängigkeit und keinen Dummy-Benutzer.
+- „Zuletzt verwendet“ ist ausschliesslich eine lokale Navigationshilfe. Audit, Envers, Verlauf,
+  Protokoll, Timeline, Restore und Historisierungs-Persistenz gehören nicht zum Feature.
+
+Die fünf Mockups werden als strukturelle Referenzen geprüft: Shell/Explorer, Liste/Filter,
+Objekt-Workspace, Edit-Formular und Multi-Domain-Workspace. Farben, Pixelabstände sowie
+illustrative Benutzer-, Verlauf- und Protokoll-Elemente sind keine Produktvorgaben. Aktuelle
+Browser-Artefakte liegen unter `build/e2e-screenshots/phase7-mockup-*.png`.
+
+Die Overlay-Installation wird auf vollständige Managed-File-Abdeckung, Legacy-Bereinigung,
+idempotente Asset-Requires und die unveränderte Default-Theme-Trennung geprüft. Accessibility-
+Regressionen decken Tastatur, Fokus-Rückgabe, Combobox/Listbox, Modals, Tabs, Feldfehler,
+Labels, Tabellen und responsive Overflow ab.
+
+### Phase-7-Abnahme (2026-07-16)
+
+Die vollständige lokale Matrix wurde auf dem aktuellen Stand ausgeführt und war grün:
+
+- `./gradlew clean test --rerun-tasks --no-daemon`
+- `PATH="$HOME/.sdkman/candidates/grails/current/bin:$PATH" ./gradlew :target-grails:grailsRuntimeSmokeTest --rerun-tasks --no-daemon` — 5 Tests
+- `PATH="$HOME/.sdkman/candidates/grails/current/bin:$PATH" ./gradlew :target-grails:realIli2dbSmokeTest --rerun-tasks --no-daemon` — 9 Tests
+- `PATH="$HOME/.sdkman/candidates/grails/current/bin:$PATH" ./gradlew :target-grails:browserE2eTest --rerun-tasks --no-daemon` — 5 Tests
+- `git diff --check`
+
+Die normale Matrix umfasste 157 Tests (core 31, target-django 7, cli 12, target-grails 107);
+alle gemeldeten Tests hatten 0 Skips, 0 Failures und 0 Errors. Es wurde kein Test deaktiviert.
+Die fünf strukturellen
+Browser-Artefakte sind `build/e2e-screenshots/phase7-mockup-01-shell.png` bis
+`phase7-mockup-05-workspace.png`; sie wurden auf Shell, Liste, Workspace, Edit-Formular,
+Multi-Domain-Sections und Desktop-/Mobile-Overflow geprüft. Pixel-Golden-Tests sind bewusst
+nicht Teil der Abnahme.
 
 ## Tests
 ```bash

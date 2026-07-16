@@ -1,22 +1,22 @@
-<g:set var="associationContextList" value="\${raw(associationSections ?: [])}"/>
+<g:set var="associationContextList" value="\${associationSections ?: []}"/>
 <g:each in="\${associationContextList}" var="section" status="sectionIdx">
-    <g:set var="sectionDomId" value="\${raw(section.domId ?: 'assoc-section-' + sectionIdx)}"/>
+    <g:set var="sectionDomId" value="\${section.domId ?: 'assoc-section-' + sectionIdx}"/>
     <g:set var="contextualForm" value="\${section.createMode == 'CONTEXTUAL_FORM' || section.createMode == 'NARY_CONTEXTUAL_FORM'}"/>
-    <section class="ili-association-section" aria-labelledby="assoc-head-\${raw(sectionDomId)}">
+    <section class="ili-association-section" aria-labelledby="assoc-head-\${sectionDomId}">
         <header class="ili-association-section-header">
-            <h3 class="ili-association-section-title" id="assoc-head-\${raw(sectionDomId)}">
-                \${raw(section.label ?: section.contextId)}
+            <h3 class="ili-association-section-title" id="assoc-head-\${sectionDomId}">
+                \${section.label ?: section.contextId}
             </h3>
-            <span class="ili-association-section-count">\${raw(section.total)}</span>
+            <span class="ili-association-section-count">\${section.total}</span>
         </header>
 
         <g:if test="\${section.rows == null || section.rows.isEmpty()}">
             <p class="ili-association-empty">
                 <g:if test="\${section.messageCode}">
-                    <g:message code="\${raw(section.messageCode)}.empty" default="\${raw(section.emptyMessage ?: 'Keine Einträge vorhanden.')}"/>
+                    <g:message code="\${section.messageCode}.empty" default="\${section.emptyMessage ?: 'Keine Einträge vorhanden.'}"/>
                 </g:if>
                 <g:else>
-                    \${raw(section.emptyMessage ?: 'Keine Einträge vorhanden.')}
+                    \${section.emptyMessage ?: 'Keine Einträge vorhanden.'}
                 </g:else>
             </p>
             <g:render template="association-quick-add" model="\${[
@@ -24,20 +24,20 @@
                 owner: owner
             ]}"/>
             <g:if test="\${contextualForm && section.writable}">
-                <g:link controller="\${raw(section.associationController ?: '')}" action="create"
+                <g:link controller="\${section.associationController ?: ''}" action="create"
                         params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
                         class="btn btn-primary btn-sm mt-2">
-                    \${raw(section.label)} hinzufügen
+                    \${section.label} hinzufügen
                 </g:link>
             </g:if>
         </g:if>
         <g:else>
             <div class="ili-table-wrap">
-                <table class="ili-association-table" aria-label="\${raw(section.label ?: section.contextId)}">
+                <table class="ili-association-table" aria-label="\${section.label ?: section.contextId}">
                     <thead>
                         <tr>
                             <g:each in="\${section.columns ?: []}" var="col">
-                                <th scope="col">\${raw(col.label)}</th>
+                                <th scope="col">\${col.label}</th>
                             </g:each>
                             <th scope="col" class="ili-association-actions-header"></th>
                         </tr>
@@ -48,47 +48,47 @@
                                 <g:each in="\${row.counterparts ?: []}" var="counterpart">
                                     <td>
                                         <g:if test="\${counterpart.controller && counterpart.id}">
-                                            <g:link controller="\${raw(counterpart.controller)}" action="show" id="\${raw(counterpart.id)}">
-                                                \${raw(counterpart.label ?: counterpart.id)}
+                                            <g:link controller="\${counterpart.controller}" action="show" id="\${counterpart.id}">
+                                                \${counterpart.label ?: counterpart.id}
                                             </g:link>
                                         </g:if>
                                         <g:else>
-                                            \${raw(counterpart.label ?: counterpart.id)}
+                                            \${counterpart.label ?: counterpart.id}
                                         </g:else>
                                     </td>
                                 </g:each>
                                 <g:each in="\${row.attributes ?: []}" var="attr">
                                     <td>
                                         <g:if test="\${attr.value instanceof java.time.temporal.TemporalAccessor}">
-                                            <g:formatDate date="\${raw(attr.value)}"/>
+                                            <g:formatDate date="\${attr.value}"/>
                                         </g:if>
                                         <g:elseif test="\${attr.value instanceof Enum}">
-                                            \${raw(attr.value.name())}
+                                            \${attr.value.name()}
                                         </g:elseif>
                                         <g:else>
-                                            \${raw(attr.value != null ? attr.value.toString() : '')}
+                                            \${attr.value != null ? attr.value.toString() : ''}
                                         </g:else>
                                     </td>
                                 </g:each>
                                 <td class="ili-association-row-actions">
                                     <g:if test="\${row.editAllowed && row.associationController && row.associationId}">
-                                        <g:link controller="\${raw(row.associationController)}" action="edit"
-                                                id="\${raw(row.associationId)}"
+                                        <g:link controller="\${row.associationController}" action="edit"
+                                                id="\${row.associationId}"
                                                 params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
                                                 class="btn btn-sm btn-outline-primary">
                                             Bearbeiten
                                         </g:link>
                                     </g:if>
                                     <g:if test="\${row.associationController && row.associationId}">
-                                        <g:link controller="\${raw(row.associationController)}" action="show" id="\${raw(row.associationId)}" class="btn btn-sm btn-outline-secondary">
+                                        <g:link controller="\${row.associationController}" action="show" id="\${row.associationId}" class="btn btn-sm btn-outline-secondary">
                                             Details
                                         </g:link>
                                     </g:if>
                                     <g:if test="\${row.deleteAllowed}">
                                         <button type="button" class="btn btn-sm btn-outline-danger ili-association-delete-btn"
                                                 data-association-delete
-                                                data-delete-form="assoc-delete-\${raw(sectionDomId)}-\${raw(row.associationId)}"
-                                                data-association-label="\${raw(row.associationLabel ?: '')}">
+                                                data-delete-form="assoc-delete-\${sectionDomId}-\${row.associationId}"
+                                                data-association-label="\${row.associationLabel ?: ''}">
                                             Entfernen
                                         </button>
                                     </g:if>
@@ -107,15 +107,15 @@
             </g:if>
 
             <g:if test="\${contextualForm && section.writable}">
-                <g:link controller="\${raw(section.associationController ?: '')}" action="create"
+                <g:link controller="\${section.associationController ?: ''}" action="create"
                         params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
                         class="btn btn-primary btn-sm mt-2">
-                    \${raw(section.label)} hinzufügen
+                    \${section.label} hinzufügen
                 </g:link>
             </g:if>
 
             <g:if test="\${section.more}">
-                <g:link action="associationPage" id="\${raw(owner?.id)}" params="\${[context: section.contextId]}" class="ili-association-more-link">
+                <g:link action="associationPage" id="\${owner?.id}" params="\${[context: section.contextId]}" class="ili-association-more-link">
                     Mehr anzeigen
                 </g:link>
             </g:if>
@@ -124,12 +124,12 @@
         <g:each in="\${section.rows ?: []}" var="row">
             <g:if test="\${row.deleteAllowed && row.associationId}">
                 <g:form action="associationDelete"
-                        id="\${raw(owner?.id)}"
+                        id="\${owner?.id}"
                         method="DELETE"
-                        name="assoc-delete-\${raw(sectionDomId)}-\${raw(row.associationId)}"
+                        name="assoc-delete-\${sectionDomId}-\${row.associationId}"
                         class="ili-hidden-delete-form">
-                    <g:hiddenField name="context" value="\${raw(section.contextId)}"/>
-                    <g:hiddenField name="associationId" value="\${raw(row.associationId)}"/>
+                    <g:hiddenField name="context" value="\${section.contextId}"/>
+                    <g:hiddenField name="associationId" value="\${row.associationId}"/>
                     <button type="submit" class="ili-native-submit js-delete-submit">Delete</button>
                 </g:form>
             </g:if>
