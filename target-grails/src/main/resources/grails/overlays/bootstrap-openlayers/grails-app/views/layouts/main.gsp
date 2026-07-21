@@ -16,6 +16,10 @@
        value="${ch.interlis.generator.grails.runtime.InterlisNavigationSupport.navigationModel(grailsApplication)}"/>
 <g:set var="shellAppTitle"
        value="${ch.interlis.generator.grails.runtime.InterlisUiDescriptorSupport.appTitle(grailsApplication)}"/>
+<g:set var="shellAppLogo"
+       value="${ch.interlis.generator.grails.runtime.InterlisUiDescriptorSupport.appLogo(grailsApplication)}"/>
+<g:set var="shellAppLogoIcon"
+       value="${ch.interlis.generator.grails.runtime.InterlisUiDescriptorSupport.appLogoIcon(grailsApplication)}"/>
 <g:set var="explorerUrl" value="${createLink(controller: 'interlisUi', action: 'index')}"/>
 <g:set var="currentNavigationEntry"
        value="${navigationModel?.allEntries?.find { it.controller == params.controller }}"/>
@@ -35,11 +39,16 @@
 
         <a class="navbar-brand d-inline-flex align-items-center gap-2 fw-semibold"
            href="${explorerUrl}" data-ili-home-link>
-            <ili:icon name="grid"/>
-            <span>${shellAppTitle}</span>
+            <g:if test="${shellAppLogo}">
+                <img src="${asset.assetPath(src: shellAppLogo)}" alt="${shellAppTitle}" class="ili-app-logo"/>
+            </g:if>
+            <g:elseif test="${shellAppLogoIcon}">
+                <ili:icon name="${shellAppLogoIcon}"/>
+            </g:elseif>
+            <span class="ili-app-title">${shellAppTitle}</span>
         </a>
 
-        <form class="ili-domain-finder flex-grow-1" method="GET"
+        <form class="ili-domain-finder" method="GET"
               action="${createLink(controller: 'interlisUi', action: 'domains')}"
               role="search" data-ili-domain-finder-form>
             <label class="visually-hidden" for="ili-domain-finder-input">Domain suchen</label>
@@ -73,8 +82,26 @@
                  hidden></div>
         </form>
 
-        <div class="ili-user-slot" data-ili-extension-point="user-slot"
-             aria-label="Benutzerbereich"></div>
+        <div class="ili-topbar-right" data-ili-extension-point="topbar-toolbar"
+             aria-label="Hilfe und Benutzer">
+            <button type="button" class="ili-topbar-help-btn"
+                    aria-label="Hilfe" title="Hilfe">
+                <ili:icon name="help"/>
+            </button>
+            <div class="vr d-none d-md-block opacity-25"></div>
+            <div class="dropdown">
+                <button class="ili-topbar-user-btn d-flex align-items-center gap-2 dropdown-toggle"
+                        type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <ili:icon name="person-circle"/>
+                    <span class="d-none d-md-inline">Max Muster</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><span class="dropdown-item-text text-muted">Max Muster</span></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#">Abmelden</a></li>
+                </ul>
+            </div>
+        </div>
     </div>
 </header>
 

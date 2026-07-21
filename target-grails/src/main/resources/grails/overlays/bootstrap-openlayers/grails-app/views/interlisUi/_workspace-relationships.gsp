@@ -16,7 +16,7 @@
                                 <g:link controller="${relationshipLink.controller}"
                                         action="show"
                                         id="${relationshipLink.id}"
-                                        class="ili-workspace-relationship-link">
+                                        class="ili-data-link ili-workspace-relationship-link">
                                     ${relationshipLink.valueLabel ?: relationshipLink.id}
                                 </g:link>
                             </g:if>

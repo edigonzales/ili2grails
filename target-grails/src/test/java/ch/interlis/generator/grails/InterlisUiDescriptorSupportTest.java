@@ -120,6 +120,125 @@ class InterlisUiDescriptorSupportTest {
     }
 
     @Test
+    void appLogoReturnsNullWhenNotConfigured() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Method appLogo = List.of(runtime.supportType.getMethods()).stream()
+            .filter(method -> method.getName().equals("appLogo"))
+            .findFirst()
+            .orElseThrow();
+
+        assertThat(appLogo.invoke(null, Map.of("config", Map.of())))
+            .isNull();
+    }
+
+    @Test
+    void appLogoReturnsConfiguredPath() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Method appLogo = List.of(runtime.supportType.getMethods()).stream()
+            .filter(method -> method.getName().equals("appLogo"))
+            .findFirst()
+            .orElseThrow();
+        Map<String, Object> application = Map.of(
+            "config", Map.of(
+                "ili2grails", Map.of(
+                    "ui", Map.of("appLogo", "my-logo.svg")
+                )
+            )
+        );
+
+        assertThat(appLogo.invoke(null, application))
+            .isEqualTo("my-logo.svg");
+    }
+
+    @Test
+    void appLogoReturnsNullWhenConfiguredBlank() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Method appLogo = List.of(runtime.supportType.getMethods()).stream()
+            .filter(method -> method.getName().equals("appLogo"))
+            .findFirst()
+            .orElseThrow();
+        Map<String, Object> application = Map.of(
+            "config", Map.of(
+                "ili2grails", Map.of(
+                    "ui", Map.of("appLogo", "   ")
+                )
+            )
+        );
+
+        assertThat(appLogo.invoke(null, application))
+            .isNull();
+    }
+
+    @Test
+    void appLogoIconDefaultsToGrid() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Method appLogoIcon = List.of(runtime.supportType.getMethods()).stream()
+            .filter(method -> method.getName().equals("appLogoIcon"))
+            .findFirst()
+            .orElseThrow();
+
+        assertThat(appLogoIcon.invoke(null, Map.of("config", Map.of())))
+            .isEqualTo("grid");
+    }
+
+    @Test
+    void appLogoIconReturnsNullWhenAppLogoSet() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Method appLogoIcon = List.of(runtime.supportType.getMethods()).stream()
+            .filter(method -> method.getName().equals("appLogoIcon"))
+            .findFirst()
+            .orElseThrow();
+        Map<String, Object> application = Map.of(
+            "config", Map.of(
+                "ili2grails", Map.of(
+                    "ui", Map.of("appLogo", "logo.png")
+                )
+            )
+        );
+
+        assertThat(appLogoIcon.invoke(null, application))
+            .isNull();
+    }
+
+    @Test
+    void appLogoIconReturnsConfiguredIconName() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Method appLogoIcon = List.of(runtime.supportType.getMethods()).stream()
+            .filter(method -> method.getName().equals("appLogoIcon"))
+            .findFirst()
+            .orElseThrow();
+        Map<String, Object> application = Map.of(
+            "config", Map.of(
+                "ili2grails", Map.of(
+                    "ui", Map.of("appLogoIcon", "house")
+                )
+            )
+        );
+
+        assertThat(appLogoIcon.invoke(null, application))
+            .isEqualTo("house");
+    }
+
+    @Test
+    void appLogoIconDefaultsToGridWhenConfiguredBlank() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+        Method appLogoIcon = List.of(runtime.supportType.getMethods()).stream()
+            .filter(method -> method.getName().equals("appLogoIcon"))
+            .findFirst()
+            .orElseThrow();
+        Map<String, Object> application = Map.of(
+            "config", Map.of(
+                "ili2grails", Map.of(
+                    "ui", Map.of("appLogoIcon", "   ")
+                )
+            )
+        );
+
+        assertThat(appLogoIcon.invoke(null, application))
+            .isEqualTo("grid");
+    }
+
+    @Test
     void reportsUnknownConfiguredFieldsWithDomainAndSection() throws Exception {
         GeneratedRuntime runtime = generatedRuntime();
         Map<String, Object> configuredDomain = new LinkedHashMap<>();

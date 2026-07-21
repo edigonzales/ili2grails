@@ -73,7 +73,10 @@ public class GrailsTemplateOverlayInstaller {
         "grails-app/assets/fonts/noto-sans/NotoSans-SemiBold.woff2",
         "grails-app/assets/fonts/noto-sans/NotoSans-Bold.woff2",
         "grails-app/assets/fonts/noto-sans/NotoSans-Italic.woff2",
-        "src/main/resources/fonts/noto-sans/OFL.txt"
+        "src/main/resources/fonts/noto-sans/OFL.txt",
+        "grails-app/assets/fonts/fira-sans/FiraSans-Regular.woff2",
+        "grails-app/assets/fonts/fira-sans/FiraSans-Bold.woff2",
+        "src/main/resources/fonts/fira-sans/OFL.txt"
     );
     private static final List<String> APPLICATION_JS_REQUIRES = List.of(
         "//= require webjars/proj4/2.11.0/dist/proj4.js",

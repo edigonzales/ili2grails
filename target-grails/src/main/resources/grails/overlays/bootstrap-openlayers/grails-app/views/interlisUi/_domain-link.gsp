@@ -8,7 +8,7 @@
     data-ili-domain-model="${domain.modelName ?: ''}"
     data-ili-domain-ili-name="${domain.iliName ?: ''}">
     <a href="${domainUrl}"
-       class="ili-domain-link"
+       class="ili-domain-link ${domain.controller == params.controller ? 'is-active' : ''}"
        data-ili-domain-link="true"
        data-ili-domain-url="${domainUrl}"
        data-ili-domain-key="${domain.iliName ?: ''}">

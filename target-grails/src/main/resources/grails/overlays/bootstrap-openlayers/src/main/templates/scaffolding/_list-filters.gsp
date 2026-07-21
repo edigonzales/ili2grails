@@ -68,7 +68,7 @@
                     \${chip.label}: \${chip.value} <span aria-hidden="true">&times;</span>
                 </g:link>
             </g:each>
-            <g:link action="index" class="btn btn-sm btn-link">Alle zurücksetzen</g:link>
+            <g:link action="index" class="ili-data-link">Alle zurücksetzen</g:link>
         </div>
     </g:if>
 </section>

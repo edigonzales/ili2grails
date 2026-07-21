@@ -1,7 +1,6 @@
 <g:each in="${groups ?: []}" var="modelGroup">
     <section class="ili-navigation-model ${singleModel ? 'ili-navigation-model-single' : ''}"
              data-ili-navigation-model="${modelGroup.name}">
-        <h2 class="ili-navigation-model-title">${modelGroup.name}</h2>
         <g:each in="${modelGroup.topics ?: []}" var="topicGroup">
             <section class="ili-navigation-topic">
                 <h3 class="ili-navigation-topic-title">${topicGroup.label}</h3>

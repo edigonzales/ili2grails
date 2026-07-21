@@ -110,6 +110,28 @@ final class InterlisUiDescriptorSupport {
         return configuredText.isBlank() ? "INTERLIS CRUD" : configuredText
     }
 
+    static String appLogo(def grailsApplication) {
+        Object configured = grailsApplication?.config?.ili2grails?.ui?.appLogo
+        if (configured == null) {
+            return null
+        }
+        String configuredText = configured.toString()
+        return configuredText.isBlank() ? null : configuredText
+    }
+
+    static String appLogoIcon(def grailsApplication) {
+        String logo = appLogo(grailsApplication)
+        if (logo != null) {
+            return null
+        }
+        Object configured = grailsApplication?.config?.ili2grails?.ui?.appLogoIcon
+        if (configured == null) {
+            return "grid"
+        }
+        String configuredText = configured.toString()
+        return configuredText.isBlank() ? "grid" : configuredText
+    }
+
     private static Map<String, Object> configuredDomain(def grailsApplication, String iliName) {
         Object rawDomains = grailsApplication?.config?.ili2grails?.ui?.domains
         List<?> domains = normalizeList(rawDomains)

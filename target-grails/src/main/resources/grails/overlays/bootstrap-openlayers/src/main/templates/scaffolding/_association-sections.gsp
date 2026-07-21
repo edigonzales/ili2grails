@@ -48,7 +48,7 @@
                                 <g:each in="\${row.counterparts ?: []}" var="counterpart">
                                     <td>
                                         <g:if test="\${counterpart.controller && counterpart.id}">
-                                            <g:link controller="\${counterpart.controller}" action="show" id="\${counterpart.id}">
+                                            <g:link class="ili-data-link" controller="\${counterpart.controller}" action="show" id="\${counterpart.id}">
                                                 \${counterpart.label ?: counterpart.id}
                                             </g:link>
                                         </g:if>

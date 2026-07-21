@@ -576,12 +576,15 @@ bis zu vier kompakte skalare Felder vorgesehen; Geometrien, Collections, `versio
 und erkennbar lange Textfelder werden aus den Listen-Defaults ausgeschlossen.
 
 Die optionale Konfiguration bleibt unter `ili2grails.ui` und referenziert Domains
-ausschliesslich über `iliName`:
+ausschliesslich über `iliName`. Für das Branding in der Navigationsleiste unterstützt
+`ili2grails.ui` die folgenden Keys (Priorität: `appLogo` > `appLogoIcon` > `grid`-Icon):
 
 ```yaml
 ili2grails:
   ui:
     appTitle: "Fachdatenverwaltung"
+    appLogo: "mein-logo.svg"            # Neu: Pfad zu einem Asset-Bild (wird als <img> gerendert)
+    appLogoIcon: "house"                # Neu: Icon-Name der ili:icon-TagLib (nur wenn appLogo nicht gesetzt)
     domains:
       - iliName: "SimpleAddressModel.Addresses.Address"
         label: "Adresse"

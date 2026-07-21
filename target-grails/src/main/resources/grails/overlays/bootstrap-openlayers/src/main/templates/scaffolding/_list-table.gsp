@@ -20,7 +20,7 @@
                         <g:each in="\${tableColumns ?: []}" var="tableColumn">
                             <td>
                                 <g:if test="\${tableColumn == displayColumn}">
-                                    <g:link action="show" id="\${row?.id}">\${tableRows?.get(row?.id)?.get(tableColumn) ?: '-'}</g:link>
+                                    <g:link class="ili-data-link" action="show" id="\${row?.id}">\${tableRows?.get(row?.id)?.get(tableColumn) ?: '-'}</g:link>
                                 </g:if>
                                 <g:else>\${tableRows?.get(row?.id)?.get(tableColumn) ?: '-'}</g:else>
                             </td>

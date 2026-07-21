@@ -25,6 +25,10 @@ class GrailsTemplateOverlayInstallerTest {
         "NotoSans-Bold.woff2",
         "NotoSans-Italic.woff2"
     );
+    private static final List<String> FIRA_SANS_FONT_FILES = List.of(
+        "FiraSans-Regular.woff2",
+        "FiraSans-Bold.woff2"
+    );
     private static final Pattern ICON_DECLARATION = Pattern.compile(
         "(?m)^\\s*(?:\\\"([^\\\"]+)\\\"|([A-Za-z0-9_-]+)): \\\'\\\'\\\'<path"
     );
@@ -113,6 +117,9 @@ class GrailsTemplateOverlayInstallerTest {
         NOTO_SANS_FONT_FILES.forEach(fileName -> assertThat(projectDir.resolve(
             "grails-app/assets/fonts/noto-sans/" + fileName)).exists());
         assertThat(projectDir.resolve("src/main/resources/fonts/noto-sans/OFL.txt")).exists();
+        assertThat(projectDir.resolve("src/main/resources/fonts/fira-sans/OFL.txt")).exists();
+        FIRA_SANS_FONT_FILES.forEach(fileName -> assertThat(projectDir.resolve(
+            "grails-app/assets/fonts/fira-sans/" + fileName)).exists());
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-wc-bundle.js")).doesNotExist();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js")).doesNotExist();
 
@@ -120,6 +127,18 @@ class GrailsTemplateOverlayInstallerTest {
             try {
                 byte[] content = Files.readAllBytes(projectDir.resolve(
                     "grails-app/assets/fonts/noto-sans/" + fileName));
+                assertThat(content.length).as(fileName).isGreaterThan(4);
+                assertThat(new String(content, 0, 4, StandardCharsets.US_ASCII))
+                    .as(fileName).isEqualTo("wOF2");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        FIRA_SANS_FONT_FILES.forEach(fileName -> {
+            try {
+                byte[] content = Files.readAllBytes(projectDir.resolve(
+                    "grails-app/assets/fonts/fira-sans/" + fileName));
                 assertThat(content.length).as(fileName).isGreaterThan(4);
                 assertThat(new String(content, 0, 4, StandardCharsets.US_ASCII))
                     .as(fileName).isEqualTo("wOF2");
@@ -361,18 +380,12 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(stylesheet).contains(".ili-list-tools");
         assertThat(stylesheet).contains(
             "@font-face",
-            "font-family: \"Noto Sans\"",
+            "font-family: \"Fira Sans\"",
             "font-display: swap",
             "font-weight: 400",
-            "font-weight: 500",
-            "font-weight: 600",
             "font-weight: 700",
-            "font-style: italic",
-            "NotoSans-Regular.woff2",
-            "NotoSans-Medium.woff2",
-            "NotoSans-SemiBold.woff2",
-            "NotoSans-Bold.woff2",
-            "NotoSans-Italic.woff2"
+            "FiraSans-Regular.woff2",
+            "FiraSans-Bold.woff2"
         );
         assertThat(stylesheet).doesNotContain(
             "Frutiger",

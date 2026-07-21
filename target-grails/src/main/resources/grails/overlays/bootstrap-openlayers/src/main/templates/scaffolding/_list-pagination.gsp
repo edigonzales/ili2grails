@@ -1,6 +1,5 @@
 <g:if test="\${pagination?.total > 0}">
     <nav class="ili-pagination-bar" aria-label="Seitennavigation">
-        <div class="small text-secondary">Seite \${pagination.currentPage} von \${pagination.lastPage} · \${pagination.total} Treffer</div>
         <ul class="pagination mb-0">
             <li class="page-item \${pagination.hasPrevious ? '' : 'disabled'}">
                 <g:if test="\${pagination.hasPrevious}"><g:link class="page-link" action="index" params="\${pagination.previousParams}">Zurück</g:link></g:if>
