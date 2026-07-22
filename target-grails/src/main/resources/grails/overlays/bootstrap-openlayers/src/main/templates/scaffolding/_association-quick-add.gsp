@@ -18,7 +18,7 @@
                    aria-autocomplete="list"
                    aria-haspopup="listbox"
                    aria-expanded="false"
-                   aria-label="Ziel für \${section.label ?: section.contextId}"
+                   aria-label="\${message(code: 'ili2grails.association.targetSearch', args: [section.label ?: section.contextId], default: 'Ziel für ' + (section.label ?: section.contextId))}"
                    aria-controls="association-target-\${section.domId}-results"/>
             <div id="association-target-\${section.domId}-results"
                  class="ili-relationship-results list-group mb-2"
@@ -29,13 +29,13 @@
                     id="association-target-\${section.domId}"
                     data-relationship-optional="true"
                     class="form-select">
-                <option value="">Ziel auswählen</option>
+                <option value=""><g:message code="ili2grails.association.targetSelect" default="Ziel auswählen"/></option>
             </select>
         </div>
 
         <button type="submit" class="btn btn-primary btn-sm" disabled
                 data-quick-add-submit>
-            Zuordnen
+            <g:message code="ili2grails.association.assign" default="Zuordnen"/>
         </button>
     </g:form>
 </g:if>

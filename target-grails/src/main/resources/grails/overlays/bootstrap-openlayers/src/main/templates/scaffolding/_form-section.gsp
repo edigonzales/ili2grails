@@ -44,7 +44,7 @@
                     <g:if test="\${fieldInfo.documentation || fieldInfo.unit}">
                         <div id="field-\${fieldName}-help" class="form-text ili-field-meta">
                             <g:if test="\${fieldInfo.unit}">
-                                <span class="ili-unit-badge" title="Einheit">\${fieldInfo.unit}</span>
+                                <span class="ili-unit-badge" title="\${message(code: 'ili2grails.form.unit', default: 'Einheit')}">\${fieldInfo.unit}</span>
                             </g:if>
                             <g:if test="\${fieldInfo.documentation}">
                                 <span class="ili-field-documentation">\${fieldInfo.documentation}</span>

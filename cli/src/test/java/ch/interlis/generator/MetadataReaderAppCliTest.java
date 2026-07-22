@@ -107,6 +107,37 @@ class MetadataReaderAppCliTest {
     }
 
     @Test
+    void grailsLanguageOptionIsParsedAndValidated() {
+        CommandLine.ParseResult parseResult = parse(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "grails",
+            "--grails-output", "generated-grails",
+            "--grails-language", "en"
+        );
+        GenerateCommand command = (GenerateCommand) parseResult.subcommand().commandSpec().userObject();
+        GrailsCliOptions options = readField(command, "grailsOptions");
+
+        assertThat(options.language()).isEqualTo("en");
+    }
+
+    @Test
+    void unsupportedGrailsLanguageIsRejected() {
+        CliResult result = execute(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "grails",
+            "--grails-output", "generated-grails",
+            "--grails-language", "fr"
+        );
+
+        assertThat(result.exitCode()).isEqualTo(CommandLine.ExitCode.USAGE);
+        assertThat(result.err()).contains("Unsupported value for --grails-language: fr");
+    }
+
+    @Test
     void djangoTargetRequiresOutputDirectoryAndAppName() {
         CliResult missingOutput = execute(
             "generate",

@@ -16,6 +16,7 @@ final class InterlisListQuerySupport {
 
     static final int DEFAULT_MAX = 25
     static final int MAX_MAX = 100
+    private static final int MAX_VISIBLE_PAGE_NUMBERS = 5
     private static final int LEFT_JOIN = 4
 
     private InterlisListQuerySupport() {
@@ -269,26 +270,65 @@ final class InterlisListQuerySupport {
         int lastOffset = count > 0 ? ((count - 1) / max as int) * max : 0
         int currentPage = (offset / max as int) + 1
         int lastPage = count > 0 ? ((count - 1) / max as int) + 1 : 1
-        int startPage = Math.max(1, currentPage - 2)
-        int endPage = Math.min(lastPage, startPage + 4)
-        startPage = Math.max(1, endPage - 4)
-        List<Map<String, Object>> pages = (startPage..endPage).collect { int pageNumber ->
-            int pageOffset = (pageNumber - 1) * max
-            [number: pageNumber, current: pageNumber == currentPage,
-             params: urlParams(query, [offset: pageOffset])]
-        }
+        int resultStart = count > 0 ? Math.min(offset + 1, count) : 0
+        int resultEnd = count > 0 ? Math.min(offset + max, count) : 0
+        List<Map<String, Object>> pages = paginationPages(query, currentPage, lastPage, max)
         return [
             total: count,
             max: max,
             offset: offset,
             currentPage: currentPage,
             lastPage: lastPage,
+            showResultRange: count > max,
+            resultStart: resultStart,
+            resultEnd: resultEnd,
+            pageSizeParams: urlParams(query, [max: null, offset: 0]),
             hasPrevious: offset > 0,
             hasNext: offset < lastOffset,
             previousParams: urlParams(query, [offset: Math.max(0, offset - max)]),
             nextParams: urlParams(query, [offset: Math.min(lastOffset, offset + max)]),
             pages: pages
         ]
+    }
+
+    private static List<Map<String, Object>> paginationPages(Map<String, Object> query,
+                                                              int currentPage,
+                                                              int lastPage,
+                                                              int max) {
+        if (lastPage <= MAX_VISIBLE_PAGE_NUMBERS) {
+            return (1..lastPage).collect { int pageNumber -> pageItem(query, pageNumber, currentPage, max) }
+        }
+
+        List<Integer> pageNumbers
+        if (currentPage <= 3) {
+            pageNumbers = [1, 2, 3, 4, lastPage]
+        } else if (currentPage >= lastPage - 2) {
+            pageNumbers = [1, lastPage - 3, lastPage - 2, lastPage - 1, lastPage]
+        } else {
+            pageNumbers = [1, currentPage - 1, currentPage, currentPage + 1, lastPage]
+        }
+
+        List<Map<String, Object>> pages = []
+        Integer previousPage = null
+        pageNumbers.unique().sort().each { int pageNumber ->
+            if (previousPage != null && pageNumber - previousPage > 1) {
+                pages << [ellipsis: true]
+            }
+            pages << pageItem(query, pageNumber, currentPage, max)
+            previousPage = pageNumber
+        }
+        return pages
+    }
+
+    private static Map<String, Object> pageItem(Map<String, Object> query,
+                                                 int pageNumber,
+                                                 int currentPage,
+                                                 int max) {
+        int pageOffset = (pageNumber - 1) * max
+        [ellipsis: false,
+         number: pageNumber,
+         current: pageNumber == currentPage,
+         params: urlParams(query, [offset: pageOffset])]
     }
 
     static List<Map<String, Object>> activeFilterChips(Map<String, Object> query) {

@@ -752,21 +752,22 @@ public final class MultiDomainWorkspaceFixture {
 
     private static void appendWorkspaceConfiguration(Path applicationYaml) throws IOException {
         String existing = Files.readString(applicationYaml, StandardCharsets.UTF_8);
-        String addition = """
-
-            ili2grails:
-                ui:
-                    workspaces:
-                        - id: parcel-workspace
-                          label: Parzellen-Workspace
-                          controller: parcelWorkspace
-                          action: index
-            """;
-        int separator = existing.indexOf("\n---");
-        if (separator >= 0) {
-            existing = existing.substring(0, separator) + addition + existing.substring(separator);
+        String uiConfiguration = String.join("\n",
+            "  ui:",
+            "    workspaces:",
+            "        - id: parcel-workspace",
+            "          label: Parzellen-Workspace",
+            "          controller: parcelWorkspace",
+            "          action: index",
+            "");
+        int languageRoot = existing.indexOf("ili2grails:\n");
+        if (languageRoot >= 0) {
+            int insertionPoint = languageRoot + "ili2grails:\n".length();
+            existing = existing.substring(0, insertionPoint)
+                + uiConfiguration
+                + existing.substring(insertionPoint);
         } else {
-            existing = existing + addition;
+            existing = existing + "\nili2grails:\n" + uiConfiguration;
         }
         Files.writeString(applicationYaml, existing, StandardCharsets.UTF_8);
     }

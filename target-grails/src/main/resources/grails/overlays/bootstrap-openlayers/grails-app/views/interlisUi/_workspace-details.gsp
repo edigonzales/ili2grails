@@ -2,7 +2,7 @@
     <div class="card-body">
         <g:each in="${detailSections ?: []}" var="detailSection" status="sectionIndex">
             <section class="ili-workspace-detail-section" data-workspace-detail-section="${detailSection.title ?: sectionIndex}">
-                <h2 class="ili-section-title h5">${detailSection.title ?: 'Details'}</h2>
+                <h2 class="ili-section-title h5">${detailSection.title ?: message(code: 'ili2grails.workspace.details', default: 'Details')}</h2>
                 <dl class="ili-definition-list">
                     <g:each in="${detailSection.fields ?: []}" var="detailField">
                         <div class="ili-definition-row" data-workspace-detail-field="${detailField.name}">
@@ -17,7 +17,7 @@
             </section>
         </g:each>
         <g:if test="${!(detailSections ?: [])}">
-            <p class="text-body-secondary mb-0">Keine skalaren Detailattribute vorhanden.</p>
+            <p class="text-body-secondary mb-0"><g:message code="ili2grails.workspace.noDetails" default="Keine skalaren Detailattribute vorhanden."/></p>
         </g:if>
     </div>
 </section>

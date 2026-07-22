@@ -10,7 +10,7 @@
     mode: 'create',
     entityName: entityName,
     pageTitleCode: 'default.create.label',
-    pageSubtitle: 'Neue Entität erfassen.',
+    pageSubtitle: \${message(code: 'ili2grails.form.createSubtitle', default: 'Neue Entität erfassen.')},
     submitCode: 'default.button.create.label',
     submitDefault: 'Create',
     geometryFields: geometryFields,

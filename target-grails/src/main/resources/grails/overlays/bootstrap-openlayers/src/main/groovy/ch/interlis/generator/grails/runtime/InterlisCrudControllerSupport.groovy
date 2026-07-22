@@ -243,7 +243,12 @@ abstract class InterlisCrudControllerSupport<T> {
             if (!isDeleteIntegrityConflict(failure)) {
                 throw failure
             }
-            String conflictMessage = "Datensatz ${id} kann nicht gelöscht werden, weil eine Datenbank-Integritätsbedingung das Löschen verhindert."
+            String conflictMessage = InterlisMessageSupport.text(
+                grailsApplication,
+                "ili2grails.runtime.deleteIntegrity",
+                "Datensatz ${id} kann nicht gelöscht werden, weil eine Datenbank-Integritätsbedingung das Löschen verhindert.",
+                [id] as Object[]
+            )
             request.withFormat {
                 form multipartForm {
                     flash.message = conflictMessage
@@ -380,8 +385,8 @@ abstract class InterlisCrudControllerSupport<T> {
         Long targetId = params.long("targetId")
         if (contextId == null || contextId.isBlank()) {
             response.status = BAD_REQUEST.value()
-            render([success: false, status: 400, code: "MISSING_CONTEXT",
-                    message: "Der Assoziationskontext fehlt."] as JSON)
+                    render([success: false, status: 400, code: "MISSING_CONTEXT",
+                    message: InterlisMessageSupport.text(grailsApplication, "ili2grails.association.error.MISSING_CONTEXT", "Der Assoziationskontext fehlt.")] as JSON)
             return
         }
         Map<String, Object> result
@@ -396,15 +401,18 @@ abstract class InterlisCrudControllerSupport<T> {
         } catch (InterlisAssociationRegistrySupport.AssociationContextNotFoundException e) {
             log.info("associationCreate context not found for ${domainType().simpleName}#${id}: ${e.message}")
             result = [success: false, status: 404, code: "CONTEXT_NOT_FOUND",
-                      message: "Der Assoziationskontext wurde nicht gefunden."]
+                      message: InterlisMessageSupport.text(grailsApplication,
+                          "ili2grails.association.error.CONTEXT_NOT_FOUND", "Der Assoziationskontext wurde nicht gefunden.")]
         } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
             log.warn("associationCreate ownership mismatch for ${domainType().simpleName}#${id}: ${e.message}")
             result = [success: false, status: 404, code: "OWNERSHIP_MISMATCH",
-                      message: "Die Zuordnung geh&ouml;rt nicht zu diesem Datensatz."]
+                      message: InterlisMessageSupport.text(grailsApplication,
+                          "ili2grails.association.error.OWNERSHIP_MISMATCH", "Die Zuordnung gehört nicht zu diesem Datensatz.")]
         } catch (Exception e) {
             log.error("associationCreate failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
             result = [success: false, status: 500, code: "INTERNAL_ERROR",
-                      message: "Die Zuordnung konnte nicht erstellt werden."]
+                      message: InterlisMessageSupport.text(grailsApplication,
+                          "ili2grails.association.error.INTERNAL_ERROR", "Die Zuordnung konnte nicht erstellt werden.")]
         }
         respondAssociationCommand(instance, result)
     }
@@ -421,7 +429,8 @@ abstract class InterlisCrudControllerSupport<T> {
         if (contextId == null || contextId.isBlank() || associationId == null) {
             response.status = BAD_REQUEST.value()
             render([success: false, status: 400, code: "MISSING_PARAMS",
-                    message: "Kontext und Assoziations-ID werden ben&ouml;tigt."] as JSON)
+                    message: InterlisMessageSupport.text(grailsApplication,
+                        "ili2grails.association.error.MISSING_PARAMS", "Kontext und Assoziations-ID werden benötigt.")] as JSON)
             return
         }
         Map<String, Object> result
@@ -435,15 +444,18 @@ abstract class InterlisCrudControllerSupport<T> {
         } catch (InterlisAssociationRegistrySupport.AssociationContextNotFoundException e) {
             log.info("associationDelete context not found for ${domainType().simpleName}#${id}: ${e.message}")
             result = [success: false, status: 404, code: "CONTEXT_NOT_FOUND",
-                      message: "Der Assoziationskontext wurde nicht gefunden."]
+                      message: InterlisMessageSupport.text(grailsApplication,
+                          "ili2grails.association.error.CONTEXT_NOT_FOUND", "Der Assoziationskontext wurde nicht gefunden.")]
         } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
             log.warn("associationDelete ownership mismatch for ${domainType().simpleName}#${id}: ${e.message}")
             result = [success: false, status: 404, code: "OWNERSHIP_MISMATCH",
-                      message: "Die Zuordnung geh&ouml;rt nicht zu diesem Datensatz."]
+                      message: InterlisMessageSupport.text(grailsApplication,
+                          "ili2grails.association.error.OWNERSHIP_MISMATCH", "Die Zuordnung gehört nicht zu diesem Datensatz.")]
         } catch (Exception e) {
             log.error("associationDelete failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
             result = [success: false, status: 500, code: "INTERNAL_ERROR",
-                      message: "Die Zuordnung kann nicht entfernt werden."]
+                      message: InterlisMessageSupport.text(grailsApplication,
+                          "ili2grails.association.error.INTERNAL_ERROR", "Die Zuordnung kann nicht entfernt werden.")]
         }
         respondAssociationCommand(instance, result)
     }

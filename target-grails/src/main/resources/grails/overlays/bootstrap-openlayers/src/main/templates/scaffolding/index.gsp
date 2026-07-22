@@ -4,14 +4,12 @@
     <meta name="layout" content="main" />
     <g:set var="entityName" value="\${message(code: '${propertyName}.label', default: '${className}')}" />
     <g:set var="rows" value="\${${propertyName}List ?: []}" />
-    <g:set var="recordCount" value="\${${propertyName}Count ?: 0}" />
-    <title><g:message code="default.list.label" args="\${[entityName]}" /></title>
+    <title>\${entityName}</title>
 </head>
 <body>
 <div id="content" role="main" class="ili-page ili-page-list">
     <g:render template="list-header" model="\${[
-        entityName: entityName,
-        recordCount: recordCount
+        entityName: entityName
     ]}"/>
 
     <g:if test="\${flash.message}">
@@ -19,7 +17,7 @@
     </g:if>
     <g:if test="\${listQueryWarnings}">
         <div class="alert alert-warning" role="alert" data-list-query-warning>
-            <h2 class="h6 mb-2">Einige Suchparameter wurden nicht übernommen</h2>
+            <h2 class="h6 mb-2"><g:message code="ili2grails.list.queryWarningTitle" default="Einige Suchparameter wurden nicht übernommen"/></h2>
             <ul class="mb-0">
                 <g:each in="\${listQueryWarnings}" var="warning"><li>\${warning}</li></g:each>
             </ul>
@@ -39,9 +37,13 @@
     ]}"/>
 
     <g:if test="\${rows.isEmpty()}">
+        <p class="ili-list-result-summary" data-list-result-summary>
+            <g:message code="ili2grails.pagination.resultCount"
+                       args="\${[pagination?.total ?: 0]}"
+                       default="{0} Treffer"/>
+        </p>
         <g:render template="list-empty" model="\${[
             entityName: entityName,
-            recordCount: recordCount,
             domainHasRecords: domainHasRecords,
             hasActiveListQuery: hasActiveListQuery,
             listQuery: listQuery

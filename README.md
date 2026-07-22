@@ -152,6 +152,7 @@ Weitere Optionen:
 - `--grails-association-ui <auto|off|read-only|editable>` (Default: `auto`; steuert die Association-UX der generierten App)
 - `--grails-association-page-size <1..100>` (Default: `10`; Seitengrösse für Association-Listen)
 - `--grails-association-navigation <auto|show|hide>` (Default: `auto`; Sichtbarkeit technischer Association-Controller in der Navigation)
+- `--grails-language <de-CH|en>` (Default: `de-CH`; Sprache der generierten Bootstrap-Oberfläche)
 - `--django-output <dir>` und `--django-app <python_package>` (für `--target django`; schreibt `<dir>/<app>/models.py`)
 
 ## Grails-Projekt starten
@@ -220,6 +221,25 @@ Wenn `--grails-ui-theme bootstrap` gesetzt ist, kopiert der Generator vor `gener
 
 Der Ablauf ist damit: `--grails-init` → Overlay kopieren → Domains/Enums schreiben → optional `generate-all`.
 Hinweis: `--grails-ui-theme carbon` wird nicht mehr unterstützt und muss auf `bootstrap` umgestellt werden.
+
+### Sprache der generierten Bootstrap-App
+
+Die Bootstrap-Oberfläche ist standardmässig Schweizer Hochdeutsch (`de-CH`). Mit
+`--grails-language en` wird eine englische App generiert. Die Auswahl erfolgt nur
+bei der Generierung; ein Laufzeit-Umschalter ist derzeit nicht enthalten.
+
+Der Generator schreibt die verwalteten Übersetzungen in
+`grails-app/i18n/messages_de_CH.properties` bzw. `messages_en.properties` und
+ergänzt die gewählte Variante zusätzlich in `messages.properties`, ohne
+projektspezifische Message-Keys zu überschreiben. `html lang`, die feste
+Standard-Locale und die Domain-Label-Auflösung verwenden dieselbe Auswahl. Für
+Domain-Labels gilt der Fallback: gewählte Sprache, `de-CH`, `de`, `en`, danach
+der technische Domain-Name.
+
+Die Listen verwenden die standardisierte Pagination-Anzeige **Zeilen pro Seite**
+rechts neben der Navigation; der Treffertext steht darunter. Suche, Filter und
+Sortierung bleiben beim Ändern der Seitengrösse erhalten, der Seitenoffset wird
+auf den Anfang zurückgesetzt.
 
 ### 3) Grails-App starten
 ```bash
@@ -598,6 +618,80 @@ ili2grails:
               fields: [name, year]
 ```
 
+#### Listenfilter: Platzierung und Eingabekomponenten
+
+Die generische Domain-Liste zeigt die Freitextsuche unabhängig von den Feldfiltern
+immer an. Die Feldfilter werden aus den Domain-/GORM-Eigenschaften und den
+generierten INTERLIS-Metadaten abgeleitet.
+
+Ohne `list.prominentFilters` werden die ersten drei erkannten Filter als
+**Quick Filters** direkt unter der Suche angezeigt. Die übrigen erkannten Filter
+stehen im Bereich **Weitere Filter**. Die Reihenfolge entspricht der Reihenfolge
+der erkannten Domain-Eigenschaften; sie ist damit insbesondere von der generierten
+Grails-Domain und ihren Metadaten abhängig.
+
+Die sichtbaren Quick Filters können pro Domain explizit konfiguriert werden:
+
+```yaml
+ili2grails:
+  ui:
+    domains:
+      - iliName: "ListQueryE2E.Lists.Record"
+        list:
+          prominentFilters: [status, municipality]
+          filters:
+            status:
+              label: "Status"
+            municipality:
+              label: "Gemeinde"
+```
+
+`prominentFilters` ist dann die maßgebliche Liste: Die genannten Filter werden
+direkt angezeigt, alle anderen weiterhin unter **Weitere Filter**. Unbekannte oder
+für die Domain nicht filterbare Feldnamen werden mit dem betroffenen `iliName` und
+der Konfigurationssektion diagnostiziert. Die aktuelle Implementierung übernimmt
+eine explizite Liste in der angegebenen Länge; die automatische Auswahl ist auf
+drei Filter begrenzt. Für eine kompakte Oberfläche sollten daher höchstens drei
+prominente Filter konfiguriert werden.
+
+Die UI-Komponente hängt vom erkannten Filtertyp ab:
+
+| Filtertyp | UI-Komponente | Verhalten |
+| --- | --- | --- |
+| `relationship` | Auswahlfeld/Combobox | Auswahl aus referenzierten To-One-Datensätzen; zusätzlich gibt es `Alle`. |
+| `enum` | Auswahlfeld/Combobox | Auswahl aus den generierten Enum-Werten; zusätzlich gibt es `Alle`. |
+| `boolean` | Auswahlfeld/Combobox | `Alle`, `Ja` oder `Nein`. |
+| `text` | Texteingabe | Enthält-Suche über den Textwert. |
+| `number` | Zwei Zahleneingaben | Bereich mit `Von` und `Bis`. |
+| `date` | Zwei Datumseingaben | Bereich mit `Von` und `Bis`. |
+
+Ein Feld wird nur dann als generischer Filter angeboten, wenn sein Typ unterstützt
+wird. `id`, `version`, Geometrien, Collections und To-Many-Relationships werden
+ausgeschlossen. Nicht unterstützte Spezialtypen, beispielsweise grosse Binärfelder,
+erhalten ebenfalls keinen generischen Filter.
+
+##### Warum ist `Department` eine Combobox?
+
+Im Getting-Started-Modell ist `Department` nicht einfach ein Textfeld von
+`Employee`. Die INTERLIS-Assoziation `DepartmentEmployee` verbindet ein
+`Department` mit `0..*` `Employees` und erzeugt auf der Employee-Seite die
+To-One-Relationship `department`:
+
+```text
+Employee.department : Department
+```
+
+Der Generator erkennt diese Relationship aus dem Relationship-Metamodell. Deshalb
+wird der Filtertyp `relationship` verwendet und die UI rendert ein Auswahlfeld mit
+den vorhandenen Departments, zum Beispiel `Operations` und `Planning`. `Alle`
+setzt den Relationship-Filter zurück. Die Optionen werden zunächst begrenzt
+serverseitig geladen (standardmässig bis zu 25 Einträge). Ein bereits ausgewählter
+Wert bleibt auch dann als Option erhalten, wenn er nicht auf der ersten Seite
+liegt. Das Listenfilter-Auswahlfeld selbst ist derzeit ein natives `<select>`;
+die progressive Relationship-Autocomplete-Suche wird bei den Relationship-Pickern
+in Create/Edit verwendet. Eine To-Many-Relationship würde dagegen als Collection
+behandelt und nicht als generischer Listenfilter angezeigt.
+
 Unbekannte Domains und Felder werden mit `IllegalArgumentException` und
 `iliName`, Feldname sowie betroffener Konfigurationssektion diagnostiziert.
 
@@ -676,8 +770,8 @@ Der Bootstrap-Modus verwendet ab Phase 1 eine server-rendered Application Shell:
 - Mit `--grails-map-editor openlayers` erhalten Scaffold-`create/edit/show` bei Geometrie-Attributen eine Webkarte.
 - Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt. Die Runtime prüft erwarteten Geometrietyp, Empty-Geometrien, JTS-Validität und konvertiert Single-Geometrien bei erwarteten Multi-Typen in Multi-Geometrien.
 - Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen und Snapping auf vorhandene Editor-Vertices. Fachliche Topologie-Regeln bleiben ein projektspezifischer Extension Point.
-- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis und bleibt no-frills: kleine Radien, dünne Linien, Bootstrap-Standardfarben und keine Card-Shadows. Rot erscheint nur semantisch für Danger-/Fehlerzustände. Bootstrap, OpenLayers, proj4 und die Navigation werden über die lokale WebJar-/Asset-Pipeline eingebunden, nicht über CDN.
-- Die Bootstrap-GUI verwendet lokal eingebettetes Noto Sans v42 statt Frutiger. Die fünf WOFF2-Schnitte für 400, 500, 600, 700 und 400 italic liegen im managed Overlay unter `grails-app/assets/fonts/noto-sans/` und werden über `ili-modern.css` mit `font-display: swap` geladen. Es gibt keine externe Font-CDN-Abhängigkeit; die Font-Dateien werden zusammen mit dem Overlay in neu erzeugte Bootstrap-Grails-Apps kopiert. Noto Sans steht unter der SIL Open Font License; der Lizenztext liegt unter `src/main/resources/fonts/noto-sans/OFL.txt`.
+- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis und bleibt no-frills: einheitliche 3px-Radien, dünne Linien und keine Card-Shadows. Aktive Filter-Chips behalten als einzige Ausnahme ihre vollständig runde Pill-Form. Das Primärblau `#4299E1` wird mit einer kompakten, kühl abgestimmten Neutralpalette kombiniert. Deren semantische CSS-Variablen unterscheiden nur Text, Sekundärtext, Border, Main-Background, Tabellen-Header/Disabled und Hover. Trefferzahlen erscheinen als Sekundärtext direkt vor Tabelle bzw. Empty-State. `data-ili-neutral-palette="balanced"` auf dem `<html>`-Element ist der Standard; `quiet` reduziert und `defined` verstärkt die Flächenkontraste. Rot erscheint nur semantisch für Danger-/Fehlerzustände. Bootstrap, OpenLayers, proj4 und die Navigation werden über die lokale WebJar-/Asset-Pipeline eingebunden, nicht über CDN.
+- Die Bootstrap-GUI verwendet lokal eingebettetes Fira Sans statt Frutiger. Die WOFF2-Schnitte für 400 und 600 liegen im managed Overlay unter `grails-app/assets/fonts/fira-sans/` und werden über `ili-modern.css` mit `font-display: swap` geladen; der frühere 700-Bold-Schnitt wird nicht mehr verwendet. Es gibt keine externe Font-CDN-Abhängigkeit. Fira Sans steht unter der SIL Open Font License; der Lizenztext liegt unter `src/main/resources/fonts/fira-sans/OFL.txt`.
 - `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
   links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
 - Dokumentation und Units aus der Core-IR werden als zurückhaltende Feldhinweise im Formular angezeigt. Übersetzte Labels bleiben weiterhin über Grails-Message-Codes überschreibbar.
@@ -761,9 +855,12 @@ ili2grails:
           searchFields: [name, municipality.name]
           displayField: name
           sortableColumns: [year, status, name]
+          prominentFilters: [status, municipality]
           filters:
             status:
               label: "Status"
+            municipality:
+              label: "Gemeinde"
 ```
 
 Ungültige Suchpfade schlagen beim Erzeugen des Descriptors mit Domain-, Pfad- und
@@ -989,12 +1086,13 @@ kein Audit-/Verlaufssystem.
 Die Härtungsregeln sind verbindlich:
 
 - `core`, `target-django` und das Grails-`default`-Theme bleiben ausserhalb des Bootstrap-Overlays.
-- Das Overlay verwendet Bootstrap-no-frills ohne eigene rote oder blaue Brand-Palette. Rot bleibt
-  auf semantische Danger-/Fehlerzustände über Bootstrap-Variablen beschränkt.
+- Das Overlay verwendet Bootstrap-no-frills mit dem Primärblau `#4299E1` und einer kleinen,
+  semantischen Neutralpalette. Rot bleibt auf Danger-/Fehlerzustände über Bootstrap-Variablen
+  beschränkt.
 - Es gibt keine `--dp-*`-CSS-Custom-Properties oder Aliase im gemanagten Bootstrap-Code.
 - Generische Aktionen verwenden den zentralen `ili:icon`-Renderpfad mit lokal eingebetteten
   Bootstrap-Icons-SVGs. Icon-Webfonts, CDN-Icons und externe Icon-Services sind ausgeschlossen.
-- Die Bootstrap-Typografie verwendet die lokalen Noto-Sans-WOFF2-Ressourcen des Overlays;
+- Die Bootstrap-Typografie verwendet die lokalen Fira-Sans-WOFF2-Ressourcen des Overlays;
   externe Font-CDNs und Frutiger gehören nicht zum managed Bootstrap-Code.
 - Alle dynamischen Association-/Workspace-Werte werden escaped gerendert; Sortierung, Filter,
   Controller, Actions, IDs, Ownership und Delete-Flows bleiben whitelisted und serverseitig geprüft.

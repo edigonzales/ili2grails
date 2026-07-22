@@ -1,6 +1,11 @@
 (function() {
     "use strict";
 
+    function uiMessage(name, fallback) {
+        var body = document.body;
+        return body && body.getAttribute("data-ili-message-" + name) || fallback;
+    }
+
     var dirtyForms = new Set();
 
     function readValue(field) {
@@ -144,7 +149,7 @@
             var rowDeleteAction = event.target.closest("[data-row-delete]");
             if (rowDeleteAction) {
                 event.preventDefault();
-                if (!window.confirm("Datensatz wirklich löschen?")) {
+                if (!window.confirm(uiMessage("delete-record", "Datensatz wirklich löschen?"))) {
                     return;
                 }
                 var rowDeleteFormId = rowDeleteAction.getAttribute("data-delete-form");
@@ -158,7 +163,7 @@
             var associationDeleteAction = event.target.closest("[data-association-delete]");
             if (associationDeleteAction) {
                 event.preventDefault();
-                if (!window.confirm("Zuordnung wirklich entfernen?")) {
+                if (!window.confirm(uiMessage("delete-association", "Zuordnung wirklich entfernen?"))) {
                     return;
                 }
                 var associationFormId = associationDeleteAction.getAttribute("data-delete-form");
@@ -190,7 +195,7 @@
             if (!href || href.charAt(0) === "#") {
                 return;
             }
-            var proceed = window.confirm("Es gibt ungespeicherte Änderungen. Seite wirklich verlassen?");
+            var proceed = window.confirm(uiMessage("unsaved", "Es gibt ungespeicherte Änderungen. Seite wirklich verlassen?"));
             if (!proceed) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -276,7 +281,7 @@
         if (reset && optional) {
             var empty = document.createElement("option");
             empty.value = "";
-            empty.textContent = "Keine Auswahl";
+            empty.textContent = uiMessage("no-selection", "Keine Auswahl");
             select.appendChild(empty);
         }
         var hasPreviousValue = !previousValue;

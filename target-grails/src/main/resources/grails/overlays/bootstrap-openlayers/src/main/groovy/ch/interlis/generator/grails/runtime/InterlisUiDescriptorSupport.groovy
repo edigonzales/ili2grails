@@ -74,6 +74,7 @@ final class InterlisUiDescriptorSupport {
         List<Map<String, Object>> sections = configuredSections(
             formConfig, defaultSections, properties, knownFields, iliName
         )
+        sections = localizedDefaultSectionTitles(grailsApplication, sections)
         List<Map<String, Object>> detailSections = detailSections(sections, properties)
 
         String label = configuredDomain.containsKey("label")
@@ -116,7 +117,7 @@ final class InterlisUiDescriptorSupport {
             return null
         }
         String configuredText = configured.toString()
-        return configuredText.isBlank() ? null : configuredText
+        return configuredText == null || configuredText.isBlank() ? null : configuredText
     }
 
     static String appLogoIcon(def grailsApplication) {
@@ -129,7 +130,7 @@ final class InterlisUiDescriptorSupport {
             return "grid"
         }
         String configuredText = configured.toString()
-        return configuredText.isBlank() ? "grid" : configuredText
+        return configuredText == null || configuredText.isBlank() ? "grid" : configuredText
     }
 
     private static Map<String, Object> configuredDomain(def grailsApplication, String iliName) {
@@ -612,6 +613,35 @@ final class InterlisUiDescriptorSupport {
             configured << [title: "Allgemein", fields: remainingFields]
         }
         return configured
+    }
+
+    private static List<Map<String, Object>> localizedDefaultSectionTitles(def grailsApplication,
+                                                                            List<Map<String, Object>> sections) {
+        return sections.collect { Map<String, Object> section ->
+            String title = section.title?.toString()
+            String localizedTitle = title == "Allgemein"
+                ? localizedMessage(grailsApplication, "ili2grails.form.general", "Allgemein", "General")
+                : title == "Weitere Felder"
+                    ? localizedMessage(grailsApplication, "ili2grails.form.additionalFields", "Weitere Felder", "Additional fields")
+                    : title
+            [title: localizedTitle, fields: section.fields]
+        }
+    }
+
+    private static String localizedMessage(def grailsApplication,
+                                           String code,
+                                           String germanDefault,
+                                           String englishDefault) {
+        String language = grailsApplication?.config?.ili2grails?.language?.toString()
+        String fallback = language == "en" ? englishDefault : germanDefault
+        try {
+            def source = grailsApplication?.mainContext?.getBean(
+                "org.springframework.context.MessageSource"
+            )
+            return source?.getMessage(code, null, fallback, Locale.forLanguageTag(language ?: "de-CH")) ?: fallback
+        } catch (Exception ignored) {
+            return fallback
+        }
     }
 
     private static boolean scalarDetailProperty(Map<String, Object> property) {

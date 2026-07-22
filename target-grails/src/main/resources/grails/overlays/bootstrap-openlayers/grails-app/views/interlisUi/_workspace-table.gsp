@@ -3,8 +3,8 @@
     <div class="card-body">
         <div class="ili-section-heading">
             <div>
-                <p class="ili-eyebrow">Arbeitsbereich</p>
-                <h2 class="h5 mb-0">${workspaceSection.title ?: 'Einträge'}</h2>
+                <p class="ili-eyebrow"><g:message code="ili2grails.workspace.area" default="Arbeitsbereich"/></p>
+                <h2 class="h5 mb-0">${workspaceSection.title ?: message(code: 'ili2grails.workspace.entries', default: 'Einträge')}</h2>
             </div>
             <g:if test="${workspaceSection.count != null}">
                 <span class="badge text-bg-light">${workspaceSection.count}</span>

@@ -35,7 +35,7 @@ final class InterlisWorkspaceSupport {
         return [
             workspaceDisplayLabel      : displayLabel(instance),
             workspaceDomainLabel       : descriptor?.label?.toString() ?: domainType?.simpleName,
-            workspaceDetailSections    : detailSections(instance, descriptor),
+            workspaceDetailSections    : detailSections(grailsApplication, instance, descriptor),
             workspaceRelationshipLinks : relationshipLinks(instance, descriptor)
         ]
     }
@@ -123,7 +123,8 @@ final class InterlisWorkspaceSupport {
         ])
     }
 
-    private static List<Map<String, Object>> detailSections(Object instance,
+    private static List<Map<String, Object>> detailSections(def grailsApplication,
+                                                             Object instance,
                                                              Map<String, Object> descriptor) {
         List<Map<String, Object>> sections = descriptor?.detail?.sections instanceof Collection
             ? descriptor.detail.sections as List<Map<String, Object>>
@@ -138,8 +139,25 @@ final class InterlisWorkspaceSupport {
                     value: renderValue(value)
                 ]
             }
-            [title: section.title?.toString() ?: "Details", fields: fields]
+            [title: section.title?.toString() ?: localizedMessage(
+                grailsApplication, "ili2grails.workspace.details", "Details", "Details"), fields: fields]
         }.findAll { Map<String, Object> section -> !section.fields.isEmpty() }
+    }
+
+    private static String localizedMessage(def grailsApplication,
+                                           String code,
+                                           String germanDefault,
+                                           String englishDefault) {
+        String language = grailsApplication?.config?.ili2grails?.language?.toString()
+        String fallback = language == "en" ? englishDefault : germanDefault
+        try {
+            def source = grailsApplication?.mainContext?.getBean(
+                "org.springframework.context.MessageSource"
+            )
+            return source?.getMessage(code, null, fallback, Locale.forLanguageTag(language ?: "de-CH")) ?: fallback
+        } catch (Exception ignored) {
+            return fallback
+        }
     }
 
     private static List<Map<String, Object>> relationshipLinks(Object instance,

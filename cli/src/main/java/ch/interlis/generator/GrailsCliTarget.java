@@ -56,6 +56,12 @@ final class GrailsCliTarget implements CliTargetAdapter {
                 "Unsupported value for --grails-map-editor: " + options.mapEditor()
             );
         }
+        if (options.language() != null && !isSupportedLanguage(options.language())) {
+            throw new ParameterException(
+                commandLine,
+                "Unsupported value for --grails-language: " + options.language()
+            );
+        }
         if (options.defaultSrid() != null && options.defaultSrid() <= 0) {
             throw new ParameterException(commandLine, "Option --grails-default-srid must be greater than zero.");
         }
@@ -118,6 +124,7 @@ final class GrailsCliTarget implements CliTargetAdapter {
         builder.schema(metadataOptions.schema());
         builder.uiTheme(uiTheme);
         builder.mapEditor(mapEditor);
+        builder.language(resolveLanguage());
         builder.defaultSrid(defaultSrid);
         builder.geometryEnabled(geometryEnabled);
         if (options.domainPackage() != null) {
@@ -156,6 +163,18 @@ final class GrailsCliTarget implements CliTargetAdapter {
             return GenerationConfig.MAP_EDITOR_OPENLAYERS;
         }
         return GenerationConfig.MAP_EDITOR_NONE;
+    }
+
+    String resolveLanguage() {
+        if (options.language() == null || options.language().isBlank()) {
+            return GenerationConfig.LANGUAGE_DE_CH;
+        }
+        return options.language();
+    }
+
+    private boolean isSupportedLanguage(String language) {
+        return GenerationConfig.LANGUAGE_DE_CH.equals(language)
+            || GenerationConfig.LANGUAGE_EN.equals(language);
     }
 
     private Path resolveProjectDir() throws IOException, InterruptedException {

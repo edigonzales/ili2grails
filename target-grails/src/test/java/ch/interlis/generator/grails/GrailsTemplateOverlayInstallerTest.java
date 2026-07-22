@@ -27,12 +27,12 @@ class GrailsTemplateOverlayInstallerTest {
     );
     private static final List<String> FIRA_SANS_FONT_FILES = List.of(
         "FiraSans-Regular.woff2",
-        "FiraSans-Bold.woff2"
+        "FiraSans-SemiBold.woff2"
     );
     private static final Pattern ICON_DECLARATION = Pattern.compile(
         "(?m)^\\s*(?:\\\"([^\\\"]+)\\\"|([A-Za-z0-9_-]+)): \\\'\\\'\\\'<path"
     );
-    private static final Pattern ICON_USE = Pattern.compile("<ili:icon\\s+name=\\\"([^\\\"]+)\\\"");
+    private static final Pattern ICON_USE = Pattern.compile("<ili:icon\\s+name=\\\"([A-Za-z0-9_-]+)\\\"");
 
     @Test
     void installsManagedFilesAndUpdatesApplicationJsIdempotently(@TempDir Path tempDir) throws Exception {
@@ -52,6 +52,10 @@ class GrailsTemplateOverlayInstallerTest {
             " */",
             ""
         ));
+        Path legacyBoldFont = projectDir.resolve(
+            "grails-app/assets/fonts/fira-sans/FiraSans-Bold.woff2");
+        Files.createDirectories(legacyBoldFont.getParent());
+        Files.write(legacyBoldFont, new byte[] {0, 1, 2, 3});
 
         GenerationConfig config = GenerationConfig.builder(projectDir, "com.example")
             .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
@@ -110,6 +114,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-quick-add.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-context-summary.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/views/layouts/main.gsp")).exists();
+        assertThat(Files.readString(projectDir.resolve("grails-app/conf/spring/resources.groovy")))
+            .contains("FixedLocaleResolver", "Locale.forLanguageTag(\"de-CH\")");
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).exists();
@@ -122,6 +128,7 @@ class GrailsTemplateOverlayInstallerTest {
             "grails-app/assets/fonts/fira-sans/" + fileName)).exists());
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-wc-bundle.js")).doesNotExist();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js")).doesNotExist();
+        assertThat(legacyBoldFont).doesNotExist();
 
         NOTO_SANS_FONT_FILES.forEach(fileName -> {
             try {
@@ -181,12 +188,38 @@ class GrailsTemplateOverlayInstallerTest {
         String listFiltersTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_list-filters.gsp"));
         assertThat(listFiltersTemplate).contains("name=\"q\"");
         assertThat(listFiltersTemplate).contains("activeFilterChips");
+        assertThat(listFiltersTemplate)
+            .doesNotContain("input-group-lg", "form-select-lg", "btn-lg", "name=\"max\"");
         String listTableTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_list-table.gsp"));
         assertThat(listTableTemplate).contains("<table class=\"table");
         assertThat(listTableTemplate).contains("data-row-delete");
         assertThat(listTableTemplate).contains("sortUrls");
         String listPaginationTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_list-pagination.gsp"));
-        assertThat(listPaginationTemplate).contains("pagination.previousParams");
+        assertThat(listPaginationTemplate)
+            .contains("pagination.previousParams", "pagination.pageSizeParams", "data-ili-page-size-select",
+                "page.ellipsis", "ili-pagination-page-number", "ili-pagination-ellipsis")
+            .doesNotContain("form-select-lg", "btn-lg", "ili-list-result-summary ili-pagination-summary text-secondary");
+        assertThat(indexTemplate)
+            .contains("data-list-result-summary")
+            .doesNotContain("default.list.label", "ili-list-result-summary text-secondary");
+        String overlayCss = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
+        assertThat(overlayCss)
+            .contains(".ili-list-result-summary", "font-size: 1rem;", "color: var(--bs-body-color);",
+                "--ili-card-shadow: 0 1px 3px rgba(var(--ili-neutral-emphasis-rgb), 0.08);",
+                ".ili-list-tools + .ili-table-tile", "margin-top: 1.25rem;",
+                ".ili-table-wrap .table > tbody > tr:last-child > *", "border-bottom: 0;",
+                "box-shadow: var(--ili-card-shadow);",
+                "grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)",
+                ".ili-icon-action:not(.ili-icon-action-danger):hover",
+                "rgba(var(--bs-danger-rgb), 0.65)",
+                ".ili-sidebar .ili-sidebar-close:hover");
+
+        String sidebarTemplate = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_sidebar.gsp"));
+        assertThat(sidebarTemplate).doesNotContain("ili2grails.shell.navigation\" default=\"Navigation")
+            .contains("name=\"x-circle\"");
+        String sidebarTagLib = Files.readString(projectDir.resolve(
+            "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy"));
+        assertThat(sidebarTagLib).contains("\"x-circle\"");
 
         String formTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_form.gsp"));
         assertThat(formTemplate).contains("ili-split-layout");
@@ -273,6 +306,7 @@ class GrailsTemplateOverlayInstallerTest {
 
         String layoutTemplate = Files.readString(projectDir.resolve("grails-app/views/layouts/main.gsp"));
         assertThat(layoutTemplate).contains("<asset:stylesheet src=\"application.css\"/>");
+        assertThat(layoutTemplate).contains("data-ili-neutral-palette=\"balanced\"");
         assertThat(layoutTemplate).contains("<asset:javascript src=\"application.js\"/>");
         assertThat(layoutTemplate).doesNotContain("https://cdn.jsdelivr.net");
         assertThat(layoutTemplate).contains("ili-sidebar-toggle");
@@ -281,7 +315,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(layoutTemplate).contains("InterlisNavigationSupport.navigationModel");
         assertThat(layoutTemplate).contains("data-ili-domain-finder-form");
         assertThat(layoutTemplate).contains("role=\"combobox\"", "aria-autocomplete=\"list\"");
-        assertThat(layoutTemplate).contains("data-ili-extension-point=\"user-slot\"");
+        assertThat(layoutTemplate).contains("data-ili-extension-point=\"topbar-toolbar\"");
         assertThat(layoutTemplate).doesNotContain("principal");
         assertThat(layoutTemplate).doesNotContain("navbar-toggler-icon");
 
@@ -383,9 +417,9 @@ class GrailsTemplateOverlayInstallerTest {
             "font-family: \"Fira Sans\"",
             "font-display: swap",
             "font-weight: 400",
-            "font-weight: 700",
+            "font-weight: 600",
             "FiraSans-Regular.woff2",
-            "FiraSans-Bold.woff2"
+            "FiraSans-SemiBold.woff2"
         );
         assertThat(stylesheet).doesNotContain(
             "Frutiger",
@@ -395,7 +429,7 @@ class GrailsTemplateOverlayInstallerTest {
         );
         assertThat(stylesheet).contains(".ili-pagination-bar");
         assertThat(stylesheet).doesNotContain("--dp-");
-        assertThat(stylesheet).doesNotContain("--ili-");
+        assertThat(stylesheet).contains("--ili-neutral-");
         assertThat(stylesheet).contains(".ili-domain-finder");
         assertThat(stylesheet).contains(".ili-sidebar");
         assertThat(stylesheet).contains(".ili-form-section");
@@ -403,7 +437,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(stylesheet).contains("env(safe-area-inset-bottom)");
         assertThat(stylesheet).doesNotContain("#D3121B");
         assertThat(stylesheet).doesNotContain("#B80F17");
-        assertThat(stylesheet).doesNotContain("#dc3545", "#fff1f1", "#ffffff", "#212529", "#")
+        assertThat(stylesheet).doesNotContain("#dc3545", "#fff1f1", "#212529")
             .contains("var(--bs-danger");
         assertThat(stylesheet).contains(".ili-field-help-panel");
         assertThat(stylesheet).contains(".ili-relationship-results");
@@ -433,7 +467,6 @@ class GrailsTemplateOverlayInstallerTest {
                     try {
                         String content = Files.readString(path);
                         assertThat(content).as(path.toString()).doesNotContain("--dp-");
-                        assertThat(content).as(path.toString()).doesNotContain("--ili-");
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -458,6 +491,45 @@ class GrailsTemplateOverlayInstallerTest {
 
         assertThat(resources).containsExactlyInAnyOrderElementsOf(
             new HashSet<>(GrailsTemplateOverlayInstaller.managedFilesForTesting()));
+    }
+
+    @Test
+    void neutralPaletteIsCentralizedAndProvidesThreeContrastLevels() throws Exception {
+        URL overlayUrl = getClass().getClassLoader().getResource("grails/overlays/bootstrap-openlayers");
+        assertThat(overlayUrl).isNotNull();
+        Path overlayRoot = Path.of(overlayUrl.toURI());
+        String stylesheet = Files.readString(overlayRoot.resolve(
+            "grails-app/assets/stylesheets/ili-modern.css"));
+        String layout = Files.readString(overlayRoot.resolve(
+            "grails-app/views/layouts/main.gsp"));
+        String listHeader = Files.readString(overlayRoot.resolve(
+            "src/main/templates/scaffolding/_list-header.gsp"));
+        String listFilters = Files.readString(overlayRoot.resolve(
+            "src/main/templates/scaffolding/_list-filters.gsp"));
+
+        assertThat(stylesheet).contains(
+            "--ili-neutral-ink",
+            "--ili-neutral-muted",
+            "--ili-neutral-border",
+            "--ili-neutral-surface",
+            "--ili-neutral-canvas",
+            "--ili-neutral-header",
+            "--ili-neutral-hover",
+            ":root[data-ili-neutral-palette=\"quiet\"]",
+            ":root[data-ili-neutral-palette=\"defined\"]",
+            "--bs-table-hover-bg: var(--ili-neutral-hover)",
+            "--bs-pagination-disabled-bg: var(--ili-neutral-header)",
+            ".ili-active-filter-badge",
+            "border: 1px solid var(--ili-neutral-border)",
+            "background: var(--ili-neutral-header)",
+            "background: var(--ili-neutral-hover)"
+        );
+        assertThat(layout).contains("data-ili-neutral-palette=\"balanced\"");
+        assertThat(listHeader)
+            .doesNotContain("ili-record-count-badge", "text-bg-secondary");
+        assertThat(listFilters)
+            .contains("ili-active-filter-badge")
+            .doesNotContain("text-bg-light");
     }
 
     @Test
@@ -502,6 +574,7 @@ class GrailsTemplateOverlayInstallerTest {
         try (var paths = Files.walk(overlayRoot)) {
             paths.filter(Files::isRegularFile)
                 .filter(path -> !path.toString().endsWith(".woff2"))
+                .filter(path -> !path.toString().endsWith(".properties"))
                 .forEach(path -> {
                     try {
                         String content = Files.readString(path);
@@ -560,5 +633,30 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(updatedApplicationJs).doesNotContain("//= require ili-carbon-input-bridge.js");
         assertThat(updatedApplicationJs).contains("//= require ili-geometry-editor.js");
         assertThat(updatedApplicationJs).contains("//= require ili-form-ux.js");
+    }
+
+    @Test
+    void installsSelectedLanguageBundlesAndPreservesProjectMessages(@TempDir Path tempDir) throws Exception {
+        Path projectDir = tempDir.resolve("my-grails-app");
+        Path baseMessages = projectDir.resolve("grails-app/i18n/messages.properties");
+        Files.createDirectories(baseMessages.getParent());
+        Files.writeString(baseMessages, "custom.project.message=Keep me\n");
+
+        GenerationConfig config = GenerationConfig.builder(projectDir, "com.example")
+            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+            .language(GenerationConfig.LANGUAGE_EN)
+            .build();
+
+        new GrailsTemplateOverlayInstaller().install(projectDir, config);
+
+        assertThat(projectDir.resolve("grails-app/i18n/messages_en.properties")).exists();
+        assertThat(projectDir.resolve("grails-app/i18n/messages_de_CH.properties")).doesNotExist();
+        String merged = Files.readString(baseMessages);
+        assertThat(merged).contains("custom.project.message=Keep me");
+        assertThat(merged).contains("ili2grails.pagination.pageSize=Rows per page");
+        assertThat(merged).contains("ili2grails.list.searchPlaceholder=Search for {0} ...");
+        assertThat(merged).doesNotContain("ili2grails.pagination.pageSize=Zeilen pro Seite");
+        assertThat(Files.readString(projectDir.resolve("grails-app/conf/spring/resources.groovy")))
+            .contains("Locale.forLanguageTag(\"en\")");
     }
 }

@@ -36,6 +36,22 @@ class GrailsApplicationYamlUpdater {
                                         String schema,
                                         boolean geometryEnabled,
                                         Integer defaultSrid) throws IOException {
+        ensureDevelopmentDataSourceUrl(
+            applicationYamlPath,
+            jdbcUrl,
+            schema,
+            geometryEnabled,
+            defaultSrid,
+            GenerationConfig.LANGUAGE_DE_CH
+        );
+    }
+
+    void ensureDevelopmentDataSourceUrl(Path applicationYamlPath,
+                                        String jdbcUrl,
+                                        String schema,
+                                        boolean geometryEnabled,
+                                        Integer defaultSrid,
+                                        String language) throws IOException {
         if (!Files.exists(applicationYamlPath)) {
             return;
         }
@@ -45,12 +61,63 @@ class GrailsApplicationYamlUpdater {
         changed |= removeRootDataSourceDriver(documents);
         changed |= removeRootDataSourceCredentials(documents);
         changed |= ensureHibernateDialect(documents, geometryEnabled);
+        changed |= ensureUiLanguage(documents, language);
+        changed |= ensureStandardLocale(documents, language);
         if (geometryEnabled) {
             changed |= ensureGeometryDefaults(documents, defaultSrid);
         }
         if (changed) {
             writeDocuments(applicationYamlPath, documents);
         }
+    }
+
+    private boolean ensureUiLanguage(List<Object> documents, String language) {
+        Map<String, Object> root = firstRootDocument(documents);
+        if (root == null) {
+            return false;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ili2grails = (Map<String, Object>) root.computeIfAbsent(
+            "ili2grails",
+            key -> new LinkedHashMap<String, Object>()
+        );
+        String resolvedLanguage = language == null || language.isBlank()
+            ? GenerationConfig.LANGUAGE_DE_CH
+            : language;
+        if (Objects.equals(resolvedLanguage, ili2grails.get("language"))) {
+            return false;
+        }
+        ili2grails.put("language", resolvedLanguage);
+        return true;
+    }
+
+    private boolean ensureStandardLocale(List<Object> documents, String language) {
+        Map<String, Object> root = firstRootDocument(documents);
+        if (root == null) {
+            return false;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> spring = (Map<String, Object>) root.computeIfAbsent(
+            "spring",
+            key -> new LinkedHashMap<String, Object>()
+        );
+        @SuppressWarnings("unchecked")
+        Map<String, Object> web = (Map<String, Object>) spring.computeIfAbsent(
+            "web",
+            key -> new LinkedHashMap<String, Object>()
+        );
+        String resolvedLanguage = language == null || language.isBlank()
+            ? GenerationConfig.LANGUAGE_DE_CH
+            : language;
+        boolean changed = !Objects.equals(resolvedLanguage, web.get("locale"));
+        if (changed) {
+            web.put("locale", resolvedLanguage);
+        }
+        if (!Objects.equals("fixed", web.get("locale-resolver"))) {
+            web.put("locale-resolver", "fixed");
+            changed = true;
+        }
+        return changed;
     }
 
     private List<Object> readDocuments(Path applicationYamlPath) throws IOException {

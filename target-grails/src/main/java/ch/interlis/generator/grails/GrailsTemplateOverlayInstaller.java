@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -38,6 +39,7 @@ public class GrailsTemplateOverlayInstaller {
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisListQuerySupport.groovy",
+        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisMessageSupport.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy",
@@ -64,6 +66,9 @@ public class GrailsTemplateOverlayInstaller {
         "src/main/templates/scaffolding/_association-quick-add.gsp",
         "src/main/templates/scaffolding/_association-context-summary.gsp",
         "grails-app/views/layouts/main.gsp",
+        "grails-app/i18n/messages_de_CH.properties",
+        "grails-app/i18n/messages_en.properties",
+        "grails-app/conf/spring/resources.groovy",
         "grails-app/assets/javascripts/ili-geometry-editor.js",
         "grails-app/assets/javascripts/ili-form-ux.js",
         "grails-app/assets/javascripts/ili-navigation.js",
@@ -75,7 +80,7 @@ public class GrailsTemplateOverlayInstaller {
         "grails-app/assets/fonts/noto-sans/NotoSans-Italic.woff2",
         "src/main/resources/fonts/noto-sans/OFL.txt",
         "grails-app/assets/fonts/fira-sans/FiraSans-Regular.woff2",
-        "grails-app/assets/fonts/fira-sans/FiraSans-Bold.woff2",
+        "grails-app/assets/fonts/fira-sans/FiraSans-SemiBold.woff2",
         "src/main/resources/fonts/fira-sans/OFL.txt"
     );
     private static final List<String> APPLICATION_JS_REQUIRES = List.of(
@@ -92,7 +97,8 @@ public class GrailsTemplateOverlayInstaller {
     );
     private static final List<String> LEGACY_FILES = List.of(
         "grails-app/assets/javascripts/ili-carbon-wc-bundle.js",
-        "grails-app/assets/javascripts/ili-carbon-input-bridge.js"
+        "grails-app/assets/javascripts/ili-carbon-input-bridge.js",
+        "grails-app/assets/fonts/fira-sans/FiraSans-Bold.woff2"
     );
     private static final List<String> LEGACY_APPLICATION_JS_REQUIRES = List.of(
         "//= require ili-carbon-input-bridge.js"
@@ -118,8 +124,15 @@ public class GrailsTemplateOverlayInstaller {
         }
         cleanupLegacyCarbonArtifacts(grailsProjectDir);
         for (String relativePath : MANAGED_FILES) {
-            copyManagedResource(grailsProjectDir, relativePath);
+            if (isLanguageBundle(relativePath)) {
+                copyLanguageBundle(grailsProjectDir, relativePath, config);
+            } else if (relativePath.equals("grails-app/conf/spring/resources.groovy")) {
+                copyLocaleConfiguration(grailsProjectDir, config);
+            } else {
+                copyManagedResource(grailsProjectDir, relativePath);
+            }
         }
+        mergeSelectedLanguageIntoBaseBundle(grailsProjectDir, config);
         ensureJavascriptRequires(grailsProjectDir.resolve("grails-app/assets/javascripts/application.js"));
         ensureStylesheetRequires(grailsProjectDir.resolve("grails-app/assets/stylesheets/application.css"));
     }
@@ -139,6 +152,108 @@ public class GrailsTemplateOverlayInstaller {
             Path target = grailsProjectDir.resolve(relativePath);
             Files.createDirectories(target.getParent());
             Files.write(target, inputStream.readAllBytes());
+        }
+    }
+
+    private boolean isLanguageBundle(String relativePath) {
+        return relativePath.equals("grails-app/i18n/messages_de_CH.properties")
+            || relativePath.equals("grails-app/i18n/messages_en.properties");
+    }
+
+    private void copyLanguageBundle(Path grailsProjectDir,
+                                    String relativePath,
+                                    GenerationConfig config) throws IOException {
+        if (!relativePath.equals(languageBundlePath(config))) {
+            return;
+        }
+        mergePropertiesResource(grailsProjectDir.resolve(relativePath), OVERLAY_ROOT + relativePath);
+    }
+
+    private void mergeSelectedLanguageIntoBaseBundle(Path grailsProjectDir,
+                                                     GenerationConfig config) throws IOException {
+        mergePropertiesResource(
+            grailsProjectDir.resolve("grails-app/i18n/messages.properties"),
+            OVERLAY_ROOT + languageBundlePath(config)
+        );
+    }
+
+    private void copyLocaleConfiguration(Path grailsProjectDir, GenerationConfig config) throws IOException {
+        String resourcePath = OVERLAY_ROOT + "grails-app/conf/spring/resources.groovy";
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (inputStream == null) {
+                throw new IOException("Missing overlay resource: " + resourcePath);
+            }
+            String generated = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8)
+                .replace("Locale.forLanguageTag(\"de-CH\")",
+                    "Locale.forLanguageTag(\"" + config.getLanguage() + "\")");
+            Path target = grailsProjectDir.resolve("grails-app/conf/spring/resources.groovy");
+            Files.createDirectories(target.getParent());
+            if (!Files.exists(target)) {
+                Files.writeString(target, generated, StandardCharsets.UTF_8);
+                return;
+            }
+            String existing = Files.readString(target, StandardCharsets.UTF_8);
+            if (existing.contains("localeResolver(")) {
+                String updated = existing.replaceAll(
+                    "Locale\\.forLanguageTag\\(\\\"[^\\\"]+\\\"\\)",
+                    Matcher.quoteReplacement("Locale.forLanguageTag(\"" + config.getLanguage() + "\")")
+                );
+                if (!updated.equals(existing)) {
+                    Files.writeString(target, updated, StandardCharsets.UTF_8);
+                }
+                return;
+            }
+            int closingBrace = existing.lastIndexOf('}');
+            if (closingBrace < 0) {
+                throw new IOException("Cannot extend Spring resources configuration: missing closing brace");
+            }
+            String insertion = "    localeResolver(org.springframework.web.servlet.i18n.FixedLocaleResolver, "
+                + "java.util.Locale.forLanguageTag(\"" + config.getLanguage() + "\"))\n";
+            String updated = existing.substring(0, closingBrace) + insertion + existing.substring(closingBrace);
+            Files.writeString(target, updated, StandardCharsets.UTF_8);
+        }
+    }
+
+    private String languageBundlePath(GenerationConfig config) {
+        return GenerationConfig.LANGUAGE_EN.equals(config.getLanguage())
+            ? "grails-app/i18n/messages_en.properties"
+            : "grails-app/i18n/messages_de_CH.properties";
+    }
+
+    private void mergePropertiesResource(Path target, String resourcePath) throws IOException {
+        String resource;
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (inputStream == null) {
+                throw new IOException("Missing overlay resource: " + resourcePath);
+            }
+            resource = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        Files.createDirectories(target.getParent());
+        String existing = Files.exists(target)
+            ? Files.readString(target, StandardCharsets.UTF_8)
+            : "";
+        String merged = existing;
+        for (String line : resource.split("\\R")) {
+            if (line.isBlank() || line.trim().startsWith("#")) {
+                continue;
+            }
+            int separator = line.indexOf('=');
+            if (separator <= 0 || !line.substring(0, separator).startsWith("ili2grails.")) {
+                continue;
+            }
+            String key = line.substring(0, separator);
+            Pattern keyPattern = Pattern.compile("(?m)^" + Pattern.quote(key) + "[=:].*$");
+            if (keyPattern.matcher(merged).find()) {
+                merged = keyPattern.matcher(merged).replaceFirst(Matcher.quoteReplacement(line));
+            } else {
+                if (!merged.isEmpty() && !merged.endsWith("\\n")) {
+                    merged += "\\n";
+                }
+                merged += line + "\\n";
+            }
+        }
+        if (!merged.equals(existing)) {
+            Files.writeString(target, merged, StandardCharsets.UTF_8);
         }
     }
 

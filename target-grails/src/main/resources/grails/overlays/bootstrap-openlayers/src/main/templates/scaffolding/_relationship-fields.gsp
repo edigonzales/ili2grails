@@ -22,7 +22,7 @@
                     <div class="ili-relationship-picker js-relationship-picker">
                         <input type="search"
                                class="form-control form-control-sm mb-2 js-relationship-search"
-                               placeholder="Suchen"
+                               placeholder="\${message(code: 'ili2grails.list.relationshipSearch', default: 'Suchen')}"
                                autocomplete="off"
                                role="combobox"
                                aria-autocomplete="list"
@@ -37,7 +37,7 @@
                              class="ili-relationship-results list-group mb-2"
                              data-relationship-list
                              role="listbox"
-                             aria-label="Beziehungsauswahl"
+                             aria-label="\${message(code: 'ili2grails.list.relationshipSelection', default: 'Beziehungsauswahl')}"
                              aria-live="polite"
                              hidden></div>
                         <g:select name="\${relationshipField}.id"
@@ -46,13 +46,13 @@
                                   optionKey="id"
                                   optionValue="label"
                                   value="\${relationshipValues?.get(relationshipField)}"
-                                  noSelection="\${relationshipRequired?.get(relationshipField) ? null : ['': 'Keine Auswahl']}"
+                                  noSelection="\${relationshipRequired?.get(relationshipField) ? null : ['': message(code: 'ili2grails.js.noSelection', default: 'Keine Auswahl')]}"
                                   data-relationship-optional="\${relationshipRequired?.get(relationshipField) ? 'false' : 'true'}"
                                   aria-describedby="relationship-\${relationshipField}-help relationship-\${relationshipField}-error"
                                   aria-invalid="\${hasErrors(bean: this.${propertyName}, field: relationshipField) ? 'true' : 'false'}"
                                   class="form-select \${hasErrors(bean: this.${propertyName}, field: relationshipField, 'is-invalid')}" />
                     </div>
-                    <div id="relationship-\${relationshipField}-help" class="form-text">Auswahl über Suche oder Liste.</div>
+                    <div id="relationship-\${relationshipField}-help" class="form-text"><g:message code="ili2grails.form.relationshipSearch" default="Auswahl über Suche oder Liste."/></div>
                     <g:hasErrors bean="\${this.${propertyName}}" field="\${relationshipField}">
                         <div id="relationship-\${relationshipField}-error" class="invalid-feedback d-block">
                             <g:eachError bean="\${this.${propertyName}}" field="\${relationshipField}" var="error">

@@ -39,7 +39,7 @@ final class InterlisGeometryBinder {
                 rejectValue(
                     instance,
                     field,
-                    "default.invalid.geometry.wktSize.message",
+                    "ili2grails.geometry.error.wktSize",
                     [field, maxWktLength] as Object[],
                     "Geometrie fuer ${field} ist zu gross. Maximal ${maxWktLength} WKT-Zeichen sind erlaubt."
                 )
@@ -57,7 +57,7 @@ final class InterlisGeometryBinder {
                     rejectValue(
                         instance,
                         field,
-                        "default.invalid.geometry.type.message",
+                        "ili2grails.geometry.error.type",
                         [field, expectedKind, geometry.getGeometryType()] as Object[],
                         "Ungueltiger Geometrietyp fuer ${field}. Erwartet ${expectedKind}, erhalten ${geometry.getGeometryType()}."
                     )
@@ -70,7 +70,7 @@ final class InterlisGeometryBinder {
                     rejectValue(
                         instance,
                         field,
-                        "default.invalid.geometry.empty.message",
+                        "ili2grails.geometry.error.empty",
                         [field] as Object[],
                         "Leere Geometrien sind fuer ${field} nicht erlaubt."
                     )
@@ -82,7 +82,7 @@ final class InterlisGeometryBinder {
                     rejectValue(
                         instance,
                         field,
-                        "default.invalid.geometry.vertexCount.message",
+                        "ili2grails.geometry.error.vertexCount",
                         [field, maxVertices, vertices] as Object[],
                         "Geometrie fuer ${field} hat zu viele Stuetzpunkte. Maximal ${maxVertices} sind erlaubt."
                     )
@@ -94,7 +94,7 @@ final class InterlisGeometryBinder {
                     rejectValue(
                         instance,
                         field,
-                        "default.invalid.geometry.topology.message",
+                        "ili2grails.geometry.error.topology",
                         [field, reason] as Object[],
                         "Ungueltige Geometrie fuer ${field}: ${reason}."
                     )
@@ -105,7 +105,7 @@ final class InterlisGeometryBinder {
                 rejectValue(
                     instance,
                     field,
-                    "default.invalid.geometry.message",
+                    "ili2grails.geometry.error.invalid",
                     [field] as Object[],
                     "Ungueltige Geometrie fuer ${field}."
                 )

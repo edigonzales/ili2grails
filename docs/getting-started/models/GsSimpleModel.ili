@@ -17,8 +17,11 @@ VERSION "2026-06-09" =
     END Department;
 
     CLASS Employee =
+      !!@ ili2db.dispName="Vorname"
       FirstName: MANDATORY TEXT*50;
+      !!@ ili2db.dispName="Nachname"
       LastName: MANDATORY TEXT*50;
+      !!@ ili2db.dispName="E-Mail"
       Email: TEXT*120;
     END Employee;
 

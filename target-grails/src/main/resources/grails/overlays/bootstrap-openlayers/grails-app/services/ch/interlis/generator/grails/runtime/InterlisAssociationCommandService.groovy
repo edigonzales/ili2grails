@@ -125,7 +125,7 @@ class InterlisAssociationCommandService {
             status: 201,
             code: "CREATED",
             messageCode: "interlis.association.created",
-            message: "Die Zuordnung wurde erstellt.",
+            message: InterlisMessageSupport.text(grailsApplication, "ili2grails.association.created", "Die Zuordnung wurde erstellt."),
             associationId: instance.id?.toString(),
             fieldErrors: [:]
         ]
@@ -207,7 +207,7 @@ class InterlisAssociationCommandService {
             status: 204,
             code: "DELETED",
             messageCode: "interlis.association.deleted",
-            message: "Die Zuordnung wurde entfernt.",
+            message: InterlisMessageSupport.text(grailsApplication, "ili2grails.association.deleted", "Die Zuordnung wurde entfernt."),
             fieldErrors: [:]
         ]
     }
@@ -332,7 +332,7 @@ class InterlisAssociationCommandService {
             status: 422,
             code: "VALIDATION_FAILED",
             messageCode: "interlis.association.validationFailed",
-            message: "Die Zuordnung konnte nicht gespeichert werden.",
+            message: InterlisMessageSupport.text(grailsApplication, "ili2grails.association.validationFailed", "Die Zuordnung konnte nicht gespeichert werden."),
             fieldErrors: fieldErrors
         ]
     }
@@ -342,7 +342,7 @@ class InterlisAssociationCommandService {
             success: false,
             status: status,
             code: code,
-            message: message,
+            message: InterlisMessageSupport.text(grailsApplication, "ili2grails.association.error.${code}", message),
             fieldErrors: [:]
         ]
     }

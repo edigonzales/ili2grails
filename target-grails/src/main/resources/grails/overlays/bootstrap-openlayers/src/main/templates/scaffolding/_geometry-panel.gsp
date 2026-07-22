@@ -2,7 +2,7 @@
     <section class="card ili-map-panel">
         <div class="card-body">
             <header class="ili-map-panel-head">
-                <h2 class="ili-section-title h5 mb-0">Geometrie</h2>
+                <h2 class="ili-section-title h5 mb-0"><g:message code="ili2grails.geometry.title" default="Geometrie"/></h2>
                 <g:if test="\${geometryFields?.size() == 1}">
                     <span class="badge text-bg-secondary">\${geometryKinds?.get(geometryFields[0]) ?: 'GEOMETRY'}</span>
                 </g:if>
@@ -55,21 +55,21 @@
                             <g:if test="\${(geometryMode ?: 'edit') != 'view'}">
                                 <div class="ili-geometry-toolbar">
                                     <div class="ili-geometry-type-picker js-geometry-type-picker">
-                                        <label for="geom-type-\${geomField}" class="ili-geometry-type-label form-label">Typ</label>
+                                        <label for="geom-type-\${geomField}" class="ili-geometry-type-label form-label"><g:message code="ili2grails.geometry.type" default="Typ"/></label>
                                         <select id="geom-type-\${geomField}" class="form-select form-select-sm js-geometry-draw-type">
-                                            <option value="Point">Punkt</option>
-                                            <option value="LineString">Linie</option>
-                                            <option value="Polygon">Polygon</option>
+                                            <option value="Point"><g:message code="ili2grails.geometry.point" default="Punkt"/></option>
+                                            <option value="LineString"><g:message code="ili2grails.geometry.line" default="Linie"/></option>
+                                            <option value="Polygon"><g:message code="ili2grails.geometry.polygon" default="Polygon"/></option>
                                         </select>
                                     </div>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-geometry-action="draw">Zeichnen</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-geometry-action="modify">Ändern</button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" data-geometry-action="clear">Löschen</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-geometry-action="draw"><g:message code="ili2grails.geometry.draw" default="Zeichnen"/></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-geometry-action="modify"><g:message code="ili2grails.geometry.modify" default="Ändern"/></button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-geometry-action="clear"><g:message code="ili2grails.geometry.clear" default="Löschen"/></button>
                                 </div>
                             </g:if>
 
                             <div class="ili-geometry-map" role="img"
-                                 aria-label="Kartenansicht für \${geomField}"></div>
+                                 aria-label="\${message(code: 'ili2grails.geometry.map', args: [geomField], default: 'Kartenansicht für ' + geomField)}"></div>
                         </div>
                     </article>
                 </g:each>

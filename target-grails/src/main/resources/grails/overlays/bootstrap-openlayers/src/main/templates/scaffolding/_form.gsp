@@ -5,7 +5,7 @@
             <p class="ili-page-subtitle">\${pageSubtitle}</p>
         </div>
         <div class="ili-page-actions">
-            <span class="badge text-bg-warning ili-unsaved-badge" hidden data-unsaved-badge role="status" aria-live="polite">Ungespeicherte Änderungen</span>
+            <span class="badge text-bg-warning ili-unsaved-badge" hidden data-unsaved-badge role="status" aria-live="polite"><g:message code="ili2grails.form.unsaved" default="Ungespeicherte Änderungen"/></span>
             <g:link class="btn btn-outline-secondary" action="index" data-unsaved-nav="true">
                 <g:message code="default.list.label" args="\${[entityName]}" />
             </g:link>
@@ -23,7 +23,8 @@
 
     <g:hasErrors bean="\${this.${propertyName}}">
         <div class="alert alert-danger ili-validation-summary" role="alert" tabindex="-1" data-validation-summary>
-            <strong>Validierung fehlgeschlagen.</strong> Bitte korrigiere die markierten Werte.
+            <strong><g:message code="ili2grails.form.validationFailed" default="Validierung fehlgeschlagen."/></strong>
+            <g:message code="ili2grails.form.validationInstruction" default="Bitte korrigiere die markierten Werte."/>
         </div>
         <ul class="ili-error-list ili-validation-summary-list" role="list">
             <g:eachError bean="\${this.${propertyName}}" var="error">
@@ -52,7 +53,7 @@
                 <section class="card ili-form-tile">
                     <div class="card-body ili-native-form-host">
                         <fieldset class="form">
-                            <g:each in="\${formSections ?: [[title: 'Allgemein', fields: []]]}" var="formSection">
+                            <g:each in="\${formSections ?: [[title: message(code: 'ili2grails.form.general', default: 'Allgemein'), fields: []]]}" var="formSection">
                                 <g:render template="form-section" model="\${[
                                     section: formSection,
                                     propertyName: '${propertyName}',
@@ -88,9 +89,9 @@
                 \${message(code: submitCode, default: submitDefault)}
             </button>
             <button type="submit" class="btn btn-outline-primary" name="submitMode" value="saveAndContinue" data-form-submit="true">
-                Speichern und weiter
+                <g:message code="ili2grails.action.saveAndContinue" default="Speichern und weiter"/>
             </button>
-            <g:link class="btn btn-outline-secondary" action="index" data-unsaved-nav="true">Abbrechen</g:link>
+            <g:link class="btn btn-outline-secondary" action="index" data-unsaved-nav="true"><g:message code="ili2grails.action.cancel" default="Abbrechen"/></g:link>
         </footer>
     </g:form>
 </div>

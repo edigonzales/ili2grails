@@ -5,7 +5,7 @@
     </label>
     <g:if test="\${filterField.type == 'enum'}">
         <select id="filter-\${filterField.name}" name="\${'filter.' + filterField.name}" class="form-select">
-            <option value="">Alle</option>
+            <option value=""><g:message code="ili2grails.list.all" default="Alle"/></option>
             <g:each in="\${filterField.options ?: []}" var="option">
                 <option value="\${option.value}" \${option.value == filterValues?.value ? 'selected' : ''}><g:message code="\${labelPrefix + '.' + filterField.name + '.' + option.value + '.label'}" default="\${option.label}" /></option>
             </g:each>
@@ -13,14 +13,14 @@
     </g:if>
     <g:elseif test="\${filterField.type == 'boolean'}">
         <g:select id="filter-\${filterField.name}" name="\${'filter.' + filterField.name}"
-                  from="\${[[id: '', label: 'Alle'], [id: 'true', label: 'Ja'], [id: 'false', label: 'Nein']]}"
+                  from="\${[[id: '', label: message(code: 'ili2grails.list.all', default: 'Alle')], [id: 'true', label: message(code: 'ili2grails.list.true', default: 'Ja')], [id: 'false', label: message(code: 'ili2grails.list.false', default: 'Nein')]]}"
                   optionKey="id" optionValue="label" value="\${filterValues?.value ?: ''}" class="form-select" />
     </g:elseif>
     <g:elseif test="\${filterField.type == 'relationship'}">
         <select id="filter-\${filterField.name}" name="\${'filter.' + filterField.name}"
                 class="form-select" data-relationship-url="\${createLink(action: 'relationshipOptions')}"
                 data-relationship-field="\${filterField.name}">
-            <option value="">Alle</option>
+            <option value=""><g:message code="ili2grails.list.all" default="Alle"/></option>
             <g:each in="\${filterOptions?.get(filterField.name)?.results ?: []}" var="option">
                 <option value="\${option.id}" \${option.id == filterValues?.value ? 'selected' : ''}>\${option.label}</option>
             </g:each>
@@ -29,17 +29,17 @@
     <g:elseif test="\${filterField.type == 'number'}">
         <div class="input-group">
             <input type="number" name="\${'filter.' + filterField.name + '.min'}" value="\${filterValues?.min ?: ''}"
-                   class="form-control" placeholder="Von" aria-label="Von" />
+                   class="form-control" placeholder="\${message(code: 'ili2grails.list.from', default: 'Von')}" aria-label="\${message(code: 'ili2grails.list.from', default: 'Von')}" />
             <input type="number" name="\${'filter.' + filterField.name + '.max'}" value="\${filterValues?.max ?: ''}"
-                   class="form-control" placeholder="Bis" aria-label="Bis" />
+                   class="form-control" placeholder="\${message(code: 'ili2grails.list.to', default: 'Bis')}" aria-label="\${message(code: 'ili2grails.list.to', default: 'Bis')}" />
         </div>
     </g:elseif>
     <g:elseif test="\${filterField.type == 'date'}">
         <div class="input-group">
             <input type="date" name="\${'filter.' + filterField.name + '.from'}" value="\${filterValues?.from ?: ''}"
-                   class="form-control" aria-label="Von" />
+                   class="form-control" aria-label="\${message(code: 'ili2grails.list.from', default: 'Von')}" />
             <input type="date" name="\${'filter.' + filterField.name + '.to'}" value="\${filterValues?.to ?: ''}"
-                   class="form-control" aria-label="Bis" />
+                   class="form-control" aria-label="\${message(code: 'ili2grails.list.to', default: 'Bis')}" />
         </div>
     </g:elseif>
     <g:else>

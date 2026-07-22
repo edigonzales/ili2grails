@@ -1,6 +1,11 @@
 (function() {
     "use strict";
 
+    function uiMessage(name, fallback) {
+        var body = document.body;
+        return body && body.getAttribute("data-ili-message-" + name) || fallback;
+    }
+
     var FAVORITES_KEY = "ili2grails.ui.favorites";
     var RECENTS_KEY = "ili2grails.ui.recents";
     var RECENTS_LIMIT = 8;
@@ -113,7 +118,9 @@
         document.querySelectorAll("[data-ili-favorite-toggle]").forEach(function(button) {
             var key = button.getAttribute("data-ili-domain-key");
             var selected = favorites.indexOf(key) >= 0;
-            var label = selected ? "Favorit entfernen" : "Als Favorit markieren";
+            var label = selected
+                ? uiMessage("favorite-remove", "Favorit entfernen")
+                : uiMessage("favorite-mark", "Als Favorit markieren");
             button.setAttribute("aria-pressed", selected ? "true" : "false");
             button.setAttribute("aria-label", label);
             button.setAttribute("title", label);
@@ -234,7 +241,7 @@
             if (!matches.length) {
                 var empty = document.createElement("div");
                 empty.className = "list-group-item text-body-secondary";
-                empty.textContent = "Keine Domain gefunden";
+                empty.textContent = uiMessage("no-domain", "Keine Domain gefunden");
                 results.appendChild(empty);
             } else {
                 matches.forEach(function(domain, optionIndex) {
@@ -285,8 +292,19 @@
         });
     }
 
+    function initListPageSize() {
+        document.querySelectorAll("[data-ili-page-size-select]").forEach(function(select) {
+            select.addEventListener("change", function() {
+                if (select.form) {
+                    select.form.submit();
+                }
+            });
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         initDomainFinder();
         initLocalDomainState();
+        initListPageSize();
     });
 })();

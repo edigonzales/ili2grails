@@ -239,7 +239,7 @@ class InterlisAssociationQueryService {
             try {
                 String message = grailsApplication.mainContext.getBean(
                     "org.springframework.context.MessageSource"
-                ).getMessage(code, null, null, java.util.Locale.getDefault())
+                ).getMessage(code, null, null, InterlisMessageSupport.configuredLocale(grailsApplication))
                 if (message != null && message != code) {
                     return message
                 }
@@ -252,20 +252,28 @@ class InterlisAssociationQueryService {
     private String resolveEmptyMessage(Map<String, Object> context) {
         String associationName = context.associationName
         if (associationName == null) {
-            return "Keine Einträge vorhanden."
+            return InterlisMessageSupport.text(
+                grailsApplication,
+                "ili2grails.association.empty",
+                "Keine Einträge vorhanden."
+            )
         }
         String normalizedName = associationName.replaceAll('[^a-zA-Z0-9]', '')
         String code = "interlis.association.${normalizedName}.empty"
         try {
             String message = grailsApplication.mainContext.getBean(
                 "org.springframework.context.MessageSource"
-            ).getMessage(code, null, null, java.util.Locale.getDefault())
+                ).getMessage(code, null, null, InterlisMessageSupport.configuredLocale(grailsApplication))
             if (message != null && message != code) {
                 return message
             }
         } catch (Exception ignored) {
         }
-        return "Keine Einträge vorhanden."
+        return InterlisMessageSupport.text(
+            grailsApplication,
+            "ili2grails.association.empty",
+            "Keine Einträge vorhanden."
+        )
     }
 
     private String buildAssociationLabel(Object associationInstance,

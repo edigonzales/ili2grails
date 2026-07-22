@@ -17,12 +17,23 @@ class GenerationConfigTest {
     void associationDefaultsAreStable() {
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
 
+        assertThat(config.getLanguage()).isEqualTo(GenerationConfig.LANGUAGE_DE_CH);
         assertThat(config.getAssociationUiMode()).isEqualTo(GenerationConfig.ASSOCIATION_UI_AUTO);
         assertThat(config.getAssociationPageSize()).isEqualTo(10);
         assertThat(config.isHideContextualAssociationControllers()).isTrue();
         assertThat(config.getAssociationNavigation()).isEqualTo(GenerationConfig.ASSOCIATION_NAVIGATION_AUTO);
         assertThat(config.isAssociationUiEnabled()).isTrue();
         assertThat(config.isAssociationUiEditable()).isTrue();
+    }
+
+    @Test
+    void languageCanBeSelectedAndIsValidated() {
+        assertThat(GenerationConfig.builder(tempDir, "com.example")
+            .language(GenerationConfig.LANGUAGE_EN)
+            .build()
+            .getLanguage()).isEqualTo(GenerationConfig.LANGUAGE_EN);
+        assertThatThrownBy(() -> GenerationConfig.builder(tempDir, "com.example").language("fr"))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

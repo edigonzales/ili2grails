@@ -32,7 +32,7 @@
 
             <g:if test="\${associationSections}">
                 <section class="ili-association-sections" aria-labelledby="association-sections-heading">
-                    <h2 class="ili-section-title" id="association-sections-heading">Zuordnungen</h2>
+                    <h2 class="ili-section-title" id="association-sections-heading"><g:message code="ili2grails.association.assignments" default="Zuordnungen"/></h2>
                     <g:render template="association-sections" model="\${[
                         associationSections: associationSections,
                         owner: this.${propertyName}

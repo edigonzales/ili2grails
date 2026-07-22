@@ -106,6 +106,80 @@ class InterlisListQuerySupportTest {
             .containsEntry("filter.name", "one").containsEntry("offset", 0);
         assertThat(pages.get("lastPage")).isEqualTo(5);
         assertThat(((List<?>) pages.get("pages"))).hasSize(5);
+        assertThat((Boolean) pages.get("showResultRange")).isTrue();
+        assertThat(pages.get("resultStart")).isEqualTo(1);
+        assertThat(pages.get("resultEnd")).isEqualTo(10);
+        Map<?, ?> pageSizeParams = (Map<?, ?>) pages.get("pageSizeParams");
+        assertThat(pageSizeParams.get("offset")).isEqualTo(0);
+        assertThat(pageSizeParams.containsKey("max")).isFalse();
+    }
+
+    @Test
+    void derivesCompactAndRangedResultSummariesFromTheFilteredTotal() throws Exception {
+        Class<?> support = supportType();
+
+        Map<String, Object> onePageQuery = invokeParse(support, Map.of("max", "25"), descriptor());
+        Map<String, Object> onePage = invokeMap(support, "paginationModel", onePageQuery, 25);
+        assertThat((Boolean) onePage.get("showResultRange")).isFalse();
+        assertThat(onePage.get("resultStart")).isEqualTo(1);
+        assertThat(onePage.get("resultEnd")).isEqualTo(25);
+
+        Map<String, Object> emptyPage = invokeMap(support, "paginationModel", onePageQuery, 0);
+        assertThat((Boolean) emptyPage.get("showResultRange")).isFalse();
+        assertThat(emptyPage.get("resultStart")).isEqualTo(0);
+        assertThat(emptyPage.get("resultEnd")).isEqualTo(0);
+
+        Map<String, Object> secondPageQuery = invokeParse(support,
+            Map.of("max", "25", "offset", "25"), descriptor());
+        Map<String, Object> secondPage = invokeMap(support, "paginationModel", secondPageQuery, 238);
+        assertThat((Boolean) secondPage.get("showResultRange")).isTrue();
+        assertThat(secondPage.get("resultStart")).isEqualTo(26);
+        assertThat(secondPage.get("resultEnd")).isEqualTo(50);
+    }
+
+    @Test
+    void limitsDirectPageNumbersAndAddsEllipsesAtTheEdgesAndInTheMiddle() throws Exception {
+        Class<?> support = supportType();
+        Map<String, Object> query = invokeParse(support, Map.of(
+            "q", "alpha",
+            "max", "10",
+            "filter.name", "one",
+            "sort", "name",
+            "order", "desc"
+        ), descriptor());
+
+        List<?> firstPage = (List<?>) invokeMap(support, "paginationModel", query, 250).get("pages");
+        assertThat(firstPage).hasSize(6);
+        assertThat(firstPage.stream()
+            .filter(item -> !Boolean.TRUE.equals(((Map<?, ?>) item).get("ellipsis"))))
+            .hasSize(5);
+        assertThat(firstPage.get(4)).isEqualTo(Map.of("ellipsis", true));
+        assertThat(((Map<?, ?>) firstPage.get(5)).get("number")).isEqualTo(25);
+
+        Map<String, Object> middleQuery = invokeParse(support,
+            Map.of("max", "10", "offset", "100"), descriptor());
+        List<?> middlePage = (List<?>) invokeMap(support, "paginationModel", middleQuery, 250).get("pages");
+        assertThat(middlePage).hasSize(7);
+        assertThat(middlePage.stream()
+            .filter(item -> Boolean.TRUE.equals(((Map<?, ?>) item).get("ellipsis"))))
+            .hasSize(2);
+        assertThat(((Map<?, ?>) middlePage.get(3)).get("number")).isEqualTo(11);
+
+        Map<String, Object> lastQuery = invokeParse(support,
+            Map.of("max", "10", "offset", "240"), descriptor());
+        List<?> lastPage = (List<?>) invokeMap(support, "paginationModel", lastQuery, 250).get("pages");
+        assertThat(lastPage).hasSize(6);
+        assertThat(lastPage.get(1)).isEqualTo(Map.of("ellipsis", true));
+        assertThat(((Map<?, ?>) lastPage.get(5)).get("number")).isEqualTo(25);
+
+        Map<String, Object> pageSizeParams = map(
+            invokeMap(support, "paginationModel", query, 250).get("pageSizeParams"));
+        assertThat(pageSizeParams).containsEntry("q", "alpha")
+            .containsEntry("filter.name", "one")
+            .containsEntry("sort", "name")
+            .containsEntry("order", "desc")
+            .containsEntry("offset", 0)
+            .doesNotContainKey("max");
     }
 
     @Test

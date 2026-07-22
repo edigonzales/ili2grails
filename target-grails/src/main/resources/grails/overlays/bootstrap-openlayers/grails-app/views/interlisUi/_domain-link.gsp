@@ -20,8 +20,8 @@
                 class="ili-favorite-toggle"
                 data-ili-favorite-toggle="true"
                 data-ili-domain-key="${domain.iliName}"
-                aria-label="Als Favorit markieren"
-                title="Als Favorit markieren"
+                aria-label="${message(code: 'ili2grails.workspace.favoriteMark', default: 'Als Favorit markieren')}"
+                title="${message(code: 'ili2grails.workspace.favoriteMark', default: 'Als Favorit markieren')}"
                 aria-pressed="false">
             <ili:icon name="star"/>
         </button>

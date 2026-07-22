@@ -11,7 +11,7 @@
                             </g:link>
                         </th>
                     </g:each>
-                    <th scope="col" class="text-end">Aktionen</th>
+                    <th scope="col" class="text-end"><g:message code="ili2grails.list.actions" default="Aktionen"/></th>
                 </tr>
             </thead>
             <tbody>
@@ -27,11 +27,11 @@
                         </g:each>
                         <td class="text-end">
                             <div class="ili-row-actions">
-                                <g:link class="ili-icon-action" action="show" id="\${row?.id}" title="Anzeigen" aria-label="Anzeigen"><ili:icon name="eye"/></g:link>
-                                <g:link class="ili-icon-action" action="edit" id="\${row?.id}" title="Bearbeiten" aria-label="Bearbeiten"><ili:icon name="pencil"/></g:link>
+                                <g:link class="ili-icon-action" action="show" id="\${row?.id}" title="\${message(code: 'ili2grails.list.show', default: 'Anzeigen')}" aria-label="\${message(code: 'ili2grails.list.show', default: 'Anzeigen')}"><ili:icon name="eye"/></g:link>
+                                <g:link class="ili-icon-action" action="edit" id="\${row?.id}" title="\${message(code: 'ili2grails.list.edit', default: 'Bearbeiten')}" aria-label="\${message(code: 'ili2grails.list.edit', default: 'Bearbeiten')}"><ili:icon name="pencil"/></g:link>
                                 <g:form resource="\${row}" controller="\${controllerName}" method="DELETE" id="row-delete-\${row?.id}" class="ili-inline-delete-form">
-                                    <button type="button" class="ili-icon-action ili-icon-action-danger" data-row-delete="true" data-delete-form="row-delete-\${row?.id}" title="Löschen" aria-label="Löschen"><ili:icon name="trash"/></button>
-                                    <button type="submit" class="ili-native-submit js-delete-submit">Delete</button>
+                                    <button type="button" class="ili-icon-action ili-icon-action-danger" data-row-delete="true" data-delete-form="row-delete-\${row?.id}" title="\${message(code: 'ili2grails.list.delete', default: 'Löschen')}" aria-label="\${message(code: 'ili2grails.list.delete', default: 'Löschen')}"><ili:icon name="trash"/></button>
+                                    <button type="submit" class="ili-native-submit js-delete-submit"><g:message code="ili2grails.list.deleteSubmit" default="Löschen"/></button>
                                 </g:form>
                             </div>
                         </td>

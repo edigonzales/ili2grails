@@ -59,6 +59,13 @@ final class GrailsCliOptions {
     private String mapEditor;
 
     @Option(
+        names = "--grails-language",
+        paramLabel = "<de-CH|en>",
+        description = "Language for the generated Bootstrap UI (default: de-CH)."
+    )
+    private String language;
+
+    @Option(
         names = "--grails-default-srid",
         paramLabel = "<int>",
         description = "Default SRID for geometry binding/config."
@@ -101,6 +108,7 @@ final class GrailsCliOptions {
             || enumPackage != null
             || uiTheme != null
             || mapEditor != null
+            || language != null
             || defaultSrid != null
             || generateAll
             || associationUi != null
@@ -145,6 +153,10 @@ final class GrailsCliOptions {
 
     String mapEditor() {
         return mapEditor;
+    }
+
+    String language() {
+        return language;
     }
 
     Integer defaultSrid() {

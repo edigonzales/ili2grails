@@ -13,10 +13,10 @@
         <g:if test="\${section.rows == null || section.rows.isEmpty()}">
             <p class="ili-association-empty">
                 <g:if test="\${section.messageCode}">
-                    <g:message code="\${section.messageCode}.empty" default="\${section.emptyMessage ?: 'Keine Einträge vorhanden.'}"/>
+                    <g:message code="\${section.messageCode}.empty" default="\${section.emptyMessage ?: message(code: 'ili2grails.association.empty', default: 'Keine Einträge vorhanden.') }"/>
                 </g:if>
                 <g:else>
-                    \${section.emptyMessage ?: 'Keine Einträge vorhanden.'}
+                    \${section.emptyMessage ?: message(code: 'ili2grails.association.empty', default: 'Keine Einträge vorhanden.')}
                 </g:else>
             </p>
             <g:render template="association-quick-add" model="\${[
@@ -27,7 +27,7 @@
                 <g:link controller="\${section.associationController ?: ''}" action="create"
                         params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
                         class="btn btn-primary btn-sm mt-2">
-                    \${section.label} hinzufügen
+                    \${message(code: 'ili2grails.association.add', args: [section.label], default: section.label + ' hinzufügen')}
                 </g:link>
             </g:if>
         </g:if>
@@ -76,12 +76,12 @@
                                                 id="\${row.associationId}"
                                                 params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
                                                 class="btn btn-sm btn-outline-primary">
-                                            Bearbeiten
+                                            <g:message code="ili2grails.action.edit" default="Bearbeiten"/>
                                         </g:link>
                                     </g:if>
                                     <g:if test="\${row.associationController && row.associationId}">
                                         <g:link controller="\${row.associationController}" action="show" id="\${row.associationId}" class="btn btn-sm btn-outline-secondary">
-                                            Details
+                                            <g:message code="ili2grails.action.details" default="Details"/>
                                         </g:link>
                                     </g:if>
                                     <g:if test="\${row.deleteAllowed}">
@@ -89,7 +89,7 @@
                                                 data-association-delete
                                                 data-delete-form="assoc-delete-\${sectionDomId}-\${row.associationId}"
                                                 data-association-label="\${row.associationLabel ?: ''}">
-                                            Entfernen
+                                            <g:message code="ili2grails.action.remove" default="Entfernen"/>
                                         </button>
                                     </g:if>
                                 </td>
@@ -110,13 +110,13 @@
                 <g:link controller="\${section.associationController ?: ''}" action="create"
                         params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
                         class="btn btn-primary btn-sm mt-2">
-                    \${section.label} hinzufügen
+                    \${message(code: 'ili2grails.association.add', args: [section.label], default: section.label + ' hinzufügen')}
                 </g:link>
             </g:if>
 
             <g:if test="\${section.more}">
                 <g:link action="associationPage" id="\${owner?.id}" params="\${[context: section.contextId]}" class="ili-association-more-link">
-                    Mehr anzeigen
+                    <g:message code="ili2grails.association.more" default="Mehr anzeigen"/>
                 </g:link>
             </g:if>
         </g:else>
@@ -130,7 +130,7 @@
                         class="ili-hidden-delete-form">
                     <g:hiddenField name="context" value="\${section.contextId}"/>
                     <g:hiddenField name="associationId" value="\${row.associationId}"/>
-                    <button type="submit" class="ili-native-submit js-delete-submit">Delete</button>
+                    <button type="submit" class="ili-native-submit js-delete-submit"><g:message code="ili2grails.action.delete" default="Löschen"/></button>
                 </g:form>
             </g:if>
         </g:each>

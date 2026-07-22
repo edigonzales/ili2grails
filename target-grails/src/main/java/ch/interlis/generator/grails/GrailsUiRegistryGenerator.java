@@ -113,7 +113,7 @@ public final class GrailsUiRegistryGenerator {
             .append(indent).append("    modelName: ").append(quote(modelName)).append(",\n")
             .append(indent).append("    topicName: ").append(quote(topicName)).append(",\n")
             .append(indent).append("    className: ").append(quote(registry.className(classMetadata))).append(",\n")
-            .append(indent).append("    label: ").append(quote(label(classMetadata))).append(",\n")
+            .append(indent).append("    label: ").append(quote(label(classMetadata, config))).append(",\n")
             .append(indent).append("    navigationVisible: ")
             .append(associationPlanner.showDomainInNavigation(iliName)).append(",\n")
             .append(indent).append("    associationDomain: ").append(associationDomain).append("\n")
@@ -132,21 +132,18 @@ public final class GrailsUiRegistryGenerator {
         return topicName;
     }
 
-    private String label(ClassMetadata classMetadata) {
+    private String label(ClassMetadata classMetadata, GenerationConfig config) {
         Map<String, String> labels = classMetadata.getLabels();
         if (labels != null && !labels.isEmpty()) {
-            for (String preferredLanguage : List.of("de-CH", "de", "en")) {
+            List<String> preferredLanguages = GenerationConfig.LANGUAGE_EN.equals(config.getLanguage())
+                ? List.of("en", "de-CH", "de")
+                : List.of("de-CH", "de", "en");
+            for (String preferredLanguage : preferredLanguages) {
                 String preferred = labels.get(preferredLanguage);
                 if (preferred != null && !preferred.isBlank()) {
                     return preferred;
                 }
             }
-            return labels.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey(Comparator.nullsLast(String::compareTo)))
-                .map(Map.Entry::getValue)
-                .filter(value -> value != null && !value.isBlank())
-                .findFirst()
-                .orElse(classMetadata.getSimpleName());
         }
         return classMetadata.getSimpleName();
     }

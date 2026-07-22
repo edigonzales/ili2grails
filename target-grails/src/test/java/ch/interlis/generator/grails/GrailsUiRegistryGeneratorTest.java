@@ -31,6 +31,10 @@ class GrailsUiRegistryGeneratorTest {
         first.addLabel("de-CH", "Thema CH");
         metadata.addClass(first);
 
+        ClassMetadata fallback = new ClassMetadata("UiModel.Fallback.Topic");
+        fallback.addLabel("fr", "Sujet");
+        metadata.addClass(fallback);
+
         GenerationConfig config = config();
         TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
         GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
@@ -47,6 +51,7 @@ class GrailsUiRegistryGeneratorTest {
         assertThat(firstRender).contains("domainClassName: 'com.example.ui.SecondTopic'");
         assertThat(firstRender).contains("controller: 'firstTopic'");
         assertThat(firstRender).contains("controller: 'secondTopic'");
+        assertThat(firstRender).contains("label: 'Topic'").doesNotContain("label: 'Sujet'");
         assertThat(firstRender).contains("modelName: 'UiModel'");
         assertThat(firstRender).contains("topicName: 'First'");
         assertThat(firstRender).contains("label: 'Thema CH'");

@@ -57,6 +57,27 @@ class GrailsApplicationYamlUpdaterTest {
     }
 
     @Test
+    void writesSelectedUiLanguage(@TempDir Path tempDir) throws Exception {
+        Path yamlPath = tempDir.resolve("application.yml");
+        Files.writeString(yamlPath, "---\n" +
+            "grails:\n" +
+            "  profile: web\n");
+
+        new GrailsApplicationYamlUpdater().ensureDevelopmentDataSourceUrl(
+            yamlPath,
+            null,
+            null,
+            false,
+            2056,
+            GenerationConfig.LANGUAGE_EN
+        );
+
+        assertThat(Files.readString(yamlPath)).contains(
+            "ili2grails:", "language: \"en\"", "locale: \"en\"", "locale-resolver: \"fixed\""
+        );
+    }
+
+    @Test
     void enablesSpatialDialectAndDefaultSrid(@TempDir Path tempDir) throws Exception {
         Path yamlPath = tempDir.resolve("application.yml");
         Files.writeString(yamlPath, String.join("\n",

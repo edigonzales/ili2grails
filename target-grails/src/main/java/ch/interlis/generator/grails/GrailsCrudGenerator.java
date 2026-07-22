@@ -44,7 +44,8 @@ public class GrailsCrudGenerator {
             config.getJdbcUrl(),
             config.getSchema(),
             config.isGeometryEnabled(),
-            config.getDefaultSrid()
+            config.getDefaultSrid(),
+            config.getLanguage()
         );
     }
 }

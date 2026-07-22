@@ -12,6 +12,8 @@ public class GenerationConfig {
     public static final String UI_THEME_BOOTSTRAP = "bootstrap";
     public static final String MAP_EDITOR_NONE = "none";
     public static final String MAP_EDITOR_OPENLAYERS = "openlayers";
+    public static final String LANGUAGE_DE_CH = "de-CH";
+    public static final String LANGUAGE_EN = "en";
 
     public static final String ASSOCIATION_UI_OFF = "off";
     public static final String ASSOCIATION_UI_READ_ONLY = "read-only";
@@ -34,6 +36,7 @@ public class GenerationConfig {
     private final String schema;
     private final String uiTheme;
     private final String mapEditor;
+    private final String language;
     private final Integer defaultSrid;
     private final boolean geometryEnabled;
     private final String associationUiMode;
@@ -51,6 +54,7 @@ public class GenerationConfig {
         this.schema = builder.schema;
         this.uiTheme = builder.uiTheme;
         this.mapEditor = builder.mapEditor;
+        this.language = builder.language;
         this.defaultSrid = builder.defaultSrid;
         this.geometryEnabled = builder.geometryEnabled;
         this.associationUiMode = builder.associationUiMode;
@@ -93,6 +97,10 @@ public class GenerationConfig {
 
     public String getMapEditor() {
         return mapEditor;
+    }
+
+    public String getLanguage() {
+        return language;
     }
 
     public Integer getDefaultSrid() {
@@ -142,6 +150,7 @@ public class GenerationConfig {
         private String schema;
         private String uiTheme;
         private String mapEditor;
+        private String language;
         private Integer defaultSrid;
         private boolean geometryEnabled;
         private String associationUiMode;
@@ -157,6 +166,7 @@ public class GenerationConfig {
             this.enumPackage = basePackage + ".enums";
             this.uiTheme = UI_THEME_DEFAULT;
             this.mapEditor = MAP_EDITOR_NONE;
+            this.language = LANGUAGE_DE_CH;
             this.defaultSrid = 2056;
             this.geometryEnabled = false;
             this.associationUiMode = ASSOCIATION_UI_AUTO;
@@ -197,6 +207,15 @@ public class GenerationConfig {
 
         public Builder mapEditor(String mapEditor) {
             this.mapEditor = Objects.requireNonNull(mapEditor, "mapEditor");
+            return this;
+        }
+
+        public Builder language(String language) {
+            Objects.requireNonNull(language, "language");
+            if (!LANGUAGE_DE_CH.equals(language) && !LANGUAGE_EN.equals(language)) {
+                throw new IllegalArgumentException("Unsupported language: " + language);
+            }
+            this.language = language;
             return this;
         }
 
