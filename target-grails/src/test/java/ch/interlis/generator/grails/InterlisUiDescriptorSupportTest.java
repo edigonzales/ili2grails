@@ -55,7 +55,7 @@ class InterlisUiDescriptorSupportTest {
         assertThat(defaultList.get("searchFields"))
             .isEqualTo(List.of("name", "description"));
         assertThat(defaultList.get("prominentFilters"))
-            .isEqualTo(List.of("name", "description", "year"));
+            .isEqualTo(List.of());
         assertThat(map(defaults.get("form")).get("sections").toString())
             .contains("Allgemein", "longText");
         assertThat(map(defaults.get("form")).get("sections").toString())
@@ -65,6 +65,21 @@ class InterlisUiDescriptorSupportTest {
         assertThat(map(defaults.get("detail")).get("sections").toString())
             .contains("name", "longText")
             .doesNotContain("municipality", "id", "version");
+
+        Map<String, Object> explicitlyCollapsed = invokeDescriptor(runtime, Map.of(
+            "config", Map.of(
+                "ili2grails", Map.of(
+                    "ui", Map.of(
+                        "domains", List.of(Map.of(
+                            "iliName", "UiModel.Topic.Address",
+                            "list", Map.of("prominentFilters", List.of())
+                        ))
+                    )
+                )
+            )
+        ));
+        assertThat(map(explicitlyCollapsed.get("list")).get("prominentFilters"))
+            .isEqualTo(List.of());
 
         Map<String, Object> configuredDomain = new LinkedHashMap<>();
         configuredDomain.put("iliName", "UiModel.Topic.Address");

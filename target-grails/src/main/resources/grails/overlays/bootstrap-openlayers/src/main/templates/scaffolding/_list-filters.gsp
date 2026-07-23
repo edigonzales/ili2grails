@@ -1,14 +1,13 @@
-<section class="ili-list-tools" aria-labelledby="list-search-heading">
+<section class="ili-list-tools" aria-label="\${message(code: 'ili2grails.list.search', default: 'Suche')}">
     <g:form action="index" method="GET" class="ili-list-query-form">
         <input type="hidden" name="sort" value="\${listQuery?.sort ?: 'id'}" />
         <input type="hidden" name="order" value="\${listQuery?.order ?: 'asc'}" />
         <div class="ili-list-search-row">
             <div class="flex-grow-1">
-                <label class="form-label" for="list-search"><g:message code="ili2grails.list.search" default="Suche"/></label>
-                <div class="input-group">
-                    <span class="input-group-text" aria-hidden="true"><ili:icon name="search"/></span>
+                <div class="input-group ili-search-input-group">
+                    <span class="input-group-text ili-search-icon" aria-hidden="true"><ili:icon name="search"/></span>
                     <input id="list-search" type="search" name="q" value="\${listQuery?.q ?: ''}"
-                           class="form-control" autocomplete="off"
+                           class="form-control ili-search-input" aria-label="\${message(code: 'ili2grails.list.search', default: 'Suche')}" autocomplete="off"
                            placeholder="\${message(code: 'ili2grails.list.searchPlaceholder', args: [entityName], default: 'Nach ' + entityName + ' suchen')}" />
                 </div>
             </div>
@@ -32,8 +31,15 @@
         </g:if>
 
         <g:if test="\${advancedFilterFields}">
-            <details class="ili-filter-panel">
-                <summary><g:message code="ili2grails.list.moreFilters" default="Weitere Filter"/></summary>
+            <details class="ili-filter-panel" \${activeFilterChips ? 'open' : ''}>
+                <summary>
+                    <g:if test="\${prominentFilterFields}">
+                        <g:message code="ili2grails.list.moreFilters" default="Weitere Filter"/>
+                    </g:if>
+                    <g:else>
+                        <g:message code="ili2grails.list.filters" default="Filter"/>
+                    </g:else>
+                </summary>
                 <div class="ili-filter-grid">
                     <g:each in="\${advancedFilterFields}" var="filterField">
                         <g:render template="list-filter-field" model="\${[

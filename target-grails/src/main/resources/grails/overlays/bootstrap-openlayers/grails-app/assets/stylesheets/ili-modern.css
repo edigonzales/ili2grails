@@ -105,7 +105,11 @@ body {
 .ili-main-content {
     min-height: calc(100vh - 4rem);
     padding: 1.5rem 1rem;
-    background: var(--ili-neutral-canvas);
+    background: transparent;
+}
+
+.form-label {
+    margin-bottom: 0;
 }
 
 .card {
@@ -138,6 +142,22 @@ body {
     transform: translateX(-50%);
     width: 100%;
     max-width: 50vw;
+}
+
+.ili-domain-search-row {
+    display: flex;
+    align-items: stretch;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ili-domain-search-row .ili-search-input-group {
+    flex: 1 1 16rem;
+    min-width: 0;
+}
+
+.ili-domain-search-row > .btn {
+    flex: 0 0 auto;
 }
 
 .ili-domain-finder-results {
@@ -617,13 +637,22 @@ body {
     white-space: nowrap;
 }
 
-.ili-list-page-size .form-label {
-    margin-bottom: 0;
-}
-
 .ili-list-search-action {
     display: flex;
     align-items: end;
+}
+
+.ili-search-input-group .ili-search-icon {
+    background-color: var(--ili-neutral-surface);
+    border-right: 0;
+}
+
+.ili-search-input-group .ili-search-input {
+    border-left: 0;
+}
+
+.ili-search-input-group:focus-within .ili-search-icon {
+    border-color: var(--bs-primary);
 }
 
 .ili-list-result-summary {

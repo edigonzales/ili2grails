@@ -624,11 +624,13 @@ Die generische Domain-Liste zeigt die Freitextsuche unabhängig von den Feldfilt
 immer an. Die Feldfilter werden aus den Domain-/GORM-Eigenschaften und den
 generierten INTERLIS-Metadaten abgeleitet.
 
-Ohne `list.prominentFilters` werden die ersten drei erkannten Filter als
-**Quick Filters** direkt unter der Suche angezeigt. Die übrigen erkannten Filter
-stehen im Bereich **Weitere Filter**. Die Reihenfolge entspricht der Reihenfolge
-der erkannten Domain-Eigenschaften; sie ist damit insbesondere von der generierten
-Grails-Domain und ihren Metadaten abhängig.
+Ohne `list.prominentFilters` werden alle erkannten Filter eingeklappt im Bereich
+**Filter** angezeigt. Direkt sichtbare **Quick Filters** müssen pro Domain
+explizit konfiguriert werden. Eine explizit leere Liste bedeutet ebenfalls, dass
+keine Quick Filters sichtbar sind. Die übrigen erkannten Filter stehen im Bereich
+**Weitere Filter**. Die Reihenfolge entspricht der Reihenfolge der erkannten
+Domain-Eigenschaften; sie ist damit insbesondere von der generierten Grails-Domain
+und ihren Metadaten abhängig.
 
 Die sichtbaren Quick Filters können pro Domain explizit konfiguriert werden:
 
@@ -650,9 +652,10 @@ ili2grails:
 direkt angezeigt, alle anderen weiterhin unter **Weitere Filter**. Unbekannte oder
 für die Domain nicht filterbare Feldnamen werden mit dem betroffenen `iliName` und
 der Konfigurationssektion diagnostiziert. Die aktuelle Implementierung übernimmt
-eine explizite Liste in der angegebenen Länge; die automatische Auswahl ist auf
-drei Filter begrenzt. Für eine kompakte Oberfläche sollten daher höchstens drei
-prominente Filter konfiguriert werden.
+eine explizite Liste in der angegebenen Länge. Wenn keine Filter prominent
+konfiguriert sind, wird die Überschrift des eingeklappten Bereichs als **Filter**
+gerendert; sobald mindestens ein Quick Filter sichtbar ist, lautet sie
+**Weitere Filter**.
 
 Die UI-Komponente hängt vom erkannten Filtertyp ab:
 
@@ -770,7 +773,7 @@ Der Bootstrap-Modus verwendet ab Phase 1 eine server-rendered Application Shell:
 - Mit `--grails-map-editor openlayers` erhalten Scaffold-`create/edit/show` bei Geometrie-Attributen eine Webkarte.
 - Geometrien werden als WKT über Hidden-Fields gebunden und serverseitig via `WKTReader` in JTS-`Geometry` umgewandelt. Die Runtime prüft erwarteten Geometrietyp, Empty-Geometrien, JTS-Validität und konvertiert Single-Geometrien bei erwarteten Multi-Typen in Multi-Geometrien.
 - Die Editierwerkzeuge sind bewusst einfach: Zeichnen, Ändern, Löschen und Snapping auf vorhandene Editor-Vertices. Fachliche Topologie-Regeln bleiben ein projektspezifischer Extension Point.
-- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis und bleibt no-frills: einheitliche 3px-Radien, dünne Linien und keine Card-Shadows. Aktive Filter-Chips behalten als einzige Ausnahme ihre vollständig runde Pill-Form. Das Primärblau `#4299E1` wird mit einer kompakten, kühl abgestimmten Neutralpalette kombiniert. Deren semantische CSS-Variablen unterscheiden nur Text, Sekundärtext, Border, Main-Background, Tabellen-Header/Disabled und Hover. Trefferzahlen erscheinen als Sekundärtext direkt vor Tabelle bzw. Empty-State. `data-ili-neutral-palette="balanced"` auf dem `<html>`-Element ist der Standard; `quiet` reduziert und `defined` verstärkt die Flächenkontraste. Rot erscheint nur semantisch für Danger-/Fehlerzustände. Bootstrap, OpenLayers, proj4 und die Navigation werden über die lokale WebJar-/Asset-Pipeline eingebunden, nicht über CDN.
+- Die Oberfläche nutzt Bootstrap 5.3 als technische Basis und bleibt no-frills: einheitliche 3px-Radien, dünne Linien und sehr dezente Card-Shadows. Aktive Filter-Chips behalten als einzige Ausnahme ihre vollständig runde Pill-Form. Das Primärblau `#4299E1` wird mit einer kompakten, kühl abgestimmten Neutralpalette kombiniert. Deren semantische CSS-Variablen unterscheiden nur Text, Sekundärtext, Border, Main-Background, Tabellen-Header/Disabled und Hover. Trefferzahlen erscheinen als Sekundärtext direkt vor Tabelle bzw. Empty-State. `data-ili-neutral-palette="balanced"` auf dem `<html>`-Element ist der Standard; `quiet` reduziert und `defined` verstärkt die Flächenkontraste. Rot erscheint nur semantisch für Danger-/Fehlerzustände. Bootstrap, OpenLayers, proj4 und die Navigation werden über die lokale WebJar-/Asset-Pipeline eingebunden, nicht über CDN.
 - Die Bootstrap-GUI verwendet lokal eingebettetes Fira Sans statt Frutiger. Die WOFF2-Schnitte für 400 und 600 liegen im managed Overlay unter `grails-app/assets/fonts/fira-sans/` und werden über `ili-modern.css` mit `font-display: swap` geladen; der frühere 700-Bold-Schnitt wird nicht mehr verwendet. Es gibt keine externe Font-CDN-Abhängigkeit. Fira Sans steht unter der SIL Open Font License; der Lizenztext liegt unter `src/main/resources/fonts/fira-sans/OFL.txt`.
 - `create/edit` teilen ein gemeinsames Form-Template mit Split-Layout:
   links Formular, rechts Geometrie-Panel (falls Geometrie-Felder vorhanden).
@@ -841,6 +844,8 @@ Filter nur numerische Ziel-IDs. Ungültige oder unbekannte Filter werden ignorie
 und als sichtbare Warnung angezeigt. Eine ungültige Sortierung fällt auf `id` zurück.
 Filter-/Suchformulare und alle serverseitig erzeugten Chip-, Sortier- und Paging-URLs
 setzen bei einer Filteränderung `offset=0` und erhalten die übrigen aktiven Filter.
+Relationship-Filter-Chips zeigen das sichtbare Label der ausgewählten Option; wenn
+kein Label verfügbar ist, bleibt die technische Ziel-ID als Fallback erhalten.
 
 Criteria erhält Property-Namen, Relationship-Pfade und Klassen ausschliesslich aus
 dem Descriptor. Suchpfade dürfen nur explizit konfiguriert und maximal ein

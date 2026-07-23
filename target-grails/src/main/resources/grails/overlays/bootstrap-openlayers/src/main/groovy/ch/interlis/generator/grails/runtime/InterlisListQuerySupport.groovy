@@ -331,12 +331,29 @@ final class InterlisListQuerySupport {
          params: urlParams(query, [offset: pageOffset])]
     }
 
-    static List<Map<String, Object>> activeFilterChips(Map<String, Object> query) {
+    static List<Map<String, Object>> activeFilterChips(Map<String, Object> query,
+                                                       Map<String, Object> filterOptions = [:]) {
         List<Map<String, Object>> chips = []
         (query?.filters ?: [:]).each { String field, Map<String, Object> parsed ->
             Map<String, Object> definition = parsed.definition instanceof Map ? parsed.definition : [:]
             List<String> values = []
-            if (parsed.raw != null) values << parsed.raw.toString()
+            String displayValue = parsed.raw?.toString()
+            if (definition.type?.toString() == "relationship" && displayValue != null) {
+                Map<String, Object> optionPage = filterOptions?.get(field) instanceof Map
+                    ? filterOptions[field] as Map<String, Object>
+                    : [:]
+                List<Map<String, Object>> options = optionPage.results instanceof Collection
+                    ? optionPage.results as List<Map<String, Object>>
+                    : []
+                Map<String, Object> selectedOption = options.find {
+                    it.id?.toString() == displayValue
+                }
+                String optionLabel = selectedOption?.label?.toString()
+                if (optionLabel?.trim()) {
+                    displayValue = optionLabel
+                }
+            }
+            if (displayValue != null) values << displayValue
             if (parsed.minRaw != null) values << "ab " + parsed.minRaw
             if (parsed.maxRaw != null) values << "bis " + parsed.maxRaw
             if (parsed.fromRaw != null) values << "ab " + parsed.fromRaw

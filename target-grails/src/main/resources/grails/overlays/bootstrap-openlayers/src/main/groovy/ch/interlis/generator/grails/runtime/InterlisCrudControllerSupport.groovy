@@ -36,7 +36,6 @@ abstract class InterlisCrudControllerSupport<T> {
             listQuery.offset = safeOffset(offset)
         }
         listQuery.params = InterlisListQuerySupport.urlParams(listQuery)
-        listQuery.chips = InterlisListQuerySupport.activeFilterChips(listQuery)
         List<String> columns = tableColumns()
         Map<String, Object> page = InterlisListQuerySupport.page(
             crudService(), domainType(), descriptor, listQuery
@@ -44,6 +43,7 @@ abstract class InterlisCrudControllerSupport<T> {
         List<T> records = page.records as List<T>
         List<Map<String, Object>> filters = filterFields()
         Map<String, Object> filterOptions = relationshipFilterOptions(filters, listQuery)
+        listQuery.chips = InterlisListQuerySupport.activeFilterChips(listQuery, filterOptions)
         respond records, model: [
             (modelKey() + "List"): records,
             (modelKey() + "Count"): page.total,

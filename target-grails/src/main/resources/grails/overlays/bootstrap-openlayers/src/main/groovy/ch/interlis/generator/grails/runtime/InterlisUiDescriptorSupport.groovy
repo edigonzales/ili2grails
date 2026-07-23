@@ -46,7 +46,7 @@ final class InterlisUiDescriptorSupport {
 
         List<String> defaultColumns = defaultColumns(properties, domainType)
         List<String> defaultSearchFields = defaultSearchFields(properties, domainType)
-        List<String> defaultProminentFilters = filters.keySet().take(3) as List<String>
+        List<String> defaultProminentFilters = []
         List<Map<String, Object>> defaultSections = [[
             title : "Allgemein",
             fields: editableFormFields(properties)

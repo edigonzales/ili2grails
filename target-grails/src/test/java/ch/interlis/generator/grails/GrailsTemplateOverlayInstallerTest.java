@@ -189,6 +189,11 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(listFiltersTemplate).contains("name=\"q\"");
         assertThat(listFiltersTemplate).contains("activeFilterChips");
         assertThat(listFiltersTemplate)
+            .contains("ili-search-input-group", "ili-search-icon", "ili-search-input",
+                "ili2grails.list.filters", "aria-label=\"\\${message(code: 'ili2grails.list.search",
+                "ili2grails.list.searchSubmit", "ili-filter-panel\" \\${activeFilterChips ? 'open' : ''}")
+            .doesNotContain("aria-labelledby=\"list-search-heading\"", "<label class=\"form-label\" for=\"list-search\">");
+        assertThat(listFiltersTemplate)
             .doesNotContain("input-group-lg", "form-select-lg", "btn-lg", "name=\"max\"");
         String listTableTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_list-table.gsp"));
         assertThat(listTableTemplate).contains("<table class=\"table");
@@ -205,6 +210,10 @@ class GrailsTemplateOverlayInstallerTest {
         String overlayCss = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
         assertThat(overlayCss)
             .contains(".ili-list-result-summary", "font-size: 1rem;", "color: var(--bs-body-color);",
+                ".ili-main-content", "background: transparent;", ".form-label", "margin-bottom: 0;",
+                ".ili-search-input-group .ili-search-icon", "background-color: var(--ili-neutral-surface);",
+                "border-right: 0", ".ili-search-input-group .ili-search-input", "border-left: 0",
+                ".ili-domain-search-row", "gap: 1rem;",
                 "--ili-card-shadow: 0 1px 3px rgba(var(--ili-neutral-emphasis-rgb), 0.08);",
                 ".ili-list-tools + .ili-table-tile", "margin-top: 1.25rem;",
                 ".ili-table-wrap .table > tbody > tr:last-child > *", "border-bottom: 0;",
@@ -314,7 +323,11 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(layoutTemplate).doesNotContain("<bx-header");
         assertThat(layoutTemplate).contains("InterlisNavigationSupport.navigationModel");
         assertThat(layoutTemplate).contains("data-ili-domain-finder-form");
-        assertThat(layoutTemplate).contains("role=\"combobox\"", "aria-autocomplete=\"list\"");
+        assertThat(layoutTemplate)
+            .contains("role=\"combobox\"", "aria-autocomplete=\"list\"", "ili-domain-search-row",
+                "ili-search-input-group",
+                "ili-search-icon", "ili-search-input", "btn btn-primary", "ili2grails.list.searchSubmit")
+            .doesNotContain("<button class=\"btn btn-outline-secondary\" type=\"submit\"");
         assertThat(layoutTemplate).contains("data-ili-extension-point=\"topbar-toolbar\"");
         assertThat(layoutTemplate).doesNotContain("principal");
         assertThat(layoutTemplate).doesNotContain("navbar-toggler-icon");

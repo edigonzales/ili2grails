@@ -58,27 +58,29 @@
               action="${createLink(controller: 'interlisUi', action: 'domains')}"
               role="search" data-ili-domain-finder-form>
             <label class="visually-hidden" for="ili-domain-finder-input"><g:message code="ili2grails.shell.domainSearch" default="Domain suchen …"/></label>
-            <div class="input-group">
-                <span class="input-group-text bg-body" aria-hidden="true">
-                    <ili:icon name="search"/>
-                </span>
-                <input id="ili-domain-finder-input"
-                       class="form-control"
-                       type="search"
-                       name="q"
-                       value="${params.q ?: ''}"
-                       placeholder="${message(code: 'ili2grails.shell.domainSearch', default: 'Domain suchen …')}"
-                       autocomplete="off"
-                       role="combobox"
-                       aria-autocomplete="list"
-                       aria-haspopup="listbox"
-                       aria-controls="ili-domain-finder-results"
-                       aria-expanded="false"
-                       data-ili-domain-finder-input/>
-                <button class="btn btn-outline-secondary" type="submit"
+            <div class="ili-domain-search-row">
+                <div class="input-group ili-search-input-group">
+                    <span class="input-group-text ili-search-icon" aria-hidden="true">
+                        <ili:icon name="search"/>
+                    </span>
+                    <input id="ili-domain-finder-input"
+                           class="form-control ili-search-input"
+                           type="search"
+                           name="q"
+                           value="${params.q ?: ''}"
+                           placeholder="${message(code: 'ili2grails.shell.domainSearch', default: 'Domain suchen …')}"
+                           autocomplete="off"
+                           role="combobox"
+                           aria-autocomplete="list"
+                           aria-haspopup="listbox"
+                           aria-controls="ili-domain-finder-results"
+                           aria-expanded="false"
+                           data-ili-domain-finder-input/>
+                </div>
+                <button class="btn btn-primary" type="submit"
                         aria-label="${message(code: 'ili2grails.shell.domainSearchSubmit', default: 'Domain-Suche ausführen')}"
                         title="${message(code: 'ili2grails.shell.domainSearchSubmit', default: 'Domain-Suche ausführen')}">
-                    <ili:icon name="search"/>
+                    <g:message code="ili2grails.list.searchSubmit" default="Suchen"/>
                 </button>
             </div>
             <div id="ili-domain-finder-results"

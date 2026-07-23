@@ -138,6 +138,46 @@ class InterlisListQuerySupportTest {
     }
 
     @Test
+    void resolvesRelationshipChipLabelsAndPreservesFallbackAndOtherFilterValues() throws Exception {
+        Class<?> support = supportType();
+        Map<String, Object> filters = new LinkedHashMap<>();
+        filters.put("department", Map.of(
+            "raw", "4",
+            "definition", Map.of("type", "relationship", "label", "Department")
+        ));
+        filters.put("name", Map.of(
+            "raw", "Clara",
+            "definition", Map.of("type", "text", "label", "Name")
+        ));
+        filters.put("year", Map.of(
+            "minRaw", "2020",
+            "definition", Map.of("type", "number", "label", "Year")
+        ));
+        filters.put("validFrom", Map.of(
+            "fromRaw", "2024-01-01",
+            "definition", Map.of("type", "date", "label", "Valid from")
+        ));
+        Map<String, Object> query = new LinkedHashMap<>();
+        query.put("filters", filters);
+
+        Map<String, Object> filterOptions = Map.of(
+            "department", Map.of("results", List.of(Map.of("id", "4", "label", "Planning")))
+        );
+        List<Map<String, Object>> labeledChips = invokeList(
+            support, "activeFilterChips", query, filterOptions);
+
+        assertThat(labeledChips).extracting(chip -> chip.get("value"))
+            .containsExactlyInAnyOrder("Planning", "Clara", "ab 2020", "ab 2024-01-01");
+
+        List<Map<String, Object>> fallbackChips = invokeList(support, "activeFilterChips", query);
+        assertThat(fallbackChips.stream()
+            .filter(chip -> "department".equals(chip.get("field")))
+            .findFirst()
+            .orElseThrow()
+            .get("value")).isEqualTo("4");
+    }
+
+    @Test
     void limitsDirectPageNumbersAndAddsEllipsesAtTheEdgesAndInTheMiddle() throws Exception {
         Class<?> support = supportType();
         Map<String, Object> query = invokeParse(support, Map.of(
@@ -244,6 +284,16 @@ class InterlisListQuerySupportTest {
     private Object invokeCoerce(Class<?> support, Object raw, Map<String, Object> definition) throws Exception {
         return support.getMethod("coerceFilterValue", Object.class, Map.class)
             .invoke(null, raw, definition);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> invokeList(Class<?> support, String method, Object... args) throws Exception {
+        for (var candidate : support.getMethods()) {
+            if (candidate.getName().equals(method) && candidate.getParameterCount() == args.length) {
+                return (List<Map<String, Object>>) candidate.invoke(null, args);
+            }
+        }
+        throw new NoSuchMethodException(method);
     }
 
     private Map<String, Object> descriptor() {
