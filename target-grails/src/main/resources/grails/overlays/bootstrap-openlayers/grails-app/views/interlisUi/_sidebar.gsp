@@ -1,7 +1,7 @@
 <aside id="iliSidebar" class="ili-sidebar offcanvas-lg offcanvas-start" tabindex="-1"
        aria-label="${message(code: 'ili2grails.shell.domainNavigation', default: 'Domain-Navigation')}" data-ili-sidebar>
     <div class="offcanvas-header ili-sidebar-header">
-        <button type="button" class="btn btn-outline-secondary btn-sm ili-sidebar-close"
+        <button type="button" class="ili-sidebar-close"
                 data-bs-dismiss="offcanvas" data-bs-target="#iliSidebar"
                 data-ili-sidebar-close
                 aria-label="${message(code: 'ili2grails.shell.navigation.close', default: 'Navigation schliessen')}">

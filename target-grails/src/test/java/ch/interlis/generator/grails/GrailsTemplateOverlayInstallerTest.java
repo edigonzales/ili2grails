@@ -221,11 +221,13 @@ class GrailsTemplateOverlayInstallerTest {
                 "grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)",
                 ".ili-icon-action:not(.ili-icon-action-danger):hover",
                 "rgba(var(--bs-danger-rgb), 0.65)",
-                ".ili-sidebar .ili-sidebar-close:hover");
+                ".ili-sidebar .ili-sidebar-close", "width: 2.25rem", "height: 2.25rem",
+                "border: 0", "background: transparent", ".ili-sidebar .ili-sidebar-close:hover");
 
         String sidebarTemplate = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_sidebar.gsp"));
         assertThat(sidebarTemplate).doesNotContain("ili2grails.shell.navigation\" default=\"Navigation")
-            .contains("name=\"x-circle\"");
+            .contains("class=\"ili-sidebar-close\"", "name=\"x-circle\"")
+            .doesNotContain("btn btn-outline-secondary btn-sm ili-sidebar-close");
         String sidebarTagLib = Files.readString(projectDir.resolve(
             "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy"));
         assertThat(sidebarTagLib).contains("\"x-circle\"");
