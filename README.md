@@ -698,6 +698,42 @@ behandelt und nicht als generischer Listenfilter angezeigt.
 Unbekannte Domains und Felder werden mit `IllegalArgumentException` und
 `iliName`, Feldname sowie betroffener Konfigurationssektion diagnostiziert.
 
+#### Listenspalten: Default-Auswahl und Konfiguration
+
+Die List-View rendert nicht automatisch alle Attribute einer Domain als
+Tabellenspalten. Ohne `list.columns` wird eine kompakte Default-Auswahl gebildet:
+
+- `id`, sofern die Domain ein solches Feld besitzt,
+- höchstens ein bevorzugtes Display-/Namensfeld (`name`, `bezeichnung`, `label`,
+  `title`, `code` oder `ident`),
+- bis zu vier weitere kompakte skalare Felder in der Reihenfolge der generierten
+  Domain-Eigenschaften.
+
+Geometrien, Collections und Relationships, `version` sowie erkennbar lange
+Textfelder werden nicht in diese Default-Auswahl aufgenommen. Dadurch entstehen
+typischerweise höchstens sechs Daten-Spalten; zusätzlich wird die Aktionsspalte
+für Anzeigen, Bearbeiten und Löschen gerendert. Bei weniger geeigneten Attributen
+kann die Tabelle entsprechend weniger Daten-Spalten enthalten.
+
+Die Spaltenauswahl kann pro Domain mit `list.columns` vollständig überschrieben
+werden. Dann werden die angegebenen bekannten Felder in der angegebenen
+Reihenfolge gerendert; eine automatische zusätzliche Begrenzung auf vier oder
+sechs Spalten gibt es für diese explizite Konfiguration nicht:
+
+```yaml
+ili2grails:
+  ui:
+    domains:
+      - iliName: "SimpleAddressModel.Addresses.Address"
+        list:
+          columns: [id, name, municipality, year, status, description]
+```
+
+Nicht bekannte Feldnamen in `list.columns` werden mit dem betroffenen `iliName`
+und der Konfigurationssektion diagnostiziert. Die Detailansicht verwendet eine
+separate Spaltenauswahl und ist von dieser kompakten List-View-Auswahl nicht
+begrenzt.
+
 #### Phase-0-Altlasteninventur und Phase-1-Migration
 Phase 0 hat die historischen `--dp-*`-Namen und die ursprünglichen Inline-SVGs
 inventarisiert. Phase 1 hat diese Altlasten aus dem gemanagten Bootstrap-Overlay
