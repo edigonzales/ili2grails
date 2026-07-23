@@ -242,6 +242,11 @@ body {
     display: none;
 }
 
+.ili-sidebar .offcanvas-header.ili-sidebar-header {
+    justify-content: flex-end;
+    padding: 0;
+}
+
 .ili-sidebar .ili-sidebar-close {
     display: inline-flex;
     width: 2.25rem;
