@@ -240,6 +240,15 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(formTemplate).contains("ili-validation-summary");
         assertThat(formTemplate).doesNotContain("js-carbon-bridge");
 
+        String createTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/create.gsp"));
+        assertThat(createTemplate)
+            .contains("pageSubtitle: message(")
+            .doesNotContain("pageSubtitle: \\${message");
+        String editTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/edit.gsp"));
+        assertThat(editTemplate)
+            .contains("pageSubtitle: message(")
+            .doesNotContain("pageSubtitle: \\${message");
+
         String formSectionTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_form-section.gsp"));
         assertThat(formSectionTemplate).contains("<f:field");
         assertThat(formSectionTemplate).contains("ili-field-meta");

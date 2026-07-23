@@ -10,7 +10,7 @@
     mode: 'edit',
     entityName: entityName,
     pageTitleCode: 'default.edit.label',
-    pageSubtitle: \${message(code: 'ili2grails.form.editSubtitle', default: 'Bestehende Entität aktualisieren.')},
+    pageSubtitle: message(code: 'ili2grails.form.editSubtitle', default: 'Bestehende Entität aktualisieren.'),
     submitCode: 'default.button.update.label',
     submitDefault: 'Update',
     geometryFields: geometryFields,

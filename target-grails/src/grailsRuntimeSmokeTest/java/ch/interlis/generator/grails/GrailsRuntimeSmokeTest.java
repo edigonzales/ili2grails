@@ -75,6 +75,14 @@ class GrailsRuntimeSmokeTest {
         assertThat(Files.readString(generatedForm)).contains("form-section", "submitMode", "saveAndContinue");
         assertThat(Files.readString(generatedForm.getParent().resolve("_form-section.gsp")))
             .contains("relationship-fields", "<f:field");
+        String generatedCreate = Files.readString(generatedForm.getParent().resolve("create.gsp"));
+        assertThat(generatedCreate)
+            .contains("pageSubtitle: message(")
+            .doesNotContain("pageSubtitle: ${message");
+        String generatedEdit = Files.readString(generatedForm.getParent().resolve("edit.gsp"));
+        assertThat(generatedEdit)
+            .contains("pageSubtitle: message(")
+            .doesNotContain("pageSubtitle: ${message");
         runCommand(appDir, List.of("./gradlew", "compileGroovy"));
     }
 
