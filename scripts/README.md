@@ -14,6 +14,12 @@ Das Skript startet `edit-db`, importiert das ili2pg-Schema und die Demodaten,
 liest die Metadaten und erzeugt anschliessend eine Grails-App. Die Anwendung
 wird nicht automatisch gestartet.
 
+Das Getting-Started-Schema wird absichtlich ohne technische Basket-Spalten
+erzeugt. Die generierte CRUD-App verwaltet derzeit keinen Basket-Kontext;
+Basket-faehige ili2db-Schemas sind fuer spezialisierte Tests und produktive
+Integrationen vorgesehen. Details und die manuellen ili2pg-Befehle stehen im
+[vollstaendigen Tutorial](../docs/getting-started.md).
+
 Ein erneuter Lauf muss bewusst mit `--reset` angefordert werden:
 
 ```bash

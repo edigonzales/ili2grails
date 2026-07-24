@@ -4,6 +4,13 @@ Diese Anleitung ist ein durchgehendes Beginner-Tutorial. Sie startet bei einer
 lokalen Docker-Datenbank, erzeugt ili2pg-Schemas, importiert optional Demodaten
 und generiert daraus eine lauffaehige Grails-CRUD-App.
 
+Das Getting-Started-Schema wird bewusst ohne technische Basket-Spalten
+erzeugt. Die generierte Grails-CRUD-App verwaltet aktuell keinen Basket-Kontext;
+ohne diese technischen Spalten bleiben einfache
+Create- und Update-Vorgaenge direkt schreibbar. Basket-faehige Schemas bleiben
+fuer die spezialisierten ili2db-Smoke-Tests und produktive Integrationen
+vorbehalten.
+
 Es gibt zwei Faelle:
 
 - **Fall 1: Simple** - 3 Klassen, zwei 1:n-Beziehungen, keine Geometrien.
@@ -155,7 +162,6 @@ run_ili2pg \
   --strokeArcs \
   --smart2Inheritance \
   --createEnumTabs \
-  --createBasketCol \
   --modeldir "$REPO_ROOT/docs/getting-started/models" \
   --models GsSimpleModel \
   --dbschema gs_simple \
@@ -181,7 +187,6 @@ run_ili2pg \
   --strokeArcs \
   --smart2Inheritance \
   --createEnumTabs \
-  --createBasketCol \
   --modeldir "$REPO_ROOT/docs/getting-started/models" \
   --models GsSimpleModel \
   --dbschema gs_simple \
@@ -201,7 +206,6 @@ run_ili2pg \
   --strokeArcs \
   --smart2Inheritance \
   --createEnumTabs \
-  --createBasketCol \
   --modeldir "$REPO_ROOT/docs/getting-started/models" \
   --models GsSimpleModel \
   --dbschema gs_simple \
@@ -306,7 +310,6 @@ run_ili2pg \
   --strokeArcs \
   --smart2Inheritance \
   --createEnumTabs \
-  --createBasketCol \
   --modeldir "$REPO_ROOT/docs/getting-started/models" \
   --models GsAdvancedModel \
   --dbschema gs_advanced \
@@ -332,7 +335,6 @@ run_ili2pg \
   --strokeArcs \
   --smart2Inheritance \
   --createEnumTabs \
-  --createBasketCol \
   --modeldir "$REPO_ROOT/docs/getting-started/models" \
   --models GsAdvancedModel \
   --dbschema gs_advanced \
@@ -352,7 +354,6 @@ run_ili2pg \
   --strokeArcs \
   --smart2Inheritance \
   --createEnumTabs \
-  --createBasketCol \
   --modeldir "$REPO_ROOT/docs/getting-started/models" \
   --models GsAdvancedModel \
   --dbschema gs_advanced \

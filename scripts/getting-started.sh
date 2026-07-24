@@ -210,7 +210,6 @@ import_schema_and_data() {
         --strokeArcs \
         --smart2Inheritance \
         --createEnumTabs \
-        --createBasketCol \
         --modeldir "$REPO_ROOT/docs/getting-started/models" \
         --models "$MODEL_NAME" \
         --dbschema "$DB_SCHEMA" \
@@ -229,7 +228,6 @@ import_schema_and_data() {
         --strokeArcs \
         --smart2Inheritance \
         --createEnumTabs \
-        --createBasketCol \
         --modeldir "$REPO_ROOT/docs/getting-started/models" \
         --models "$MODEL_NAME" \
         --dbschema "$DB_SCHEMA" \

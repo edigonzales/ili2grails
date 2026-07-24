@@ -63,6 +63,11 @@ Der komplette Ablauf kann direkt automatisiert werden:
 ./scripts/getting-started.sh simple
 ```
 
+Das Getting-Started-Beispiel erzeugt bewusst keine technischen Basket-Spalten,
+damit die generierte CRUD-App ohne Basket-Kontext neue Datensaetze speichern
+kann. Die Entscheidung und die manuellen ili2pg-Befehle sind im
+[vollstaendigen Tutorial](docs/getting-started.md) dokumentiert.
+
 Mit `advanced` wird das Advanced-Modell verwendet; fuer einen bewussten
 Neuaufbau steht `--reset` zur Verfuegung. Der ili2pg-Pfad kann ueber
 `ILI2PG_HOME` ueberschrieben werden.
