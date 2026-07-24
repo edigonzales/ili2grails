@@ -536,10 +536,21 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     protected Map<String, Object> formModel(T instance, Map sourceParams = params) {
-        Map<String, Object> model = InterlisFormSupport.formViewModel(uiDescriptor())
+        Map<String, Object> descriptor = uiDescriptor()
+        Map<String, Object> model = InterlisFormSupport.formViewModel(descriptor)
         model.putAll(geometryModel(instance, sourceParams))
         model.putAll(relationshipModel(instance, sourceParams))
         model.put("fieldMeta", fieldMeta())
+        model.put(
+            "workspaceDisplayLabel",
+            InterlisWorkspaceSupport.displayLabel(
+                grailsApplication,
+                instance,
+                descriptor?.list?.displayFields instanceof Collection
+                    ? descriptor.list.displayFields as Collection<String>
+                    : []
+            )
+        )
         return model
     }
 
@@ -812,7 +823,7 @@ abstract class InterlisCrudControllerSupport<T> {
     }
 
     protected String renderFieldValue(Object value) {
-        return InterlisWorkspaceSupport.renderValue(value)
+        return InterlisWorkspaceSupport.renderValue(grailsApplication, value)
     }
 
     protected Map<String, Object> relationshipModel(T instance, Map sourceParams = params) {
@@ -909,7 +920,7 @@ abstract class InterlisCrudControllerSupport<T> {
         }
         return [
             id: id,
-            label: InterlisRelationshipOptions.optionLabel(selected)
+            label: InterlisRelationshipOptions.optionLabel(grailsApplication, selected)
         ]
     }
 

@@ -611,12 +611,30 @@ ili2grails:
         list:
           columns: [id, name, year]
           searchFields: [name]
+          displayFields: [name]
           prominentFilters: [year]
         form:
           sections:
             - title: "Allgemein"
               fields: [name, year]
 ```
+
+`list.displayFields` definiert den fachlichen Anzeigenamen eines Datensatzes.
+Die Liste enthält ein oder zwei bekannte direkte skalare Felder; ihre nichtleeren
+Werte werden in der angegebenen Reihenfolge mit einem Leerzeichen verbunden.
+Beispielsweise erzeugt `displayFields: [firstname, lastname]` den Anzeigenamen
+`Ada Keller`. Beziehungen, Collections, Geometrien, `version` und unbekannte
+Felder werden abgelehnt. Ohne diese Konfiguration bleiben die automatisch aus
+`interlisDisplayMeta` abgeleiteten Display-Felder aktiv. Der bestehende Schlüssel
+`list.displayField` bleibt davon unabhängig und bestimmt weiterhin die verlinkte
+Spalte in der Liste.
+
+Der fachliche Anzeigename wird für Workspace-/Show-Titel, Relationship-Labels,
+Relationship-Auswahllisten sowie Show-/Edit-Breadcrumbs verwendet. Die Breadcrumbs
+lauten für eine Domain `Explorer > Employee`, beim Erfassen
+`Explorer > Employee > Erfassen`, beim Anzeigen beispielsweise
+`Explorer > Employee > Ada Keller` und beim Bearbeiten
+`Explorer > Employee > Ada Keller > Bearbeiten`.
 
 #### Listenfilter: Platzierung und Eingabekomponenten
 

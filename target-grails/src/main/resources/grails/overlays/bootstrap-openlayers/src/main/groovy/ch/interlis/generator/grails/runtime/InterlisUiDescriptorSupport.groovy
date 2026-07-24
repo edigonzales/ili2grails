@@ -66,6 +66,7 @@ final class InterlisUiDescriptorSupport {
             sortableColumns = ["id"] + sortableColumns
         }
         String displayField = configuredDisplayField(listConfig, columns, properties, iliName)
+        List<String> displayFields = configuredDisplayFields(listConfig, domainType, properties, iliName)
         List<String> prominentFilters = configuredList(
             listConfig, "prominentFilters", defaultProminentFilters,
             filters.keySet() as Set<String>, iliName, "list.prominentFilters"
@@ -91,6 +92,7 @@ final class InterlisUiDescriptorSupport {
                 searchDefinitions: searchDefinitions,
                 sortableColumns  : sortableColumns,
                 displayField     : displayField,
+                displayFields    : displayFields,
                 prominentFilters : prominentFilters,
                 filters          : filters
             ],
@@ -100,6 +102,24 @@ final class InterlisUiDescriptorSupport {
             relationships: staticDomainMap(domainType, "interlisRelationshipMeta"),
             geometry    : staticDomainMap(domainType, "geometryMeta")
         ]
+    }
+
+    static List<String> displayFieldsFor(def grailsApplication, Class domainType) {
+        if (domainType == null) {
+            return []
+        }
+        Map<String, Object> registryEntry = InterlisUiRegistry.domainForClassName(domainType.name)
+        if (registryEntry == null) {
+            return []
+        }
+        String iliName = registryEntry.iliName?.toString()
+        Map<String, Object> configuredDomain = configuredDomain(grailsApplication, iliName)
+        return configuredDisplayFields(
+            asMap(configuredDomain.list),
+            domainType,
+            propertyDescriptors(grailsApplication, domainType),
+            iliName
+        )
     }
 
     static String appTitle(def grailsApplication) {
@@ -426,6 +446,43 @@ final class InterlisUiDescriptorSupport {
             )
         }
         return candidate
+    }
+
+    private static List<String> configuredDisplayFields(Map<String, Object> config,
+                                                        Class domainType,
+                                                        List<Map<String, Object>> properties,
+                                                        String iliName) {
+        if (config == null || !config.containsKey("displayFields")) {
+            return displayFields(domainType, properties)
+        }
+        List<String> configured = normalizeList(config.displayFields).collect { it.toString() }
+        if (configured.isEmpty() || configured.size() > 2) {
+            throw new IllegalArgumentException(
+                "list.displayFields for iliName '${iliName}' must contain one or two fields"
+            )
+        }
+        Set<String> knownFields = properties.collect { it.name as String } as LinkedHashSet<String>
+        knownFields.add("id")
+        configured.each { String field ->
+            if (!knownFields.contains(field)) {
+                invalidField(iliName, field, "list.displayFields")
+            }
+            if (field == "version") {
+                throw new IllegalArgumentException(
+                    "Display field '${field}' for iliName '${iliName}' is not a valid scalar field"
+                )
+            }
+            if (field == "id") {
+                return
+            }
+            Map<String, Object> property = properties.find { it.name == field }
+            if (property == null || !compactScalar(property)) {
+                throw new IllegalArgumentException(
+                    "Display field '${field}' for iliName '${iliName}' must be a direct scalar field"
+                )
+            }
+        }
+        return configured.unique()
     }
 
     private static Map<String, Map<String, Object>> configuredFilterOverrides(Map<String, Object> config,

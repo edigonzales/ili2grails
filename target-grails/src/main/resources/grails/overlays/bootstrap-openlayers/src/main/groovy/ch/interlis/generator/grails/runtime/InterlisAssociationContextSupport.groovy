@@ -48,7 +48,7 @@ final class InterlisAssociationContextSupport {
                     "Owner ${participantType.simpleName}(id=${ownerIdStr}) not found for context ${contextId}")
         }
 
-        return buildContextState(context, association, owner)
+        return buildContextState(grailsApplication, context, association, owner)
     }
 
     static Map<String, Object> prepareEditContext(def grailsApplication,
@@ -88,7 +88,7 @@ final class InterlisAssociationContextSupport {
 
         verifyOwnership(associationInstance, context, owner)
 
-        return buildContextState(context, association, owner)
+        return buildContextState(grailsApplication, context, association, owner)
     }
 
     static void applyFixedRole(Object associationInstance, Map<String, Object> contextState) {
@@ -231,11 +231,12 @@ final class InterlisAssociationContextSupport {
         }
     }
 
-    private static Map<String, Object> buildContextState(Map<String, Object> context,
+    private static Map<String, Object> buildContextState(def grailsApplication,
+                                                          Map<String, Object> context,
                                                           Map<String, Object> association,
                                                           Object owner) {
         String ownerLabel = owner != null
-                ? InterlisRelationshipOptions.optionLabel(owner)
+                ? InterlisRelationshipOptions.optionLabel(grailsApplication, owner)
                 : "?"
         return [
                 contextId              : context.id,

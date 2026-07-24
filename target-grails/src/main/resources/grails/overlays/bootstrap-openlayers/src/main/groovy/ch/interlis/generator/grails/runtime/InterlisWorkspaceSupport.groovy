@@ -33,22 +33,55 @@ final class InterlisWorkspaceSupport {
         }
 
         return [
-            workspaceDisplayLabel      : displayLabel(instance),
+            workspaceDisplayLabel      : displayLabel(
+                grailsApplication,
+                instance,
+                descriptor?.list?.displayFields instanceof Collection
+                    ? descriptor.list.displayFields as Collection<String>
+                    : []
+            ),
             workspaceDomainLabel       : descriptor?.label?.toString() ?: domainType?.simpleName,
             workspaceDetailSections    : detailSections(grailsApplication, instance, descriptor),
-            workspaceRelationshipLinks : relationshipLinks(instance, descriptor)
+            workspaceRelationshipLinks : relationshipLinks(grailsApplication, instance, descriptor)
         ]
     }
 
     static String displayLabel(Object value) {
+        return displayLabel(null, value, [])
+    }
+
+    static String displayLabel(def grailsApplication, Object value) {
+        return displayLabel(grailsApplication, value, [])
+    }
+
+    static String displayLabel(def grailsApplication,
+                               Object value,
+                               Collection<String> displayFields) {
         if (value == null) {
             return ""
         }
-        String label = InterlisRelationshipOptions.optionLabel(value)
-        return label == null || label.isBlank() ? value.id?.toString() ?: value.toString() : label
+        String label
+        if (displayFields) {
+            label = hasConfiguredDisplayValue(value, displayFields)
+                ? InterlisRelationshipOptions.optionLabel(value, displayFields)
+                : null
+        } else {
+            label = grailsApplication != null
+                ? InterlisRelationshipOptions.displayLabel(grailsApplication, value)
+                : InterlisRelationshipOptions.displayLabel(value)
+        }
+        if (label != null && !label.isBlank()) {
+            return label
+        }
+        Object id = readProperty(value, "id")
+        return id == null ? "" : "#${id}"
     }
 
     static String renderValue(Object value) {
+        return renderValue(null, value)
+    }
+
+    static String renderValue(def grailsApplication, Object value) {
         if (value == null) {
             return ""
         }
@@ -62,14 +95,16 @@ final class InterlisWorkspaceSupport {
             return value.format("yyyy-MM-dd HH:mm:ss")
         }
         if (value instanceof Collection) {
-            return ((Collection) value).collect { Object item -> renderValue(item) }
+            return ((Collection) value).collect { Object item -> renderValue(grailsApplication, item) }
                 .findAll { String item -> item != null && !item.isBlank() }
                 .join(", ")
         }
         if (value instanceof Geometry) {
             return value.geometryType
         }
-        String relationshipLabel = InterlisRelationshipOptions.displayLabel(value)
+        String relationshipLabel = grailsApplication != null
+            ? InterlisRelationshipOptions.displayLabel(grailsApplication, value)
+            : InterlisRelationshipOptions.displayLabel(value)
         if (relationshipLabel != null) {
             return relationshipLabel
         }
@@ -136,7 +171,7 @@ final class InterlisWorkspaceSupport {
                 [
                     name : fieldName,
                     label: fieldLabel(descriptor, fieldName),
-                    value: renderValue(value)
+                    value: renderValue(grailsApplication, value)
                 ]
             }
             [title: section.title?.toString() ?: localizedMessage(
@@ -160,7 +195,8 @@ final class InterlisWorkspaceSupport {
         }
     }
 
-    private static List<Map<String, Object>> relationshipLinks(Object instance,
+    private static List<Map<String, Object>> relationshipLinks(def grailsApplication,
+                                                                Object instance,
                                                                 Map<String, Object> descriptor) {
         Map<String, Object> relationshipMeta = descriptor?.relationships instanceof Map
             ? descriptor.relationships as Map<String, Object>
@@ -190,7 +226,7 @@ final class InterlisWorkspaceSupport {
             [
                 name       : fieldName,
                 label      : meta.label?.toString() ?: humanize(fieldName),
-                valueLabel : InterlisRelationshipOptions.optionLabel(target),
+                valueLabel : InterlisRelationshipOptions.optionLabel(grailsApplication, target),
                 id         : targetId,
                 controller : registryEntry?.controller?.toString(),
                 empty      : false
@@ -236,6 +272,13 @@ final class InterlisWorkspaceSupport {
             return value."${propertyName}"
         } catch (Exception ignored) {
             return null
+        }
+    }
+
+    private static boolean hasConfiguredDisplayValue(Object value, Collection<String> displayFields) {
+        return (displayFields ?: []).any { String fieldName ->
+            Object fieldValue = readProperty(value, fieldName)
+            fieldValue != null && !fieldValue.toString().isBlank()
         }
     }
 

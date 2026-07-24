@@ -29,6 +29,9 @@
 <g:set var="explorerUrl" value="${createLink(controller: 'interlisUi', action: 'index')}"/>
 <g:set var="currentNavigationEntry"
        value="${navigationModel?.allEntries?.find { it.controller == params.controller }}"/>
+<g:set var="breadcrumbAction" value="${params.action ?: 'index'}"/>
+<g:set var="breadcrumbRecordLabel"
+       value="${workspaceDisplayLabel ?: (params.id ? '#' + params.id : currentNavigationEntry?.label)}"/>
 
 <header class="navbar bg-body border-bottom sticky-top ili-topbar" data-ili-topbar>
     <div class="container-fluid gap-2">
@@ -126,8 +129,34 @@
                     <ili:icon name="house" cssClass="me-1"/><g:message code="ili2grails.shell.explorer" default="Explorer"/>
                 </a>
                 <g:if test="${currentNavigationEntry}">
-                    <ili:icon name="chevron-right" cssClass="ili-breadcrumb-separator"/>
-                    <span aria-current="page">${currentNavigationEntry.label}</span>
+                    <g:if test="${breadcrumbAction == 'create'}">
+                        <ili:icon name="chevron-right" cssClass="ili-breadcrumb-separator"/>
+                        <g:link controller="${currentNavigationEntry.controller}" action="index">${currentNavigationEntry.label}</g:link>
+                        <ili:icon name="chevron-right" cssClass="ili-breadcrumb-separator"/>
+                        <span aria-current="page"><g:message code="ili2grails.action.create" default="Erfassen"/></span>
+                    </g:if>
+                    <g:elseif test="${breadcrumbAction == 'show'}">
+                        <ili:icon name="chevron-right" cssClass="ili-breadcrumb-separator"/>
+                        <g:link controller="${currentNavigationEntry.controller}" action="index">${currentNavigationEntry.label}</g:link>
+                        <ili:icon name="chevron-right" cssClass="ili-breadcrumb-separator"/>
+                        <span aria-current="page">${breadcrumbRecordLabel}</span>
+                    </g:elseif>
+                    <g:elseif test="${breadcrumbAction == 'edit'}">
+                        <ili:icon name="chevron-right" cssClass="ili-breadcrumb-separator"/>
+                        <g:link controller="${currentNavigationEntry.controller}" action="index">${currentNavigationEntry.label}</g:link>
+                        <ili:icon name="chevron-right" cssClass="ili-breadcrumb-separator"/>
+                        <g:link controller="${currentNavigationEntry.controller}" action="show" id="${params.id}">${breadcrumbRecordLabel}</g:link>
+                        <ili:icon name="chevron-right" cssClass="ili-breadcrumb-separator"/>
+                        <span aria-current="page"><g:message code="ili2grails.action.edit" default="Bearbeiten"/></span>
+                    </g:elseif>
+                    <g:elseif test="${breadcrumbAction == 'index'}">
+                        <ili:icon name="chevron-right" cssClass="ili-breadcrumb-separator"/>
+                        <span aria-current="page">${currentNavigationEntry.label}</span>
+                    </g:elseif>
+                    <g:else>
+                        <ili:icon name="chevron-right" cssClass="ili-breadcrumb-separator"/>
+                        <span aria-current="page">${currentNavigationEntry.label}</span>
+                    </g:else>
                 </g:if>
             </nav>
             <g:layoutBody/>

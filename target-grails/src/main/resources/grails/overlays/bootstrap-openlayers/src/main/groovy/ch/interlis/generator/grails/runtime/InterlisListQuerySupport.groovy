@@ -389,7 +389,7 @@ final class InterlisListQuerySupport {
             Class targetType = definition.targetType as Class
             Object selected = targetType?.get(selectedId as Long)
             if (selected != null) {
-                results = [[id: selected.id.toString(), label: InterlisRelationshipOptions.optionLabel(selected)]] + results
+                results = [[id: selected.id.toString(), label: InterlisRelationshipOptions.optionLabel(grailsApplication, selected)]] + results
             }
         }
         return [results: results, pagination: page.pagination]

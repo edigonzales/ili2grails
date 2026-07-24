@@ -278,7 +278,7 @@ class GrailsTemplateOverlayInstallerTest {
         String deMessages = Files.readString(projectDir.resolve("grails-app/i18n/messages_de_CH.properties"));
         assertThat(deMessages)
             .contains("ili2grails.action.save=Speichern", "ili2grails.form.createTitle={0} erfassen",
-                "ili2grails.list.removeFilter=Filter entfernen")
+                "ili2grails.list.removeFilter=Filter entfernen", "ili2grails.action.create=Erfassen")
             .doesNotContain("ili2grails.list.noResults=", "ili2grails.list.noResultsDescription=", "ili2grails.list.reset=",
                 "ili2grails.list.active=");
         String editTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/edit.gsp"));
@@ -368,6 +368,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(layoutTemplate).doesNotContain("ili-carbon-wc-bundle.js");
         assertThat(layoutTemplate).doesNotContain("<bx-header");
         assertThat(layoutTemplate).contains("InterlisNavigationSupport.navigationModel");
+        assertThat(layoutTemplate)
+            .contains("breadcrumbAction", "breadcrumbRecordLabel", "ili2grails.action.create",
+                "aria-current=\"page\"", "action=\"show\" id=\"${params.id}\"", "g:elseif")
+            .doesNotContain("g:choose", "g:when", "g:otherwise");
         assertThat(layoutTemplate).contains("data-ili-domain-finder-form");
         assertThat(layoutTemplate)
             .contains("role=\"combobox\"", "aria-autocomplete=\"list\"", "ili-domain-search-row",
@@ -421,9 +425,31 @@ class GrailsTemplateOverlayInstallerTest {
 
         String uiDescriptorSupport = Files.readString(projectDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy"));
-        assertThat(uiDescriptorSupport).contains("static Map<String, Object> descriptor");
+        assertThat(uiDescriptorSupport)
+            .contains("static Map<String, Object> descriptor", "displayFieldsFor", "list.displayFields");
         assertThat(uiDescriptorSupport).contains("Unknown field");
         assertThat(uiDescriptorSupport).contains("detailSections", "scalarDetailProperty");
+        String relationshipDisplayOptions = Files.readString(projectDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"));
+        assertThat(relationshipDisplayOptions).contains("optionLabel(def grailsApplication, Object value)",
+            "InterlisUiDescriptorSupport.displayFieldsFor");
+        String workspaceSupport = Files.readString(projectDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy"));
+        assertThat(workspaceSupport).contains("workspaceDisplayLabel", "displayFields", "#${id}");
+        String crudControllerSupport = Files.readString(projectDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy"));
+        assertThat(crudControllerSupport).contains(
+            "InterlisWorkspaceSupport.renderValue(grailsApplication, value)",
+            "InterlisRelationshipOptions.optionLabel(grailsApplication, selected)");
+        String listQuerySupport = Files.readString(projectDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisListQuerySupport.groovy"));
+        assertThat(listQuerySupport).contains("optionLabel(grailsApplication, selected)");
+        String associationQueryService = Files.readString(projectDir.resolve(
+            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy"));
+        assertThat(associationQueryService).contains("optionLabel(grailsApplication, target)");
+        String associationContextSupport = Files.readString(projectDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy"));
+        assertThat(associationContextSupport).contains("optionLabel(grailsApplication, owner)");
 
         String uiController = Files.readString(projectDir.resolve(
             "grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy"));
@@ -508,6 +534,11 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(stylesheet).doesNotContain("#dc3545", "#fff1f1", "#212529")
             .contains("var(--bs-danger");
         assertThat(stylesheet).contains(".ili-field-help-panel");
+        assertThat(stylesheet).contains(".ili-native-form-host .ili-form-field > .ili-native-grid");
+        int nativeFormFieldStart = stylesheet.indexOf(".ili-native-form-host .ili-form-field > .ili-native-grid");
+        int nativeFormFieldEnd = stylesheet.indexOf('}', nativeFormFieldStart);
+        assertThat(stylesheet.substring(nativeFormFieldStart, nativeFormFieldEnd))
+            .contains("gap: 0.25rem");
         assertThat(stylesheet).contains(".ili-relationship-results");
         assertThat(stylesheet).contains(".ili-association-quick-form");
         assertThat(stylesheet).contains("prefers-reduced-motion");
@@ -728,7 +759,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(merged).contains("ili2grails.pagination.pageSize=Rows per page");
         assertThat(merged).contains("ili2grails.list.searchPlaceholder=Search for {0} ...");
         assertThat(merged).contains("ili2grails.action.save=Save", "ili2grails.form.createTitle=Create {0}",
-            "ili2grails.list.removeFilter=Remove filter");
+            "ili2grails.list.removeFilter=Remove filter", "ili2grails.action.create=Create");
         assertThat(merged).doesNotContain("ili2grails.list.noResults=", "ili2grails.list.noResultsDescription=",
             "ili2grails.list.reset=", "ili2grails.list.active=");
         assertThat(merged).doesNotContain("ili2grails.pagination.pageSize=Zeilen pro Seite");

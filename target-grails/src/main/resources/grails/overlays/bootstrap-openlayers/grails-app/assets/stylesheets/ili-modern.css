@@ -771,13 +771,18 @@ body {
 }
 
 .ili-native-form-host fieldset.form > .ili-native-grid,
+.ili-native-form-host .ili-form-field > .ili-native-grid {
+    display: grid;
+    gap: 0.25rem;
+    margin-bottom: 0 !important;
+}
+
 .ili-native-form-host fieldset.form > .ili-relationship-fields {
     display: grid;
     gap: 1rem;
     margin-bottom: 0 !important;
 }
 
-.ili-native-form-host fieldset.form > .ili-native-grid,
 .ili-field-row {
     display: grid;
     gap: 0.35rem;

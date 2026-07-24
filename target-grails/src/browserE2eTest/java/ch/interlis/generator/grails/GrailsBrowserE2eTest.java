@@ -1015,6 +1015,24 @@ class GrailsBrowserE2eTest {
 
     private void createPerson(Page page, String baseUrl) {
         openCreateForm(page, baseUrl, "Person");
+        assertThat(page.locator("#field-firstname > .ili-native-grid").count())
+            .as("required FirstName field wrapper")
+            .isEqualTo(1);
+        assertThat(page.locator("#field-email > .ili-native-grid").count())
+            .as("optional Email field wrapper")
+            .isEqualTo(1);
+        String firstNameRowGap = (String) page.locator("#field-firstname > .ili-native-grid")
+            .evaluate("element => getComputedStyle(element).rowGap");
+        String emailRowGap = (String) page.locator("#field-email > .ili-native-grid")
+            .evaluate("element => getComputedStyle(element).rowGap");
+        String quarterRem = (String) page.evaluate("""
+            () => {
+              const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+              return (rootFontSize * 0.25) + 'px';
+            }
+            """);
+        assertThat(firstNameRowGap).as("FirstName label/control gap").isEqualTo(quarterRem);
+        assertThat(emailRowGap).as("Email label/control gap").isEqualTo(firstNameRowGap);
         fillVisibleControls(page, "Person E2E");
         if (page.locator(".js-relationship-search").count() > 0) {
             assertThat(page.locator(".js-relationship-search").first().getAttribute("role"))

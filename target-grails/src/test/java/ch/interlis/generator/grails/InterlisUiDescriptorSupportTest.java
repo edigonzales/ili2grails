@@ -54,6 +54,8 @@ class InterlisUiDescriptorSupportTest {
             .isEqualTo(List.of("id", "name", "description", "year", "active", "status"));
         assertThat(defaultList.get("searchFields"))
             .isEqualTo(List.of("name", "description"));
+        assertThat(defaultList.get("displayFields"))
+            .isEqualTo(List.of("name"));
         assertThat(defaultList.get("prominentFilters"))
             .isEqualTo(List.of());
         assertThat(map(defaults.get("form")).get("sections").toString())
@@ -305,6 +307,7 @@ class InterlisUiDescriptorSupportTest {
             "searchFields", List.of("municipality.name"),
             "sortableColumns", List.of("year", "status"),
             "displayField", "name",
+            "displayFields", List.of("name", "description"),
             "filters", Map.of("status", Map.of("label", "Bearbeitungsstatus"))
         ));
         Map<String, Object> configured = invokeDescriptor(runtime, Map.of(
@@ -313,6 +316,7 @@ class InterlisUiDescriptorSupportTest {
 
         Map<String, Object> list = map(configured.get("list"));
         assertThat(list.get("displayField")).isEqualTo("name");
+        assertThat(list.get("displayFields")).isEqualTo(List.of("name", "description"));
         assertThat(list.get("sortableColumns")).isEqualTo(List.of("id", "year", "status"));
         assertThat(list.get("searchFields")).isEqualTo(List.of("municipality.name"));
         assertThat(list.get("searchDefinitions").toString()).contains("municipalitySearch.name");
@@ -341,6 +345,43 @@ class InterlisUiDescriptorSupportTest {
     }
 
     @Test
+    void rejectsInvalidDisplayFieldConfiguration() throws Exception {
+        GeneratedRuntime runtime = generatedRuntime();
+
+        Map<String, Object> unknownFieldDomain = new LinkedHashMap<>();
+        unknownFieldDomain.put("iliName", "UiModel.Topic.Address");
+        unknownFieldDomain.put("list", Map.of("displayFields", List.of("missingField")));
+        InvocationTargetException unknownField = invocationFailure(runtime, Map.of(
+            "config", Map.of("ili2grails", Map.of("ui", Map.of("domains", List.of(unknownFieldDomain))))
+        ));
+        assertThat(unknownField.getCause())
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("missingField")
+            .hasMessageContaining("list.displayFields");
+
+        Map<String, Object> relationshipFieldDomain = new LinkedHashMap<>();
+        relationshipFieldDomain.put("iliName", "UiModel.Topic.Address");
+        relationshipFieldDomain.put("list", Map.of("displayFields", List.of("municipality")));
+        InvocationTargetException relationshipField = invocationFailure(runtime, Map.of(
+            "config", Map.of("ili2grails", Map.of("ui", Map.of("domains", List.of(relationshipFieldDomain))))
+        ));
+        assertThat(relationshipField.getCause())
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("municipality")
+            .hasMessageContaining("direct scalar field");
+
+        Map<String, Object> tooManyFieldsDomain = new LinkedHashMap<>();
+        tooManyFieldsDomain.put("iliName", "UiModel.Topic.Address");
+        tooManyFieldsDomain.put("list", Map.of("displayFields", List.of("name", "description", "year")));
+        InvocationTargetException tooManyFields = invocationFailure(runtime, Map.of(
+            "config", Map.of("ili2grails", Map.of("ui", Map.of("domains", List.of(tooManyFieldsDomain))))
+        ));
+        assertThat(tooManyFields.getCause())
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("one or two fields");
+    }
+
+    @Test
     void workspaceUsesDisplayLabelAndIdFallback() throws Exception {
         GeneratedRuntime runtime = generatedRuntime();
         Object address = runtime.domainType.getDeclaredConstructor().newInstance();
@@ -353,7 +394,7 @@ class InterlisUiDescriptorSupportTest {
         Class<?> municipalityType = runtime.classLoader.loadClass("com.example.ui.Municipality");
         Object municipality = municipalityType.getDeclaredConstructor().newInstance();
         municipalityType.getMethod("setId", Long.class).invoke(municipality, 42L);
-        assertThat(displayLabel.invoke(null, municipality)).isEqualTo("42");
+        assertThat(displayLabel.invoke(null, municipality)).isEqualTo("#42");
     }
 
     @Test
@@ -370,12 +411,20 @@ class InterlisUiDescriptorSupportTest {
         municipalityType.getMethod("setName", String.class).invoke(municipality, "Bern");
         runtime.domainType.getMethod("setMunicipality", municipalityType).invoke(address, municipality);
 
-        Map<String, Object> descriptor = invokeDescriptor(runtime, Map.of("config", Map.of()));
+        Map<String, Object> descriptor = invokeDescriptor(runtime, Map.of(
+            "config", Map.of("ili2grails", Map.of("ui", Map.of(
+                "domains", List.of(Map.of(
+                    "iliName", "UiModel.Topic.Address",
+                    "list", Map.of("displayFields", List.of("name", "description"))
+                ))
+            )))
+        ));
         Method showModel = runtime.workspaceType.getMethod(
             "showModel", Object.class, Class.class, Object.class, Map.class
         );
         Map<String, Object> model = map(showModel.invoke(null, Map.of(), runtime.domainType, address, descriptor));
 
+        assertThat(model.get("workspaceDisplayLabel")).isEqualTo("Bahnhofstrasse Zentrum");
         String detailText = model.get("workspaceDetailSections").toString();
         assertThat(detailText)
             .contains("name", "description")
@@ -426,8 +475,8 @@ class InterlisUiDescriptorSupportTest {
         assertThat(Files.readString(registrySource))
             .contains("domainClassName: 'com.example.ui.Municipality'");
         classLoader.parseClass(Files.readString(TABLE_MODEL_SOURCE), "InterlisTableModel.groovy");
-        classLoader.parseClass(Files.readString(RELATIONSHIP_OPTIONS_SOURCE), "InterlisRelationshipOptions.groovy");
         Class<?> supportType = classLoader.parseClass(Files.readString(RUNTIME_SOURCE), "InterlisUiDescriptorSupport.groovy");
+        classLoader.parseClass(Files.readString(RELATIONSHIP_OPTIONS_SOURCE), "InterlisRelationshipOptions.groovy");
         Class<?> workspaceType = classLoader.parseClass(Files.readString(WORKSPACE_SOURCE), "InterlisWorkspaceSupport.groovy");
         return new GeneratedRuntime(supportType, domainType, municipalityType, workspaceType, classLoader);
     }

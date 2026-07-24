@@ -117,7 +117,7 @@ class InterlisAssociationQueryService {
                     role: roleDesc.name,
                     property: property,
                     id: target.id?.toString(),
-                    label: InterlisRelationshipOptions.optionLabel(target),
+                    label: InterlisRelationshipOptions.optionLabel(grailsApplication, target),
                     controller: targetController
                 ])
             }
@@ -284,7 +284,7 @@ class InterlisAssociationQueryService {
             String property = roleDesc.property
             try {
                 Object target = associationInstance."${property}"
-                String label = target != null ? InterlisRelationshipOptions.optionLabel(target) : null
+                String label = target != null ? InterlisRelationshipOptions.optionLabel(grailsApplication, target) : null
                 if (label != null && !label.isBlank()) {
                     parts.add(label)
                 }

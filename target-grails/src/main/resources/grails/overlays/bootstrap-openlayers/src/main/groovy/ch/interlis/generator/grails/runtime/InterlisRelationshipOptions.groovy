@@ -135,23 +135,39 @@ final class InterlisRelationshipOptions {
         if (value == null || value instanceof CharSequence || value instanceof Number || value instanceof Boolean) {
             return null
         }
-        if (readDisplayProperty(value, "id") == null
-            && readDisplayProperty(value, "name") == null
-            && readDisplayProperty(value, "bezeichnung") == null
-            && readDisplayProperty(value, "label") == null
-            && readDisplayProperty(value, "title") == null
-            && readDisplayProperty(value, "code") == null
-            && readDisplayProperty(value, "ident") == null) {
+        List<String> displayFields = displayFieldsFor(value.getClass())
+        if (!hasDisplayValue(value, displayFields, true)) {
             return null
         }
-        return optionLabel(value, displayFieldsFor(value.getClass()))
+        return buildOptionLabel(value, displayFields, true)
+    }
+
+    static String displayLabel(def grailsApplication, Object value) {
+        if (value == null || value instanceof CharSequence || value instanceof Number || value instanceof Boolean) {
+            return null
+        }
+        List<String> displayFields = displayFieldsFor(grailsApplication, value.getClass())
+        if (!hasDisplayValue(value, displayFields, false)) {
+            return null
+        }
+        return buildOptionLabel(value, displayFields, false)
     }
 
     static String optionLabel(Object value) {
-        return optionLabel(value, displayFieldsFor(value?.getClass()))
+        return buildOptionLabel(value, displayFieldsFor(value?.getClass()), true)
+    }
+
+    static String optionLabel(def grailsApplication, Object value) {
+        return buildOptionLabel(value, displayFieldsFor(grailsApplication, value?.getClass()), false)
     }
 
     static String optionLabel(Object value, Collection<String> displayFields) {
+        return buildOptionLabel(value, displayFields, false)
+    }
+
+    private static String buildOptionLabel(Object value,
+                                           Collection<String> displayFields,
+                                           boolean fallbackToPreferredFields) {
         if (value == null) {
             return ""
         }
@@ -163,19 +179,38 @@ final class InterlisRelationshipOptions {
             }
         }
         if (!parts.isEmpty()) {
-            return parts.join(" - ")
+            return parts.join(" ")
         }
-        for (String propertyName : DISPLAY_FIELD_PREFERENCES) {
-            Object propertyValue = readDisplayProperty(value, propertyName)
-            if (propertyValue != null && !propertyValue.toString().isBlank()) {
-                return propertyValue.toString()
+        if (fallbackToPreferredFields) {
+            for (String propertyName : DISPLAY_FIELD_PREFERENCES) {
+                Object propertyValue = readDisplayProperty(value, propertyName)
+                if (propertyValue != null && !propertyValue.toString().isBlank()) {
+                    return propertyValue.toString()
+                }
             }
         }
         Object id = readDisplayProperty(value, "id")
         if (id != null) {
-            return id.toString()
+            return "#${id}"
         }
         return value.toString()
+    }
+
+    private static boolean hasDisplayValue(Object value,
+                                            Collection<String> displayFields,
+                                            boolean fallbackToPreferredFields) {
+        if (readDisplayProperty(value, "id") != null) {
+            return true
+        }
+        List<String> candidates = []
+        candidates.addAll(displayFields ?: [])
+        if (fallbackToPreferredFields) {
+            candidates.addAll(DISPLAY_FIELD_PREFERENCES)
+        }
+        return candidates.any { String field ->
+            Object fieldValue = readDisplayProperty(value, field)
+            fieldValue != null && !fieldValue.toString().isBlank()
+        }
     }
 
     private static boolean isEditableRelationshipProperty(def grailsApplication, def property, Set<String> excluded) {
@@ -195,6 +230,16 @@ final class InterlisRelationshipOptions {
     }
 
     private static List<String> displayFieldsFor(def grailsApplication, Class targetType) {
+        try {
+            List<String> configured = InterlisUiDescriptorSupport.displayFieldsFor(grailsApplication, targetType)
+            if (!configured.isEmpty()) {
+                return configured
+            }
+        } catch (IllegalArgumentException invalidConfiguration) {
+            throw invalidConfiguration
+        } catch (Exception ignored) {
+            // Fall back to generated metadata for relationship-only or partial runtimes.
+        }
         Map<String, Object> displayMeta = staticDomainMap(targetType, "interlisDisplayMeta") as Map<String, Object>
         List<String> configured = asStringList(displayMeta?.get("displayFields"))
         List<String> persistent = persistentPropertyNames(grailsApplication, targetType)
