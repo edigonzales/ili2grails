@@ -207,6 +207,15 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(indexTemplate)
             .contains("data-list-result-summary")
             .doesNotContain("default.list.label", "ili-list-result-summary text-secondary");
+
+        String listHeaderTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_list-header.gsp"));
+        assertThat(listHeaderTemplate)
+            .contains("<ili:icon name=\"plus-lg\" cssClass=\"me-1\"/>", "ili2grails.action.new")
+            .doesNotContain("default.new.label");
+        String listEmptyTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_list-empty.gsp"));
+        assertThat(listEmptyTemplate)
+            .contains("<ili:icon name=\"plus-lg\" cssClass=\"me-1\"/>", "ili2grails.action.new")
+            .doesNotContain("default.new.label");
         String overlayCss = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
         assertThat(overlayCss)
             .contains(".ili-list-result-summary", "font-size: 1rem;", "color: var(--bs-body-color);",
@@ -241,12 +250,19 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(formTemplate).contains("saveAndContinue");
         assertThat(formTemplate).contains("fieldMeta");
         assertThat(formTemplate).contains("ili-validation-summary");
+        assertThat(formTemplate)
+            .contains("<ili:icon name=\"list\" cssClass=\"me-1\"/>", "ili2grails.action.list",
+                "<ili:icon name=\"plus-lg\" cssClass=\"me-1\"/>", "ili2grails.action.new")
+            .doesNotContain("default.list.label", "default.new.label");
         assertThat(formTemplate).doesNotContain("js-carbon-bridge");
 
         String createTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/create.gsp"));
         assertThat(createTemplate)
-            .contains("pageSubtitle: message(")
-            .doesNotContain("pageSubtitle: \\${message");
+            .contains("ili2grails.form.createTitle", "pageTitleCode: 'ili2grails.form.createTitle'",
+                "submitCode: 'ili2grails.action.save'", "submitDefault: 'Speichern'", "pageSubtitle: message(")
+            .doesNotContain("default.create.label", "default.button.create.label", "pageSubtitle: \\${message");
+        String deMessages = Files.readString(projectDir.resolve("grails-app/i18n/messages_de_CH.properties"));
+        assertThat(deMessages).contains("ili2grails.action.save=Speichern", "ili2grails.form.createTitle={0} erfassen");
         String editTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/edit.gsp"));
         assertThat(editTemplate)
             .contains("pageSubtitle: message(")
@@ -437,6 +453,15 @@ class GrailsTemplateOverlayInstallerTest {
 
         String stylesheet = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
         assertThat(stylesheet).contains(".ili-list-tools");
+        int formActionsStart = stylesheet.indexOf(".ili-form-actions {");
+        int formActionsEnd = stylesheet.indexOf('}', formActionsStart);
+        assertThat(formActionsStart).isGreaterThanOrEqualTo(0);
+        assertThat(formActionsEnd).isGreaterThan(formActionsStart);
+        assertThat(stylesheet.substring(formActionsStart, formActionsEnd))
+            .contains("position: sticky", "background: transparent;", "border-top: 0;",
+                "box-shadow: none;", "backdrop-filter: none;")
+            .doesNotContain("var(--ili-neutral-surface)", "var(--bs-border-color)",
+                "var(--bs-box-shadow-sm)", "backdrop-filter: blur");
         assertThat(stylesheet).contains(
             "@font-face",
             "font-family: \"Fira Sans\"",
@@ -680,6 +705,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(merged).contains("custom.project.message=Keep me");
         assertThat(merged).contains("ili2grails.pagination.pageSize=Rows per page");
         assertThat(merged).contains("ili2grails.list.searchPlaceholder=Search for {0} ...");
+        assertThat(merged).contains("ili2grails.action.save=Save", "ili2grails.form.createTitle=Create {0}");
         assertThat(merged).doesNotContain("ili2grails.pagination.pageSize=Zeilen pro Seite");
         assertThat(Files.readString(projectDir.resolve("grails-app/conf/spring/resources.groovy")))
             .contains("Locale.forLanguageTag(\"en\")");

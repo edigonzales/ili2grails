@@ -969,6 +969,14 @@ Nicht konfigurierte editierbare Felder erscheinen automatisch in `Weitere Felder
 Collections, `id` und `version` bleiben ausserhalb dieser Sektionen im bestehenden Geometry-Panel
 beziehungsweise in den bestehenden Relationship-/Association-Komponenten.
 
+Die generischen CRUD-Aktionen verwenden kurze, kontextbezogene Beschriftungen: Neue Datensätze
+werden über `Neu` mit Plus-Icon gestartet, der Create-Titel lautet `{Domain} erfassen`, der
+Listen-Link zeigt Listen-Icon und `Liste`, und der primäre Create-Submit heisst `Speichern`.
+`Speichern und weiter` und `Abbrechen` bleiben unverändert. Die technische Domain-Bezeichnung
+selbst wird dadurch nicht verändert; ihre fachsprachliche Darstellung bleibt einer späteren
+separaten Lösung vorbehalten. Die sticky Aktionsleiste bleibt funktional erhalten, verwendet
+aber keine eigene Fläche, keinen Rahmen und keinen Schatten.
+
 Die feldnahe Metadatenanzeige verwendet INTERLIS-Dokumentation und Units aus `fieldMeta`.
 Message-Codes haben Vorrang vor den Metadaten-Fallback-Labels. Eine Validation-Summary verlinkt
 auf feldnahe Fehler; ungültige Controls erhalten `is-invalid`, `aria-invalid` und behalten bereits

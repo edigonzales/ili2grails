@@ -4,7 +4,7 @@
     </div>
     <div class="ili-page-actions">
         <g:link action="create" class="btn btn-primary">
-            <g:message code="default.new.label" args="\${[entityName]}" />
+            <ili:icon name="plus-lg" cssClass="me-1"/><g:message code="ili2grails.action.new" default="Neu"/>
         </g:link>
     </div>
 </section>

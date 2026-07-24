@@ -7,11 +7,11 @@
         <div class="ili-page-actions">
             <span class="badge text-bg-warning ili-unsaved-badge" hidden data-unsaved-badge role="status" aria-live="polite"><g:message code="ili2grails.form.unsaved" default="Ungespeicherte Änderungen"/></span>
             <g:link class="btn btn-outline-secondary" action="index" data-unsaved-nav="true">
-                <g:message code="default.list.label" args="\${[entityName]}" />
+                <ili:icon name="list" cssClass="me-1"/><g:message code="ili2grails.action.list" default="Liste"/>
             </g:link>
             <g:if test="\${mode == 'edit'}">
                 <g:link class="btn btn-outline-primary" action="create" data-unsaved-nav="true">
-                    <g:message code="default.new.label" args="\${[entityName]}" />
+                    <ili:icon name="plus-lg" cssClass="me-1"/><g:message code="ili2grails.action.new" default="Neu"/>
                 </g:link>
             </g:if>
         </div>
