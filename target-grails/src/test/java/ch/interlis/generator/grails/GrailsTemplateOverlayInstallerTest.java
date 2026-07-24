@@ -260,6 +260,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(formTemplate).contains("ili-split-layout");
         assertThat(formTemplate).contains("data-unsaved-badge");
         assertThat(formTemplate).contains("template=\"form-section\"");
+        assertThat(formTemplate).doesNotContain("ili-page-subtitle", "pageSubtitle");
         assertThat(formTemplate).contains("submitMode");
         assertThat(formTemplate).contains("saveAndContinue");
         assertThat(formTemplate).contains("fieldMeta");

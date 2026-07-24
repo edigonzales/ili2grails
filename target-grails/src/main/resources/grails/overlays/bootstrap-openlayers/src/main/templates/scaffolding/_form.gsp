@@ -2,7 +2,6 @@
     <section class="ili-page-header">
         <div>
             <h1 class="ili-page-title"><g:message code="\${pageTitleCode}" args="\${[entityName]}" /></h1>
-            <p class="ili-page-subtitle">\${pageSubtitle}</p>
         </div>
         <div class="ili-page-actions">
             <span class="badge text-bg-warning ili-unsaved-badge" hidden data-unsaved-badge role="status" aria-live="polite"><g:message code="ili2grails.form.unsaved" default="Ungespeicherte Änderungen"/></span>
