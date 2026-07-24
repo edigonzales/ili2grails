@@ -57,18 +57,23 @@
 
     <g:if test="\${activeFilterChips || listQuery?.q}">
         <div class="ili-active-filters" aria-label="\${message(code: 'ili2grails.list.activeFilters', default: 'Aktive Filter')}">
-            <span class="ili-active-filters-label"><g:message code="ili2grails.list.active" default="Aktiv:"/></span>
             <g:if test="\${listQuery?.q}">
-                <g:link action="index" params="\${ch.interlis.generator.grails.runtime.InterlisListQuerySupport.removeFilterParams(listQuery, '__none__') + [q: null, offset: 0]}"
-                        class="badge rounded-pill ili-active-filter-badge text-decoration-none">
-                    \${message(code: 'ili2grails.list.queryFilter', args: [listQuery.q], default: 'Suche: ' + listQuery.q)} <span aria-hidden="true">&times;</span>
-                </g:link>
+                <span class="badge rounded-pill ili-active-filter-badge">
+                    \${message(code: 'ili2grails.list.queryFilter', args: [listQuery.q], default: 'Suche: ' + listQuery.q)}
+                    <g:link action="index" params="\${ch.interlis.generator.grails.runtime.InterlisListQuerySupport.removeFilterParams(listQuery, '__none__') + [q: null, offset: 0]}"
+                            class="ili-active-filter-remove"
+                            aria-label="\${message(code: 'ili2grails.list.removeFilter', default: 'Filter entfernen')}"
+                            title="\${message(code: 'ili2grails.list.removeFilter', default: 'Filter entfernen')}"><span aria-hidden="true">&times;</span></g:link>
+                </span>
             </g:if>
             <g:each in="\${activeFilterChips ?: []}" var="chip">
-                <g:link action="index" params="\${chip.removeParams}"
-                        class="badge rounded-pill ili-active-filter-badge text-decoration-none">
-                    \${chip.label}: \${chip.value} <span aria-hidden="true">&times;</span>
-                </g:link>
+                <span class="badge rounded-pill ili-active-filter-badge">
+                    \${chip.label}: \${chip.value}
+                    <g:link action="index" params="\${chip.removeParams}"
+                            class="ili-active-filter-remove"
+                            aria-label="\${message(code: 'ili2grails.list.removeFilter', default: 'Filter entfernen')}"
+                            title="\${message(code: 'ili2grails.list.removeFilter', default: 'Filter entfernen')}"><span aria-hidden="true">&times;</span></g:link>
+                </span>
             </g:each>
             <g:link action="index" class="ili-data-link"><g:message code="ili2grails.list.resetFilters" default="Alle zurücksetzen"/></g:link>
         </div>

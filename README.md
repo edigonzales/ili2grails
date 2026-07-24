@@ -912,9 +912,13 @@ damit ein optionales Progressive Enhancement und keine Voraussetzung.
 
 Die managed GSP-Struktur besteht aus einem dünnen `index.gsp`-Orchestrator sowie
 Partials für Header, Suche/Quick-/Advanced-Filter, Filter-Chips, Tabelle, Pagination
-und die getrennten Empty States für leere Domains bzw. keine Treffer. Die Gestaltung
-folgt Mockup 02 strukturell mit Bootstrap-Standardsemantik, ohne neue Farbwelt,
-globale Counts, Collection-Fetches oder unpaginierten Relationship-Loads.
+und den Empty State für vollständig leere Domains. Bei aktiver Suche oder Filterung
+und `0 Treffer` wird nur die Trefferzahl angezeigt; eine zusätzliche Meldungs-Card
+wird nicht gerendert. Aktive Filter-Chips erscheinen ohne separates `Aktiv:`; der
+Chip selbst ist nicht klickbar, nur das `×` entfernt den einzelnen Filter. `Alle
+zurücksetzen` bleibt eine separate Aktion. Die Gestaltung folgt Mockup 02 strukturell mit Bootstrap-
+Standardsemantik, ohne neue Farbwelt, globale Counts, Collection-Fetches oder
+unpaginierten Relationship-Loads.
 
 ### Bootstrap Domain Workspace (Phase 3)
 

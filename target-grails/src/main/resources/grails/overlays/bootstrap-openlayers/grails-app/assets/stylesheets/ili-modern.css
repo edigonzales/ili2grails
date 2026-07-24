@@ -704,26 +704,40 @@ body {
     border-top: 1px solid var(--bs-border-color);
 }
 
-.ili-active-filters-label {
-    color: var(--bs-secondary-color);
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
 .ili-active-filter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 400;
     border: 1px solid var(--ili-neutral-border);
     background: var(--ili-neutral-header);
     color: var(--ili-neutral-emphasis);
 }
 
-.ili-active-filter-badge:hover,
-.ili-active-filter-badge:focus-visible {
-    background: var(--ili-neutral-hover);
-    color: var(--ili-neutral-emphasis);
+.ili-active-filter-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 -0.15rem 0 0.1rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    text-decoration: none;
 }
 
-.ili-active-filter-badge:focus-visible {
+.ili-active-filter-remove:hover {
+    background: var(--ili-neutral-hover);
+    color: var(--ili-neutral-emphasis);
+    text-decoration: none;
+}
+
+.ili-active-filter-remove:focus-visible {
     outline: none;
+    border-radius: var(--bs-border-radius-sm);
     box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
 }
 

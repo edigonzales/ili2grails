@@ -191,8 +191,15 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(listFiltersTemplate)
             .contains("ili-search-input-group", "ili-search-icon", "ili-search-input",
                 "ili2grails.list.filters", "aria-label=\"\\${message(code: 'ili2grails.list.search",
-                "ili2grails.list.searchSubmit", "ili-filter-panel\" \\${activeFilterChips ? 'open' : ''}")
+                "ili2grails.list.searchSubmit", "ili-filter-panel\" \\${activeFilterChips ? 'open' : ''}",
+                "<span class=\"badge rounded-pill ili-active-filter-badge\">",
+                "class=\"ili-active-filter-remove\"", "ili2grails.list.removeFilter",
+                "aria-label=\"\\${message(code: 'ili2grails.list.removeFilter'",
+                "title=\"\\${message(code: 'ili2grails.list.removeFilter'", "&times;")
             .doesNotContain("aria-labelledby=\"list-search-heading\"", "<label class=\"form-label\" for=\"list-search\">");
+        assertThat(listFiltersTemplate)
+            .doesNotContain("ili-active-filters-label", "code=\"ili2grails.list.active\"",
+                "class=\"badge rounded-pill ili-active-filter-badge text-decoration-none\"");
         assertThat(listFiltersTemplate)
             .doesNotContain("input-group-lg", "form-select-lg", "btn-lg", "name=\"max\"");
         String listTableTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_list-table.gsp"));
@@ -214,8 +221,10 @@ class GrailsTemplateOverlayInstallerTest {
             .doesNotContain("default.new.label");
         String listEmptyTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_list-empty.gsp"));
         assertThat(listEmptyTemplate)
-            .contains("<ili:icon name=\"plus-lg\" cssClass=\"me-1\"/>", "ili2grails.action.new")
-            .doesNotContain("default.new.label");
+            .contains("!hasActiveListQuery", "ili2grails.list.noData",
+                "<ili:icon name=\"plus-lg\" cssClass=\"me-1\"/>", "ili2grails.action.new")
+            .doesNotContain("domainHasRecords", "ili2grails.list.noResults",
+                "ili2grails.list.noResultsDescription", "ili2grails.list.reset", "default.new.label");
         String overlayCss = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
         assertThat(overlayCss)
             .contains(".ili-list-result-summary", "font-size: 1rem;", "color: var(--bs-body-color);",
@@ -232,7 +241,12 @@ class GrailsTemplateOverlayInstallerTest {
                 "rgba(var(--bs-danger-rgb), 0.65)",
                 ".ili-sidebar .offcanvas-header.ili-sidebar-header", "justify-content: flex-end",
                 "padding: 0", ".ili-sidebar .ili-sidebar-close", "width: 2.25rem", "height: 2.25rem",
-                "border: 0", "background: transparent", ".ili-sidebar .ili-sidebar-close:hover");
+                "border: 0", "background: transparent", ".ili-sidebar .ili-sidebar-close:hover",
+                ".ili-active-filter-badge", "font-size: 0.875rem;", "font-weight: 400;",
+                "display: inline-flex", ".ili-active-filter-remove", ".ili-active-filter-remove:hover",
+                ".ili-active-filter-remove:focus-visible")
+            .doesNotContain(".ili-active-filters-label", ".ili-active-filter-badge:hover",
+                ".ili-active-filter-badge:focus-visible");
 
         String sidebarTemplate = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_sidebar.gsp"));
         assertThat(sidebarTemplate).doesNotContain("ili2grails.shell.navigation\" default=\"Navigation")
@@ -262,7 +276,11 @@ class GrailsTemplateOverlayInstallerTest {
                 "submitCode: 'ili2grails.action.save'", "submitDefault: 'Speichern'", "pageSubtitle: message(")
             .doesNotContain("default.create.label", "default.button.create.label", "pageSubtitle: \\${message");
         String deMessages = Files.readString(projectDir.resolve("grails-app/i18n/messages_de_CH.properties"));
-        assertThat(deMessages).contains("ili2grails.action.save=Speichern", "ili2grails.form.createTitle={0} erfassen");
+        assertThat(deMessages)
+            .contains("ili2grails.action.save=Speichern", "ili2grails.form.createTitle={0} erfassen",
+                "ili2grails.list.removeFilter=Filter entfernen")
+            .doesNotContain("ili2grails.list.noResults=", "ili2grails.list.noResultsDescription=", "ili2grails.list.reset=",
+                "ili2grails.list.active=");
         String editTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/edit.gsp"));
         assertThat(editTemplate)
             .contains("pageSubtitle: message(")
@@ -578,8 +596,12 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(listHeader)
             .doesNotContain("ili-record-count-badge", "text-bg-secondary");
         assertThat(listFilters)
-            .contains("ili-active-filter-badge")
-            .doesNotContain("text-bg-light");
+            .contains("<span class=\"badge rounded-pill ili-active-filter-badge\">",
+                "class=\"ili-active-filter-remove\"", "ili2grails.list.removeFilter",
+                "aria-label=\"\\${message(code: 'ili2grails.list.removeFilter'",
+                "title=\"\\${message(code: 'ili2grails.list.removeFilter'", "&times;")
+            .doesNotContain("text-bg-light", "ili-active-filters-label", "code=\"ili2grails.list.active\"",
+                "class=\"badge rounded-pill ili-active-filter-badge text-decoration-none\"");
     }
 
     @Test
@@ -705,7 +727,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(merged).contains("custom.project.message=Keep me");
         assertThat(merged).contains("ili2grails.pagination.pageSize=Rows per page");
         assertThat(merged).contains("ili2grails.list.searchPlaceholder=Search for {0} ...");
-        assertThat(merged).contains("ili2grails.action.save=Save", "ili2grails.form.createTitle=Create {0}");
+        assertThat(merged).contains("ili2grails.action.save=Save", "ili2grails.form.createTitle=Create {0}",
+            "ili2grails.list.removeFilter=Remove filter");
+        assertThat(merged).doesNotContain("ili2grails.list.noResults=", "ili2grails.list.noResultsDescription=",
+            "ili2grails.list.reset=", "ili2grails.list.active=");
         assertThat(merged).doesNotContain("ili2grails.pagination.pageSize=Zeilen pro Seite");
         assertThat(Files.readString(projectDir.resolve("grails-app/conf/spring/resources.groovy")))
             .contains("Locale.forLanguageTag(\"en\")");
