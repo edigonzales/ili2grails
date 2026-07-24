@@ -502,9 +502,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(formActionsStart).isGreaterThanOrEqualTo(0);
         assertThat(formActionsEnd).isGreaterThan(formActionsStart);
         assertThat(stylesheet.substring(formActionsStart, formActionsEnd))
-            .contains("position: sticky", "background: transparent;", "border-top: 0;",
+            .contains("position: sticky", "background: var(--ili-neutral-surface);",
+                "padding: 1rem 0 calc(1rem + env(safe-area-inset-bottom));", "border-top: 0;",
                 "box-shadow: none;", "backdrop-filter: none;")
-            .doesNotContain("var(--ili-neutral-surface)", "var(--bs-border-color)",
+            .doesNotContain("background: transparent;", "var(--bs-border-color)",
                 "var(--bs-box-shadow-sm)", "backdrop-filter: blur");
         assertThat(stylesheet).contains(
             "@font-face",

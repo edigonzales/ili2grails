@@ -1002,7 +1002,7 @@ body {
     flex-wrap: wrap;
     margin-top: 0.5rem;
     padding: 1rem 0 calc(1rem + env(safe-area-inset-bottom));
-    background: transparent;
+    background: var(--ili-neutral-surface);
     border-top: 0;
     box-shadow: none;
     backdrop-filter: none;
