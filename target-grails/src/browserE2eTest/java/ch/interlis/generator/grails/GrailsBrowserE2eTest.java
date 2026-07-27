@@ -26,6 +26,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
@@ -47,6 +49,10 @@ class GrailsBrowserE2eTest {
     private static final Path ASSOCIATION_MODEL_FILE = Path.of("test-models/QuickLinkE2E.ili");
     private static final Path CONTEXTUAL_ASSOC_MODEL_FILE = Path.of("test-models/ContextualAssociationE2E.ili");
     private static final Path WORKSPACE_MODEL_FILE = Path.of("test-models/MultiDomainWorkspaceE2E.ili");
+    private static final Path GETTING_STARTED_MODEL_FILE =
+        Path.of("docs/getting-started/models/GsSimpleModel.ili");
+    private static final Path GETTING_STARTED_DATA_FILE =
+        Path.of("docs/getting-started/data/GsSimpleModel.xtf");
     private static final Path SCREENSHOT_DIR = Path.of("build/e2e-screenshots");
     private static final List<String> MODEL_REPOSITORIES = List.of(
         "test-models",
@@ -272,7 +278,7 @@ class GrailsBrowserE2eTest {
             int port = freePort();
             bootRun = startGrailsApp(appDir, port);
             String baseUrl = "http://localhost:" + port;
-            waitForHttp(baseUrl + "/interlisUi/index");
+            waitForGrailsApp(bootRun, appDir, baseUrl + "/interlisUi/index");
             runListQueryE2E(baseUrl);
         } finally {
             if (bootRun != null) {
@@ -336,6 +342,227 @@ class GrailsBrowserE2eTest {
             }
             dropSchema(schemaName);
         }
+    }
+
+    @Test
+    void generatedGettingStartedAppAssignsExistingEmployeeThroughInverseRelationship() throws Exception {
+        if (externalAppUrl() != null) {
+            throw new TestAbortedException(
+                "Getting-Started inverse-relationship E2E requires the generated fixture app"
+            );
+        }
+        if (!Files.exists(GETTING_STARTED_MODEL_FILE) || !Files.exists(GETTING_STARTED_DATA_FILE)) {
+            throw new TestAbortedException("Getting-Started model or data file is not available");
+        }
+        startComposeDb();
+        waitForDatabase();
+
+        String schemaName = uniqueSchemaName("e2e_gs_inverse_");
+        Process bootRun = null;
+        try {
+            dropSchema(schemaName);
+            importGettingStartedSchemaAndData(schemaName);
+            assertGettingStartedPhysicalModel(schemaName);
+            ModelMetadata metadata = readGettingStartedMetadata(schemaName);
+            Path appDir = createGrailsApp();
+            GenerationConfig config = GenerationConfig.builder(appDir, BASE_PACKAGE)
+                .domainPackage(DOMAIN_PACKAGE)
+                .controllerPackage(BASE_PACKAGE)
+                .enumPackage(ENUM_PACKAGE)
+                .jdbcUrl(baseJdbcUrl())
+                .schema(schemaName)
+                .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+                .mapEditor(GenerationConfig.MAP_EDITOR_NONE)
+                .geometryEnabled(false)
+                .build();
+
+            new GrailsTemplateOverlayInstaller().install(appDir, config);
+            new GrailsCrudGenerator().generate(metadata, config);
+            assertThat(Files.readString(appDir.resolve(
+                "grails-app/domain/com/example/domain/Department.groovy"
+            ))).contains("interlisInverseRelationshipMeta", "employees:");
+            generateScaffolding(appDir, metadata, config);
+
+            int port = freePort();
+            bootRun = startGrailsApp(appDir, port);
+            String baseUrl = "http://localhost:" + port;
+            waitForHttp(baseUrl + "/interlisUi/index");
+            try {
+                runGettingStartedInverseRelationshipE2E(baseUrl, schemaName);
+            } catch (AssertionError | RuntimeException failure) {
+                Path logFile = appDir.resolve("build/browser-e2e.log");
+                String runtimeLog = Files.exists(logFile)
+                    ? Files.readString(logFile)
+                    : "(browser-e2e.log fehlt)";
+                throw new AssertionError(
+                    failure.getMessage() + "\nGenerated app log:\n" + runtimeLog,
+                    failure
+                );
+            }
+        } finally {
+            if (bootRun != null) {
+                bootRun.destroy();
+                if (!bootRun.waitFor(10, TimeUnit.SECONDS)) {
+                    bootRun.destroyForcibly();
+                    bootRun.waitFor();
+                }
+            }
+            dropSchema(schemaName);
+        }
+    }
+
+    private void runGettingStartedInverseRelationshipE2E(String baseUrl, String schemaName) {
+        try (Playwright playwright = Playwright.create();
+             Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
+            Page page = browser.newPage();
+            List<String> pageErrors = new ArrayList<>();
+            List<String> consoleMessages = new ArrayList<>();
+            List<String> relationshipRequests = new ArrayList<>();
+            page.onPageError(pageErrors::add);
+            page.onConsoleMessage(message ->
+                consoleMessages.add(message.type() + ": " + message.text())
+            );
+            page.onResponse(response -> {
+                if (response.url().contains("relationshipCollection")
+                    || response.url().contains("relationshipAssign")) {
+                    relationshipRequests.add(response.status() + " " + response.url());
+                }
+            });
+            page.onRequestFailed(request -> {
+                if (request.url().contains("relationshipCollection")
+                    || request.url().contains("relationshipAssign")) {
+                    relationshipRequests.add("FAILED " + request.url());
+                }
+            });
+            String hrId = createGettingStartedDepartment(page, baseUrl, "HR");
+            String itId = createGettingStartedDepartment(page, baseUrl, "IT");
+            String employeeId = createGettingStartedEmployee(page, baseUrl, "Anna", "Keller", hrId);
+
+            page.navigate(baseUrl + "/department/show/" + itId);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            Locator section = page.locator(
+                "[data-inverse-relationship-section][data-relationship-name='employees']"
+            );
+            assertThat(section.count())
+                .as("inverse section on Department show:\n" + page.locator("body").innerText())
+                .isEqualTo(1);
+            assertThat(section.locator("[data-inverse-total]").textContent().trim()).isEqualTo("0");
+            assertThat(section.locator("[data-inverse-relationship-form]").count()).isEqualTo(1);
+            assertThat(section.locator("[data-inverse-relationship-form]").getAttribute("action"))
+                .endsWith("/department/relationshipAssign/" + itId);
+
+            APIResponse optionResponse = page.request().get(
+                baseUrl + "/department/relationshipCollectionOptions/" + itId
+                    + "?relationship=employees&q=Anna&max=25&offset=0"
+            );
+            String optionBody = optionResponse.text();
+            assertThat(optionResponse.status())
+                .as("inverse option response: " + optionBody)
+                .isEqualTo(200);
+            assertThat(optionBody).contains("Anna", "HR");
+
+            Locator search = section.locator("[data-relationship-collection='employees']");
+            search.fill("Anna");
+            page.waitForTimeout(1000);
+            Locator resultList = section.locator("[data-relationship-list]");
+            assertThat(resultList.innerHTML())
+                .as("inverse autocomplete DOM; pageErrors=" + pageErrors
+                    + "; console=" + consoleMessages
+                    + "; relationshipRequests=" + relationshipRequests
+                    + "; url=" + search.getAttribute("data-relationship-url")
+                    + "; select=" + section.locator("select[name='targetId']").innerHTML())
+                .contains("Anna");
+            Locator option = section.locator("[data-relationship-value]")
+                .filter(new Locator.FilterOptions().setHasText("HR"))
+                .first();
+            option.waitFor();
+            assertThat(option.textContent()).contains("Anna", "HR");
+            option.click();
+            section.locator("[data-inverse-assign-submit]").click();
+
+            Locator modal = section.locator("[data-inverse-reassignment-modal]");
+            page.waitForTimeout(1000);
+            assertThat(modal.isVisible())
+                .as("reassignment modal; requests=" + relationshipRequests
+                    + "; pageErrors=" + pageErrors
+                    + "; error=" + section.locator("[data-inverse-relationship-error]").textContent())
+                .isTrue();
+            assertThat(relationshipRequests)
+                .as("unconfirmed reassignment must be rejected before the dialog is shown")
+                .anyMatch(request ->
+                    request.startsWith("409 ")
+                        && request.contains("/department/relationshipAssign/" + itId)
+                );
+            assertThat(modal.locator("[data-inverse-reassignment-text]").textContent())
+                .contains("Anna", "HR", "IT");
+            modal.locator("[data-bs-dismiss='modal']").last().click();
+            modal.waitFor(new Locator.WaitForOptions().setState(
+                com.microsoft.playwright.options.WaitForSelectorState.HIDDEN
+            ));
+            assertThat(employeeDepartmentId(schemaName, employeeId)).isEqualTo(hrId);
+
+            section.locator("[data-inverse-assign-submit]").click();
+            modal.waitFor();
+            modal.locator("[data-inverse-reassignment-confirm]").click();
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            Locator assignedRow = page.locator(
+                "[data-inverse-relationship-section][data-relationship-name='employees'] "
+                    + "[data-inverse-related-id='" + employeeId + "']"
+            );
+            assignedRow.waitFor();
+
+            assertThat(employeeDepartmentId(schemaName, employeeId)).isEqualTo(itId);
+            assertThat(assignedRow.textContent()).contains("Anna");
+
+            page.navigate(baseUrl + "/department/show/" + hrId);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            assertThat(page.locator("[data-inverse-related-id='" + employeeId + "']").count()).isZero();
+
+            page.navigate(baseUrl + "/employee/show/" + employeeId);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            assertThat(page.locator("[data-workspace-relationships]").textContent()).contains("IT");
+
+            APIResponse invalid = page.request().post(
+                baseUrl + "/department/relationshipAssign/" + itId
+                    + "?relationship=unknown&targetId=" + employeeId
+                    + "&confirmReassignment=false&format=json"
+            );
+            assertThat(invalid.status()).isEqualTo(400);
+            assertThat(invalid.text()).contains("RELATIONSHIP_INVALID");
+        } catch (PlaywrightException e) {
+            if (e.getMessage() != null && e.getMessage().contains("Executable doesn't exist")) {
+                throw new TestAbortedException("Playwright Chromium browser is not installed", e);
+            }
+            throw e;
+        }
+    }
+
+    private String createGettingStartedDepartment(Page page, String baseUrl, String name) {
+        page.navigate(baseUrl + "/department/create");
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        page.locator("input[name='aname']").fill(name);
+        selectFirstRelationshipOptions(page);
+        submitForm(page);
+        assertThat(page.url()).contains("/department/show/");
+        return showId(page.url());
+    }
+
+    private String createGettingStartedEmployee(Page page,
+                                                String baseUrl,
+                                                String firstName,
+                                                String lastName,
+                                                String departmentId) {
+        page.navigate(baseUrl + "/employee/create");
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        page.locator("input[name='firstname']").fill(firstName);
+        page.locator("input[name='lastname']").fill(lastName);
+        page.locator("input[name='email']").fill(
+            firstName.toLowerCase(java.util.Locale.ROOT) + "@example.test"
+        );
+        page.locator("select[name='department.id']").selectOption(departmentId);
+        submitForm(page);
+        assertThat(page.url()).contains("/employee/show/");
+        return showId(page.url());
     }
 
     private void runContextualAssociationE2E(String baseUrl) {
@@ -457,7 +684,11 @@ class GrailsBrowserE2eTest {
 
             page.navigate(baseUrl + "/record/index?q=does-not-exist");
             page.waitForLoadState(LoadState.NETWORKIDLE);
-            assertThat(page.locator("[data-list-empty-state]").textContent()).contains("Keine Treffer");
+            Locator emptyState = page.locator("[data-list-empty-state]");
+            assertThat(emptyState.count())
+                .as("list empty state at " + page.url() + ":\n" + page.locator("body").innerText())
+                .isEqualTo(1);
+            assertThat(emptyState.textContent()).contains("Keine Treffer");
 
             page.navigate(baseUrl + "/municipality/show/" + bernId);
             page.waitForLoadState(LoadState.NETWORKIDLE);
@@ -645,24 +876,21 @@ class GrailsBrowserE2eTest {
         Path applicationYaml = appDir.resolve("grails-app/conf/application.yml");
         String existing = Files.readString(applicationYaml);
         String addition = """
-
-            ili2grails:
-                ui:
-                    domains:
-                        - iliName: ListQueryE2E.Lists.Record
-                          form:
-                              sections:
-                                  - title: Basisdaten
-                                    fields: [aname, astatus]
+              ui:
+                domains:
+                  - iliName: ListQueryE2E.Lists.Record
+                    form:
+                      sections:
+                        - title: Basisdaten
+                          fields: [aname, astatus]
             """;
-        int firstDocumentSeparator = existing.indexOf("\n---");
-        if (firstDocumentSeparator >= 0) {
-            existing = existing.substring(0, firstDocumentSeparator)
-                + addition
-                + existing.substring(firstDocumentSeparator);
-        } else {
-            existing = existing + addition;
-        }
+        String rootKey = "ili2grails:\n";
+        int insertionPoint = existing.indexOf(rootKey);
+        assertThat(insertionPoint).as("generated application.yml ili2grails root").isGreaterThanOrEqualTo(0);
+        insertionPoint += rootKey.length();
+        existing = existing.substring(0, insertionPoint)
+            + addition
+            + existing.substring(insertionPoint);
         Files.writeString(applicationYaml, existing);
     }
 
@@ -909,8 +1137,7 @@ class GrailsBrowserE2eTest {
         assertThat(page.locator("[data-ili-domain-finder-input]").count()).isEqualTo(1);
         assertThat(page.locator("[data-ili-domain-finder-input]").getAttribute("role")).isEqualTo("combobox");
         assertThat(page.locator("[data-ili-finder-results][role='listbox']").count()).isEqualTo(1);
-        assertThat(page.locator("[data-ili-extension-point=\"user-slot\"]").count()).isEqualTo(1);
-        assertThat(page.locator("[data-ili-extension-point=\"user-slot\"]").textContent()).isBlank();
+        assertThat(page.locator("[data-ili-extension-point=\"topbar-toolbar\"]").count()).isEqualTo(1);
         assertNoHorizontalOverflow(page);
         screenshot(page, "phase7-mockup-01-shell", true);
 
@@ -991,7 +1218,7 @@ class GrailsBrowserE2eTest {
         assertThat(page.locator("[data-delete-modal]").getAttribute("aria-describedby")).isNotBlank();
         assertThat(page.locator("[data-delete-modal]").textContent())
             .contains("serverseitig geprüft", "Integritätsbedingungen");
-        page.locator("[data-bs-dismiss='modal']").first().click();
+        page.locator("[data-delete-modal] [data-bs-dismiss='modal']").first().click();
         page.locator("[data-delete-modal]").waitFor(new Locator.WaitForOptions().setState(
             com.microsoft.playwright.options.WaitForSelectorState.HIDDEN));
         page.waitForFunction("() => document.activeElement && document.activeElement.matches('[data-delete-open]')");
@@ -1221,7 +1448,7 @@ class GrailsBrowserE2eTest {
         Locator saveAction = page.locator("[data-form-submit][value='save']");
         (saveAction.count() > 0 ? saveAction : page.locator("[data-form-submit]").first()).click();
         page.waitForLoadState(LoadState.NETWORKIDLE);
-        assertThat(page.locator(".alert-danger").count())
+        assertThat(page.locator(".alert-danger:visible").count())
             .as("validation errors after submit on " + page.url() + "\n" + page.locator("body").innerText())
             .isZero();
     }
@@ -1254,6 +1481,29 @@ class GrailsBrowserE2eTest {
         builder.environment().put("DB_USERNAME", jdbcQueryValue("user", "username", "postgres"));
         builder.environment().put("DB_PASSWORD", jdbcQueryValue("password", null, "secret"));
         return builder.start();
+    }
+
+    private void waitForGrailsApp(Process process, Path appDir, String url) throws Exception {
+        long deadline = System.nanoTime() + BOOT_TIMEOUT.toNanos();
+        Exception lastError = null;
+        while (System.nanoTime() < deadline && process.isAlive()) {
+            try (java.io.InputStream ignored = java.net.URI.create(url).toURL().openStream()) {
+                return;
+            } catch (Exception e) {
+                lastError = e;
+                Thread.sleep(1000);
+            }
+        }
+        Path logFile = appDir.resolve("build/browser-e2e.log");
+        String runtimeLog = Files.exists(logFile)
+            ? Files.readString(logFile)
+            : "(browser-e2e.log fehlt)";
+        throw new IOException(
+            "Grails app did not start at " + url
+                + "\nProcess alive: " + process.isAlive()
+                + "\nGenerated app log:\n" + runtimeLog,
+            lastError
+        );
     }
 
     private void waitForHttp(String url) throws Exception {
@@ -1314,6 +1564,18 @@ class GrailsBrowserE2eTest {
             MetadataReader reader = new MetadataReader(connection,
                 WORKSPACE_MODEL_FILE.toFile(), schemaName, MODEL_REPOSITORIES);
             return reader.readMetadata("MultiDomainWorkspaceE2E");
+        }
+    }
+
+    private ModelMetadata readGettingStartedMetadata(String schemaName) throws Exception {
+        try (Connection connection = DriverManager.getConnection(baseJdbcUrl())) {
+            MetadataReader reader = new MetadataReader(
+                connection,
+                GETTING_STARTED_MODEL_FILE.toFile(),
+                schemaName,
+                List.of(GETTING_STARTED_MODEL_FILE.getParent().toString())
+            );
+            return reader.readMetadata("GsSimpleModel");
         }
     }
 
@@ -1622,6 +1884,106 @@ class GrailsBrowserE2eTest {
         CommandResult result = runCommandResult(Path.of("."), command, COMMAND_TIMEOUT);
         if (result.exitCode() != 0) {
             throw new IOException("ili2pg import failed (exit " + result.exitCode() + "):\n" + result.output());
+        }
+    }
+
+    private void importGettingStartedSchemaAndData(String schemaName)
+        throws IOException, InterruptedException {
+        Path javaExecutable = Path.of(System.getProperty("java.home"), "bin", "java");
+        Path ili2pgHome = ili2pgHome();
+        String classpath = ili2pgHome.resolve("ili2pg-5.5.1.jar")
+            + File.pathSeparator
+            + ili2pgHome.resolve("libs/*");
+        List<String> commonArguments = List.of(
+            javaExecutable.toString(),
+            "-cp", classpath,
+            "ch.ehi.ili2pg.PgMain",
+            "--dbhost", "localhost",
+            "--dbport", "54321",
+            "--dbdatabase", "edit",
+            "--dbusr", "postgres",
+            "--dbpwd", "secret",
+            "--defaultSrsCode", "2056",
+            "--createFk",
+            "--nameByTopic",
+            "--strokeArcs",
+            "--smart2Inheritance",
+            "--createEnumTabs",
+            "--modeldir", GETTING_STARTED_MODEL_FILE.getParent().toString(),
+            "--models", "GsSimpleModel",
+            "--dbschema", schemaName
+        );
+        List<String> schemaCommand = new ArrayList<>(commonArguments);
+        schemaCommand.add("--schemaimport");
+        CommandResult schemaResult = runCommandResult(Path.of("."), schemaCommand, COMMAND_TIMEOUT);
+        if (schemaResult.exitCode() != 0) {
+            throw new IOException("ili2pg schema import failed for GsSimpleModel (exit "
+                + schemaResult.exitCode() + "):\n" + schemaResult.output());
+        }
+
+        List<String> dataCommand = new ArrayList<>(commonArguments);
+        dataCommand.add("--import");
+        dataCommand.add(GETTING_STARTED_DATA_FILE.toString());
+        CommandResult dataResult = runCommandResult(Path.of("."), dataCommand, COMMAND_TIMEOUT);
+        if (dataResult.exitCode() != 0) {
+            throw new IOException("ili2pg data import failed for GsSimpleModel (exit "
+                + dataResult.exitCode() + "):\n" + dataResult.output());
+        }
+    }
+
+    private void assertGettingStartedPhysicalModel(String schemaName) throws SQLException {
+        String columnSql = """
+            SELECT count(*)
+            FROM information_schema.columns
+            WHERE table_schema = ?
+              AND table_name = 'organization_employee'
+              AND column_name = 't_basket'
+            """;
+        String associationTableSql = """
+            SELECT count(*)
+            FROM information_schema.tables
+            WHERE table_schema = ?
+              AND lower(table_name) LIKE '%departmentemployee%'
+            """;
+        try (Connection connection = DriverManager.getConnection(baseJdbcUrl());
+             PreparedStatement columnStatement = connection.prepareStatement(columnSql);
+             PreparedStatement tableStatement = connection.prepareStatement(associationTableSql)) {
+            columnStatement.setString(1, schemaName);
+            tableStatement.setString(1, schemaName);
+            assertThat(singleCount(columnStatement))
+                .as("basket-free Getting-Started employee table")
+                .isZero();
+            assertThat(singleCount(tableStatement))
+                .as("no synthetic DepartmentEmployee link table")
+                .isZero();
+        }
+    }
+
+    private String employeeDepartmentId(String schemaName, String employeeId) {
+        try {
+            String sql = "SELECT department FROM " + quoteIdentifier(schemaName)
+                + ".\"organization_employee\" WHERE t_id = ?";
+            try (Connection connection = DriverManager.getConnection(baseJdbcUrl());
+                 PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, Long.parseLong(employeeId));
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()) {
+                        throw new AssertionError("Employee #" + employeeId + " not found");
+                    }
+                    return Long.toString(result.getLong(1));
+                }
+            }
+        } catch (SQLException e) {
+            throw new AssertionError("Could not read Employee.department", e);
+        }
+    }
+
+    private long singleCount(PreparedStatement statement) throws SQLException {
+        try (ResultSet result = statement.executeQuery()) {
+            if (!result.next()) {
+                throw new SQLException("Count query returned no row");
+            }
+            return result.getLong(1);
         }
     }
 

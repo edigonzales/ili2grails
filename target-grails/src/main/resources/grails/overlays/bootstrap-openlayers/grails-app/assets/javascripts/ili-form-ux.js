@@ -365,7 +365,8 @@
         var field = input.getAttribute("data-relationship-field");
         var context = input.getAttribute("data-relationship-context");
         var role = input.getAttribute("data-relationship-role");
-        if (!field && !context) {
+        var collection = input.getAttribute("data-relationship-collection");
+        if (!field && !context && !collection) {
             return null;
         }
         var params = new URLSearchParams();
@@ -377,6 +378,9 @@
         }
         if (role) {
             params.set("role", role);
+        }
+        if (collection) {
+            params.set("relationship", collection);
         }
         params.set("q", input.value || "");
         params.set("max", "25");
@@ -569,6 +573,213 @@
         });
     }
 
+    function formatTemplate(template, values) {
+        return (template || "").replace(/\{(\d+)\}/g, function(match, index) {
+            return values[parseInt(index, 10)] || "";
+        });
+    }
+
+    function showInverseReassignmentModal(form, payload, retry) {
+        var modal = form.querySelector("[data-inverse-reassignment-modal]");
+        var relatedLabel = payload.relatedLabel || payload.relatedId || "";
+        var previousOwnerLabel = payload.previousOwnerLabel || payload.previousOwnerId || "";
+        var newOwnerLabel = payload.newOwnerLabel || payload.newOwnerId || "";
+        var targetTypeLabel = payload.targetTypeLabel || "";
+        if (!modal || !window.bootstrap || !bootstrap.Modal) {
+            var fallback = relatedLabel + " ist aktuell " + previousOwnerLabel
+                + " zugeordnet. Zu " + newOwnerLabel + " umteilen?";
+            if (window.confirm(fallback)) {
+                window.setTimeout(retry, 0);
+            }
+            return;
+        }
+        var title = modal.querySelector("[data-inverse-reassignment-title]");
+        var text = modal.querySelector("[data-inverse-reassignment-text]");
+        var confirm = modal.querySelector("[data-inverse-reassignment-confirm]");
+        if (title) {
+            title.textContent = formatTemplate(
+                modal.getAttribute("data-title-template") || "{0} umteilen",
+                [targetTypeLabel]
+            );
+        }
+        if (text) {
+            text.textContent = formatTemplate(
+                modal.getAttribute("data-confirm-template")
+                    || "{0} ist aktuell {1} zugeordnet. Soll {0} {2} zugeordnet werden?",
+                [relatedLabel, previousOwnerLabel, newOwnerLabel]
+            );
+        }
+        if (confirm) {
+            confirm.onclick = function() {
+                hideModal(modal);
+                retry();
+            };
+        }
+        bootstrap.Modal.getOrCreateInstance(modal).show();
+    }
+
+    function initInverseRelationshipForms() {
+        document.querySelectorAll("[data-inverse-relationship-form]").forEach(function(form) {
+            var select = form.querySelector("select[name='targetId']");
+            var submit = form.querySelector("[data-inverse-assign-submit]");
+            var confirmation = form.querySelector("input[name='confirmReassignment']");
+            var errorBox = form.querySelector("[data-inverse-relationship-error]");
+            if (!select || !submit || typeof window.fetch !== "function") {
+                return;
+            }
+
+            function setError(message) {
+                if (!errorBox) {
+                    return;
+                }
+                errorBox.textContent = message || "";
+                errorBox.hidden = !message;
+            }
+
+            function syncSubmitState() {
+                submit.disabled = !select.value || form.dataset.submitting === "true";
+            }
+
+            function sendAssignment(confirmReassignment) {
+                if (!select.value || form.dataset.submitting === "true") {
+                    return;
+                }
+                form.dataset.submitting = "true";
+                setError("");
+                syncSubmitState();
+                var data = new FormData(form);
+                data.set("confirmReassignment", confirmReassignment ? "true" : "false");
+                var assignmentUrl = new URL(form.action, window.location.href);
+                assignmentUrl.searchParams.set("format", "json");
+                window.fetch(assignmentUrl.toString(), {
+                    method: "POST",
+                    body: data,
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                })
+                    .then(function(response) {
+                        return response.json().catch(function() {
+                            return {};
+                        }).then(function(payload) {
+                            return { response: response, payload: payload };
+                        });
+                    })
+                    .then(function(result) {
+                        var payload = result.payload || {};
+                        if (result.response.ok && payload.success === true) {
+                            window.location.reload();
+                            return;
+                        }
+                        if (result.response.status === 409
+                            && payload.code === "REASSIGNMENT_CONFIRMATION_REQUIRED") {
+                            showInverseReassignmentModal(form, payload, function() {
+                                sendAssignment(true);
+                            });
+                            return;
+                        }
+                        setError(payload.message || "Die Zuordnung konnte nicht gespeichert werden.");
+                    })
+                    .catch(function() {
+                        setError("Die Zuordnung konnte nicht gespeichert werden.");
+                    })
+                    .finally(function() {
+                        form.dataset.submitting = "false";
+                        if (confirmation) {
+                            confirmation.value = "false";
+                        }
+                        syncSubmitState();
+                    });
+            }
+
+            select.addEventListener("change", syncSubmitState);
+            form.addEventListener("submit", function(event) {
+                if (!select.value) {
+                    event.preventDefault();
+                    return;
+                }
+                event.preventDefault();
+                sendAssignment(false);
+            });
+            syncSubmitState();
+        });
+    }
+
+    function appendInverseRelationshipRows(section, rows) {
+        var body = section.querySelector("[data-inverse-relationship-rows]");
+        if (!body) {
+            return;
+        }
+        var table = body.closest("table");
+        (rows || []).forEach(function(row) {
+            if (!row || !row.id || body.querySelector("[data-inverse-related-id='" + CSS.escape(row.id) + "']")) {
+                return;
+            }
+            var tr = document.createElement("tr");
+            tr.setAttribute("data-inverse-related-id", row.id);
+            var td = document.createElement("td");
+            if (row.url) {
+                var link = document.createElement("a");
+                link.className = "ili-data-link";
+                link.href = row.url;
+                link.textContent = row.label || row.id;
+                td.appendChild(link);
+            } else {
+                td.textContent = row.label || row.id;
+            }
+            tr.appendChild(td);
+            body.appendChild(tr);
+        });
+        if (table) {
+            table.hidden = false;
+        }
+        var empty = section.querySelector("[data-inverse-empty]");
+        if (empty && body.children.length) {
+            empty.hidden = true;
+        }
+    }
+
+    function initInverseRelationshipPagination() {
+        document.querySelectorAll("[data-inverse-load-more]").forEach(function(button) {
+            button.addEventListener("click", function() {
+                if (button.dataset.loading === "true" || typeof window.fetch !== "function") {
+                    return;
+                }
+                var section = button.closest("[data-inverse-relationship-section]");
+                var url = button.getAttribute("data-page-url");
+                var offset = parseInt(button.getAttribute("data-next-offset") || "0", 10);
+                var max = parseInt(button.getAttribute("data-page-size") || "10", 10);
+                if (!section || !url) {
+                    return;
+                }
+                button.dataset.loading = "true";
+                var params = new URLSearchParams({ offset: String(offset), max: String(max) });
+                window.fetch(url + (url.indexOf("?") >= 0 ? "&" : "?") + params.toString(), {
+                    headers: { "Accept": "application/json" }
+                })
+                    .then(function(response) {
+                        return response.ok ? response.json() : null;
+                    })
+                    .then(function(payload) {
+                        if (!payload) {
+                            return;
+                        }
+                        appendInverseRelationshipRows(section, payload.rows || []);
+                        button.setAttribute(
+                            "data-next-offset",
+                            String((payload.offset || offset) + (payload.rows || []).length)
+                        );
+                        if (payload.more !== true) {
+                            button.remove();
+                        }
+                    })
+                    .finally(function() {
+                        button.dataset.loading = "false";
+                    });
+            });
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         document.querySelectorAll(".js-dirty-form").forEach(initDirtyForm);
         document.querySelectorAll(".js-relationship-search").forEach(initRelationshipAutocomplete);
@@ -577,5 +788,7 @@
         initUnsavedNavigationGuard();
         initDeleteModal();
         initQuickAddForms();
+        initInverseRelationshipForms();
+        initInverseRelationshipPagination();
     });
 })();

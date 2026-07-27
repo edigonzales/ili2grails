@@ -532,6 +532,93 @@ schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
 - Das Löschen entfernt ausschliesslich die Association-Domain (den Link); Zielobjekte bleiben immer erhalten. Kompositions- und Attribut-Associations sind nicht Quick-Link-fähig und verwenden weiterhin das Association-CRUD.
 - Mit `--grails-association-ui read-only` oder `off` werden alle Schreibpfade deaktiviert (Registry `writable=false`, `createMode=NONE`).
 
+#### Association-UX: bestehende Datensätze über eine 1:n-Beziehung zuweisen
+
+Eine 1:n-Beziehung kann von ili2db ohne Link-Tabelle gespeichert werden. Im
+Getting-Started-Modell gehört beispielsweise jeder `Employee` genau einem
+`Department`:
+
+```text
+INTERLIS: Department 1  ←  0..* Employee
+PostgreSQL: organization_employee.department  →  organization_department.t_id
+Grails: Employee.department
+```
+
+Die Department-Seite zeigt deshalb die umgekehrte Sicht `employees`. Dort können
+bestehende Employees gesucht und zugewiesen werden. Die Suche lässt Employees des
+aktuellen Departments weg. Bei einem Employee aus einem anderen Department zeigt
+das Resultat den bisherigen Ort, beispielsweise
+`Anna Keller · aktuell: HR`. Die Zuweisung ohne vorheriges Department setzt nur
+`Employee.department`. Bei einer Umteilung antwortet der Server zunächst mit
+`409 REASSIGNMENT_CONFIRMATION_REQUIRED`; erst **Umteilen** im Dialog sendet den
+Auftrag mit ausdrücklicher Bestätigung erneut. Es wird weder ein Employee erzeugt
+noch eine `DepartmentEmployee`-Verbindungstabelle beschrieben.
+
+Der Generator aktiviert diesen Editor nur, wenn die Abbildung eindeutig und
+sicher ist:
+
+- auf der n-Seite existiert genau eine generierte `MANY_TO_ONE`-Property mit
+  physischer FK-Spalte, zum Beispiel `Employee.department`;
+- die zugehörige Collection auf der 1-Seite, zum Beispiel
+  `Department.employees`, wurde von derselben `GrailsRelationshipMapper`-Instanz
+  erzeugt;
+- beide Domainklassen werden generiert;
+- die Beziehung ist weder Komposition noch `EXTERNAL`, `ORDERED` oder
+  mehrdeutig.
+
+Die 1-Seite erhält dazu generierte, additive Metadaten:
+
+```groovy
+static final Map interlisInverseRelationshipMeta = [
+    employees: [
+        relatedDomainClass: 'ch.example.gssimple.Employee',
+        relatedProperty: 'department',
+        relationshipName: 'GsSimpleModel.Organization.Employee_Department',
+        label: 'Employees',
+        mandatory: true,
+        writable: true
+    ]
+]
+```
+
+Klassen- und Property-Namen kommen beim Lesen und Schreiben ausschliesslich aus
+diesen Metadaten. Der Browser übermittelt nur den Beziehungsnamen und die
+Employee-ID. Die Mutation läuft über `POST`; der Command-Service lädt und sperrt
+den Employee best-effort, prüft die Zuordnung erneut, validiert und speichert
+ausschliesslich die FK-Property. Integritäts- und Paralleländerungskonflikte
+werden als strukturierte 409-Antworten ausgegeben.
+
+Ohne Konfiguration gelten die sicheren Generator-Defaults. Label und Modus können
+pro Domain in `application.yml` überschrieben werden:
+
+```yaml
+ili2grails:
+  ui:
+    domains:
+      - iliName: GsSimpleModel.Organization.Department
+        relationships:
+          employees:
+            label: Mitarbeitende
+            mode: auto
+```
+
+Erlaubt sind `auto`, `editable`, `read-only` und `off`. `editable` kann eine vom
+Generator als unsicher oder nur lesbar eingestufte Beziehung nicht freischalten.
+Unbekannte Beziehungsnamen, ungültige Modi und leere Labels führen zu einer
+verständlichen Konfigurationsmeldung. `--grails-association-ui` bleibt die obere
+Grenze: `off` unterdrückt den Abschnitt, `read-only` zeigt nur die Liste und
+`auto`/`editable` erlauben sichere Zuweisungen.
+
+Version 1 bietet bewusst kein **Zuordnung entfernen**. Bei optionalen Beziehungen
+sind nur Erstzuweisung und Umteilung vorgesehen. `t_basket` wird weder gelesen
+noch geändert; bestehende Basket-Werte bleiben erhalten. Regeln für
+Cross-Basket-Zuweisungen benötigen eine separate Basket-Implementierung.
+
+Dieser direkte FK-Schreibpfad ist von der
+`InterlisAssociationRegistry` getrennt. Deren generische
+`EMBEDDED_FOREIGN_KEY`-Einträge bleiben read-only; sie werden nicht wie
+Link-Tabellen behandelt und nicht durch Laufzeitkonfiguration schreibbar gemacht.
+
 #### Association-UX: Kontextuelle Formulare (attributierte / n-äre / Selbst-Assoziationen)
 - Für `CONTEXTUAL_FORM` und `NARY_CONTEXTUAL_FORM`-Assoziationen (mit eigenen Attributen, Spezialsemantik oder >2 Rollen) wird die bestehende Association-Domain kontextuell genutzt.
 - Auf der Show-Seite erscheint ein **Hinzufügen**-Button, der auf den Association-Controller mit `associationContext` und `associationOwnerId` verweist.

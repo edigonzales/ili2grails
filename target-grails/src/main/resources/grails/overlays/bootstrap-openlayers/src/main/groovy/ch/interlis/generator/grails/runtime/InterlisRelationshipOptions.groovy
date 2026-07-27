@@ -131,6 +131,84 @@ final class InterlisRelationshipOptions {
         ]
     }
 
+    static Map<String, Object> optionPageForInverseRelationship(def grailsApplication,
+                                                                Class relatedType,
+                                                                String relatedProperty,
+                                                                Serializable ownerId,
+                                                                String query,
+                                                                Integer max,
+                                                                Integer offset) {
+        if (relatedType == null || relatedProperty == null || relatedProperty.isBlank()) {
+            return [results: [], pagination: [more: false, total: 0, nextOffset: offset]]
+        }
+        Collection<String> targetGeometryFields = geometryFieldsFor(relatedType)
+        List<String> displayFields = displayFieldsFor(grailsApplication, relatedType)
+        List<String> searchColumns = searchFieldsFor(
+            grailsApplication,
+            relatedType,
+            targetGeometryFields,
+            displayFields
+        )
+        String sortField = sortableFieldFor(grailsApplication, relatedType, displayFields) ?: "id"
+        int pageMax = Math.max(1, Math.min(max ?: 25, 100))
+        int pageOffset = Math.max(offset ?: 0, 0)
+        def results = relatedType.createCriteria().list(
+            max: pageMax,
+            offset: pageOffset,
+            sort: sortField,
+            order: "asc"
+        ) {
+            and {
+                or {
+                    isNull(relatedProperty)
+                    ne(relatedProperty + ".id", ownerId)
+                }
+                if (query != null) {
+                    if (searchColumns.isEmpty()) {
+                        eq("id", null)
+                    } else {
+                        or {
+                            searchColumns.each { String column ->
+                                ilike(column, "%" + query + "%")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        List<Map<String, Object>> options = (results as List<Object>).collect { Object record ->
+            Object currentOwner = readDisplayProperty(record, relatedProperty)
+            String baseLabel = optionLabel(record, displayFields)
+            String currentOwnerLabel = currentOwner != null
+                ? optionLabel(currentOwner)
+                : null
+            String label = currentOwnerLabel
+                ? baseLabel + " · " + InterlisMessageSupport.text(
+                    grailsApplication,
+                    "ili2grails.inverse.currently",
+                    "aktuell: {0}",
+                    [currentOwnerLabel] as Object[]
+                )
+                : baseLabel
+            [
+                id: record?.id?.toString(),
+                label: label,
+                currentOwnerId: readDisplayProperty(currentOwner, "id")?.toString(),
+                currentOwnerLabel: currentOwnerLabel,
+                reassignment: currentOwner != null
+            ]
+        }.findAll { Map<String, Object> option -> option.id != null }
+        Number total = results.totalCount ?: options.size()
+        return [
+            results: options,
+            pagination: [
+                more: pageOffset + options.size() < total,
+                total: total,
+                nextOffset: pageOffset + options.size()
+            ]
+        ]
+    }
+
     static String displayLabel(Object value) {
         if (value == null || value instanceof CharSequence || value instanceof Number || value instanceof Boolean) {
             return null
@@ -230,8 +308,9 @@ final class InterlisRelationshipOptions {
     }
 
     private static List<String> displayFieldsFor(def grailsApplication, Class targetType) {
+        targetType = persistentDomainType(grailsApplication, targetType)
         try {
-            List<String> configured = InterlisUiDescriptorSupport.displayFieldsFor(grailsApplication, targetType)
+            List<String> configured = configuredDisplayFields(grailsApplication, targetType)
             if (!configured.isEmpty()) {
                 return configured
             }
@@ -250,9 +329,45 @@ final class InterlisRelationshipOptions {
         return fallbackDisplayFields(grailsApplication, targetType)
     }
 
+    private static List<String> configuredDisplayFields(def grailsApplication, Class targetType) {
+        try {
+            Class supportType = InterlisRelationshipOptions.class.classLoader.loadClass(
+                "ch.interlis.generator.grails.runtime.InterlisUiDescriptorSupport"
+            )
+            def method = supportType.getDeclaredMethod("displayFieldsFor", Object, Class)
+            method.accessible = true
+            return method.invoke(null, grailsApplication, targetType) as List<String>
+        } catch (ClassNotFoundException ignored) {
+            return []
+        }
+    }
+
     private static List<String> displayFieldsFor(Class targetType) {
-        Map<String, Object> displayMeta = staticDomainMap(targetType, "interlisDisplayMeta") as Map<String, Object>
-        return asStringList(displayMeta?.get("displayFields"))
+        Class current = targetType
+        while (current != null && current != Object) {
+            Map<String, Object> displayMeta =
+                staticDomainMap(current, "interlisDisplayMeta") as Map<String, Object>
+            List<String> fields = asStringList(displayMeta?.get("displayFields"))
+            if (!fields.isEmpty()) {
+                return fields
+            }
+            current = current.superclass
+        }
+        return []
+    }
+
+    private static Class persistentDomainType(def grailsApplication, Class candidate) {
+        if (candidate == null) {
+            return null
+        }
+        def exact = grailsApplication?.mappingContext?.getPersistentEntity(candidate.name)
+        if (exact?.javaClass instanceof Class) {
+            return exact.javaClass as Class
+        }
+        def inherited = grailsApplication?.mappingContext?.persistentEntities?.find { entity ->
+            entity?.javaClass instanceof Class && (entity.javaClass as Class).isAssignableFrom(candidate)
+        }
+        return inherited?.javaClass instanceof Class ? inherited.javaClass as Class : candidate
     }
 
     private static List<String> searchFieldsFor(def grailsApplication,
@@ -363,9 +478,6 @@ final class InterlisRelationshipOptions {
             return null
         }
         try {
-            if (value.hasProperty(propertyName) == null) {
-                return null
-            }
             return value."${propertyName}"
         } catch (Exception ignored) {
             return null

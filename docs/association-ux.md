@@ -16,6 +16,7 @@ Core-IR (framework-agnostisch)
 target-grails (Planungszeit)
   GrailsRelationshipMapper     → Domain-Mapping (Properties, Spalten)
   GrailsAssociationPlanner      → Pläne (Plans, Contexts, Klassifikation)
+  GrailsInverseRelationshipPlanner → sichere umgekehrte 1:n-Editoren
   GrailsAssociationRegistryGenerator → InterlisAssociationRegistry.groovy
 
 Generierte Grails-Anwendung (Runtime)
@@ -23,6 +24,8 @@ Generierte Grails-Anwendung (Runtime)
   InterlisAssociationRegistrySupport   → Context-Validierung, Domain-Auflösung
   InterlisAssociationQueryService      → Read-only Sections, Paging, Autocomplete
   InterlisAssociationCommandService    → Quick-Link Create/Delete (transaktional)
+  InterlisInverseRelationshipQueryService   → direkte 1:n-Listen und Suche
+  InterlisInverseRelationshipCommandService → FK-Zuweisung/Umteilung
   InterlisAssociationContextSupport    → Kontextuelle Formulare
   InterlisNavigationSupport            → Navigationsfilter
 ```
@@ -79,12 +82,69 @@ Beispiel: `ContextualAssociationE2E.Data.Beteiligung::PersonRole`
 - Der Wert ist deterministisch und URL-encodiert
 - Der Client übergibt nur `context` und `ownerId`; alle Klassen-/Property-Namen kommen aus der Registry
 
-## Persistenzprinzip
+## Persistenzprinzip für Link-Tabellen
 
-- **Association-Domain bleibt die persistente Wahrheit.** Keine inversen GORM-`hasMany` auf Teilnehmerklassen.
+- **Association-Domain bleibt die persistente Wahrheit.** Für diesen
+  Link-Tabellen-Pfad werden keine inversen GORM-`hasMany` auf den Fachklassen
+  erfunden.
 - Related-Lists werden via Criteria-Query über die Association-Domain abgefragt.
 - Keine synthetischen Join-Tabellen, FK-Spalten oder Cascade-Regeln.
 - Löschen entfernt nur die Association-Domain; Zielobjekte bleiben erhalten.
+
+Davon getrennt ist der direkte 1:n-Pfad: Wenn die persistente Wahrheit bereits
+eine eindeutige FK-Property wie `Employee.department` ist, liest und schreibt
+ili2grails genau diese Property. Es wird keine Association-Domain und keine
+Verbindungstabelle erfunden.
+
+## Direkte 1:n-Zuweisung
+
+Beispiel aus `GsSimpleModel`:
+
+```text
+INTERLIS: Department 1 ← 0..* Employee
+DB:       organization_employee.department → organization_department.t_id
+Grails:   Employee.department und Department.employees
+GUI:      Department zeigt Employees und bietet „Employee zuweisen“
+```
+
+Der `GrailsInverseRelationshipPlanner` verwendet dieselbe
+`GrailsRelationshipMapper`-Instanz wie die Domain-Generierung. Er erzeugt
+`interlisInverseRelationshipMeta` nur, wenn genau eine physische
+`MANY_TO_ONE`-Property und ihre eindeutig erzeugte Gegen-Collection gefunden
+werden. Kompositionen, externe, geordnete, mehrdeutige oder nicht vollständig
+generierte Beziehungen werden nicht als editierbar geplant.
+
+Beim Zuweisen übermittelt der Browser nur Collection-Name und Ziel-ID. Der
+Command-Service löst Klasse und Property aus den generierten Metadaten auf:
+
+1. Owner und Employee laden, den Employee best-effort sperren.
+2. Aktuelle Zuordnung erneut lesen.
+3. Gleicher Owner: idempotenter Erfolg.
+4. Anderer Owner ohne Bestätigung: HTTP 409
+   `REASSIGNMENT_CONFIRMATION_REQUIRED`.
+5. Nach Bestätigung nur `employee.department` ändern, validieren und speichern.
+
+Die Suchresultate lassen bereits dem aktuellen Owner zugeordnete Datensätze weg
+und zeigen bei anderen Ownern den bisherigen Anzeigenamen, zum Beispiel
+`Anna Keller · aktuell: HR`. Version 1 unterstützt kein Entfernen einer
+Zuordnung. `t_basket` wird weder gelesen noch geändert.
+
+Laufzeitkonfiguration:
+
+```yaml
+ili2grails:
+  ui:
+    domains:
+      - iliName: GsSimpleModel.Organization.Department
+        relationships:
+          employees:
+            label: Mitarbeitende
+            mode: auto
+```
+
+`auto`, `editable`, `read-only` und `off` sind erlaubt. Konfiguration kann die
+generierte Sicherheit nur beibehalten oder einschränken, nie erweitern.
+`--grails-association-ui` bleibt die obere Grenze.
 
 ## Präsentationsmodi
 
@@ -124,8 +184,10 @@ Beispiel: `ContextualAssociationE2E.Data.Beteiligung::PersonRole`
 ### EMBEDDED_FOREIGN_KEY
 - **Erkennung:** Assoziationsklasse existiert in ili2db-Metadaten, hat aber keine physische Tabelle (FK-Spalten wurden in Teilnehmerklassen eingebettet)
 - **Planner:** Klassifiziert `EMBEDDED_FOREIGN_KEY` (statt UNMAPPED) für Assoziationen ohne Link-Tabelle
-- **Status:** Read-only mit Diagnose `EMBEDDED_FK_ASSOCIATION`
-- **Schreibpfad:** Zukünftige Erweiterung; benötigt direkten Property-Editor auf der Owning-Side und inverse Related-List auf der Non-Owning-Side
+- **Association-Registry-Status:** Weiterhin read-only mit Diagnose `EMBEDDED_FK_ASSOCIATION`
+- **Separater 1:n-Pfad:** Eine eindeutig gemappte reguläre
+  `MANY_TO_ONE`-Property kann über `GrailsInverseRelationshipPlanner`
+  zuweisbar sein. Unsichere Registry-Kontexte werden dadurch nicht freigeschaltet.
 
 ## Sicherheitsregeln
 
@@ -206,8 +268,21 @@ Unterstützung auf ein einfaches `get()` zurück.
 ### Assoziation wird als read-only angezeigt
 
 1. Prüfe `storageKind` in der Registry: `EMBEDDED_FOREIGN_KEY` und `UNMAPPED` sind immer read-only.
-2. Bei `EMBEDDED_FOREIGN_KEY`: ili2db hat die FK-Spalten in Teilnehmerklassen eingebettet (`--smart2Inheritance`). Schreibzugriff ist eine zukünftige Erweiterung.
+2. Bei `EMBEDDED_FOREIGN_KEY`: ili2db hat die FK-Spalten in Teilnehmerklassen eingebettet (`--smart2Inheritance`). Die Association-Registry schreibt diesen Kontext nicht.
 3. Bei externen Rollen (`external: true`): Schreibschutz durch `hasExternalRole()`-Guard.
+
+### Department zeigt keine zuweisbaren Employees
+
+1. Prüfe, ob `Department.interlisInverseRelationshipMeta.employees` generiert
+   wurde.
+2. Prüfe `--grails-association-ui`: `off` blendet aus, `read-only` zeigt ohne
+   Zuweisungsformular.
+3. Prüfe in `application.yml` den exakten generierten Collection-Namen und einen
+   Modus aus `auto`, `editable`, `read-only`, `off`.
+4. Fehlen die Metadaten, war die Beziehung nicht eindeutig sicher, etwa wegen
+   Komposition, `EXTERNAL`, `ORDERED`, Mehrdeutigkeit, fehlender Domainklasse
+   oder fehlender physischer FK-Spalte. Das lässt sich nicht per YAML
+   freischalten.
 
 ### INTERLIS ORDERED wird nicht als Reihenfolge dargestellt
 

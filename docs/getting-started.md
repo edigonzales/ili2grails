@@ -143,6 +143,70 @@ Fachlich enthaelt es:
 - 1:n `Company -> Department`
 - 1:n `Department -> Employee`
 
+### Was die Department-Employee-Beziehung konkret bedeutet
+
+Im INTERLIS-Modell steht:
+
+```ili
+ASSOCIATION DepartmentEmployee =
+  Department -- {1} Department;
+  Employees -- {0..*} Employee;
+END DepartmentEmployee;
+```
+
+Einfach ausgedrueckt: Ein Employee hat genau ein Department; ein Department kann
+beliebig viele Employees haben.
+
+ili2pg speichert diese Beziehung im basketfreien Getting-Started-Schema direkt
+beim Employee:
+
+```text
+organization_department
+  t_id | aname
+     5 | Operations
+
+organization_employee
+  t_id | firstname | lastname | department
+     9 | Ada       | Keller   | 5
+```
+
+`organization_employee.department = 5` verweist auf
+`organization_department.t_id = 5`. Es gibt keine zusaetzliche
+`DepartmentEmployee`-Verbindungstabelle.
+
+In der neu generierten Grails-App sind deshalb beide Blickrichtungen sichtbar:
+
+- Auf der Employee-Seite steht unter **Direkte Beziehungen** das verlinkte
+  Department.
+- Auf der Department-Seite erscheint ein Abschnitt **Employees** mit Anzahl und
+  verlinkten Employee-Zeilen.
+- **Employee zuweisen** sucht bestehende Employees. Ein Resultat aus einem anderen
+  Department zeigt zum Beispiel `Ada Keller · aktuell: Planning`.
+- Beim ersten Zuweisen wird nur `Employee.department` gesetzt.
+- Beim Umteilen erscheint zuerst ein Dialog. **Abbrechen** laesst die Datenbank
+  unveraendert; **Umteilen** setzt `Employee.department` auf das aktuelle
+  Department.
+
+Die Funktion erzeugt und loescht keine Employees. In dieser Version gibt es auch
+kein **Zuordnung entfernen**.
+
+Ohne Eintrag in `application.yml` verwendet die App die sicheren Defaults. Ein
+Label oder ein strengerer Modus kann optional konfiguriert werden:
+
+```yaml
+ili2grails:
+  ui:
+    domains:
+      - iliName: GsSimpleModel.Organization.Department
+        relationships:
+          employees:
+            label: Mitarbeitende
+            mode: auto
+```
+
+Moegliche Modi sind `auto`, `editable`, `read-only` und `off`. `editable` kann
+keine Beziehung freischalten, die der Generator als unsicher erkannt hat.
+
 ### Variante A: Nur leeres Schema erzeugen
 
 ```bash
@@ -216,7 +280,11 @@ Kurze Kontrolle:
 
 ```bash
 docker compose exec -T edit-db psql -U postgres -d edit -c "SELECT count(*) AS employees FROM gs_simple.organization_employee"
+docker compose exec -T edit-db psql -U postgres -d edit -c "\d gs_simple.organization_employee"
 ```
+
+In der Tabellenbeschreibung muss `department` als Fremdschluessel vorhanden
+sein; `t_basket` darf im Getting-Started-Schema nicht vorkommen.
 
 ### Metadaten lesen
 

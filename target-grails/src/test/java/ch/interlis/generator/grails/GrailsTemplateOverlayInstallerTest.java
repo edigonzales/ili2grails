@@ -89,10 +89,13 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisListQuerySupport.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy")).exists();
+        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipSupport.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy")).exists();
         assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy")).exists();
         assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy")).exists();
+        assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipQueryService.groovy")).exists();
+        assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipCommandService.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy")).exists();
         assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy")).exists();
         assertThat(projectDir.resolve("grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy")).exists();
@@ -113,6 +116,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-row-actions.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-quick-add.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-context-summary.gsp")).exists();
+        assertThat(projectDir.resolve("src/main/templates/scaffolding/_inverse-relationship-sections.gsp")).exists();
+        assertThat(projectDir.resolve("src/main/templates/scaffolding/_inverse-relationship-picker.gsp")).exists();
         assertThat(projectDir.resolve("grails-app/views/layouts/main.gsp")).exists();
         assertThat(Files.readString(projectDir.resolve("grails-app/conf/spring/resources.groovy")))
             .contains("FixedLocaleResolver", "Locale.forLanguageTag(\"de-CH\")");
@@ -222,9 +227,9 @@ class GrailsTemplateOverlayInstallerTest {
         String listEmptyTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_list-empty.gsp"));
         assertThat(listEmptyTemplate)
             .contains("!hasActiveListQuery", "ili2grails.list.noData",
-                "<ili:icon name=\"plus-lg\" cssClass=\"me-1\"/>", "ili2grails.action.new")
-            .doesNotContain("domainHasRecords", "ili2grails.list.noResults",
-                "ili2grails.list.noResultsDescription", "ili2grails.list.reset", "default.new.label");
+                "<ili:icon name=\"plus-lg\" cssClass=\"me-1\"/>", "ili2grails.action.new",
+                "ili2grails.list.noResults", "ili2grails.list.noResultsDescription")
+            .doesNotContain("domainHasRecords", "ili2grails.list.reset", "default.new.label");
         String overlayCss = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
         assertThat(overlayCss)
             .contains(".ili-list-result-summary", "font-size: 1rem;", "color: var(--bs-body-color);",
@@ -279,9 +284,10 @@ class GrailsTemplateOverlayInstallerTest {
         String deMessages = Files.readString(projectDir.resolve("grails-app/i18n/messages_de_CH.properties"));
         assertThat(deMessages)
             .contains("ili2grails.action.save=Speichern", "ili2grails.form.createTitle={0} erfassen",
-                "ili2grails.list.removeFilter=Filter entfernen", "ili2grails.action.create=Erfassen")
-            .doesNotContain("ili2grails.list.noResults=", "ili2grails.list.noResultsDescription=", "ili2grails.list.reset=",
-                "ili2grails.list.active=");
+                "ili2grails.list.removeFilter=Filter entfernen", "ili2grails.action.create=Erfassen",
+                "ili2grails.list.noResults=Keine Treffer",
+                "ili2grails.list.noResultsDescription=Passe die Suche oder die Filter an.")
+            .doesNotContain("ili2grails.list.reset=", "ili2grails.list.active=");
         String editTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/edit.gsp"));
         assertThat(editTemplate)
             .contains("pageSubtitle: message(")
@@ -314,6 +320,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(showTemplate).contains("workspace-header");
         assertThat(showTemplate).contains("workspace-details");
         assertThat(showTemplate).contains("workspace-relationships");
+        assertThat(showTemplate).contains("inverse-relationship-sections");
+        assertThat(showTemplate).contains("inverseRelationshipDiagnostic");
         assertThat(showTemplate).contains("workspace-danger-zone");
         assertThat(showTemplate).doesNotContain("_show-details");
         assertThat(showTemplate).doesNotContain("Audit", "Verlauf", "Protokoll", "Timeline", "Restore");
@@ -355,6 +363,22 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(associationQuickAddTemplate).contains("data-relationship-context");
         assertThat(associationQuickAddTemplate).contains("data-relationship-role");
         assertThat(associationQuickAddTemplate).contains("associationOptions");
+
+        String inverseSectionsTemplate = Files.readString(
+            projectDir.resolve("src/main/templates/scaffolding/_inverse-relationship-sections.gsp")
+        );
+        assertThat(inverseSectionsTemplate)
+            .contains("data-inverse-relationship-section")
+            .contains("relationshipCollectionPage")
+            .contains("inverse-relationship-picker");
+        String inversePickerTemplate = Files.readString(
+            projectDir.resolve("src/main/templates/scaffolding/_inverse-relationship-picker.gsp")
+        );
+        assertThat(inversePickerTemplate)
+            .contains("action=\"relationshipAssign\"")
+            .contains("data-relationship-collection")
+            .contains("relationshipCollectionOptions")
+            .contains("data-inverse-reassignment-modal");
 
         String associationRowActionsTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_association-row-actions.gsp"));
         assertThat(associationRowActionsTemplate).contains("associationController");
@@ -398,6 +422,11 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerTemplate).contains("protected Object associationCommandService()");
         assertThat(controllerTemplate).contains("associationCreate: \"POST\"");
         assertThat(controllerTemplate).contains("associationDelete: \"DELETE\"");
+        assertThat(controllerTemplate).contains("InterlisInverseRelationshipQueryService");
+        assertThat(controllerTemplate).contains("InterlisInverseRelationshipCommandService");
+        assertThat(controllerTemplate).contains("relationshipCollectionPage: \"GET\"");
+        assertThat(controllerTemplate).contains("relationshipCollectionOptions: \"GET\"");
+        assertThat(controllerTemplate).contains("relationshipAssign: \"POST\"");
 
         String controllerSupport = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy"));
         assertThat(controllerSupport).contains("def index(Integer max, Integer offset)");
@@ -423,6 +452,19 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("Datenbank-Integritätsbedingung");
         assertThat(controllerSupport).contains("respondAssociationCommand(T instance, Map<String, Object> result)");
         assertThat(controllerSupport).contains("respondAssociationError(int status, String code, String message)");
+        assertThat(controllerSupport).contains("inverseRelationshipModel(T instance)");
+        assertThat(controllerSupport).contains("relationshipCollectionPage(Long id)");
+        assertThat(controllerSupport).contains("relationshipCollectionOptions(Long id)");
+        assertThat(controllerSupport).contains("relationshipAssign(Long id)");
+        assertThat(controllerSupport).contains("inverseRelationshipJsonRequested()");
+        assertThat(controllerSupport).contains("CONFIGURATION_INVALID");
+        String inverseCommandService = Files.readString(projectDir.resolve(
+            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipCommandService.groovy"
+        ));
+        assertThat(inverseCommandService)
+            .contains("REASSIGNMENT_CONFIRMATION_REQUIRED")
+            .contains("CONFIGURATION_INVALID")
+            .contains("related.\"${relatedProperty}\" = owner");
 
         String uiDescriptorSupport = Files.readString(projectDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy"));
@@ -433,7 +475,12 @@ class GrailsTemplateOverlayInstallerTest {
         String relationshipDisplayOptions = Files.readString(projectDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"));
         assertThat(relationshipDisplayOptions).contains("optionLabel(def grailsApplication, Object value)",
-            "InterlisUiDescriptorSupport.displayFieldsFor");
+            "configuredDisplayFields", "optionPageForInverseRelationship");
+        String inverseRelationshipPicker = Files.readString(projectDir.resolve(
+            "src/main/templates/scaffolding/_inverse-relationship-picker.gsp"));
+        assertThat(inverseRelationshipPicker)
+            .contains("data-inverse-relationship-form=\"true\"")
+            .doesNotContain("data-inverse-relationship-form>");
         String workspaceSupport = Files.readString(projectDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy"));
         assertThat(workspaceSupport).contains("workspaceDisplayLabel", "displayFields", "#${id}");
@@ -492,6 +539,11 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(formUx).contains("a[href]");
         assertThat(formUx).contains("beforeunload");
         assertThat(formUx).contains("hidden.bs.modal", "_iliReturnFocus", "aria-activedescendant");
+        assertThat(formUx).contains(
+            "initInverseRelationshipForms",
+            "REASSIGNMENT_CONFIRMATION_REQUIRED",
+            "assignmentUrl.searchParams.set(\"format\", \"json\")"
+        );
 
         String geometryEditor = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js"));
         assertThat(geometryEditor).contains("ol.interaction.Snap");
@@ -761,9 +813,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(merged).contains("ili2grails.pagination.pageSize=Rows per page");
         assertThat(merged).contains("ili2grails.list.searchPlaceholder=Search for {0} ...");
         assertThat(merged).contains("ili2grails.action.save=Save", "ili2grails.form.createTitle=Create {0}",
-            "ili2grails.list.removeFilter=Remove filter", "ili2grails.action.create=Create");
-        assertThat(merged).doesNotContain("ili2grails.list.noResults=", "ili2grails.list.noResultsDescription=",
-            "ili2grails.list.reset=", "ili2grails.list.active=");
+            "ili2grails.list.removeFilter=Remove filter", "ili2grails.action.create=Create",
+            "ili2grails.list.noResults=No results",
+            "ili2grails.list.noResultsDescription=Adjust the search or filters.");
+        assertThat(merged).doesNotContain("ili2grails.list.reset=", "ili2grails.list.active=");
         assertThat(merged).doesNotContain("ili2grails.pagination.pageSize=Zeilen pro Seite");
         assertThat(Files.readString(projectDir.resolve("grails-app/conf/spring/resources.groovy")))
             .contains("Locale.forLanguageTag(\"en\")");

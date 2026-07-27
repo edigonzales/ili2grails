@@ -16,6 +16,7 @@ Dieser Plan wird nach jedem grösseren Schritt aktualisiert, nicht erst am Schlu
 | Phase 6 – Navigation, Kardinalität, Fehler, Performance | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (127); `:target-grails:test` PASS (75) | R-11 behoben + Navigation + Error-Handling + N+1-Fetch-Join + Konfliktbehandlung + Accessibility-CSS + `docs/association-ux.md` |
 | Phase 7 – Spezialsemantik (EXTERNAL, Komposition, ORDERED, embedded FK) | DONE | 2026-07-12 | 2026-07-12 | `./gradlew test` PASS (alle); ili2c PASS; Real-ili2db PASS (8 Plans, EMBEDDED_FOREIGN_KEY klassifiziert) | EXTERNAL-Guard in CommandService; ORDERED-Modell+Analyse; EMBEDDED_FOREIGN_KEY-Klassifikation; Docs aktualisiert |
 | Phase 8 – Abschluss & Regression | DONE | 2026-07-12 | 2026-07-12 | `./gradlew clean test --rerun-tasks` PASS; Grails-Runtime-Smoke PASS (3/3) nach Fix; Real-ili2db 9/9 PASS; Browser-E2E 3/3 PASS; ili2c 3× PASS | Variable-Shadowing-Bug in `InterlisAssociationQueryService.buildSection()` gefunden & behoben (Groovy-Compiler in realer Grails-App fand `editableRoleList`-Redeklaration, Unit-Tests mit `GeneratedGroovyCompiler` tolerierten dies). Keine weiteren Regressionen. |
+| Phase 9 – Direkte inverse 1:n-Zuweisung | DONE | 2026-07-26 | 2026-07-27 | `./gradlew test` PASS (180); Grails-Runtime 6/6; Real-ili2db 9/9; Browser-E2E 6/6 | Sichere `MANY_TO_ONE`-Property wird von der 1-Seite aus zuweisbar; getrennt vom Association-Registry-Schreibpfad. PostgreSQL-E2E belegt 409/Abbruch/Umteilung und unveränderten Basket-freien FK-Aufbau. |
 
 Zulässige Statuswerte: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
@@ -206,6 +207,25 @@ Diese generierten Association-Domains bestätigen die vom Planner (Phase 1) zu v
 - **Alternativen:** Die Navigation-Config bereits im Planner auswerten — verworfen, weil der Planner framework-nah, aber config-unabhängig bleiben soll und Phase 1 keine Config-Felder kannte.
 - **Konsequenzen:** Navigation ist deterministisch und per CLI steuerbar, ohne Phase-1-Klassifikation zu verändern. Die tatsächliche Menü-Filterung (`InterlisNavigationSupport`, §21) folgt in einer späteren Phase und konsumiert `showInNavigation(domainClassName)`.
 
+### ADR-013: Direkte 1:n-Zuweisung getrennt von der Association-Registry (Phase 9)
+
+- **Kontext:** Reale ili2db-Schemas speichern einfache 1:n-Beziehungen häufig als
+  FK auf der n-Seite, beispielsweise `Employee.department`. Der bestehende
+  Association-Registry-Pfad behandelt `EMBEDDED_FOREIGN_KEY` konservativ
+  read-only und kann eine solche Property nicht sicher über einen allgemeinen
+  Link-Tabellen-Command bearbeiten.
+- **Entscheidung:** Ein eigener `GrailsInverseRelationshipPlanner` führt eine
+  eindeutig erzeugte Collection auf genau eine physische `MANY_TO_ONE`-Property
+  zurück. Ein eigener Query-/Command-Pfad zeigt, sucht, weist zu und teilt um,
+  indem nur diese Property geändert wird. Planner und Domain-Generator verwenden
+  dieselbe `GrailsRelationshipMapper`-Instanz. Registry-`EMBEDDED_FOREIGN_KEY`
+  bleibt read-only.
+- **Konsequenzen:** Das Getting-Started-Beispiel unterstützt
+  `Department.employees` → `Employee.department`, ohne Link-Tabelle oder
+  synthetische DB-Struktur. Komposition, `EXTERNAL`, `ORDERED`, Mehrdeutigkeit
+  und unvollständige Generierung bleiben ausgeschlossen. YAML kann Sicherheit
+  nur einschränken, nicht erweitern.
+
 ## Risiken
 
 | ID | Risiko | Wahrscheinlichkeit | Auswirkung | Massnahme | Status |
@@ -213,13 +233,13 @@ Diese generierten Association-Domains bestätigen die vom Planner (Phase 1) zu v
 | R-1 | JDK-25-Default lässt Build lokal/CI fehlschlagen | Hoch | Hoch (Build blockiert) | JDK 21 erzwingen (ADR-001); Gradle-Toolchain-Pinning erwägen; in Doku festhalten | Mitigiert |
 | R-2 | `grails` CLI und `ili2pg` lokal nicht installiert → Runtime-Smoke/Real-ili2db/Browser-E2E nicht ausführbar | Hoch | Hoch (Phasen 3–8 Gates) | ✅ **Behoben:** grails 7.0.6 (SDKMAN) + ili2pg 5.6.1 + Docker vorhanden. Runtime-Smoke in Phase 2 real ausgeführt (2 Tests grün). PATH+JDK-21 nötig. | Geschlossen |
 | R-3 | Planner ↔ Domain-Generator nutzen abweichende `TargetNameRegistry`/Mapper-Instanzen | Mittel | Hoch (inkonsistente Namen/Mappings) | ✅ **Behoben (Phase 2):** `GrailsCrudGenerator` erzeugt eine `TargetNameRegistry` + einen `GrailsRelationshipMapper` und reicht sie an Enum-/Domain-Gen (neuer 4-arg-Overload), Planner und Registry-Gen durch. | Geschlossen |
-| R-4 | Falsche GORM-`hasMany`/Cascade zerstört ili2db-Persistenz | Mittel | Sehr hoch (Datenverlust) | Keine inversen Collections/Join-Tabellen; Related-Lists nur über Association-Domain-Query; Regressionstest §30.3 | Kontrolliert durch Design |
+| R-4 | Falsche GORM-`hasMany`/Cascade zerstört ili2db-Persistenz | Mittel | Sehr hoch (Datenverlust) | Keine synthetischen Collections/Join-Tabellen; Link-Tabellen über Association-Domain, direkte 1:n-Zuweisung nur über bereits gemappte FK-Property; Regressionstests | Kontrolliert durch Design |
 | R-5 | Mehrdeutige Rollen→Property-Auflösung (gleiche Zielklasse, physische Abweichung) | Mittel | Mittel | Auflösung über `DomainMapping`/Relationship-Metadaten, Diagnose `AMBIGUOUS_ROLE_PROPERTY` + read-only (§10.3) | Mitigiert (Phase 1): Auflösung + Diagnose + Test implementiert |
 | R-6 | Snapshot-Lücke (2 nicht asserted Associations) verschleiert Regressionen | Niedrig | Mittel | ✅ **Behoben (Phase 2):** neuer `InterlisAssociationRegistry`-Snapshot deckt alle **6** Associations + alle Kontexte + Navigation-Metadaten ab. Domain-Snapshots weiterhin 4 (Registry deckt die übrigen inhaltlich ab). | Geschlossen |
 | R-7 | Sicherheitslücken (Mass Assignment, IDOR, Open Redirect, GET-Mutation) | Mittel | Hoch | Serverseitige Kontextvalidierung, feste Rolle nach Binding neu setzen, keine freie returnUrl, POST/PUT/DELETE (§27) | Design-Vorgabe (Phasen 4–6) |
 | R-8 | n-äre / ORDERED / EXTERNAL / Komposition falsch als M:N vereinfacht | Mittel | Hoch | Deterministische Klassifikation + read-only-Fallback; Real-ili2db-Beleg vor Schreibfunktion (§7.3, §24, Phase 7) | Design-Vorgabe |
 | R-9 | Testmodell fehlt echte n-äre/ORDERED-Fälle | Mittel | Mittel | In Phase 5/7 `AssociationCases.ili` konservativ erweitern, ili2c-validieren (§31.1) | Offen |
-| R-10 | ili2db bettet attributlose binäre Assoziationen als FK-Spalten ein (`--smart2Inheritance`), statt Link-Tabellen → Quick-Link greift real nicht bei diesen Fällen | Hoch | Mittel | Planner klassifiziert korrekt als `UNMAPPED`/read-only (ADR-006); Real-ili2db-Test bestätigt; `EMBEDDED_FOREIGN_KEY`-Schreibpfad in Phase 7 | Kontrolliert (read-only-Fallback); Aktivierung Phase 7 |
+| R-10 | ili2db bettet attributlose binäre Assoziationen als FK-Spalten ein (`--smart2Inheritance`), statt Link-Tabellen → Quick-Link greift real nicht bei diesen Fällen | Hoch | Mittel | Association-Registry bleibt read-only; Phase 9 erlaubt nur eindeutig aufgelöste reguläre 1:n-FK-Properties über einen getrennten Planner/Command-Pfad (ADR-013) | Mitigiert; unsichere Fälle bleiben read-only |
 | R-11 | **Association-Domain Create/Edit-Formulare rendern nicht** — `beteiligung/create` und `ternaryAssoc/create` werfen `Grails Runtime Exception` (Browser-E2E belegt). Index/List-Actions funktionieren. Betrifft Domains, deren Tabelle via `--nameByTopic` generiert wurde. | Hoch | Hoch (kontextuelle Formulare nur lesbar, keine Schreib-UX) | ✅ **Behoben (Phase 6):** Ursache war fehlende Model-Variablen (`hiddenRelationshipFields`, `fixedRelationshipLabels`, `associationContextState`) in `formModelWithContext()` bei leerem Context. Fix: Immer Defaults setzen. | Geschlossen |
 
 ## Konkrete Klassen- und Dateipfade (verifiziert)
@@ -594,10 +614,14 @@ Noch zu erstellen (Referenz, spätere Phasen):
   - `EMBEDDED_FOREIGN_KEY` betrifft in realem ili2pg: EmptyAssociation, SameTargetAssociation, PhysicalMismatchAssociation, ExternalCompositeAssociation, OrderedAssociation.
   - `AssociationWithAttribute`, `ExtendedTopicAssociation`, `TernaryAssociation` bleiben `LINK_ENTITY` (haben eigene Attribute oder sind n-är).
 - **Entscheidungen:**
-  - **ADR-011: EMBEDDED_FOREIGN_KEY ist read-only.** Die Klassifikation ist deterministisch; der Schreibpfad (direkter Property-Editor auf Owning-Side) ist eine zukünftige Erweiterung und benötigt einen eigenen Real-ili2db-Test.
+  - **ADR-011 (historischer Stand Phase 7): EMBEDDED_FOREIGN_KEY ist im
+    Association-Registry-Pfad read-only.** Diese Grenze gilt weiterhin.
+    Phase 9 ergänzt gemäss ADR-013 einen getrennten Schreibpfad nur für eindeutig
+    aufgelöste reguläre 1:n-FK-Properties.
   - **ADR-012: Merge-Report-Erweiterung deferred.** Die Planner-spezifischen Felder (`storageKind`, `presentationKind`) sind in der Registry verfügbar. Eine Core-IR-Erweiterung würde die Architektur-Trennung verletzen.
 - **Nicht durchgeführt (bewusst):**
-  - EMBEDDED_FOREIGN_KEY Write-Pfad (direkter Property-Editor) → zukünftige Erweiterung per ADR-011.
+  - Allgemeiner EMBEDDED_FOREIGN_KEY-Registry-Write-Pfad bleibt zukünftige
+    Erweiterung; der sichere reguläre 1:n-Spezialfall folgt später in Phase 9.
   - ORDERED-Reihenfolge-Anzeige/Schreiben → keine physische Spalte vorhanden; zukünftige Erweiterung.
   - Merge-Report-Erweiterung um storageKind/presentationKind → Core/target-Trennung (ADR-012).
 - **Ausgeführte Tests (JDK 21, ADR-001):**
@@ -605,7 +629,8 @@ Noch zu erstellen (Referenz, spätere Phasen):
   - `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/AssociationCases.ili` → **PASS**.
   - `./gradlew :target-grails:realIli2dbSmokeTest --tests "*validatesAssociationCasesAgainstRealIli2pgSchema*"` → **PASS** (8 Plans, EMBEDDED_FOREIGN_KEY für 5 Assoziationen).
 - **Offene Punkte / Restpunkte:**
-  - EMBEDDED_FOREIGN_KEY Write-Pfad → Future (ADR-011).
+  - Allgemeiner EMBEDDED_FOREIGN_KEY-Registry-Write-Pfad → Future (ADR-011);
+    sicherer regulärer 1:n-Spezialfall → Phase 9 (ADR-013).
   - ORDERED-Reihenfolge-UI → Future.
   - Browser-E2E für Spezialfälle → Phase 8 (Regression).
 - **Abnahme:** Phase 7 DONE-Kriterien: EXTERNAL-Guard ✔; ORDERED-Modell + ili2c-Validierung ✔; ORDERED-ili2pg-Analyse ✔; EMBEDDED_FOREIGN_KEY-Klassifikation ✔; Planner-Tests ✔; Real-ili2db-Test ✔; Dokumentation ✔; Plan aktualisiert ✔. Nicht mit Phase 8 fortgefahren ✔.
@@ -631,13 +656,68 @@ Noch zu erstellen (Referenz, spätere Phasen):
   - `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/QuickLinkE2E.ili` → **PASS**
   - `java -jar /Users/stefan/apps/ili2c-5.6.8/ili2c.jar test-models/ContextualAssociationE2E.ili` → **PASS**
 - **Offene Punkte (Future, nicht im Scope):**
-  - `EMBEDDED_FOREIGN_KEY` Write-Pfad (direkter Property-Editor) → Future (ADR-011)
+  - `EMBEDDED_FOREIGN_KEY` Write-Pfad war zu diesem Zeitpunkt Future
+    (ADR-011); der sichere reguläre 1:n-Spezialfall wird in Phase 9 umgesetzt
+    (ADR-013), der allgemeine Registry-Pfad bleibt read-only.
   - `ORDERED`-Reihenfolge-UI/Schreiben → Future (keine physische Spalte in ili2pg)
   - AssociationCases-Live-Browser-E2E benötigt Basket-Unterstützung → ausserhalb Scope
   - Merge-Report-Erweiterung um `storageKind`/`presentationKind` → Future (ADR-012)
   - Gradle-Toolchain-Pinning → Future (ADR-001-Empfehlung)
   - `associationUiMode`-Gating in Planner (nicht Registry) → Future (minor)
 - **Abnahme:** Phase 8 DONE-Kriterien: Alle Phasen verifiziert ✔; Regression erkannt & behoben ✔; Keine toten/duplizierten Implementationen ✔; DoD-Checkliste vollständig abgehakt ✔; README + CLI-Help aktuell ✔; ili2c alle Modelle ✔; Kein ilivalidator (0 XTF) ✔; Keine deaktivierten Tests ✔; Abschlussbericht präzise ✔; Alle Restpunkte als "Future" markiert ✔. **Projekt DONE.**
+
+### Phase 9
+
+- **Generator:** `GrailsInverseRelationshipPlanner` verwendet dieselbe
+  `GrailsRelationshipMapper`-Instanz wie die Domain-Generierung und erzeugt
+  additive `interlisInverseRelationshipMeta`-Einträge. Nur eindeutige physische
+  `MANY_TO_ONE`-Properties mit eindeutig erzeugter Gegen-Collection werden
+  editierbar. Komposition, `EXTERNAL`, `ORDERED`, Mehrdeutigkeit und fehlende
+  Domain-/Spalten-Mappings bleiben ausgeschlossen.
+- **Konfiguration:** `--grails-association-ui` ist die obere Grenze.
+  `application.yml` kann pro Domain und Collection `label` sowie
+  `mode: auto|editable|read-only|off` setzen. Laufzeitkonfiguration kann ein
+  read-only Generatorresultat nicht hochstufen.
+- **Runtime:** Ein Query-Service liefert Count, Paging, Detail-Links und
+  Suchoptionen inklusive bisherigem Owner. Ein separater transaktionaler
+  Command-Service unterstützt Erstzuweisung, idempotente Wiederholung und
+  bestätigte Umteilung. Ohne Bestätigung bleibt die DB unverändert und der
+  Server liefert `409 REASSIGNMENT_CONFIRMATION_REQUIRED`.
+- **GUI:** Die Show-Seite rendert die inverse 1:n-Section nach den direkten
+  Beziehungen. Autocomplete, **Employee zuweisen**, Inline-Paging und ein
+  Bootstrap-Umteilungsdialog sind progressive Erweiterungen. Version 1 bietet
+  kein Entfernen.
+- **Persistenz:** Ausschliesslich die bereits gemappte FK-Property, zum Beispiel
+  `Employee.department`, wird geändert. Es entsteht keine Verbindungstabelle.
+  `t_basket` wird weder gelesen noch geprüft noch verändert.
+- **Tests:** Generator- und Konfigurations-Unit-Tests, Grails-H2-Integration
+  sowie ein PostgreSQL-/Chromium-E2E gegen das basketfreie `GsSimpleModel`.
+  Der E2E prüft fehlende `t_basket`-Pflichtspalte, fehlende Verbindungstabelle,
+  Anzeige der bisherigen Abteilung, `409` ohne Bestätigung, Abbruch ohne
+  DB-Änderung, bestätigte Umteilung, Employee-Detailseite und manipulierten
+  Beziehungsnamen.
+- **Regression-Härtung:** Der vollständige Browser-Lauf deckte drei ältere
+  Test-/Template-Lücken auf und schloss sie: aktueller
+  `topbar-toolbar`-Extension-Point, auf den Löschdialog begrenzter
+  Modal-Selektor, Einfügen der Testkonfiguration in den vorhandenen
+  `ili2grails`-YAML-Block sowie der bislang fehlende sichtbare Zustand
+  **Keine Treffer** bei einer erfolglosen Suche.
+- **Ausgeführte Abnahme (JDK 21):**
+  - `./gradlew test --no-daemon` → **PASS (180)**: Core 31, CLI 14,
+    Django 7, Grails 128.
+  - `./gradlew :target-grails:grailsRuntimeSmokeTest --no-daemon` →
+    **PASS (6/6)**.
+  - `./gradlew :target-grails:realIli2dbSmokeTest --no-daemon` →
+    **PASS (9/9)**.
+  - `./gradlew :target-grails:browserE2eTest --no-daemon` →
+    **PASS (6/6)**.
+  - `bash -n scripts/getting-started.sh`, `git diff --check` und Prüfung der
+    ausgeschlossenen `build/getting-started/**`-Pfade → **PASS**.
+- **Dokumentation:** README als zentrale Wahrheit,
+  `docs/association-ux.md` und Getting-Started-Tutorial mit dem
+  INTERLIS–DB–GUI-Beispiel aktualisiert.
+- **Scope:** Keine Änderungen an `build/getting-started/**`; die bestehende
+  `simple-app` bleibt unverändert und wird vom Nutzer frisch neu erzeugt.
 
 ## Abschluss-Checkliste (Gesamtprojekt)
 

@@ -30,6 +30,18 @@
                 domainPropertyName: '${propertyName}'
             ]}"/>
 
+            <g:if test="\${inverseRelationshipSections}">
+                <div class="ili-inverse-relationship-sections">
+                    <g:render template="inverse-relationship-sections" model="\${[
+                        inverseRelationshipSections: inverseRelationshipSections
+                    ]}"/>
+                </div>
+            </g:if>
+
+            <g:if test="\${inverseRelationshipDiagnostic}">
+                <div class="alert alert-warning" role="alert">\${inverseRelationshipDiagnostic}</div>
+            </g:if>
+
             <g:if test="\${associationSections}">
                 <section class="ili-association-sections" aria-labelledby="association-sections-heading">
                     <h2 class="ili-section-title" id="association-sections-heading"><g:message code="ili2grails.association.assignments" default="Zuordnungen"/></h2>

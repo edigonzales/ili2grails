@@ -3,14 +3,20 @@
 import ch.interlis.generator.grails.runtime.InterlisCrudControllerSupport
 import ch.interlis.generator.grails.runtime.InterlisAssociationQueryService
 import ch.interlis.generator.grails.runtime.InterlisAssociationCommandService
+import ch.interlis.generator.grails.runtime.InterlisInverseRelationshipQueryService
+import ch.interlis.generator.grails.runtime.InterlisInverseRelationshipCommandService
 
 class ${className}Controller extends InterlisCrudControllerSupport<${className}> {
 
     ${className}Service ${propertyName}Service
     InterlisAssociationQueryService interlisAssociationQueryService
     InterlisAssociationCommandService interlisAssociationCommandService
+    InterlisInverseRelationshipQueryService interlisInverseRelationshipQueryService
+    InterlisInverseRelationshipCommandService interlisInverseRelationshipCommandService
 
     static allowedMethods = [save: "POST", update: "PUT", delete: "DELETE", relationshipOptions: "GET",
+                             relationshipCollectionPage: "GET", relationshipCollectionOptions: "GET",
+                             relationshipAssign: "POST",
                              associationPage: "GET", associationOptions: "GET",
                              associationCreate: "POST", associationDelete: "DELETE"]
 
@@ -44,6 +50,18 @@ class ${className}Controller extends InterlisCrudControllerSupport<${className}>
 
     def relationshipOptions() {
         super.relationshipOptions()
+    }
+
+    def relationshipCollectionPage(Long id) {
+        super.relationshipCollectionPage(id)
+    }
+
+    def relationshipCollectionOptions(Long id) {
+        super.relationshipCollectionOptions(id)
+    }
+
+    def relationshipAssign(Long id) {
+        super.relationshipAssign(id)
     }
 
     def associationPage(Long id) {
@@ -80,5 +98,15 @@ class ${className}Controller extends InterlisCrudControllerSupport<${className}>
     @Override
     protected Object associationCommandService() {
         return interlisAssociationCommandService
+    }
+
+    @Override
+    protected Object inverseRelationshipQueryService() {
+        return interlisInverseRelationshipQueryService
+    }
+
+    @Override
+    protected Object inverseRelationshipCommandService() {
+        return interlisInverseRelationshipCommandService
     }
 }

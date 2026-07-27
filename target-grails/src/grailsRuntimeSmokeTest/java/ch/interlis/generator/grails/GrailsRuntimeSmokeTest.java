@@ -149,6 +149,15 @@ class GrailsRuntimeSmokeTest {
         Path commandServiceFile = appDir.resolve(
             "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy");
         assertThat(commandServiceFile).exists();
+        assertThat(appDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipSupport.groovy"
+        )).exists();
+        assertThat(appDir.resolve(
+            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipQueryService.groovy"
+        )).exists();
+        assertThat(appDir.resolve(
+            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipCommandService.groovy"
+        )).exists();
 
         Path associationSectionsGsp = appDir.resolve(
             "src/main/templates/scaffolding/_association-sections.gsp");
@@ -161,6 +170,12 @@ class GrailsRuntimeSmokeTest {
         Path associationQuickAddGsp = appDir.resolve(
             "src/main/templates/scaffolding/_association-quick-add.gsp");
         assertThat(associationQuickAddGsp).exists();
+        assertThat(appDir.resolve(
+            "src/main/templates/scaffolding/_inverse-relationship-sections.gsp"
+        )).exists();
+        assertThat(appDir.resolve(
+            "src/main/templates/scaffolding/_inverse-relationship-picker.gsp"
+        )).exists();
         assertThat(appDir.resolve("src/main/templates/scaffolding/_list-filters.gsp")).exists();
         assertThat(appDir.resolve("src/main/templates/scaffolding/_list-table.gsp")).exists();
 
@@ -180,6 +195,7 @@ class GrailsRuntimeSmokeTest {
             .contains("/interlisUi/workspace-relationships")
             .contains("/interlisUi/workspace-danger-zone")
             .contains("association-sections")
+            .contains("inverse-relationship-sections")
             .doesNotContain("Audit", "Verlauf", "Protokoll", "Timeline", "Restore");
 
         // generate-all must render the association partials into the view folder
@@ -189,12 +205,20 @@ class GrailsRuntimeSmokeTest {
         assertThat(listGsp).contains("list-filters").contains("list-table").contains("list-pagination");
         Path generatedSections = viewDir.resolve("_association-sections.gsp");
         Path generatedQuickAdd = viewDir.resolve("_association-quick-add.gsp");
+        Path generatedInverseSections = viewDir.resolve("_inverse-relationship-sections.gsp");
+        Path generatedInversePicker = viewDir.resolve("_inverse-relationship-picker.gsp");
         assertThat(generatedSections).exists();
         assertThat(generatedQuickAdd).exists();
+        assertThat(generatedInverseSections).exists();
+        assertThat(generatedInversePicker).exists();
         String generatedQuickAddContent = Files.readString(generatedQuickAdd);
         assertThat(generatedQuickAddContent).contains("associationCreate");
         assertThat(generatedQuickAddContent).contains("data-relationship-context");
         assertThat(generatedQuickAddContent).doesNotContain("raw(");
+        assertThat(Files.readString(generatedInversePicker))
+            .contains("relationshipAssign")
+            .contains("data-inverse-reassignment-modal")
+            .doesNotContain("raw(");
     }
 
     @Test
@@ -230,6 +254,41 @@ class GrailsRuntimeSmokeTest {
 
         runCommand(appDir, List.of("./gradlew", "integrationTest", "--tests",
             "com.example.ListQueryIntegrationSpec", "--no-daemon"), COMMAND_TIMEOUT);
+    }
+
+    @Test
+    void inverseRelationshipAssignmentExecutesAgainstH2() throws Exception {
+        Path appDir = createGrailsApp();
+        ModelMetadata metadata = inverseRelationshipMetadata();
+        GenerationConfig config = GenerationConfig.builder(appDir, BASE_PACKAGE)
+            .domainPackage(DOMAIN_PACKAGE)
+            .controllerPackage(BASE_PACKAGE)
+            .enumPackage(ENUM_PACKAGE)
+            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+            .mapEditor(GenerationConfig.MAP_EDITOR_NONE)
+            .geometryEnabled(false)
+            .build();
+
+        new GrailsTemplateOverlayInstaller().install(appDir, config);
+        new GrailsCrudGenerator().generate(metadata, config);
+        generateScaffolding(appDir, metadata, config);
+        String h2Configuration = Files.readString(appDir.resolve("grails-app/conf/application.yml"))
+            .replace("dbCreate: \"update\"", "dbCreate: \"create-drop\"")
+            .replace("org.hibernate.dialect.PostgreSQLDialect", "org.hibernate.dialect.H2Dialect");
+        Files.writeString(appDir.resolve("grails-app/conf/application.yml"), h2Configuration);
+        Files.writeString(appDir.resolve("grails-app/conf/application-test.yml"), """
+            environments:
+                test:
+                    dataSource:
+                        dbCreate: create-drop
+            """);
+        Files.createDirectories(appDir.resolve("src/integration-test/groovy/com/example"));
+        Files.writeString(appDir.resolve(
+            "src/integration-test/groovy/com/example/InverseRelationshipIntegrationSpec.groovy"
+        ), inverseRelationshipIntegrationSpec());
+
+        runCommand(appDir, List.of("./gradlew", "integrationTest", "--tests",
+            "com.example.InverseRelationshipIntegrationSpec", "--no-daemon"), COMMAND_TIMEOUT);
     }
 
     @Test
@@ -449,6 +508,84 @@ class GrailsRuntimeSmokeTest {
                     InterlisFormSupport.continueRedirect(invalid, [contextId: 'ctx', ownerId: municipality.id]).params == [
                         associationContext: 'ctx', associationOwnerId: municipality.id
                     ]
+                }
+            }
+            """;
+    }
+
+    private String inverseRelationshipIntegrationSpec() {
+        return """
+            package com.example
+
+            import com.example.domain.Department
+            import com.example.domain.Employee
+            import grails.testing.mixin.integration.Integration
+            import grails.gorm.transactions.Rollback
+            import spock.lang.Specification
+
+            @Integration
+            @Rollback
+            class InverseRelationshipIntegrationSpec extends Specification {
+
+                def interlisInverseRelationshipQueryService
+                def interlisInverseRelationshipCommandService
+                def sessionFactory
+
+                def "requires confirmation and then moves the existing employee"() {
+                    given:
+                    def hr = new Department(name: 'HR').save(failOnError: true, flush: true)
+                    def operations = new Department(name: 'Operations').save(failOnError: true, flush: true)
+                    def employee = new Employee(
+                        firstName: 'Anna', lastName: 'Keller', department: hr
+                    ).save(failOnError: true, flush: true)
+                    def unassigned = new Employee(
+                        firstName: 'Bea', lastName: 'Meier'
+                    ).save(failOnError: true, flush: true)
+
+                    when:
+                    def sections = interlisInverseRelationshipQueryService.sections(
+                        Department, operations.id, 10)
+                    def options = interlisInverseRelationshipQueryService.optionPage(
+                        Department, operations.id, 'employees', 'Anna', 25, 0)
+                    def needsConfirmation = interlisInverseRelationshipCommandService.assign(
+                        Department, operations.id, 'employees', employee.id, false)
+                    def firstAssignment = interlisInverseRelationshipCommandService.assign(
+                        Department, operations.id, 'employees', unassigned.id, false)
+                    sessionFactory.currentSession.clear()
+
+                    then:
+                    sections*.name == ['employees']
+                    sections[0].total == 0
+                    options.results*.id == [employee.id.toString()]
+                    options.results[0].label.contains('HR')
+                    needsConfirmation.status == 409
+                    needsConfirmation.code == 'REASSIGNMENT_CONFIRMATION_REQUIRED'
+                    firstAssignment.success
+                    firstAssignment.code == 'ASSIGNED'
+                    Employee.get(employee.id).department.id == hr.id
+                    Employee.get(unassigned.id).department.id == operations.id
+
+                    when:
+                    def moved = interlisInverseRelationshipCommandService.assign(
+                        Department, operations.id, 'employees', employee.id, true)
+                    sessionFactory.currentSession.clear()
+                    def operationRows = interlisInverseRelationshipQueryService.page(
+                        Department, operations.id, 'employees', 10, 0)
+                    def repeated = interlisInverseRelationshipCommandService.assign(
+                        Department, operations.id, 'employees', employee.id, false)
+                    def invalid = interlisInverseRelationshipCommandService.assign(
+                        Department, operations.id, 'unknown', employee.id, false)
+
+                    then:
+                    moved.success
+                    moved.code == 'REASSIGNED'
+                    Employee.get(employee.id).department.id == operations.id
+                    operationRows.total == 2
+                    operationRows.rows*.id.toSet() == [employee.id.toString(), unassigned.id.toString()].toSet()
+                    repeated.success
+                    repeated.code == 'ALREADY_ASSIGNED'
+                    invalid.status == 400
+                    invalid.code == 'RELATIONSHIP_INVALID'
                 }
             }
             """;
@@ -676,8 +813,37 @@ class GrailsRuntimeSmokeTest {
         String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         int exitCode = process.exitValue();
         if (exitCode != 0) {
+            String testDiagnostics = readTestDiagnostics(workingDir);
             throw new IOException("Command failed (exit " + exitCode + "): "
-                + String.join(" ", command) + "\nOutput:\n" + output);
+                + String.join(" ", command) + "\nOutput:\n" + output + testDiagnostics);
+        }
+    }
+
+    private static String readTestDiagnostics(Path workingDir) {
+        Path testResults = workingDir.resolve("build/test-results");
+        if (!Files.isDirectory(testResults)) {
+            return "";
+        }
+        try (var files = Files.walk(testResults)) {
+            String diagnostics = files
+                .filter(path -> path.getFileName().toString().startsWith("TEST-"))
+                .filter(path -> path.getFileName().toString().endsWith(".xml"))
+                .map(path -> {
+                    try {
+                        return Files.readString(path);
+                    } catch (IOException ignored) {
+                        return "";
+                    }
+                })
+                .filter(content -> content.contains("<failure"))
+                .collect(java.util.stream.Collectors.joining("\n"));
+            if (diagnostics.isBlank()) {
+                return "";
+            }
+            return "\nTest diagnostics:\n"
+                + diagnostics.substring(0, Math.min(diagnostics.length(), 20_000));
+        } catch (IOException ignored) {
+            return "";
         }
     }
 
@@ -801,6 +967,56 @@ class GrailsRuntimeSmokeTest {
         addressRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
         addressRole.setMandatory(true);
         metadata.addRelationship(addressRole);
+
+        return metadata;
+    }
+
+    private ModelMetadata inverseRelationshipMetadata() {
+        ModelMetadata metadata = new ModelMetadata("InverseRelationshipModel");
+
+        ClassMetadata department = new ClassMetadata(
+            "InverseRelationshipModel.Organization.Department"
+        );
+        department.setKind(ClassMetadata.ClassKind.CLASS);
+        department.setTableName("department");
+        AttributeMetadata departmentName = textAttribute("name", "name");
+        departmentName.setMandatory(true);
+        department.addAttribute(departmentName);
+        metadata.addClass(department);
+
+        ClassMetadata employee = new ClassMetadata(
+            "InverseRelationshipModel.Organization.Employee"
+        );
+        employee.setKind(ClassMetadata.ClassKind.CLASS);
+        employee.setTableName("employee");
+        AttributeMetadata firstName = textAttribute("firstName", "first_name");
+        firstName.setMandatory(true);
+        employee.addAttribute(firstName);
+        AttributeMetadata lastName = textAttribute("lastName", "last_name");
+        lastName.setMandatory(true);
+        employee.addAttribute(lastName);
+        AttributeMetadata departmentReference = new AttributeMetadata("department");
+        departmentReference.setJavaType("Long");
+        departmentReference.setForeignKey(true);
+        departmentReference.setReferencedClass(department.getName());
+        departmentReference.setColumnName("department");
+        departmentReference.setSqlName("department");
+        departmentReference.setMandatory(false);
+        employee.addAttribute(departmentReference);
+        metadata.addClass(employee);
+
+        RelationshipMetadata relationship = new RelationshipMetadata(
+            "InverseRelationshipModel.Organization.Employee_Department"
+        );
+        relationship.setSourceClass(employee.getName());
+        relationship.setTargetClass(department.getName());
+        relationship.setSourceAttribute("department");
+        relationship.setTargetRoleName("Department");
+        relationship.setPhysicalName("department");
+        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
+        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
+        relationship.setMandatory(false);
+        metadata.addRelationship(relationship);
 
         return metadata;
     }

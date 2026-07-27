@@ -28,9 +28,17 @@ public class GrailsCrudGenerator {
             GrailsRelationshipMapper.forMetadata(metadata, config, registry);
         GrailsAssociationPlanner associationPlanner =
             GrailsAssociationPlanner.forMetadata(metadata, config, registry, relationshipMapper);
+        GrailsInverseRelationshipPlanner inverseRelationshipPlanner =
+            GrailsInverseRelationshipPlanner.forMetadata(metadata, config, registry, relationshipMapper);
 
         enumGenerator.generate(metadata, config, registry);
-        domainGenerator.generate(metadata, config, registry, relationshipMapper);
+        domainGenerator.generate(
+            metadata,
+            config,
+            registry,
+            relationshipMapper,
+            inverseRelationshipPlanner
+        );
         associationRegistryGenerator.generate(metadata, config, registry, associationPlanner);
         uiRegistryGenerator.generate(metadata, config, registry, relationshipMapper, associationPlanner);
         //controllerGenerator.generate(metadata, config, registry);

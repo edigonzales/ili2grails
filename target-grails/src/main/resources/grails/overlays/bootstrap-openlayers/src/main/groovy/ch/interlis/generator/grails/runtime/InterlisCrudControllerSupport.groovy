@@ -25,6 +25,10 @@ abstract class InterlisCrudControllerSupport<T> {
 
     protected abstract Object associationCommandService()
 
+    protected abstract Object inverseRelationshipQueryService()
+
+    protected abstract Object inverseRelationshipCommandService()
+
     def index(Integer max, Integer offset) {
         applySecurityHeaders()
         Map<String, Object> descriptor = uiDescriptor()
@@ -86,6 +90,7 @@ abstract class InterlisCrudControllerSupport<T> {
         model.putAll(geometryModel(instance))
         model.putAll(relationshipModel(instance))
         model.putAll(detailModel(instance))
+        model.putAll(inverseRelationshipModel(instance))
         model.putAll(associationModel(instance))
         model.putAll(InterlisWorkspaceSupport.showModel(grailsApplication, domainType(), instance, descriptor))
         model.put("uiDescriptor", descriptor)
@@ -300,6 +305,113 @@ abstract class InterlisCrudControllerSupport<T> {
         render page as JSON
     }
 
+    def relationshipCollectionPage(Long id) {
+        applySecurityHeaders()
+        T instance = crudService().get(id) as T
+        if (instance == null) {
+            notFound()
+            return
+        }
+        String relationshipName = params.relationship?.toString()
+        try {
+            Map<String, Object> page = inverseRelationshipQueryService().page(
+                domainType(),
+                instance.id as java.io.Serializable,
+                relationshipName,
+                boundedMax(params.int("max")),
+                safeOffset(params.int("offset"))
+            )
+            render page as JSON
+        } catch (InterlisInverseRelationshipSupport.InverseRelationshipNotFoundException e) {
+            response.status = BAD_REQUEST.value()
+            render([error: e.message] as JSON)
+        } catch (IllegalArgumentException e) {
+            response.status = INTERNAL_SERVER_ERROR.value()
+            render([
+                code: "CONFIGURATION_INVALID",
+                error: "Ungültige Beziehungs-Konfiguration: ${e.message}"
+            ] as JSON)
+        } catch (Exception e) {
+            log.error(
+                "relationshipCollectionPage failed for ${domainType().simpleName}#${id} " +
+                    "relationship ${relationshipName}: ${e.message}",
+                e
+            )
+            response.status = INTERNAL_SERVER_ERROR.value()
+            render([error: "Beziehungsdaten konnten nicht geladen werden."] as JSON)
+        }
+    }
+
+    def relationshipCollectionOptions(Long id) {
+        applySecurityHeaders()
+        T instance = crudService().get(id) as T
+        if (instance == null) {
+            notFound()
+            return
+        }
+        String relationshipName = params.relationship?.toString()
+        try {
+            Map<String, Object> page = inverseRelationshipQueryService().optionPage(
+                domainType(),
+                instance.id as java.io.Serializable,
+                relationshipName,
+                normalizedQuery(params.q),
+                boundedMax(params.int("max")),
+                safeOffset(params.int("offset"))
+            )
+            render page as JSON
+        } catch (InterlisInverseRelationshipSupport.InverseRelationshipNotFoundException e) {
+            response.status = BAD_REQUEST.value()
+            render([results: [], pagination: [more: false, total: 0, nextOffset: 0], error: e.message] as JSON)
+        } catch (IllegalArgumentException e) {
+            response.status = INTERNAL_SERVER_ERROR.value()
+            render([
+                results: [],
+                pagination: [more: false, total: 0, nextOffset: 0],
+                code: "CONFIGURATION_INVALID",
+                error: "Ungültige Beziehungs-Konfiguration: ${e.message}"
+            ] as JSON)
+        } catch (Exception e) {
+            log.warn(
+                "relationshipCollectionOptions failed for ${domainType().simpleName}#${id} " +
+                    "relationship ${relationshipName}: ${e.message}",
+                e
+            )
+            render([results: [], pagination: [more: false, total: 0, nextOffset: 0]] as JSON)
+        }
+    }
+
+    def relationshipAssign(Long id) {
+        applySecurityHeaders()
+        T instance = crudService().get(id) as T
+        if (instance == null) {
+            notFound()
+            return
+        }
+        Map<String, Object> result
+        try {
+            result = inverseRelationshipCommandService().assign(
+                domainType(),
+                instance.id as java.io.Serializable,
+                params.relationship?.toString(),
+                params.long("targetId") as java.io.Serializable,
+                params.boolean("confirmReassignment")
+            )
+        } catch (Exception e) {
+            log.error(
+                "relationshipAssign failed for ${domainType().simpleName}#${id}: ${e.message}",
+                e
+            )
+            result = [
+                success: false,
+                status: 500,
+                code: "INTERNAL_ERROR",
+                message: "Die Zuordnung konnte nicht verarbeitet werden."
+            ]
+        }
+        respondInverseRelationshipCommand(instance, result)
+    }
+
     def associationPage(Long id) {
         applySecurityHeaders()
         T instance = crudService().get(id) as T
@@ -478,6 +590,40 @@ abstract class InterlisCrudControllerSupport<T> {
         }
     }
 
+    protected void respondInverseRelationshipCommand(T instance, Map<String, Object> result) {
+        boolean success = result?.success == true
+        int status = (result?.status ?: (success ? 200 : 400)) as int
+        String userMessage = result?.message?.toString()
+        if (success && userMessage != null && !userMessage.isBlank()) {
+            flash.message = userMessage
+        }
+        if (inverseRelationshipJsonRequested()) {
+            response.status = status
+            render result as JSON
+            return
+        }
+        request.withFormat {
+            form multipartForm {
+                if (!success && userMessage != null && !userMessage.isBlank()) {
+                    flash.message = userMessage
+                }
+                redirect action: "show", id: instance.id, method: "GET"
+            }
+            "*" {
+                response.status = status
+                render result as JSON
+            }
+        }
+    }
+
+    protected boolean inverseRelationshipJsonRequested() {
+        if (params.format?.toString()?.equalsIgnoreCase("json")) {
+            return true
+        }
+        String accept = request.getHeader("Accept")
+        return accept != null && accept.toLowerCase(Locale.ROOT).contains("application/json")
+    }
+
     protected void respondAssociationError(int status, String code, String message) {
         request.withFormat {
             form multipartForm {
@@ -506,6 +652,38 @@ abstract class InterlisCrudControllerSupport<T> {
         } catch (Exception e) {
             log.warn("associationModel failed for ${domainType().simpleName}#${instance.id}: ${e.message}", e)
             return [associationSections: [], associationDiagnostic: "Assoziationsdaten konnten nicht geladen werden."]
+        }
+    }
+
+    protected Map<String, Object> inverseRelationshipModel(T instance) {
+        if (instance == null) {
+            return [inverseRelationshipSections: []]
+        }
+        try {
+            return [
+                inverseRelationshipSections: inverseRelationshipQueryService().sections(
+                    domainType(),
+                    instance.id as java.io.Serializable,
+                    associationPageSize()
+                )
+            ]
+        } catch (IllegalArgumentException e) {
+            log.warn(
+                "Invalid inverse-relationship configuration for ${domainType().simpleName}: ${e.message}"
+            )
+            return [
+                inverseRelationshipSections: [],
+                inverseRelationshipDiagnostic: "Ungültige Beziehungs-Konfiguration: ${e.message}"
+            ]
+        } catch (Exception e) {
+            log.warn(
+                "inverseRelationshipModel failed for ${domainType().simpleName}#${instance.id}: ${e.message}",
+                e
+            )
+            return [
+                inverseRelationshipSections: [],
+                inverseRelationshipDiagnostic: "Beziehungsdaten konnten nicht geladen werden."
+            ]
         }
     }
 

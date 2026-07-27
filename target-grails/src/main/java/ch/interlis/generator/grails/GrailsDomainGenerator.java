@@ -49,6 +49,20 @@ public class GrailsDomainGenerator {
                          GenerationConfig config,
                          TargetNameRegistry registry,
                          GrailsRelationshipMapper mapper) throws IOException {
+        generate(
+            metadata,
+            config,
+            registry,
+            mapper,
+            GrailsInverseRelationshipPlanner.forMetadata(metadata, config, registry, mapper)
+        );
+    }
+
+    public void generate(ModelMetadata metadata,
+                         GenerationConfig config,
+                         TargetNameRegistry registry,
+                         GrailsRelationshipMapper mapper,
+                         GrailsInverseRelationshipPlanner inverseRelationshipPlanner) throws IOException {
         Path baseDir = config.getOutputDir()
             .resolve("grails-app/domain")
             .resolve(NameUtils.packageToPath(config.getDomainPackage()));
@@ -56,7 +70,14 @@ public class GrailsDomainGenerator {
 
         for (ClassMetadata classMetadata : mapper.generatedClasses()) {
             GrailsRelationshipMapper.DomainMapping mapping = mapper.map(classMetadata);
-            String content = renderDomain(classMetadata, mapping, metadata, config, registry);
+            String content = renderDomain(
+                classMetadata,
+                mapping,
+                inverseRelationshipPlanner.plansForOwner(classMetadata.getName()),
+                metadata,
+                config,
+                registry
+            );
             Path target = baseDir.resolve(registry.className(classMetadata) + ".groovy");
             Files.writeString(target, content, StandardCharsets.UTF_8);
         }
@@ -64,6 +85,7 @@ public class GrailsDomainGenerator {
 
     private String renderDomain(ClassMetadata classMetadata,
                                 GrailsRelationshipMapper.DomainMapping mapping,
+                                List<GrailsInverseRelationshipPlan> inverseRelationshipPlans,
                                 ModelMetadata metadata,
                                 GenerationConfig config,
                                 TargetNameRegistry registry) {
@@ -163,6 +185,20 @@ public class GrailsDomainGenerator {
                 .map(entry -> "        " + entry.getKey() + ": " + renderRelationshipMeta(entry.getValue()))
                 .collect(Collectors.joining(",\n"));
             sb.append(relationshipMetaBlock).append("\n");
+            sb.append("    ]\n");
+        }
+
+        List<GrailsInverseRelationshipPlan> visibleInverseRelationships = inverseRelationshipPlans.stream()
+            .filter(GrailsInverseRelationshipPlan::visible)
+            .toList();
+        if (!visibleInverseRelationships.isEmpty()) {
+            sb.append("\n    static final Map<String, Map<String, Object>> interlisInverseRelationshipMeta = [\n");
+            String inverseRelationshipMetaBlock = visibleInverseRelationships.stream()
+                .sorted(java.util.Comparator.comparing(GrailsInverseRelationshipPlan::collectionPropertyName))
+                .map(plan -> "        " + plan.collectionPropertyName() + ": "
+                    + renderInverseRelationshipMeta(plan))
+                .collect(Collectors.joining(",\n"));
+            sb.append(inverseRelationshipMetaBlock).append("\n");
             sb.append("    ]\n");
         }
 
@@ -328,6 +364,21 @@ public class GrailsDomainGenerator {
             entries.add("association: '" + escapeGroovy(relationship.getAssociationName()) + "'");
         }
         entries.add("mandatory: " + !property.nullable());
+        return "[" + String.join(", ", entries) + "]";
+    }
+
+    private String renderInverseRelationshipMeta(GrailsInverseRelationshipPlan plan) {
+        List<String> entries = new ArrayList<>();
+        entries.add("relatedDomainClass: '" + escapeGroovy(plan.relatedDomainQualifiedName()) + "'");
+        entries.add("relatedIliName: '" + escapeGroovy(plan.relatedIliClassName()) + "'");
+        entries.add("relatedProperty: '" + escapeGroovy(plan.relatedPropertyName()) + "'");
+        if (plan.relationshipName() != null && !plan.relationshipName().isBlank()) {
+            entries.add("relationshipName: '" + escapeGroovy(plan.relationshipName()) + "'");
+        }
+        entries.add("label: '" + escapeGroovy(plan.label()) + "'");
+        entries.add("relatedLabel: '" + escapeGroovy(plan.relatedLabel()) + "'");
+        entries.add("mandatory: " + plan.mandatory());
+        entries.add("writable: " + plan.writable());
         return "[" + String.join(", ", entries) + "]";
     }
 

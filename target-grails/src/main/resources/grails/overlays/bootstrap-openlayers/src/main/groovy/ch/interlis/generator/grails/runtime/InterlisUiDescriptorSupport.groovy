@@ -153,6 +153,14 @@ final class InterlisUiDescriptorSupport {
         return configuredText == null || configuredText.isBlank() ? "grid" : configuredText
     }
 
+    static Map<String, Object> configuredDomainForType(def grailsApplication, Class domainType) {
+        Map<String, Object> registryEntry = InterlisUiRegistry.domainForClassName(domainType?.name)
+        if (registryEntry == null) {
+            return [:]
+        }
+        return configuredDomain(grailsApplication, registryEntry.iliName?.toString())
+    }
+
     private static Map<String, Object> configuredDomain(def grailsApplication, String iliName) {
         Object rawDomains = grailsApplication?.config?.ili2grails?.ui?.domains
         List<?> domains = normalizeList(rawDomains)
@@ -723,7 +731,7 @@ final class InterlisUiDescriptorSupport {
         )
     }
 
-    private static Map<String, Object> staticDomainMap(Class domainType, String fieldName) {
+    static Map<String, Object> staticDomainMap(Class domainType, String fieldName) {
         try {
             def field = domainType.getDeclaredField(fieldName)
             field.accessible = true
