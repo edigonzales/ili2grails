@@ -167,10 +167,13 @@ wird.
 
 ## Konkrete Vorher-/Nachher-Beispiele
 
-Die folgenden Beispiele stammen aus den versionierten Testmodellen und
-generierten Snapshots des Repositories.
+Die folgenden Beispiele stammen aus den versionierten Testmodellen. Wo die
+physische Abbildung relevant ist, wird zwischen dem realen ili2pg-Smoke-Test
+und der synthetischen H2-Testdatenbank unterschieden. Diese Unterscheidung ist
+wichtig: ili2db kann dieselbe fachliche Association je nach Abbildungsstrategie
+als FK auf einer beteiligten Klasse oder als eigene Link-Tabelle materialisieren.
 
-### 1. Fachliche Rolle und physische FK-Spalte
+### 1. Eine Association, aber nur ein physischer FK
 
 Das Modell
 [`AssociationCases.ili`](../test-models/AssociationCases.ili) enthält:
@@ -182,72 +185,70 @@ ASSOCIATION PhysicalMismatchAssociation =
 END PhysicalMismatchAssociation;
 ```
 
-Die Testdatenbank bildet diese Rollen bewusst mit anderen physischen Namen ab:
+Beim realen ili2pg-Import mit `--createFk --nameByTopic
+--smart2Inheritance` entsteht dafür **keine** Tabelle
+`PhysicalMismatchAssociation` mit zwei Fremdschlüsseln. ili2pg bettet die
+Beziehung auf der mehrfach vorkommenden Seite ein:
 
 ```text
-owner_fk  -> person.t_id
-parcel_fk -> parcel.t_id
+base_parcel.semanticowner -> base_person.t_id
 ```
+
+`OwnedParcel` ist keine Tabelle und keine zweite FK-Spalte. Es ist die
+Gegenrolle: Aus Sicht einer `Person` bezeichnet sie die Menge jener `Parcel`,
+deren `semanticowner` auf diese Person zeigt. Bei der abgeleiteten Klasse
+`ExtendedParcel` wird der FK aufgrund der gewählten
+`smart2Inheritance`-Abbildung entsprechend in deren physischer Tabelle
+materialisiert.
 
 #### DB sieht
 
-- die Tabelle `physicalmismatchassociation`;
-- die Spalten `owner_fk` und `parcel_fk`;
-- zwei Foreign Keys auf `Person` beziehungsweise `Parcel`;
-- Nullability und DB-Constraints der beiden Spalten.
+- die Tabellen `base_parcel` und `base_person`;
+- die Spalte `base_parcel.semanticowner`;
+- einen Foreign Key auf `base_person.t_id`;
+- Nullability und DB-Constraints dieser Spalte.
 
 #### Modell ergänzt
 
-- die Rollen `SemanticOwner` und `OwnedParcel`;
-- die Kardinalitäten `{1}` und `{0..*}`;
-- den gemeinsamen Association-Kontext;
-- die Zuordnung der Rollen zu den fachlichen Zielklassen.
+- dass der FK zur Association `PhysicalMismatchAssociation` und zur Rolle
+  `SemanticOwner` gehört;
+- die nicht als FK gespeicherte Gegenrolle `OwnedParcel`;
+- die fachlichen Kardinalitäten `{1}` und `{0..*}`;
+- die beiden Perspektiven der Association: Owner einer Parcel und Parcels
+  einer Person.
 
 #### Mit Anreicherung
 
-Der generierte Snapshot
-[`PhysicalMismatchAssociation.groovy`](../target-grails/src/test/resources/grails-snapshots/association-cases/grails-app/domain/ch/example/association/domain/PhysicalMismatchAssociation.groovy)
-enthält beide Sichten:
-
-```groovy
-Person ownerFk
-Parcel parcelFk
-
-static final Map interlisRelationshipMeta = [
-    ownerFk: [
-        targetClass: 'Person',
-        semanticKind: 'ASSOCIATION_ROLE',
-        targetRole: 'SemanticOwner',
-        sourceAttribute: 'owner_fk',
-        mandatory: true
-    ],
-    parcelFk: [
-        targetClass: 'Parcel',
-        semanticKind: 'ASSOCIATION_ROLE',
-        targetRole: 'OwnedParcel',
-        sourceAttribute: 'parcel_fk',
-        mandatory: false
-    ]
-]
-
-static mapping = {
-    columns {
-        ownerFk column: 'owner_fk'
-        parcelFk column: 'parcel_fk'
-    }
-}
-```
-
-Die App spricht fachlich von `SemanticOwner`, schreibt aber weiterhin korrekt
-in `owner_fk`.
+Der Merge verbindet die physische Spalte `semanticowner` mit der fachlichen
+Rolle `SemanticOwner` und ergänzt die Gegenrolle `OwnedParcel`. Der
+`GrailsAssociationPlanner` erkennt die Speicherform
+`EMBEDDED_FOREIGN_KEY`. Im aktuellen Stand erzeugt er dafür zwei fachlich
+benannte, aber schreibgeschützte Association-Kontexte und keine erfundene
+Link-Tabelle. Dieses Verhalten ist im
+[`RealIli2dbSmokeTest`](../target-grails/src/realIli2dbSmokeTest/java/ch/interlis/generator/grails/RealIli2dbSmokeTest.java)
+abgesichert.
 
 #### Ohne Anreicherung
 
-Die physischen FKs können als Properties erzeugt werden. Es fehlt aber die
-verlässliche Aussage, dass `owner_fk` die Rolle `SemanticOwner` mit
-Kardinalität `{1}` repräsentiert. Ein schreibbarer kontextueller
-Association-Zugang wird deshalb nicht auf Basis dieses unsicheren Mappings
-freigeschaltet.
+Der eine physische FK kann weiterhin als To-One-Property erzeugt werden. Aus
+ihm allein lässt sich aber nicht zuverlässig rekonstruieren, dass er Teil
+dieser benannten INTERLIS-Association ist, wie die Gegenrolle heisst und dass
+sie die Kardinalität `{0..*}` besitzt. Die Sicht „alle `OwnedParcel` dieser
+Person“ bleibt damit eine bloss technisch ableitbare inverse FK-Beziehung ohne
+abgesicherte fachliche Semantik.
+
+#### Warum zeigt der H2-Snapshot trotzdem zwei FKs?
+
+Die synthetische Testdatenbank in
+[`MetadataTestFixtures`](../core/src/testFixtures/java/ch/interlis/generator/testsupport/MetadataTestFixtures.java)
+legt absichtlich eine Tabelle `physicalmismatchassociation` mit `owner_fk` und
+`parcel_fk` an. Damit wird getestet, ob der Merge abweichende physische Namen
+den Rollen `SemanticOwner` und `OwnedParcel` korrekt zuordnet. Der daraus
+generierte
+[`PhysicalMismatchAssociation.groovy`](../target-grails/src/test/resources/grails-snapshots/association-cases/grails-app/domain/ch/example/association/domain/PhysicalMismatchAssociation.groovy)
+ist ein Snapshot dieses **synthetischen H2-Fixtures**, nicht der tatsächlichen
+ili2pg-Abbildung des Modells. Er belegt die Merge-Logik, darf aber nicht als
+Darstellung des realen Datenbankschemas gelesen werden.
 
 ### 2. Zwei Rollen mit derselben Zielklasse
 
@@ -262,33 +263,29 @@ END SameTargetAssociation;
 
 #### DB sieht
 
-Zwei Foreign Keys zeigen auf dieselbe Person-Tabelle. Die Zieltabelle allein
-reicht nicht, um die Rollen auseinanderzuhalten.
+Beim realen ili2pg-Import liegt ein einzelner Self-FK
+`base_person.primaryperson -> base_person.t_id` vor. Die Datenbank zeigt damit
+eine gerichtete Selbstreferenz, aber keine zweite FK-Spalte für die
+Gegenrichtung.
 
 #### Modell ergänzt
 
 Die beiden fachlich verschiedenen Rollen `PrimaryPerson` und
-`SecondaryPerson`, obwohl beide dieselbe Zielklasse haben.
+`SecondaryPerson` samt ihren Kardinalitäten, obwohl beide dieselbe Zielklasse
+haben. Damit erhält auch die inverse Perspektive einen eindeutigen Namen.
 
 #### Mit Anreicherung
 
-Die generierte Domain besitzt zwei eindeutig benannte Properties und
-Relationship-Metadaten:
-
-```groovy
-Person primaryPersonId
-Person secondaryPersonId
-```
-
-Kontext, Auswahlfeld und serverseitige Verarbeitung können die gewünschte
-Rolle eindeutig referenzieren.
+Der Planner kann zwei eindeutig benannte Association-Kontexte
+`PrimaryPerson` und `SecondaryPerson` unterscheiden. Weil die reale
+Speicherform ein eingebetteter FK ist, bleiben beide im aktuellen Stand
+Read-only; es wird weder ein zweiter FK noch eine Link-Tabelle erfunden.
 
 #### Ohne Anreicherung
 
-Die physischen Spalten bleiben unterscheidbar, aber die semantische
-Rollenauflösung ist nicht ausreichend abgesichert. Ein Fallback nur über die
-Zielklasse wäre sogar mehrdeutig. Der Planner behandelt diesen Fall deshalb
-konservativ.
+Die Selbstreferenz bleibt als FK nutzbar. Die Datenbank liefert aber keinen
+fachlich abgesicherten Namen für die inverse Perspektive. Ein Fallback nur über
+die Zielklasse wäre mehrdeutig, weil Quelle und Ziel beide `Person` sind.
 
 ### 3. Leere, attributierte und n-äre Associations
 
@@ -306,6 +303,11 @@ ASSOCIATION AssociationWithAttribute =
   RoleNote: TEXT*30;
 END AssociationWithAttribute;
 
+ASSOCIATION ExtendedTopicAssociation =
+  ExtendedPersonRole -- {0..*} Person;
+  ExtendedParcelRole -- {0..1} ExtendedParcel;
+END ExtendedTopicAssociation;
+
 ASSOCIATION TernaryAssociation =
   PersonRole -- {0..*} Person;
   ParcelRole -- {0..*} Parcel;
@@ -316,9 +318,14 @@ END TernaryAssociation;
 
 #### DB sieht
 
-- Link-Tabellen mit zwei beziehungsweise drei FKs;
-- bei den attributierten Fällen zusätzliche Textspalten;
-- die tatsächlich verwendeten physischen Tabellen und Spalten.
+- `EmptyAssociation` wird im realen Import in FK-Spalten auf einer beteiligten
+  Klassentabelle eingebettet; eine eigene Association-Tabelle existiert nicht;
+- `AssociationWithAttribute` wird als Link-Tabelle mit zwei FKs und der Spalte
+  `rolenote` materialisiert;
+- `ExtendedTopicAssociation` wird als Link-Tabelle mit zwei FKs, aber ohne
+  eigenes Fachattribut materialisiert;
+- `TernaryAssociation` wird als Link-Tabelle mit drei FKs und der Spalte `note`
+  materialisiert.
 
 Aus den Zusatzspalten lässt sich vermuten, dass die Link-Zeile eigene Daten
 trägt. Eine vollständige fachliche Association-Semantik ist damit aber noch
@@ -336,8 +343,9 @@ nicht beschrieben.
 
 Der Association-Planner kann verschiedene Bedienformen wählen:
 
-- `EmptyAssociation`: binäre Association ohne eigene Attribute, deshalb
-  Quick-Link mit direktem Zuordnen und Entfernen;
+- `EmptyAssociation`: `EMBEDDED_FOREIGN_KEY` und im aktuellen Stand Read-only;
+- `ExtendedTopicAssociation`: echte binäre Link-Tabelle ohne eigene Attribute,
+  deshalb Quick-Link mit direktem Zuordnen und Entfernen;
 - `AssociationWithAttribute`: kontextuelles Formular, weil beim Erstellen auch
   `RoleNote` erfasst werden muss;
 - `TernaryAssociation`: n-äres kontextuelles Formular mit einer festen und
@@ -348,8 +356,9 @@ App erfindet keine synthetische Many-to-Many-Tabelle.
 
 #### Ohne Anreicherung
 
-Ein generisches CRUD für die physische Link-Tabelle ist weiterhin möglich. Ein
-direktes „Person mit Parcel verknüpfen“ kann aber nicht sicher aktiviert
+Ein generisches CRUD für die vorhandenen physischen Link-Tabellen ist weiterhin
+möglich; eine eingebettete Association erscheint als gewöhnlicher FK. Ein
+direktes Verknüpfen aus Sicht eines Fachobjekts kann aber nicht sicher aktiviert
 werden, weil Rollen, Kardinalitäten und Merge-Vertrauen fehlen. Eine n-äre
 Association könnte ausserdem fälschlich wie eine gewöhnliche binäre
 Many-to-Many-Beziehung behandelt werden, wenn man nur nach Tabellenform
@@ -386,10 +395,11 @@ nicht von sich aus die Bedeutung `EXTERNAL`, Composition oder `ORDERED`.
 #### Mit Anreicherung
 
 Der `GrailsAssociationPlanner` schliesst Rollen mit `ordered`, `external` oder
-`composition` vom einfachen Quick-Link-Modus aus. Statt eine Spezialsemantik
-stillschweigend zu ignorieren, wird ein kontextueller beziehungsweise
-konservativer Pfad gewählt. Die generierte Association-Registry führt diese
-Flags explizit, sodass auch die Runtime sie prüfen kann.
+`composition` vom einfachen Quick-Link-Modus aus. Im realen ili2pg-Smoke-Test
+werden `ExternalCompositeAssociation` und `OrderedAssociation` zudem als
+eingebettete FKs erkannt und deshalb im aktuellen Stand Read-only dargestellt.
+Die generierte Association-Registry führt die semantischen Flags explizit,
+sodass auch die Runtime sie prüfen kann.
 
 #### Ohne Anreicherung
 
