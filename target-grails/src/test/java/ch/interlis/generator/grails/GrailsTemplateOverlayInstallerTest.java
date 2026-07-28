@@ -256,6 +256,7 @@ class GrailsTemplateOverlayInstallerTest {
                 ".ili-active-filter-badge", "font-size: 0.875rem;", "font-weight: 400;",
                 "display: inline-flex", ".ili-active-filter-remove", ".ili-active-filter-remove:hover",
                 ".ili-active-filter-remove:focus-visible",
+                ".ili-unsaved-badge {\n    display: inline-flex;\n    align-items: center;\n    font-size: 0.875rem;\n    font-weight: 400;\n    border-radius: var(--bs-border-radius);\n}",
                 ".ili-workspace-header .ili-page-actions",
                 "grid-template-columns: repeat(2, minmax(0, 1fr))")
             .doesNotContain(".ili-active-filters-label", ".ili-active-filter-badge:hover",
@@ -272,7 +273,7 @@ class GrailsTemplateOverlayInstallerTest {
 
         String formTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_form.gsp"));
         assertThat(formTemplate).contains("ili-split-layout");
-        assertThat(formTemplate).contains("data-unsaved-badge");
+        assertThat(formTemplate).contains("class=\"badge text-bg-warning ili-unsaved-badge\"", "data-unsaved-badge");
         assertThat(formTemplate).contains("template=\"form-section\"");
         assertThat(formTemplate).doesNotContain("ili-page-subtitle", "pageSubtitle");
         assertThat(formTemplate).contains("submitMode");

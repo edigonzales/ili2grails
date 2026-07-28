@@ -618,6 +618,14 @@ body {
     font-weight: 600;
 }
 
+.ili-unsaved-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.875rem;
+    font-weight: 400;
+    border-radius: var(--bs-border-radius);
+}
+
 .ili-unsaved-badge[hidden] {
     display: none;
 }
