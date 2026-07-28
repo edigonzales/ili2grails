@@ -1,6 +1,5 @@
 <section class="ili-workspace-header ili-page-header" data-domain-workspace-header>
     <div class="ili-workspace-heading">
-        <p class="ili-eyebrow" data-workspace-domain-label="true">${domainLabel ?: message(code: 'ili2grails.workspace.domain', default: 'Domain')}</p>
         <h1 class="ili-page-title" data-workspace-display-label="true">${displayLabel ?: ('#' + instance?.id)}</h1>
         <p class="ili-page-subtitle">
             ${domainLabel ?: message(code: 'ili2grails.workspace.record', default: 'Datensatz')}

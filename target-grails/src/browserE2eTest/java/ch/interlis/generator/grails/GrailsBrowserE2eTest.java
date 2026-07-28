@@ -1315,6 +1315,8 @@ class GrailsBrowserE2eTest {
         assertThat(page.locator("[data-domain-workspace]").count()).isEqualTo(1);
         assertThat(page.locator("[data-domain-workspace-header]").count()).isEqualTo(1);
         assertThat(page.locator("[data-workspace-display-label]").textContent()).contains(expectedLabel);
+        assertThat(page.locator("[data-workspace-domain-label]").count()).isZero();
+        assertThat(page.locator(".ili-workspace-header .ili-page-subtitle").textContent()).contains("· #");
         assertThat(page.locator("[data-workspace-details]").count()).isEqualTo(1);
         assertThat(page.locator("[data-workspace-relationships]").count()).isEqualTo(1);
         assertThat(page.locator("[data-workspace-danger-zone]").count()).isZero();

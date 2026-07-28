@@ -397,8 +397,16 @@ CLASSES:
 ### Hybrid-Ansatz: ili2db + ili2c
 **Warum:**
 - **ili2db** liefert exakte Tabellen-/Spaltennamen und Mappings, ohne Modellkompilierung.
-- **ili2c** liefert Semantik: Constraints, Doku, Labels, Units, Enums.
+- **ili2c** liefert Semantik: Constraints, Dokumentation, Units, Enums und Beziehungen; die Core-IR ist zusätzlich auf lokalisierte Labels vorbereitet.
 - **Kombiniert** entsteht ein vollständiges Metamodell für die Code-Generierung.
+
+Die Datenbank beschreibt damit primär, **wie** die Daten gespeichert sind; das
+INTERLIS-Modell ergänzt, **was** Klassen, Attribute und Beziehungen fachlich
+bedeuten. Ohne Modellanreicherung bleibt einfaches, DB-orientiertes CRUD
+möglich, während insbesondere Rollen, Kardinalitäten, Kompositionen und sichere
+Association-Schreibpfade nur eingeschränkt ableitbar sind. Die Vertiefung
+[Warum ili2grails das INTERLIS-Datenmodell braucht](docs/why-interlis-model.md)
+zeigt dies anhand konkreter Vorher-/Nachher-Beispiele.
 
 **Ablauf:**
 1. ili2db-Metatabellen lesen
@@ -1380,3 +1388,12 @@ Hinweise zu leeren Befunden. `StructureCompositionCases` ist der deterministisch
 Structure-/Composition-Realtest ohne externe Modell-Repositories; `VSADSSMINI_2020_LV95`
 bleibt das große opportunistische Realmodell. Docker-, ili2pg- oder Repository-Probleme
 führen zu einem sauberen Skip statt zu einem roten Standard-Build.
+
+## Weitere Dokumente
+
+- [Warum ili2grails das INTERLIS-Datenmodell braucht](docs/why-interlis-model.md):
+  Vertiefung des Hybrid-Ansatzes mit konkreten DB-only-/Merge-Beispielen.
+- [Getting Started](docs/getting-started.md): durchgehendes Tutorial von der
+  ili2pg-Datenbank bis zur generierten Grails-Anwendung.
+- [Association-UX](docs/association-ux.md): technische Dokumentation der
+  fachlichen Association-Darstellung und ihrer sicheren Schreibpfade.

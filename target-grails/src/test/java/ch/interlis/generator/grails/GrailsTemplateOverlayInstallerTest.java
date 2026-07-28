@@ -342,7 +342,12 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(showTemplate).doesNotContain("Audit", "Verlauf", "Protokoll", "Timeline", "Restore", "flash.message");
 
         String workspaceHeader = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-header.gsp"));
-        assertThat(workspaceHeader).contains("data-domain-workspace-header", "data-workspace-display-label");
+        assertThat(workspaceHeader)
+            .contains("data-domain-workspace-header", "data-workspace-display-label", "class=\"ili-page-subtitle\"",
+                "${domainLabel ?: message(code: 'ili2grails.workspace.record', default: 'Datensatz')}",
+                "class=\"btn btn-outline-danger\"", "data-delete-open=\"${deleteModalId}\"",
+                "data-bs-target=\"#${deleteModalId}\"", "name=\"trash\"")
+            .doesNotContain("ili-eyebrow", "data-workspace-domain-label");
         String workspaceDetails = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-details.gsp"));
         assertThat(workspaceDetails).contains("detailSections", "<g:message", ".label").doesNotContain("audit");
         String workspaceRelationships = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-relationships.gsp"));
