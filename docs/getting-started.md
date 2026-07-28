@@ -176,7 +176,7 @@ organization_employee
 
 In der neu generierten Grails-App sind deshalb beide Blickrichtungen sichtbar:
 
-- Auf der Employee-Seite steht unter **Direkte Beziehungen** das verlinkte
+- Auf der Employee-Seite steht unter **Verknüpfte Datensätze** das verlinkte
   Department.
 - Auf der Department-Seite erscheint ein Abschnitt **Employees** mit Anzahl und
   verlinkten Employee-Zeilen.

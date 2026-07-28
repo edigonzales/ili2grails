@@ -351,7 +351,10 @@ class GrailsTemplateOverlayInstallerTest {
         String workspaceDetails = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-details.gsp"));
         assertThat(workspaceDetails).contains("detailSections", "<g:message", ".label").doesNotContain("audit");
         String workspaceRelationships = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-relationships.gsp"));
-        assertThat(workspaceRelationships).contains("relationshipLinks", "action=\"show\"", "Keine Zuordnung");
+        assertThat(workspaceRelationships)
+            .contains("relationshipLinks", "action=\"show\"", "Keine Zuordnung",
+                "ili2grails.ui.linkedRecords", "Verknüpfte Datensätze")
+            .doesNotContain("Direkte Beziehungen", "Keine direkten Beziehungen");
         String workspaceDangerZone = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-danger-zone.gsp"));
         assertThat(workspaceDangerZone)
             .contains("ili-hidden-delete-form", "modal fade")

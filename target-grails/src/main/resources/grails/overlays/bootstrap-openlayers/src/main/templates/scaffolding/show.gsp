@@ -26,15 +26,19 @@
 
     <div class="ili-workspace-main ili-split-layout \${geometryFields ? 'ili-split-with-map' : 'ili-split-single'}">
         <div class="ili-workspace-content ili-form-column">
-            <g:render template="/interlisUi/workspace-details" model="\${[
-                detailSections: workspaceDetailSections,
-                domainPropertyName: '${propertyName}'
-            ]}"/>
+            <g:if test="\${workspaceDetailSections}">
+                <g:render template="/interlisUi/workspace-details" model="\${[
+                    detailSections: workspaceDetailSections,
+                    domainPropertyName: '${propertyName}'
+                ]}"/>
+            </g:if>
 
-            <g:render template="/interlisUi/workspace-relationships" model="\${[
-                relationshipLinks: workspaceRelationshipLinks,
-                domainPropertyName: '${propertyName}'
-            ]}"/>
+            <g:if test="\${workspaceRelationshipLinks}">
+                <g:render template="/interlisUi/workspace-relationships" model="\${[
+                    relationshipLinks: workspaceRelationshipLinks,
+                    domainPropertyName: '${propertyName}'
+                ]}"/>
+            </g:if>
 
             <g:if test="\${inverseRelationshipSections}">
                 <div class="ili-inverse-relationship-sections">

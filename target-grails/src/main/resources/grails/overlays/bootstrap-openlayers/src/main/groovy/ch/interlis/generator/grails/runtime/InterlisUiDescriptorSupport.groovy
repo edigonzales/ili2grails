@@ -18,6 +18,8 @@ final class InterlisUiDescriptorSupport {
     private static final List<String> PREFERRED_LABEL_LANGUAGES = ["de-CH", "de", "en"]
     private static final int DEFAULT_DISPLAY_FIELD_LIMIT = 1
     private static final int DEFAULT_COMPACT_FIELD_LIMIT = 4
+    private static final String DEFAULT_BASE_DATA_TITLE = "Basisdaten"
+    private static final String DEFAULT_LINKED_RECORDS_TITLE = "Verknüpfte Datensätze"
 
     private InterlisUiDescriptorSupport() {
     }
@@ -47,10 +49,7 @@ final class InterlisUiDescriptorSupport {
         List<String> defaultColumns = defaultColumns(properties, domainType)
         List<String> defaultSearchFields = defaultSearchFields(properties, domainType)
         List<String> defaultProminentFilters = []
-        List<Map<String, Object>> defaultSections = [[
-            title : "Allgemein",
-            fields: editableFormFields(properties)
-        ]]
+        List<Map<String, Object>> defaultSections = defaultFormSections(properties)
 
         List<String> columns = configuredList(
             listConfig, "columns", defaultColumns, knownFields, iliName, "list.columns"
@@ -564,6 +563,37 @@ final class InterlisUiDescriptorSupport {
             .collect { it.name }
     }
 
+    private static List<Map<String, Object>> defaultFormSections(List<Map<String, Object>> properties) {
+        List<Map<String, Object>> sections = []
+        List<String> scalarFields = properties
+            .findAll { editableScalarFormField(it) }
+            .collect { it.name }
+        List<String> relationshipFields = properties
+            .findAll { editableRelationshipFormField(it) }
+            .collect { it.name }
+
+        if (!scalarFields.isEmpty()) {
+            sections << [title: DEFAULT_BASE_DATA_TITLE, fields: scalarFields]
+        }
+        if (!relationshipFields.isEmpty()) {
+            sections << [title: DEFAULT_LINKED_RECORDS_TITLE, fields: relationshipFields]
+        }
+        return sections
+    }
+
+    private static boolean editableScalarFormField(Map<String, Object> property) {
+        return editableFormField(property) && property.relationship != true
+    }
+
+    private static boolean editableRelationshipFormField(Map<String, Object> property) {
+        return editableFormField(property) && property.relationship == true
+    }
+
+    private static boolean editableFormField(Map<String, Object> property) {
+        return property.name != "id" && property.name != "version"
+            && property.geometry != true && property.collection != true
+    }
+
     private static List<String> configuredList(Map<String, Object> config,
                                                String key,
                                                List<String> defaults,
@@ -666,7 +696,9 @@ final class InterlisUiDescriptorSupport {
         }.findAll { Map<String, Object> section -> !section.fields.isEmpty() }
 
         if (configured.isEmpty()) {
-            return [[title: "Allgemein", fields: scalarFields.toList()]]
+            return scalarFields.isEmpty()
+                ? []
+                : [[title: DEFAULT_BASE_DATA_TITLE, fields: scalarFields.toList()]]
         }
 
         Set<String> coveredFields = new LinkedHashSet<String>()
@@ -675,7 +707,7 @@ final class InterlisUiDescriptorSupport {
         }
         List<String> remainingFields = scalarFields.findAll { !coveredFields.contains(it) }.toList()
         if (!remainingFields.isEmpty()) {
-            configured << [title: "Allgemein", fields: remainingFields]
+            configured << [title: DEFAULT_BASE_DATA_TITLE, fields: remainingFields]
         }
         return configured
     }
@@ -684,13 +716,35 @@ final class InterlisUiDescriptorSupport {
                                                                             List<Map<String, Object>> sections) {
         return sections.collect { Map<String, Object> section ->
             String title = section.title?.toString()
-            String localizedTitle = title == "Allgemein"
-                ? localizedMessage(grailsApplication, "ili2grails.form.general", "Allgemein", "General")
-                : title == "Weitere Felder"
-                    ? localizedMessage(grailsApplication, "ili2grails.form.additionalFields", "Weitere Felder", "Additional fields")
-                    : title
+            String localizedTitle = localizedDefaultSectionTitle(grailsApplication, title)
             [title: localizedTitle, fields: section.fields]
         }
+    }
+
+    private static String localizedDefaultSectionTitle(def grailsApplication, String title) {
+        if (title == DEFAULT_BASE_DATA_TITLE) {
+            return localizedMessage(grailsApplication, "ili2grails.ui.baseData", "Basisdaten", "Basic data")
+        }
+        if (title == DEFAULT_LINKED_RECORDS_TITLE) {
+            return localizedMessage(
+                grailsApplication,
+                "ili2grails.ui.linkedRecords",
+                "Verknüpfte Datensätze",
+                "Linked records"
+            )
+        }
+        if (title == "Allgemein") {
+            return localizedMessage(grailsApplication, "ili2grails.form.general", "Allgemein", "General")
+        }
+        if (title == "Weitere Felder") {
+            return localizedMessage(
+                grailsApplication,
+                "ili2grails.form.additionalFields",
+                "Weitere Felder",
+                "Additional fields"
+            )
+        }
+        return title
     }
 
     private static String localizedMessage(def grailsApplication,

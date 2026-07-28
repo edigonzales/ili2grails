@@ -29,14 +29,14 @@ final class InterlisFormSupport {
     static List<Map<String, Object>> formSections(Map<String, Object> descriptor) {
         Object rawSections = descriptor?.form?.sections
         if (!(rawSections instanceof Collection)) {
-            return [[title: "Allgemein", fields: []]]
+            return [[title: "Basisdaten", fields: []]]
         }
         return rawSections.collect { Object rawSection ->
             Map<String, Object> section = rawSection instanceof Map
                 ? rawSection as Map<String, Object>
                 : [:]
             [
-                title : section.title?.toString() ?: "Allgemein",
+                title : section.title?.toString() ?: "Basisdaten",
                 fields: section.fields instanceof Collection
                     ? section.fields.collect { it.toString() }.unique()
                     : []

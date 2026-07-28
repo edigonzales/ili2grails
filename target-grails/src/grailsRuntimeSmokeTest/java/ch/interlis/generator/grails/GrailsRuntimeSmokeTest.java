@@ -499,7 +499,8 @@ class GrailsRuntimeSmokeTest {
                     then:
                     !invalid.validate()
                     invalid.errors.hasFieldErrors('year')
-                    viewModel.formSections*.title.contains('Allgemein')
+                    viewModel.formSections*.title.contains('Basisdaten')
+                    viewModel.formSections*.title.contains('Verknüpfte Datensätze')
                     viewModel.relationshipValues.municipality == municipality.id.toString()
                     viewModel.submittedValues.name == 'Retained value'
                     selected.id == municipality.id.toString()

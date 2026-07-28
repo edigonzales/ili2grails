@@ -1,7 +1,7 @@
 <section class="card ili-workspace-relationships" data-workspace-relationships>
     <div class="card-body">
         <header class="ili-section-heading">
-            <h2 class="ili-section-title h5 mb-0"><g:message code="ili2grails.workspace.relationships" default="Direkte Beziehungen"/></h2>
+            <h2 class="ili-section-title h5 mb-0"><g:message code="ili2grails.ui.linkedRecords" default="Verknüpfte Datensätze"/></h2>
         </header>
         <g:if test="${relationshipLinks}">
             <dl class="ili-definition-list">
@@ -29,7 +29,7 @@
             </dl>
         </g:if>
         <g:else>
-            <p class="text-body-secondary mb-0"><g:message code="ili2grails.workspace.noRelationships" default="Keine direkten Beziehungen vorhanden."/></p>
+            <p class="text-body-secondary mb-0"><g:message code="ili2grails.ui.noLinkedRecords" default="Keine verknüpften Datensätze vorhanden."/></p>
         </g:else>
     </div>
 </section>

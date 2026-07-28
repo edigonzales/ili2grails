@@ -1094,7 +1094,8 @@ Verlauf-/Protokoll-Tabs sind nicht Bestandteil der Implementierung.
 ### Bootstrap Create/Edit-Formulare und Editor-UX (Phase 4)
 
 Create- und Edit-Formulare des managed Bootstrap-Overlays bleiben normale Grails-Forms mit
-serverseitigem PRG. `InterlisUiDescriptorSupport` liefert standardmässig die Sektion `Allgemein`;
+serverseitigem PRG. `InterlisUiDescriptorSupport` liefert standardmässig die Sektionen `Basisdaten`
+und `Verknüpfte Datensätze`;
 `form.sections` kann bekannte editierbare Scalar- und To-One-Felder deterministisch gruppieren.
 Nicht konfigurierte editierbare Felder erscheinen automatisch in `Weitere Felder`. Geometrien,
 Collections, `id` und `version` bleiben ausserhalb dieser Sektionen im bestehenden Geometry-Panel

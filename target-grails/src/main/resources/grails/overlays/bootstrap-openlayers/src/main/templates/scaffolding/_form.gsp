@@ -48,7 +48,7 @@
                 <section class="card ili-form-tile">
                     <div class="card-body ili-native-form-host">
                         <fieldset class="form">
-                            <g:each in="\${formSections ?: [[title: message(code: 'ili2grails.form.general', default: 'Allgemein'), fields: []]]}" var="formSection">
+                            <g:each in="\${formSections != null ? formSections : [[title: message(code: 'ili2grails.ui.baseData', default: 'Basisdaten'), fields: []]]}" var="formSection">
                                 <g:render template="form-section" model="\${[
                                     section: formSection,
                                     propertyName: '${propertyName}',

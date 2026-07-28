@@ -554,6 +554,11 @@ class GrailsBrowserE2eTest {
                                                 String departmentId) {
         page.navigate(baseUrl + "/employee/create");
         page.waitForLoadState(LoadState.NETWORKIDLE);
+        Locator formSections = page.locator("[data-form-section]");
+        assertThat(formSections.count()).isEqualTo(2);
+        assertThat(formSections.nth(0).getAttribute("data-form-section")).isEqualTo("Basisdaten");
+        assertThat(formSections.nth(1).getAttribute("data-form-section"))
+            .isEqualTo("Verknüpfte Datensätze");
         page.locator("input[name='firstname']").fill(firstName);
         page.locator("input[name='lastname']").fill(lastName);
         page.locator("input[name='email']").fill(
@@ -1195,7 +1200,7 @@ class GrailsBrowserE2eTest {
 
     private void createAddress(Page page, String baseUrl) {
         openCreateForm(page, baseUrl, "Address");
-        assertThat(page.locator("[data-form-section='Allgemein']").count()).isEqualTo(1);
+        assertThat(page.locator("[data-form-section='Basisdaten']").count()).isEqualTo(1);
         assertThat(page.locator("[data-form-field]").count()).isGreaterThan(0);
         fillVisibleControls(page, "E2E");
         Locator city = page.locator("[name='city']");
@@ -1318,7 +1323,13 @@ class GrailsBrowserE2eTest {
         assertThat(page.locator("[data-workspace-domain-label]").count()).isZero();
         assertThat(page.locator(".ili-workspace-header .ili-page-subtitle").textContent()).contains("· #");
         assertThat(page.locator("[data-workspace-details]").count()).isEqualTo(1);
-        assertThat(page.locator("[data-workspace-relationships]").count()).isEqualTo(1);
+        int expectedRelationshipSections = expectedMunicipalityId == null ? 0 : 1;
+        assertThat(page.locator("[data-workspace-relationships]").count())
+            .isEqualTo(expectedRelationshipSections);
+        if (expectedRelationshipSections == 1) {
+            assertThat(page.locator("[data-workspace-relationships]").textContent())
+                .contains("Verknüpfte Datensätze");
+        }
         assertThat(page.locator("[data-workspace-danger-zone]").count()).isZero();
         assertThat(page.locator("[data-delete-modal]").count()).isEqualTo(1);
         Locator workspaceActions = page.locator(

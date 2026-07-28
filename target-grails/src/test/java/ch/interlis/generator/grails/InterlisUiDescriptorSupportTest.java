@@ -58,8 +58,14 @@ class InterlisUiDescriptorSupportTest {
             .isEqualTo(List.of("name"));
         assertThat(defaultList.get("prominentFilters"))
             .isEqualTo(List.of());
-        assertThat(map(defaults.get("form")).get("sections").toString())
-            .contains("Allgemein", "longText");
+        List<?> defaultFormSections = (List<?>) map(defaults.get("form")).get("sections");
+        assertThat(defaultFormSections).hasSize(2);
+        assertThat(defaultFormSections.get(0).toString()).contains("title=Basisdaten", "name", "longText");
+        assertThat(defaultFormSections.get(1).toString())
+            .contains("title=Verknüpfte Datensätze", "municipality");
+        assertThat(defaultFormSections.toString())
+            .contains("Basisdaten", "longText", "Verknüpfte Datensätze", "municipality")
+            .doesNotContain("Allgemein");
         assertThat(map(defaults.get("form")).get("sections").toString())
             .doesNotContain("position");
         assertThat(map(defaults.get("fieldMeta")).get("description").toString())
