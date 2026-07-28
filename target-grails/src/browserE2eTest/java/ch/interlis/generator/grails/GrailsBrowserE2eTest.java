@@ -1218,7 +1218,12 @@ class GrailsBrowserE2eTest {
         assertThat(page.locator("[data-delete-modal]").getAttribute("aria-describedby")).isNotBlank();
         assertThat(page.locator("[data-delete-modal]").textContent())
             .contains("serverseitig geprüft", "Integritätsbedingungen");
-        page.locator("[data-delete-modal] [data-bs-dismiss='modal']").first().click();
+        Locator deleteModalClose = page.locator("[data-delete-modal] .ili-modal-close");
+        assertThat(deleteModalClose.isVisible()).isTrue();
+        assertThat(deleteModalClose.getAttribute("class")).contains("ili-modal-close", "ms-auto");
+        assertThat(deleteModalClose.evaluate("element => getComputedStyle(element).borderStyle"))
+            .isEqualTo("none");
+        page.locator("[data-delete-modal] .ili-modal-close").click();
         page.locator("[data-delete-modal]").waitFor(new Locator.WaitForOptions().setState(
             com.microsoft.playwright.options.WaitForSelectorState.HIDDEN));
         page.waitForFunction("() => document.activeElement && document.activeElement.matches('[data-delete-open]')");

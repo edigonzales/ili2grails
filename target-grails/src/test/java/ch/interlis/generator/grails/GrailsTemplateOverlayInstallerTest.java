@@ -246,7 +246,9 @@ class GrailsTemplateOverlayInstallerTest {
                 "rgba(var(--bs-danger-rgb), 0.65)",
                 ".ili-sidebar .offcanvas-header.ili-sidebar-header", "justify-content: flex-end",
                 "padding: 0", ".ili-sidebar .ili-sidebar-close", "width: 2.25rem", "height: 2.25rem",
-                "border: 0", "background: transparent", ".ili-sidebar .ili-sidebar-close:hover",
+                ".ili-modal-close", "border: 0", "background: transparent",
+                ".ili-sidebar .ili-sidebar-close:hover", ".ili-modal-close:hover",
+                ".ili-modal-close:focus-visible",
                 ".ili-active-filter-badge", "font-size: 0.875rem;", "font-weight: 400;",
                 "display: inline-flex", ".ili-active-filter-remove", ".ili-active-filter-remove:hover",
                 ".ili-active-filter-remove:focus-visible")
@@ -336,8 +338,10 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(workspaceDangerZone)
             .contains("Danger Zone")
             .contains("data-delete-open", "modal fade")
+            .contains("class=\"ili-modal-close ms-auto\"", "name=\"x-circle\"")
             .contains("role=\"dialog\"", "aria-modal=\"true\"", "aria-describedby")
             .contains("serverseitig geprüft", "Referenzielle Beziehungen", "Datenbank-Integritätsbedingungen")
+            .doesNotContain("btn btn-outline-secondary btn-sm ili-modal-close", "name=\"x-lg\"")
             .doesNotContain("abhängige Daten werden", "garantiert", "bx-modal");
         String workspaceLink = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-link.gsp"));
         assertThat(workspaceLink).contains("data-ili-workspace-link", "controller", "action")

@@ -34,9 +34,9 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title fs-5" id="${deleteModalId}-title"><g:message code="ili2grails.workspace.deleteConfirm" default="Objekt wirklich löschen?"/></h2>
-                <button type="button" class="btn btn-outline-secondary btn-sm ili-modal-close"
+                <button type="button" class="ili-modal-close ms-auto"
                         data-bs-dismiss="modal" aria-label="${message(code: 'ili2grails.workspace.close', default: 'Schliessen')}" title="${message(code: 'ili2grails.workspace.close', default: 'Schliessen')}">
-                    <ili:icon name="x-lg"/>
+                    <ili:icon name="x-circle"/>
                 </button>
             </div>
             <div class="modal-body" id="${deleteModalId}-description">
