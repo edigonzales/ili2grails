@@ -16,10 +16,6 @@
         </div>
     </section>
 
-    <g:if test="\${flash.message}">
-        <div class="alert alert-info" role="status">\${flash.message}</div>
-    </g:if>
-
     <g:hasErrors bean="\${this.${propertyName}}">
         <div class="alert alert-danger ili-validation-summary" role="alert" tabindex="-1" data-validation-summary>
             <strong><g:message code="ili2grails.form.validationFailed" default="Validierung fehlgeschlagen."/></strong>

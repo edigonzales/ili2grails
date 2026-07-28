@@ -15,10 +15,6 @@
         deleteModalId: 'delete-modal-${propertyName}'
     ]}"/>
 
-    <g:if test="\${flash.message}">
-        <div class="alert alert-info" role="status">\${flash.message}</div>
-    </g:if>
-
     <g:render template="/interlisUi/workspace-danger-zone" model="\${[
         instance: this.${propertyName},
         displayLabel: workspaceDisplayLabel,

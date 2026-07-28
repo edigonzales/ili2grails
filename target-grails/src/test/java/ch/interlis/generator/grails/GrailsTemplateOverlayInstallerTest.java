@@ -123,6 +123,7 @@ class GrailsTemplateOverlayInstallerTest {
             .contains("FixedLocaleResolver", "Locale.forLanguageTag(\"de-CH\")");
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js")).exists();
+        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-notifications.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).exists();
         assertThat(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).exists();
         NOTO_SANS_FONT_FILES.forEach(fileName -> assertThat(projectDir.resolve(
@@ -165,6 +166,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(updatedApplicationJs).contains("//= require webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js");
         assertThat(updatedApplicationJs).contains("//= require ili-geometry-editor.js");
         assertThat(updatedApplicationJs).contains("//= require ili-form-ux.js");
+        assertThat(updatedApplicationJs).contains("//= require ili-notifications.js");
         assertThat(updatedApplicationJs).contains("//= require ili-navigation.js");
         assertThat(updatedApplicationJs).doesNotContain("//= require ili-carbon-input-bridge.js");
         GrailsTemplateOverlayInstaller.applicationJsRequiresForTesting().forEach(require ->
@@ -188,7 +190,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(indexTemplate).contains("template=\"list-table\"");
         assertThat(indexTemplate).contains("template=\"list-pagination\"");
         assertThat(indexTemplate).contains("template=\"list-empty\"");
-        assertThat(indexTemplate).doesNotContain("bx-table");
+        assertThat(indexTemplate).doesNotContain("bx-table", "flash.message", "data-list-query-warning");
 
         String listFiltersTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_list-filters.gsp"));
         assertThat(listFiltersTemplate).contains("name=\"q\"");
@@ -200,7 +202,8 @@ class GrailsTemplateOverlayInstallerTest {
                 "<span class=\"badge rounded-pill ili-active-filter-badge\">",
                 "class=\"ili-active-filter-remove\"", "ili2grails.list.removeFilter",
                 "aria-label=\"\\${message(code: 'ili2grails.list.removeFilter'",
-                "title=\"\\${message(code: 'ili2grails.list.removeFilter'", "&times;")
+                "title=\"\\${message(code: 'ili2grails.list.removeFilter'", "&times;",
+                "listQueryWarnings", "ili-filter-warning", "data-list-query-warning")
             .doesNotContain("aria-labelledby=\"list-search-heading\"", "<label class=\"form-label\" for=\"list-search\">");
         assertThat(listFiltersTemplate)
             .doesNotContain("ili-active-filters-label", "code=\"ili2grails.list.active\"",
@@ -232,7 +235,8 @@ class GrailsTemplateOverlayInstallerTest {
             .doesNotContain("domainHasRecords", "ili2grails.list.reset", "default.new.label");
         String overlayCss = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
         assertThat(overlayCss)
-            .contains(".ili-list-result-summary", "font-size: 1rem;", "color: var(--bs-body-color);",
+            .contains(".ili-notification-region", "position: fixed", ".ili-notification-dismiss",
+                ".ili-list-result-summary", "font-size: 1rem;", "color: var(--bs-body-color);",
                 ".ili-main-content", "background: transparent;", ".form-label", "margin-bottom: 0;",
                 ".ili-search-input-group .ili-search-icon", "background-color: var(--ili-neutral-surface);",
                 "border-right: 0", ".ili-search-input-group .ili-search-input", "border-left: 0",
@@ -279,7 +283,7 @@ class GrailsTemplateOverlayInstallerTest {
             .contains("<ili:icon name=\"list\" cssClass=\"me-1\"/>", "ili2grails.action.list",
                 "<ili:icon name=\"plus-lg\" cssClass=\"me-1\"/>", "ili2grails.action.new")
             .doesNotContain("default.list.label", "default.new.label");
-        assertThat(formTemplate).doesNotContain("js-carbon-bridge");
+        assertThat(formTemplate).doesNotContain("js-carbon-bridge", "flash.message");
 
         String createTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/create.gsp"));
         assertThat(createTemplate)
@@ -335,7 +339,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(showTemplate.indexOf("workspace-danger-zone"))
             .isLessThan(showTemplate.indexOf("ili-workspace-main"));
         assertThat(showTemplate).doesNotContain("_show-details");
-        assertThat(showTemplate).doesNotContain("Audit", "Verlauf", "Protokoll", "Timeline", "Restore");
+        assertThat(showTemplate).doesNotContain("Audit", "Verlauf", "Protokoll", "Timeline", "Restore", "flash.message");
 
         String workspaceHeader = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-header.gsp"));
         assertThat(workspaceHeader).contains("data-domain-workspace-header", "data-workspace-display-label");
@@ -419,6 +423,10 @@ class GrailsTemplateOverlayInstallerTest {
                 "ili-search-icon", "ili-search-input", "btn btn-primary", "ili2grails.list.searchSubmit")
             .doesNotContain("<button class=\"btn btn-outline-secondary\" type=\"submit\"");
         assertThat(layoutTemplate).contains("data-ili-extension-point=\"topbar-toolbar\"");
+        assertThat(layoutTemplate)
+            .contains("flash.notification", "data-ili-notifications", "data-ili-notification",
+                "data-notification-level", "ili2grails.notification.close", "ili2grails.notification.showDetails")
+            .doesNotContain("<div class=\"alert alert-info\" role=\"status\">");
         assertThat(layoutTemplate).doesNotContain("principal");
         assertThat(layoutTemplate).doesNotContain("navbar-toggler-icon");
 
@@ -455,6 +463,9 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).doesNotContain("new java.util.LinkedHashMap(params)");
         assertThat(controllerSupport).contains("Content-Security-Policy");
         assertThat(controllerSupport).contains("DataIntegrityViolationException");
+        assertThat(controllerSupport)
+            .contains("flashNotification(\"success\"", "flashNotification(\"danger\"", "flash.notification",
+                "ili2grails.runtime.deleteIntegrity");
         assertThat(controllerSupport).contains("X-Content-Type-Options");
         assertThat(controllerSupport).contains("associationQueryService()");
         assertThat(controllerSupport).contains("associationModel(T instance)");
@@ -464,7 +475,9 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("associationCreate(Long id)");
         assertThat(controllerSupport).contains("associationDelete(Long id)");
         assertThat(controllerSupport).contains("InterlisWorkspaceSupport.showModel");
-        assertThat(controllerSupport).contains("Datenbank-Integritätsbedingung");
+        assertThat(controllerSupport)
+            .contains("anderen Datensätzen verwendet wird")
+            .doesNotContain("Datenbank-Integritätsbedingung");
         assertThat(controllerSupport).contains("respondAssociationCommand(T instance, Map<String, Object> result)");
         assertThat(controllerSupport).contains("respondAssociationError(int status, String code, String message)");
         assertThat(controllerSupport).contains("inverseRelationshipModel(T instance)");

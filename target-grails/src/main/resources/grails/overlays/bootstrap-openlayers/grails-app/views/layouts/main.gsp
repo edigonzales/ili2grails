@@ -118,6 +118,43 @@
     </div>
 </header>
 
+<g:set var="notification" value="${flash.notification ?: (flash.message ? [type: 'info', message: flash.message] : null)}"/>
+<g:if test="${notification}">
+    <g:set var="notificationType" value="${['success', 'info', 'warning', 'danger'].contains(notification?.type?.toString()) ? notification.type.toString() : 'info'}"/>
+    <g:set var="notificationTitle" value="${notification?.title ?: message(code: 'ili2grails.notification.' + notificationType, default: notificationType == 'danger' ? 'Aktion nicht möglich' : notificationType == 'warning' ? 'Achtung' : notificationType == 'success' ? 'Erfolgreich' : 'Hinweis')}"/>
+    <g:set var="notificationIcon" value="${notification?.icon ?: (notificationType == 'danger' ? 'x-circle' : notificationType == 'warning' ? 'exclamation-triangle' : notificationType == 'success' ? 'check-circle' : 'info-circle')}"/>
+    <div class="ili-notification-region"
+         data-ili-notifications
+         aria-label="${message(code: 'ili2grails.notification.region', default: 'Benachrichtigungen')}">
+        <div class="alert alert-${notificationType} ili-notification"
+             data-ili-notification
+             data-notification-level="${notificationType}"
+             role="${notificationType == 'danger' || notificationType == 'warning' ? 'alert' : 'status'}"
+             aria-live="${notificationType == 'danger' || notificationType == 'warning' ? 'assertive' : 'polite'}"
+             aria-atomic="true">
+            <div class="ili-notification-icon" aria-hidden="true"><ili:icon name="${notificationIcon}"/></div>
+            <div class="ili-notification-content">
+                <strong class="ili-notification-title">${notificationTitle}</strong>
+                <div class="ili-notification-message">${notification?.message ?: notification?.text ?: notification}</div>
+                <g:if test="${notification?.detail}">
+                    <details class="ili-notification-details">
+                        <summary><g:message code="ili2grails.notification.showDetails" default="Details anzeigen"/></summary>
+                        <p>${notification.detail}</p>
+                    </details>
+                </g:if>
+                <g:if test="${notification?.actionUrl && notification?.actionLabel}">
+                    <a class="ili-notification-action" href="${notification.actionUrl}">${notification.actionLabel}</a>
+                </g:if>
+            </div>
+            <button type="button"
+                    class="btn-close ili-notification-dismiss"
+                    data-notification-dismiss
+                    aria-label="${message(code: 'ili2grails.notification.close', default: 'Meldung schliessen')}"
+                    title="${message(code: 'ili2grails.notification.close', default: 'Meldung schliessen')}"></button>
+        </div>
+    </div>
+</g:if>
+
 <div class="ili-shell-layout">
     <g:render template="/interlisUi/sidebar"
               model="${[navigationModel: navigationModel]}"/>

@@ -55,6 +55,15 @@
         </g:if>
     </g:form>
 
+    <g:if test="\${listQueryWarnings}">
+        <div class="alert alert-warning ili-filter-warning" role="alert" data-list-query-warning>
+            <h2 class="h6 mb-2"><g:message code="ili2grails.list.queryWarningTitle" default="Einige Suchparameter wurden nicht übernommen"/></h2>
+            <ul class="mb-0">
+                <g:each in="\${listQueryWarnings}" var="warning"><li>\${warning}</li></g:each>
+            </ul>
+        </div>
+    </g:if>
+
     <g:if test="\${activeFilterChips || listQuery?.q}">
         <div class="ili-active-filters" aria-label="\${message(code: 'ili2grails.list.activeFilters', default: 'Aktive Filter')}">
             <g:if test="\${listQuery?.q}">

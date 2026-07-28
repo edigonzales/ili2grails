@@ -222,6 +222,7 @@ Wenn `--grails-ui-theme bootstrap` gesetzt ist, kopiert der Generator vor `gener
 - `grails-app/views/layouts/main.gsp`
 - `grails-app/assets/javascripts/ili-geometry-editor.js`
 - `grails-app/assets/javascripts/ili-form-ux.js`
+- `grails-app/assets/javascripts/ili-notifications.js`
 - `grails-app/assets/stylesheets/ili-modern.css`
 
 Der Ablauf ist damit: `--grails-init` → Overlay kopieren → Domains/Enums schreiben → optional `generate-all`.
@@ -936,8 +937,9 @@ Der Bootstrap-Modus verwendet ab Phase 1 eine server-rendered Application Shell:
 - `index` rendert als Tabelle mit serverseitigem Paging, Freitextsuche über Textspalten, echten Sortierlinks, einfachen typisierten Filtern und Row-Actions.
 - Unsaved-Changes werden in `create/edit` als Badge + `beforeunload`-Warnung signalisiert.
 - Der Runtime-Support setzt Security-Header mit lokaler CSP und fängt referenzielle
-  Integritätsfehler bei Deletes als verständliche Flash-Meldung ab, statt einen 500er
-  durchzureichen.
+  Integritätsfehler bei Deletes als verständliche, typisierte Benachrichtigung ab, statt
+  einen 500er durchzureichen. Server-Feedback wird im globalen, schwebenden Notification-
+  Bereich des Layouts dargestellt und verschiebt dadurch die Listeninhalte nicht.
 - Wiederverwendbare Runtime-Logik liegt in `ch.interlis.generator.grails.runtime`. Das Controller-Template delegiert an `InterlisCrudControllerSupport`, statt Paging, Suche, Relationship-Optionen und Geometrie-Binding in jede generierte Controller-Klasse zu kopieren.
 
 Opt-in Browser-E2E:
@@ -1059,11 +1061,15 @@ Message-Codes haben Vorrang; `interlisFieldMeta` liefert die Fallback-Labels. Ko
   `InterlisUiRegistry` aufgelösten Controller-Route gerendert. Association-Collections bleiben
   beim bestehenden Association-Service.
 
-Die Danger Zone erklärt technisch korrekt, dass das Löschen serverseitig geprüft wird und
-referenzielle Beziehungen oder andere Datenbank-Integritätsbedingungen das Löschen verhindern
-können. Der Controller macht den Konflikt sowohl als Flash-Meldung für Formulare als auch als
-409-Fehlerantwort für andere Formate sichtbar. Es gibt ausdrücklich keine Audit-, Verlaufs-,
-Protokoll-, Timeline- oder Restore-Funktion und keine Persistenz dafür.
+Der Löschdialog nennt Domain und konkretes Display Label, fokussiert standardmässig
+`Abbrechen` und verlangt eine explizite Bestätigung über `Endgültig löschen`. Die
+serverseitige Prüfung bleibt unverändert: Referenzielle Beziehungen oder andere
+Datenbank-Integritätsbedingungen können das Löschen verhindern. Der Controller macht den
+Konflikt für HTML-Formulare als persistente Danger-Benachrichtigung im globalen Notification-
+Bereich und für andere Formate als 409-Fehlerantwort sichtbar. Erfolgs- und Infomeldungen
+werden nach kurzer Zeit automatisch ausgeblendet; Warnungen und Fehler bleiben bis zum
+expliziten Schliessen sichtbar. Es gibt ausdrücklich keine Audit-, Verlaufs-, Protokoll-,
+Timeline- oder Restore-Funktion und keine Persistenz dafür.
 
 Die Workspace-Stile erweitern `ili-modern.css` responsiv im bestehenden Bootstrap-no-frills-
 System. Es werden keine `--dp-*`-Tokens und keine neue Farbwelt eingeführt; generische Aktionen
@@ -1262,6 +1268,10 @@ Die Härtungsregeln sind verbindlich:
   externe Font-CDNs und Frutiger gehören nicht zum managed Bootstrap-Code.
 - Alle dynamischen Association-/Workspace-Werte werden escaped gerendert; Sortierung, Filter,
   Controller, Actions, IDs, Ownership und Delete-Flows bleiben whitelisted und serverseitig geprüft.
+- Server-Feedback verwendet strukturierte Meldungen mit Typ, Titel, Text und optionalen Details
+  bzw. Folgeaktionen. Erfolgs-/Infomeldungen werden als kurzlebige Toasts, Warnungen/Fehler als
+  schliessbare persistente Toasts dargestellt; Formularvalidierung und kontextbezogene
+  Beziehungs-/Filterwarnungen bleiben inline.
 - Navigation, Listen und Relationship-Picker bleiben serverseitig begrenzt und paginiert. Der
   Workspace-Display-Support führt selbst keine Queries oder Persistenzoperationen aus.
 - Der Benutzer-/Login-Slot ist nur ein leerer Extension Point. Es gibt keine Principal-, Login-,

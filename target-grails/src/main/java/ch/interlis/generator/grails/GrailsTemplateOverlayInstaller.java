@@ -76,6 +76,7 @@ public class GrailsTemplateOverlayInstaller {
         "grails-app/conf/spring/resources.groovy",
         "grails-app/assets/javascripts/ili-geometry-editor.js",
         "grails-app/assets/javascripts/ili-form-ux.js",
+        "grails-app/assets/javascripts/ili-notifications.js",
         "grails-app/assets/javascripts/ili-navigation.js",
         "grails-app/assets/stylesheets/ili-modern.css",
         "grails-app/assets/fonts/noto-sans/NotoSans-Regular.woff2",
@@ -94,6 +95,7 @@ public class GrailsTemplateOverlayInstaller {
         "//= require webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js",
         "//= require ili-geometry-editor.js",
         "//= require ili-form-ux.js",
+        "//= require ili-notifications.js",
         "//= require ili-navigation.js"
     );
     private static final List<String> APPLICATION_CSS_REQUIRES = List.of(

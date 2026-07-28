@@ -147,10 +147,10 @@ abstract class InterlisCrudControllerSupport<T> {
 
         request.withFormat {
             form multipartForm {
-                flash.message = message(
+                flashNotification("success", message(
                     code: "default.created.message",
                     args: [message(code: modelKey() + ".label", default: domainType().simpleName), instance.id]
-                )
+                ))
                 Map<String, Object> redirectTarget = InterlisFormSupport.saveAndContinue(submitMode)
                     ? InterlisFormSupport.continueRedirect(instance, contextState)
                     : contextualRedirectTarget(instance, contextState)
@@ -218,10 +218,10 @@ abstract class InterlisCrudControllerSupport<T> {
 
         request.withFormat {
             form multipartForm {
-                flash.message = message(
+                flashNotification("success", message(
                     code: "default.updated.message",
                     args: [message(code: modelKey() + ".label", default: domainType().simpleName), instance.id]
-                )
+                ))
                 Map<String, Object> redirectTarget = InterlisFormSupport.saveAndContinue(submitMode)
                     ? InterlisFormSupport.continueRedirect(instance, contextState)
                     : contextualRedirectTarget(instance, contextState)
@@ -251,12 +251,12 @@ abstract class InterlisCrudControllerSupport<T> {
             String conflictMessage = InterlisMessageSupport.text(
                 grailsApplication,
                 "ili2grails.runtime.deleteIntegrity",
-                "Datensatz ${id} kann nicht gelöscht werden, weil eine Datenbank-Integritätsbedingung das Löschen verhindert.",
+                "Datensatz ${id} konnte nicht gelöscht werden, weil er noch von anderen Datensätzen verwendet wird.",
                 [id] as Object[]
             )
             request.withFormat {
                 form multipartForm {
-                    flash.message = conflictMessage
+                    flashNotification("danger", conflictMessage)
                     redirect action: "index", method: "GET"
                 }
                 "*" {
@@ -269,10 +269,10 @@ abstract class InterlisCrudControllerSupport<T> {
 
         request.withFormat {
             form multipartForm {
-                flash.message = message(
+                flashNotification("success", message(
                     code: "default.deleted.message",
                     args: [message(code: modelKey() + ".label", default: domainType().simpleName), id]
-                )
+                ))
                 redirect action: "index", method: "GET"
             }
             "*" { render status: NO_CONTENT }
@@ -579,7 +579,7 @@ abstract class InterlisCrudControllerSupport<T> {
         request.withFormat {
             form multipartForm {
                 if (userMessage != null && !userMessage.isBlank()) {
-                    flash.message = userMessage
+                    flashNotification(success ? "success" : "danger", userMessage)
                 }
                 redirect action: "show", id: instance.id, method: "GET"
             }
@@ -595,7 +595,7 @@ abstract class InterlisCrudControllerSupport<T> {
         int status = (result?.status ?: (success ? 200 : 400)) as int
         String userMessage = result?.message?.toString()
         if (success && userMessage != null && !userMessage.isBlank()) {
-            flash.message = userMessage
+            flashNotification("success", userMessage)
         }
         if (inverseRelationshipJsonRequested()) {
             response.status = status
@@ -605,7 +605,7 @@ abstract class InterlisCrudControllerSupport<T> {
         request.withFormat {
             form multipartForm {
                 if (!success && userMessage != null && !userMessage.isBlank()) {
-                    flash.message = userMessage
+                    flashNotification("danger", userMessage)
                 }
                 redirect action: "show", id: instance.id, method: "GET"
             }
@@ -627,7 +627,7 @@ abstract class InterlisCrudControllerSupport<T> {
     protected void respondAssociationError(int status, String code, String message) {
         request.withFormat {
             form multipartForm {
-                flash.message = message
+                flashNotification("danger", message)
                 redirect action: "index", method: "GET"
             }
             "*" {
@@ -695,14 +695,41 @@ abstract class InterlisCrudControllerSupport<T> {
         applySecurityHeaders()
         request.withFormat {
             form multipartForm {
-                flash.message = message(
+                flashNotification("danger", message(
                     code: "default.not.found.message",
                     args: [message(code: modelKey() + ".label", default: domainType().simpleName), params.id]
-                )
+                ))
                 redirect action: "index", method: "GET"
             }
             "*" { render status: NOT_FOUND }
         }
+    }
+
+    /**
+     * Stores a typed, render-safe notification for the shared layout. The
+     * legacy flash.message fallback remains supported for generated or custom
+     * views that still populate it directly.
+     */
+    protected void flashNotification(String type,
+                                     String text,
+                                     String title = null,
+                                     Map<String, Object> extras = [:]) {
+        if (text == null || text.isBlank()) {
+            return
+        }
+        List<String> supportedTypes = ["success", "info", "warning", "danger"]
+        String normalizedType = supportedTypes.contains(type) ? type : "info"
+        Map<String, Object> notification = [type: normalizedType, message: text]
+        if (title != null && !title.isBlank()) {
+            notification.title = title
+        }
+        ["detail", "actionLabel", "actionUrl", "icon"].each { String key ->
+            Object value = extras?.get(key)
+            if (value != null && value.toString().trim()) {
+                notification[key] = value.toString()
+            }
+        }
+        flash.notification = notification
     }
 
     protected void applySecurityHeaders() {
