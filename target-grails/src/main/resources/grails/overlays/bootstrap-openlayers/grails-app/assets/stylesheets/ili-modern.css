@@ -523,10 +523,6 @@ body {
     font-weight: 600;
 }
 
-.ili-workspace-danger-zone {
-    margin-top: 0.25rem;
-}
-
 .ili-unsaved-badge[hidden] {
     display: none;
 }
@@ -625,8 +621,7 @@ body {
 .ili-form-tile,
 .ili-details-tile,
 .ili-map-panel,
-.ili-empty-state,
-.ili-danger-zone {
+.ili-empty-state {
     border: 1px solid var(--bs-border-color);
     border-radius: var(--bs-border-radius);
     box-shadow: var(--ili-card-shadow);
@@ -981,23 +976,6 @@ body {
 .ili-workspace-relationships .ili-definition-row:last-child,
 .ili-workspace-details .ili-definition-row:last-child {
     border-bottom: 0;
-}
-
-.ili-danger-zone {
-    background: var(--bs-danger-bg-subtle);
-    border-color: var(--bs-danger-border-subtle);
-}
-
-.ili-danger-zone .card-body {
-    display: grid;
-    gap: 0.75rem;
-}
-
-.ili-danger-zone-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.5rem;
 }
 
 .ili-form-actions {
@@ -1598,11 +1576,13 @@ body {
     }
 
     .ili-workspace-header .ili-page-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         width: 100%;
     }
 
     .ili-workspace-header .ili-page-actions .btn {
-        flex: 1 1 auto;
+        width: 100%;
     }
 
     .ili-definition-row {

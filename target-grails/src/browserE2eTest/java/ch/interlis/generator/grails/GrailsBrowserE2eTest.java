@@ -692,13 +692,17 @@ class GrailsBrowserE2eTest {
 
             page.navigate(baseUrl + "/municipality/show/" + bernId);
             page.waitForLoadState(LoadState.NETWORKIDLE);
-            assertThat(page.locator("[data-workspace-danger-zone]").textContent())
-                .contains("serverseitig geprüft", "Integritätsbedingungen");
-            page.locator("[data-delete-open]").click();
+            Locator municipalityDelete = page.locator(
+                "[data-domain-workspace-header] [data-delete-open]");
+            assertThat(municipalityDelete.isVisible()).isTrue();
+            municipalityDelete.click();
             page.waitForTimeout(250);
             assertThat(page.locator("[data-delete-modal]").isVisible()).isTrue();
             assertThat(page.locator("[data-delete-modal]").textContent())
-                .contains("serverseitig geprüft", "referenzieller");
+                .contains("Bern", "dauerhaft gelöscht", "serverseitig geprüft",
+                    "referenzieller", "Endgültig löschen");
+            page.waitForFunction(
+                "() => document.activeElement && document.activeElement.matches('[data-delete-cancel]')");
             screenshot(page, "workspace-delete-dialog", true);
             page.evaluate("""
                 () => {
@@ -1209,7 +1213,8 @@ class GrailsBrowserE2eTest {
         assertThat(page.locator("[data-workspace-geometry]").count()).isEqualTo(1);
         assertThat(page.locator(".ili-map-panel").count()).isEqualTo(1);
         screenshot(page, "workspace-address-show", true);
-        page.locator("[data-delete-open]").click();
+        Locator deleteOpen = page.locator("[data-domain-workspace-header] [data-delete-open]");
+        deleteOpen.click();
         page.waitForTimeout(250);
         screenshot(page, "workspace-address-delete-dialog", true);
         assertThat(page.locator("[data-delete-modal]").isVisible()).isTrue();
@@ -1217,7 +1222,13 @@ class GrailsBrowserE2eTest {
         assertThat(page.locator("[data-delete-modal]").getAttribute("aria-modal")).isEqualTo("true");
         assertThat(page.locator("[data-delete-modal]").getAttribute("aria-describedby")).isNotBlank();
         assertThat(page.locator("[data-delete-modal]").textContent())
-            .contains("serverseitig geprüft", "Integritätsbedingungen");
+            .contains("Address löschen?", "E2E", "dauerhaft gelöscht",
+                "serverseitig geprüft", "Integritätsbedingungen", "Endgültig löschen");
+        page.waitForFunction(
+            "() => document.activeElement && document.activeElement.matches('[data-delete-cancel]')");
+        assertThat(page.locator("[data-delete-cancel]")
+            .evaluate("element => document.activeElement === element"))
+            .isEqualTo(true);
         Locator deleteModalClose = page.locator("[data-delete-modal] .ili-modal-close");
         assertThat(deleteModalClose.isVisible()).isTrue();
         assertThat(deleteModalClose.getAttribute("class")).contains("ili-modal-close", "ms-auto");
@@ -1231,6 +1242,29 @@ class GrailsBrowserE2eTest {
             .isEqualTo(true);
 
         assertNoHorizontalOverflow(page);
+
+        page.setViewportSize(390, 844);
+        Locator workspaceActions = page.locator(
+            "[data-domain-workspace-header] .ili-page-actions");
+        assertThat(workspaceActions.locator(".btn").count()).isEqualTo(4);
+        assertThat(workspaceActions.evaluate("element => getComputedStyle(element).display"))
+            .isEqualTo("grid");
+        String gridColumns = (String) workspaceActions.evaluate(
+            "element => getComputedStyle(element).gridTemplateColumns");
+        assertThat(gridColumns.trim().split("\\s+")).hasSize(2);
+        assertNoHorizontalOverflow(page);
+        screenshot(page, "workspace-address-show-mobile", true);
+
+        deleteOpen.click();
+        page.waitForTimeout(250);
+        page.waitForFunction(
+            "() => document.activeElement && document.activeElement.matches('[data-delete-cancel]')");
+        assertNoHorizontalOverflow(page);
+        screenshot(page, "workspace-address-delete-dialog-mobile", true);
+        page.locator("[data-delete-cancel]").click();
+        page.locator("[data-delete-modal]").waitFor(new Locator.WaitForOptions().setState(
+            com.microsoft.playwright.options.WaitForSelectorState.HIDDEN));
+        page.setViewportSize(1280, 900);
     }
 
     private void editCurrentRecordGeometry(Page page) {
@@ -1283,11 +1317,21 @@ class GrailsBrowserE2eTest {
         assertThat(page.locator("[data-workspace-display-label]").textContent()).contains(expectedLabel);
         assertThat(page.locator("[data-workspace-details]").count()).isEqualTo(1);
         assertThat(page.locator("[data-workspace-relationships]").count()).isEqualTo(1);
-        assertThat(page.locator("[data-workspace-danger-zone]").count()).isEqualTo(1);
+        assertThat(page.locator("[data-workspace-danger-zone]").count()).isZero();
+        assertThat(page.locator("[data-delete-modal]").count()).isEqualTo(1);
+        Locator workspaceActions = page.locator(
+            "[data-domain-workspace-header] .ili-page-actions > a, "
+                + "[data-domain-workspace-header] .ili-page-actions > button");
+        assertThat(workspaceActions.count()).isEqualTo(4);
+        assertThat(workspaceActions.nth(2).textContent()).contains("Bearbeiten");
+        assertThat(workspaceActions.nth(3).textContent()).contains("Löschen");
+        assertThat(workspaceActions.nth(3).getAttribute("class")).contains("btn-outline-danger");
+        assertThat(workspaceActions.nth(3).getAttribute("data-delete-open")).isNotBlank();
         assertThat(page.locator("[data-audit-tab], [data-history-tab], [data-protocol-tab], [data-timeline]").count())
             .isZero();
         String body = page.locator("body").textContent();
-        assertThat(body).doesNotContain("Audit", "Verlauf", "Protokoll", "Timeline", "Restore");
+        assertThat(body).doesNotContain("Danger Zone", "Destruktiv",
+            "Audit", "Verlauf", "Protokoll", "Timeline", "Restore");
         if (expectedMunicipalityId != null) {
             Locator municipalityLink = page.locator(
                 "[data-workspace-relationships] a.ili-workspace-relationship-link");

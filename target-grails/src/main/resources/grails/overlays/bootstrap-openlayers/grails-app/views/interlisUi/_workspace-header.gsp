@@ -17,5 +17,14 @@
         <g:link class="btn btn-primary" controller="${controllerName}" action="edit" id="${instance?.id}">
             <ili:icon name="pencil" cssClass="me-1"/><g:message code="ili2grails.workspace.edit" default="Bearbeiten"/>
         </g:link>
+        <g:if test="${instance?.id != null && deleteModalId}">
+            <button type="button"
+                    class="btn btn-outline-danger"
+                    data-delete-open="${deleteModalId}"
+                    data-bs-toggle="modal"
+                    data-bs-target="#${deleteModalId}">
+                <ili:icon name="trash" cssClass="me-1"/><g:message code="ili2grails.action.delete" default="Löschen"/>
+            </button>
+        </g:if>
     </nav>
 </section>

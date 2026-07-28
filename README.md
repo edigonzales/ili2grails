@@ -1039,7 +1039,8 @@ Relationship- und Association-Modelle; die zusätzliche Workspace-Aufbereitung d
 
 Der Workspace-Header verwendet die bestehende
 `InterlisRelationshipOptions`-Fallbacklogik für Display Labels und zeigt Domain-Label, ID sowie
-die Primäraktionen Liste, Neu und Bearbeiten. `InterlisUiDescriptorSupport` liefert additive
+die Objektaktionen Liste, Neu, Bearbeiten und einen visuell nachgeordneten
+Outline-Button zum Löschen. `InterlisUiDescriptorSupport` liefert additive
 Detailsektionen: direkte skalare Attribute werden aus dem Descriptor dargestellt, während `id`,
 `version`, Geometrien, Collections und Relationships nicht als Detailzeilen dupliziert werden.
 Message-Codes haben Vorrang; `interlisFieldMeta` liefert die Fallback-Labels. Konfigurierte
@@ -1049,7 +1050,9 @@ Message-Codes haben Vorrang; `interlisFieldMeta` liefert die Fallback-Labels. Ko
 `grails-app/views/interlisUi/`:
 
 - `_workspace-header.gsp`, `_workspace-details.gsp`, `_workspace-relationships.gsp` und
-  `_workspace-danger-zone.gsp` bilden die generische Workspace-Struktur.
+  `_workspace-danger-zone.gsp` bilden die generische Workspace-Struktur. Das historisch benannte
+  Danger-Zone-Partial enthält nur noch das versteckte DELETE-Formular und den
+  Bestätigungsdialog; die sichtbare Aktion liegt im Header.
 - `_association-sections.gsp`, Quick Add, kontextuelle Association-Formulare und
   `_geometry-panel.gsp` bleiben unverändert die Semantikquellen und werden nur eingebettet.
 - Direkte Relationships werden nur für whitelisted To-One-Domainobjekte als Links zur über die

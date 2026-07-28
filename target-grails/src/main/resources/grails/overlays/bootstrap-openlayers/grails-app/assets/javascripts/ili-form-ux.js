@@ -220,6 +220,15 @@
             modal._iliReturnFocus = event.relatedTarget;
         });
 
+        document.addEventListener("shown.bs.modal", function(event) {
+            var modal = event.target.closest ? event.target.closest("[data-delete-modal]") : null;
+            var cancelAction = modal ? modal.querySelector("[data-delete-cancel]") : null;
+            if (!cancelAction) {
+                return;
+            }
+            cancelAction.focus();
+        });
+
         document.addEventListener("hidden.bs.modal", function(event) {
             var modal = event.target.closest ? event.target.closest("[data-delete-modal]") : null;
             var returnFocus = modal && modal._iliReturnFocus;

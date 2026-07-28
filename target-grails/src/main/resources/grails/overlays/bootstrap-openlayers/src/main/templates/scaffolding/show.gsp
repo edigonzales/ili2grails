@@ -11,12 +11,22 @@
         instance: this.${propertyName},
         displayLabel: workspaceDisplayLabel,
         domainLabel: workspaceDomainLabel ?: entityName,
-        controllerName: controllerName
+        controllerName: controllerName,
+        deleteModalId: 'delete-modal-${propertyName}'
     ]}"/>
 
     <g:if test="\${flash.message}">
         <div class="alert alert-info" role="status">\${flash.message}</div>
     </g:if>
+
+    <g:render template="/interlisUi/workspace-danger-zone" model="\${[
+        instance: this.${propertyName},
+        displayLabel: workspaceDisplayLabel,
+        domainLabel: workspaceDomainLabel ?: entityName,
+        controllerName: controllerName,
+        deleteFormId: 'delete-form-${propertyName}',
+        deleteModalId: 'delete-modal-${propertyName}'
+    ]}"/>
 
     <div class="ili-workspace-main ili-split-layout \${geometryFields ? 'ili-split-with-map' : 'ili-split-single'}">
         <div class="ili-workspace-content ili-form-column">
@@ -55,13 +65,6 @@
             <g:if test="\${associationDiagnostic}">
                 <div class="alert alert-warning" role="alert">\${associationDiagnostic}</div>
             </g:if>
-
-            <g:render template="/interlisUi/workspace-danger-zone" model="\${[
-                instance: this.${propertyName},
-                controllerName: controllerName,
-                deleteFormId: 'delete-form-${propertyName}',
-                deleteModalId: 'delete-modal-${propertyName}'
-            ]}"/>
         </div>
 
         <g:if test="\${geometryFields}">

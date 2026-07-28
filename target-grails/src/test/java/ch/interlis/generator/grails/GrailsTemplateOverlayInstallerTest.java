@@ -251,9 +251,12 @@ class GrailsTemplateOverlayInstallerTest {
                 ".ili-modal-close:focus-visible",
                 ".ili-active-filter-badge", "font-size: 0.875rem;", "font-weight: 400;",
                 "display: inline-flex", ".ili-active-filter-remove", ".ili-active-filter-remove:hover",
-                ".ili-active-filter-remove:focus-visible")
+                ".ili-active-filter-remove:focus-visible",
+                ".ili-workspace-header .ili-page-actions",
+                "grid-template-columns: repeat(2, minmax(0, 1fr))")
             .doesNotContain(".ili-active-filters-label", ".ili-active-filter-badge:hover",
-                ".ili-active-filter-badge:focus-visible");
+                ".ili-active-filter-badge:focus-visible", ".ili-workspace-danger-zone",
+                ".ili-danger-zone", ".ili-danger-zone-head");
 
         String sidebarTemplate = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_sidebar.gsp"));
         assertThat(sidebarTemplate).doesNotContain("ili2grails.shell.navigation\" default=\"Navigation")
@@ -287,6 +290,9 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(deMessages)
             .contains("ili2grails.action.save=Speichern", "ili2grails.form.createTitle={0} erfassen",
                 "ili2grails.list.removeFilter=Filter entfernen", "ili2grails.action.create=Erfassen",
+                "ili2grails.action.deletePermanently=Endgültig löschen",
+                "ili2grails.workspace.deleteConfirmNamed={0} löschen?",
+                "ili2grails.workspace.deleteTargetSuffix=wird dauerhaft gelöscht.",
                 "ili2grails.list.noResults=Keine Treffer",
                 "ili2grails.list.noResultsDescription=Passe die Suche oder die Filter an.")
             .doesNotContain("ili2grails.list.reset=", "ili2grails.list.active=");
@@ -325,6 +331,9 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(showTemplate).contains("inverse-relationship-sections");
         assertThat(showTemplate).contains("inverseRelationshipDiagnostic");
         assertThat(showTemplate).contains("workspace-danger-zone");
+        assertThat(showTemplate).contains("deleteModalId: 'delete-modal-", "displayLabel: workspaceDisplayLabel");
+        assertThat(showTemplate.indexOf("workspace-danger-zone"))
+            .isLessThan(showTemplate.indexOf("ili-workspace-main"));
         assertThat(showTemplate).doesNotContain("_show-details");
         assertThat(showTemplate).doesNotContain("Audit", "Verlauf", "Protokoll", "Timeline", "Restore");
 
@@ -336,13 +345,15 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(workspaceRelationships).contains("relationshipLinks", "action=\"show\"", "Keine Zuordnung");
         String workspaceDangerZone = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-danger-zone.gsp"));
         assertThat(workspaceDangerZone)
-            .contains("Danger Zone")
-            .contains("data-delete-open", "modal fade")
+            .contains("ili-hidden-delete-form", "modal fade")
             .contains("class=\"ili-modal-close ms-auto\"", "name=\"x-circle\"")
             .contains("role=\"dialog\"", "aria-modal=\"true\"", "aria-describedby")
-            .contains("serverseitig geprüft", "Referenzielle Beziehungen", "Datenbank-Integritätsbedingungen")
+            .contains("ili2grails.workspace.deleteConfirmNamed", "ili2grails.workspace.deleteTargetSuffix",
+                "ili2grails.action.deletePermanently", "data-delete-cancel=\"true\"",
+                "serverseitig geprüft", "referenzieller Beziehungen", "Datenbank-Integritätsbedingungen")
             .doesNotContain("btn btn-outline-secondary btn-sm ili-modal-close", "name=\"x-lg\"")
-            .doesNotContain("abhängige Daten werden", "garantiert", "bx-modal");
+            .doesNotContain("Danger Zone", "Destruktiv", "data-workspace-danger-zone",
+                "data-delete-open", "ili-danger-zone", "abhängige Daten werden", "garantiert", "bx-modal");
         String workspaceLink = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-link.gsp"));
         assertThat(workspaceLink).contains("data-ili-workspace-link", "controller", "action")
             .doesNotContain("iliName", "domainClassName");
@@ -542,7 +553,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(formUx).contains("actionElement.form === form");
         assertThat(formUx).contains("a[href]");
         assertThat(formUx).contains("beforeunload");
-        assertThat(formUx).contains("hidden.bs.modal", "_iliReturnFocus", "aria-activedescendant");
+        assertThat(formUx).contains("shown.bs.modal", "data-delete-cancel",
+            "hidden.bs.modal", "_iliReturnFocus", "aria-activedescendant");
         assertThat(formUx).contains(
             "initInverseRelationshipForms",
             "REASSIGNMENT_CONFIRMATION_REQUIRED",
