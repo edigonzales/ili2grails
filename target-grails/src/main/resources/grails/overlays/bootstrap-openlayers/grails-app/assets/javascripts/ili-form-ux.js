@@ -405,17 +405,29 @@
         }
         var picker = input.closest(".js-relationship-picker");
         var list = picker ? picker.querySelector("[data-relationship-list]") : null;
+        var clear = picker ? picker.querySelector("[data-relationship-clear]") : null;
         var state = {
             loading: false,
             loaded: false,
             more: false,
             offset: 0,
-            controller: null
+            controller: null,
+            dismissed: false
         };
         var timer = null;
         var activeIndex = -1;
 
+        function syncClearButton() {
+            if (clear) {
+                clear.hidden = !select.value;
+            }
+        }
+
         function closeResults() {
+            state.dismissed = true;
+            if (state.loading && state.controller) {
+                state.controller.abort();
+            }
             if (list) {
                 list.hidden = true;
             }
@@ -423,6 +435,8 @@
             input.removeAttribute("aria-activedescendant");
             activeIndex = -1;
         }
+
+        input.__iliCloseRelationshipResults = closeResults;
 
         function setActive(index) {
             if (!list) {
@@ -477,6 +491,9 @@
                     if (!payload) {
                         return;
                     }
+                    if (state.dismissed) {
+                        return;
+                    }
                     var results = payload.results || [];
                     var pagination = payload.pagination || {};
                     appendRelationshipOptions(select, results, reset);
@@ -505,6 +522,15 @@
         }
 
         input.addEventListener("input", function() {
+            state.dismissed = false;
+            if (select.value && input.value !== selectedOptionLabel(select)) {
+                select.value = "";
+                markRelationshipSelection(list, "");
+                syncClearButton();
+                var selectionCleared = new Event("change", { bubbles: true });
+                selectionCleared.__iliKeepInput = true;
+                select.dispatchEvent(selectionCleared);
+            }
             window.clearTimeout(timer);
             timer = window.setTimeout(function() {
                 fetchOptions(true);
@@ -512,6 +538,7 @@
         });
 
         input.addEventListener("focus", function() {
+            state.dismissed = false;
             if (!state.loaded) {
                 fetchOptions(true);
             } else if (list && list.children.length) {
@@ -536,10 +563,23 @@
             }
         });
 
-        select.addEventListener("change", function() {
-            input.value = selectedOptionLabel(select);
+        select.addEventListener("change", function(event) {
+            if (!event || event.__iliKeepInput !== true) {
+                input.value = selectedOptionLabel(select);
+            }
             markRelationshipSelection(list, select.value);
+            syncClearButton();
         });
+
+        if (clear) {
+            clear.addEventListener("click", function() {
+                select.value = "";
+                input.value = "";
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+                closeResults();
+                input.focus();
+            });
+        }
 
         if (list) {
             list.addEventListener("click", function(event) {
@@ -560,6 +600,34 @@
                 }
             });
         }
+        syncClearButton();
+    }
+
+    function closeRelationshipAutocompleteResults(exceptPicker) {
+        document.querySelectorAll(".js-relationship-search").forEach(function(input) {
+            var picker = input.closest(".js-relationship-picker");
+            if (exceptPicker && picker === exceptPicker) {
+                return;
+            }
+            if (typeof input.__iliCloseRelationshipResults === "function") {
+                input.__iliCloseRelationshipResults();
+            }
+        });
+    }
+
+    function initRelationshipAutocompleteDismissal() {
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "Escape") {
+                closeRelationshipAutocompleteResults();
+            }
+        });
+        document.addEventListener("click", function(event) {
+            var target = event.target;
+            var picker = target && typeof target.closest === "function"
+                ? target.closest(".js-relationship-picker")
+                : null;
+            closeRelationshipAutocompleteResults(picker);
+        });
     }
 
     function initQuickAddForms() {
@@ -789,6 +857,203 @@
         });
     }
 
+    function inverseBrowserRow(row) {
+        var tr = document.createElement("tr");
+        tr.setAttribute("data-inverse-browser-related-id", row.id || "");
+        var td = document.createElement("td");
+        if (row.url) {
+            var link = document.createElement("a");
+            link.className = "ili-data-link";
+            link.href = row.url;
+            link.textContent = row.label || row.id || "";
+            td.appendChild(link);
+        } else {
+            td.textContent = row.label || row.id || "";
+        }
+        tr.appendChild(td);
+        return tr;
+    }
+
+    function setInverseBrowserStatus(modal, message, visible) {
+        var status = modal.querySelector("[data-inverse-browser-status]");
+        if (!status) {
+            return;
+        }
+        status.textContent = message || "";
+        status.hidden = !visible;
+    }
+
+    function inverseCountText(element, total) {
+        var attribute = total === 1 ? "data-inverse-count-one" : "data-inverse-count-many";
+        var template = element ? element.getAttribute(attribute) : null;
+        if (!template) {
+            return String(total);
+        }
+        return template.replace(/\{0\}/g, String(total));
+    }
+
+    function renderInverseBrowserPage(modal, payload, state) {
+        var rows = modal.querySelector("[data-inverse-browser-rows]");
+        var empty = modal.querySelector("[data-inverse-browser-empty]");
+        var pagination = modal.querySelector("[data-inverse-browser-pagination]");
+        var previous = modal.querySelector("[data-inverse-browser-previous]");
+        var next = modal.querySelector("[data-inverse-browser-next]");
+        var range = modal.querySelector("[data-inverse-browser-range]");
+        var totalElement = modal.querySelector("[data-inverse-browser-total]");
+        var pageRows = payload.rows || [];
+        var total = Number(payload.total || 0);
+        var offset = Number(payload.offset || 0);
+        var max = Number(payload.max || state.max || 25);
+
+        if (rows) {
+            rows.innerHTML = "";
+            pageRows.forEach(function(row) {
+                if (row && row.id) {
+                    rows.appendChild(inverseBrowserRow(row));
+                }
+            });
+        }
+        if (empty) {
+            empty.hidden = pageRows.length !== 0;
+        }
+        if (totalElement) {
+            totalElement.textContent = inverseCountText(totalElement, total);
+        }
+        if (range) {
+            var first = total === 0 ? 0 : offset + 1;
+            var last = Math.min(offset + pageRows.length, total);
+            range.textContent = first + "–" + last + " von " + total;
+        }
+        if (previous) {
+            previous.disabled = offset <= 0;
+        }
+        if (next) {
+            next.disabled = offset + pageRows.length >= total;
+        }
+        if (pagination) {
+            pagination.hidden = total <= max;
+        }
+        state.offset = offset;
+        state.max = max;
+        state.total = total;
+        state.loaded = true;
+    }
+
+    function initInverseRelationshipBrowsers() {
+        document.querySelectorAll("[data-inverse-browser]").forEach(function(modal) {
+            var search = modal.querySelector("[data-inverse-browser-search]");
+            var form = modal.querySelector("[data-inverse-browser-form]");
+            var previous = modal.querySelector("[data-inverse-browser-previous]");
+            var next = modal.querySelector("[data-inverse-browser-next]");
+            var state = {
+                loading: false,
+                loaded: false,
+                offset: 0,
+                max: parseInt(modal.getAttribute("data-page-size") || "25", 10),
+                total: 0,
+                controller: null
+            };
+            var timer = null;
+
+            function loadPage(offset) {
+                if (typeof window.fetch !== "function") {
+                    return;
+                }
+                var baseUrl = modal.getAttribute("data-page-url");
+                if (!baseUrl) {
+                    return;
+                }
+                if (state.loading && state.controller) {
+                    state.controller.abort();
+                }
+                var url = new URL(baseUrl, window.location.href);
+                var query = search ? search.value.trim() : "";
+                url.searchParams.set("max", String(state.max));
+                url.searchParams.set("offset", String(Math.max(offset || 0, 0)));
+                if (query) {
+                    url.searchParams.set("q", query);
+                } else {
+                    url.searchParams.delete("q");
+                }
+                var controller = typeof AbortController === "function" ? new AbortController() : null;
+                state.controller = controller;
+                state.loading = true;
+                setInverseBrowserStatus(
+                    modal,
+                    modal.getAttribute("data-loading-message") || "Laden …",
+                    true
+                );
+                window.fetch(url.toString(), {
+                    headers: { "Accept": "application/json" },
+                    signal: controller ? controller.signal : undefined
+                })
+                    .then(function(response) {
+                        return response.ok ? response.json() : null;
+                    })
+                    .then(function(payload) {
+                        if (!payload) {
+                            throw new Error("inverse-browser-request-failed");
+                        }
+                        renderInverseBrowserPage(modal, payload, state);
+                        setInverseBrowserStatus(modal, "", false);
+                    })
+                    .catch(function(error) {
+                        if (error && error.name === "AbortError") {
+                            return;
+                        }
+                        setInverseBrowserStatus(
+                            modal,
+                            modal.getAttribute("data-error-message") || "Beziehungen konnten nicht geladen werden.",
+                            true
+                        );
+                    })
+                    .finally(function() {
+                        state.loading = false;
+                    });
+            }
+
+            modal.addEventListener("shown.bs.modal", function() {
+                if (!state.loaded) {
+                    loadPage(0);
+                }
+                if (search) {
+                    search.focus();
+                }
+            });
+
+            modal.addEventListener("hidden.bs.modal", function() {
+                if (state.controller) {
+                    state.controller.abort();
+                }
+            });
+
+            if (form) {
+                form.addEventListener("submit", function(event) {
+                    event.preventDefault();
+                    loadPage(0);
+                });
+            }
+            if (search) {
+                search.addEventListener("input", function() {
+                    window.clearTimeout(timer);
+                    timer = window.setTimeout(function() {
+                        loadPage(0);
+                    }, 250);
+                });
+            }
+            if (previous) {
+                previous.addEventListener("click", function() {
+                    loadPage(Math.max(state.offset - state.max, 0));
+                });
+            }
+            if (next) {
+                next.addEventListener("click", function() {
+                    loadPage(state.offset + state.max);
+                });
+            }
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         document.querySelectorAll(".js-dirty-form").forEach(initDirtyForm);
         document.querySelectorAll(".js-relationship-search").forEach(initRelationshipAutocomplete);
@@ -799,5 +1064,7 @@
         initQuickAddForms();
         initInverseRelationshipForms();
         initInverseRelationshipPagination();
+        initInverseRelationshipBrowsers();
+        initRelationshipAutocompleteDismissal();
     });
 })();

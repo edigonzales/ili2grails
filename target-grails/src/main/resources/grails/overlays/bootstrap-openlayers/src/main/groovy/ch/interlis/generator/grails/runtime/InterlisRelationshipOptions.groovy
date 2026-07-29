@@ -143,12 +143,7 @@ final class InterlisRelationshipOptions {
         }
         Collection<String> targetGeometryFields = geometryFieldsFor(relatedType)
         List<String> displayFields = displayFieldsFor(grailsApplication, relatedType)
-        List<String> searchColumns = searchFieldsFor(
-            grailsApplication,
-            relatedType,
-            targetGeometryFields,
-            displayFields
-        )
+        List<String> searchColumns = inverseRelationshipSearchFields(grailsApplication, relatedType)
         String sortField = sortableFieldFor(grailsApplication, relatedType, displayFields) ?: "id"
         int pageMax = Math.max(1, Math.min(max ?: 25, 100))
         int pageOffset = Math.max(offset ?: 0, 0)
@@ -207,6 +202,25 @@ final class InterlisRelationshipOptions {
                 nextOffset: pageOffset + options.size()
             ]
         ]
+    }
+
+    /**
+     * Returns the same safe text columns used by inverse-relationship
+     * autocomplete. The paginated related-record view uses this method so
+     * browsing and assigning search the same business-facing fields.
+     */
+    static List<String> inverseRelationshipSearchFields(def grailsApplication, Class targetType) {
+        if (targetType == null) {
+            return []
+        }
+        Collection<String> targetGeometryFields = geometryFieldsFor(targetType)
+        List<String> displayFields = displayFieldsFor(grailsApplication, targetType)
+        return searchFieldsFor(
+            grailsApplication,
+            targetType,
+            targetGeometryFields,
+            displayFields
+        )
     }
 
     static String displayLabel(Object value) {

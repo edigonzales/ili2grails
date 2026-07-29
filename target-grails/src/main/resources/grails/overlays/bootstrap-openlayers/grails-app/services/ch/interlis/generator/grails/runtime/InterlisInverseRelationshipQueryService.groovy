@@ -30,6 +30,15 @@ class InterlisInverseRelationshipQueryService {
                              String relationshipName,
                              Integer max,
                              Integer offset) {
+        return page(ownerType, ownerId, relationshipName, null, max, offset)
+    }
+
+    Map<String, Object> page(Class ownerType,
+                             Serializable ownerId,
+                             String relationshipName,
+                             String query,
+                             Integer max,
+                             Integer offset) {
         Map<String, Object> descriptor = InterlisInverseRelationshipSupport.requireDescriptor(
             grailsApplication,
             ownerType,
@@ -43,6 +52,7 @@ class InterlisInverseRelationshipQueryService {
         return relationshipPage(
             ownerId,
             descriptor,
+            query?.trim(),
             boundedMax(max ?: 10),
             safeOffset(offset ?: 0)
         )
@@ -83,6 +93,7 @@ class InterlisInverseRelationshipQueryService {
         Map<String, Object> page = relationshipPage(
             owner.id as Serializable,
             descriptor,
+            null,
             limit,
             0
         )
@@ -104,6 +115,7 @@ class InterlisInverseRelationshipQueryService {
 
     private Map<String, Object> relationshipPage(Serializable ownerId,
                                                  Map<String, Object> descriptor,
+                                                 String query,
                                                  int max,
                                                  int offset) {
         Class relatedType = InterlisInverseRelationshipSupport.resolveRelatedClass(
@@ -114,11 +126,40 @@ class InterlisInverseRelationshipQueryService {
         if (relatedType == null || relatedProperty == null || relatedProperty.isBlank()) {
             return [total: 0, rows: [], max: max, offset: offset, more: false]
         }
+        List<String> searchColumns = query
+            ? InterlisRelationshipOptions.inverseRelationshipSearchFields(grailsApplication, relatedType)
+            : []
         def results = relatedType.createCriteria().list(max: max, offset: offset, sort: "id", order: "asc") {
-            eq(relatedProperty + ".id", ownerId)
+            and {
+                eq(relatedProperty + ".id", ownerId)
+                if (query) {
+                    if (searchColumns.isEmpty()) {
+                        eq("id", null)
+                    } else {
+                        or {
+                            searchColumns.each { String column ->
+                                ilike(column, "%" + query + "%")
+                            }
+                        }
+                    }
+                }
+            }
         }
         Number total = relatedType.createCriteria().get {
-            eq(relatedProperty + ".id", ownerId)
+            and {
+                eq(relatedProperty + ".id", ownerId)
+                if (query) {
+                    if (searchColumns.isEmpty()) {
+                        eq("id", null)
+                    } else {
+                        or {
+                            searchColumns.each { String column ->
+                                ilike(column, "%" + query + "%")
+                            }
+                        }
+                    }
+                }
+            }
             projections {
                 count("id")
             }

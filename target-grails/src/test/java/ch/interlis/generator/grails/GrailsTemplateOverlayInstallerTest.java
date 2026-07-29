@@ -398,6 +398,14 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(inverseSectionsTemplate)
             .contains("data-inverse-relationship-section")
             .contains("relationshipCollectionPage")
+            .contains("data-inverse-browser")
+            .contains("data-inverse-total-value")
+            .contains("ili2grails.inverse.count.one")
+            .contains("ili2grails.inverse.count.many")
+            .contains("ili2grails.inverse.showAll")
+            .contains("data-inverse-browser-search")
+            .contains("data-inverse-browser-previous")
+            .contains("data-inverse-browser-next")
             .contains("inverse-relationship-picker");
         String inversePickerTemplate = Files.readString(
             projectDir.resolve("src/main/templates/scaffolding/_inverse-relationship-picker.gsp")
@@ -406,6 +414,8 @@ class GrailsTemplateOverlayInstallerTest {
             .contains("action=\"relationshipAssign\"")
             .contains("data-relationship-collection")
             .contains("relationshipCollectionOptions")
+            .contains("data-relationship-clear")
+            .contains("class=\"visually-hidden\"")
             .contains("data-inverse-reassignment-modal");
 
         String associationRowActionsTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_association-row-actions.gsp"));
@@ -491,6 +501,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("respondAssociationError(int status, String code, String message)");
         assertThat(controllerSupport).contains("inverseRelationshipModel(T instance)");
         assertThat(controllerSupport).contains("relationshipCollectionPage(Long id)");
+        assertThat(controllerSupport).contains("normalizedQuery(params.q)");
         assertThat(controllerSupport).contains("relationshipCollectionOptions(Long id)");
         assertThat(controllerSupport).contains("relationshipAssign(Long id)");
         assertThat(controllerSupport).contains("inverseRelationshipJsonRequested()");
@@ -512,7 +523,8 @@ class GrailsTemplateOverlayInstallerTest {
         String relationshipDisplayOptions = Files.readString(projectDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"));
         assertThat(relationshipDisplayOptions).contains("optionLabel(def grailsApplication, Object value)",
-            "configuredDisplayFields", "optionPageForInverseRelationship");
+            "configuredDisplayFields", "optionPageForInverseRelationship",
+            "inverseRelationshipSearchFields");
         String inverseRelationshipPicker = Files.readString(projectDir.resolve(
             "src/main/templates/scaffolding/_inverse-relationship-picker.gsp"));
         assertThat(inverseRelationshipPicker)
@@ -579,6 +591,8 @@ class GrailsTemplateOverlayInstallerTest {
             "hidden.bs.modal", "_iliReturnFocus", "aria-activedescendant");
         assertThat(formUx).contains(
             "initInverseRelationshipForms",
+            "initInverseRelationshipBrowsers",
+            "renderInverseBrowserPage",
             "REASSIGNMENT_CONFIRMATION_REQUIRED",
             "assignmentUrl.searchParams.set(\"format\", \"json\")"
         );

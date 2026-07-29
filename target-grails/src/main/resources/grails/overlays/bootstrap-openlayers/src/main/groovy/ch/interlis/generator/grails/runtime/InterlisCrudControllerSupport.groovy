@@ -318,6 +318,7 @@ abstract class InterlisCrudControllerSupport<T> {
                 domainType(),
                 instance.id as java.io.Serializable,
                 relationshipName,
+                normalizedQuery(params.q),
                 boundedMax(params.int("max")),
                 safeOffset(params.int("offset"))
             )

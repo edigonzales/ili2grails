@@ -43,7 +43,8 @@
             <g:if test="\${inverseRelationshipSections}">
                 <div class="ili-inverse-relationship-sections">
                     <g:render template="inverse-relationship-sections" model="\${[
-                        inverseRelationshipSections: inverseRelationshipSections
+                        inverseRelationshipSections: inverseRelationshipSections,
+                        domainPropertyName: '${propertyName}'
                     ]}"/>
                 </div>
             </g:if>

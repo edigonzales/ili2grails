@@ -13,18 +13,29 @@
                            args="\${[section.relatedLabel]}"
                            default="\${section.relatedLabel + ' auswählen'}"/>
             </label>
-            <input type="search"
-                   id="inverse-search-\${section.domId}"
-                   class="form-control form-control-sm js-relationship-search"
-                   data-relationship-collection="\${section.name}"
-                   data-relationship-url="\${createLink(action: 'relationshipCollectionOptions', id: section.ownerId)}"
-                   data-relationship-select="inverse-target-\${section.domId}"
-                   autocomplete="off"
-                   role="combobox"
-                   aria-autocomplete="list"
-                   aria-haspopup="listbox"
-                   aria-expanded="false"
-                   aria-controls="inverse-target-\${section.domId}-results"/>
+            <div class="input-group">
+                <input type="search"
+                       id="inverse-search-\${section.domId}"
+                       class="form-control js-relationship-search"
+                       data-relationship-collection="\${section.name}"
+                       data-relationship-url="\${createLink(action: 'relationshipCollectionOptions', id: section.ownerId)}"
+                       data-relationship-select="inverse-target-\${section.domId}"
+                       placeholder="\${message(code: 'ili2grails.inverse.searchPlaceholder', args: [section.relatedLabel], default: section.relatedLabel + ' suchen …')}"
+                       autocomplete="off"
+                       role="combobox"
+                       aria-autocomplete="list"
+                       aria-haspopup="listbox"
+                       aria-expanded="false"
+                       aria-controls="inverse-target-\${section.domId}-results"/>
+                <button type="button"
+                        class="btn btn-outline-secondary ili-relationship-clear"
+                        data-relationship-clear
+                        aria-label="\${message(code: 'ili2grails.inverse.clearSelection', default: 'Auswahl löschen')}"
+                        title="\${message(code: 'ili2grails.inverse.clearSelection', default: 'Auswahl löschen')}"
+                        hidden>
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
             <div id="inverse-target-\${section.domId}-results"
                  class="ili-relationship-results list-group mb-2"
                  data-relationship-list
@@ -33,7 +44,9 @@
             <select name="targetId"
                     id="inverse-target-\${section.domId}"
                     data-relationship-optional="true"
-                    class="form-select">
+                    class="visually-hidden"
+                    tabindex="-1"
+                    aria-hidden="true">
                 <option value=""><g:message code="ili2grails.js.noSelection" default="Keine Auswahl"/></option>
             </select>
         </div>

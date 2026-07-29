@@ -563,6 +563,21 @@ das Resultat den bisherigen Ort, beispielsweise
 Auftrag mit ausdrücklicher Bestätigung erneut. Es wird weder ein Employee erzeugt
 noch eine `DepartmentEmployee`-Verbindungstabelle beschrieben.
 
+Die inverse Beziehung wird in der Bootstrap-Oberfläche als kompakte Vorschau
+gerendert. Initial werden höchstens zehn verknüpfte Datensätze geladen. Wenn
+weitere Datensätze vorhanden sind, öffnet **Alle anzeigen** eine grosse,
+serverseitig paginierte Ansicht mit 25 Einträgen pro Seite und einer Suche über
+dieselben Display-/Textfelder wie beim Zuweisungs-Picker. Die Detailseite lädt
+damit nie die vollständige Collection in den Browser.
+
+Für eine neue Zuweisung gibt es nur noch eine sichtbare Combobox. Das native
+Select bleibt als interner Formularwert erhalten, ist aber nicht zusätzlich als
+zweites Auswahlfeld sichtbar. Eine ausgewählte Option kann über **Auswahl
+löschen** geändert werden. Die Suche in der Relationsansicht und die
+Zuweisungs-Combobox sind bewusst getrennte Interaktionen: Die erste durchsucht
+bestehende Beziehungen, die zweite sucht einen Kandidaten für eine neue
+Zuweisung.
+
 Der Generator aktiviert diesen Editor nur, wenn die Abbildung eindeutig und
 sicher ist:
 

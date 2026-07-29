@@ -190,6 +190,12 @@ In der neu generierten Grails-App sind deshalb beide Blickrichtungen sichtbar:
 Die Funktion erzeugt und loescht keine Employees. In dieser Version gibt es auch
 kein **Zuordnung entfernen**.
 
+Die mitgelieferte Simple-Fixture enthaelt 401 Employees: 400 sind dem Department
+**Planning** zugeordnet, Clara Meier bleibt dem Department **Operations**
+zugeordnet. Auf der Planning-Seite werden initial hoechstens 10 Mitarbeitende
+angezeigt. Die restlichen Datensaetze koennen ueber **Alle anzeigen** mit 25
+Datensaetzen pro Seite und serverseitiger Suche durchsucht werden.
+
 Ohne Eintrag in `application.yml` verwendet die App die sicheren Defaults. Ein
 Label oder ein strengerer Modus kann optional konfiguriert werden:
 
@@ -280,8 +286,12 @@ Kurze Kontrolle:
 
 ```bash
 docker compose exec -T edit-db psql -U postgres -d edit -c "SELECT count(*) AS employees FROM gs_simple.organization_employee"
+docker compose exec -T edit-db psql -U postgres -d edit -c "SELECT d.aname AS department, count(e.t_id) AS employees FROM gs_simple.organization_department d LEFT JOIN gs_simple.organization_employee e ON e.department = d.t_id GROUP BY d.aname ORDER BY d.aname"
 docker compose exec -T edit-db psql -U postgres -d edit -c "\d gs_simple.organization_employee"
 ```
+
+Die erwarteten Werte sind 401 Employees insgesamt, davon 400 in Planning und
+1 in Operations.
 
 In der Tabellenbeschreibung muss `department` als Fremdschluessel vorhanden
 sein; `t_basket` darf im Getting-Started-Schema nicht vorkommen.

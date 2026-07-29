@@ -434,6 +434,81 @@ class GrailsBrowserE2eTest {
                     relationshipRequests.add("FAILED " + request.url());
                 }
             });
+            String planningId = findGettingStartedDepartment(page, baseUrl, "Planning");
+            page.navigate(baseUrl + "/department/show/" + planningId);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            Locator planningSection = page.locator(
+                "[data-inverse-relationship-section][data-relationship-name='employees']"
+            );
+            assertThat(planningSection.locator("[data-inverse-total-value]").getAttribute("data-inverse-total-value"))
+                .isEqualTo("400");
+            assertThat(planningSection.locator("[data-inverse-total]").textContent().trim())
+                .isNotEqualTo("400");
+            assertThat(planningSection.locator("[data-inverse-relationship-rows] tr").count())
+                .isEqualTo(10);
+            assertThat(planningSection.locator(".ili-inverse-relationship-header")
+                .evaluate("element => getComputedStyle(element).borderBottomWidth"))
+                .isEqualTo("0px");
+            assertThat(page.locator(".ili-definition-row dt").first()
+                .evaluate("element => getComputedStyle(element).fontWeight"))
+                .isEqualTo("400");
+            screenshot(page, "getting-started-inverse-preview", true);
+
+            Locator browserButton = planningSection.locator("[data-inverse-open-browser]");
+            assertThat(browserButton.textContent()).contains("400");
+            browserButton.click();
+            Locator browserModal = planningSection.locator("[data-inverse-browser]");
+            browserModal.waitFor();
+            page.waitForTimeout(500);
+            assertThat(browserModal.locator("[data-inverse-browser-rows] tr").count()).isEqualTo(25);
+            assertThat(browserModal.locator("[data-inverse-browser-total]").textContent().trim())
+                .isNotEqualTo("400");
+            screenshot(page, "getting-started-inverse-browser", true);
+
+            Locator browserNext = browserModal.locator("[data-inverse-browser-next]");
+            assertThat(browserNext.isDisabled()).isFalse();
+            browserNext.click();
+            page.waitForTimeout(300);
+            assertThat(browserModal.locator("[data-inverse-browser-rows] tr").count()).isEqualTo(25);
+
+            Locator browserSearch = browserModal.locator("[data-inverse-browser-search]");
+            browserSearch.fill("Employee 399");
+            page.waitForTimeout(500);
+            assertThat(browserModal.locator("[data-inverse-browser-rows] tr").count()).isEqualTo(1);
+            assertThat(browserModal.locator("[data-inverse-browser-rows]").textContent())
+                .contains("demo.employee399@example.com");
+            browserSearch.fill("does-not-exist");
+            page.waitForTimeout(500);
+            assertThat(browserModal.locator("[data-inverse-browser-rows] tr").count()).isZero();
+            assertThat(browserModal.locator("[data-inverse-browser-empty]").isVisible()).isTrue();
+            assertThat(browserModal.locator("[data-inverse-browser-next]").isDisabled()).isTrue();
+            screenshot(page, "getting-started-inverse-browser-empty", true);
+            browserModal.locator("[data-bs-dismiss='modal']").click();
+            browserModal.waitFor(new Locator.WaitForOptions().setState(
+                com.microsoft.playwright.options.WaitForSelectorState.HIDDEN
+            ));
+
+            Locator planningSearch = planningSection.locator("[data-relationship-collection='employees']");
+            planningSearch.fill("Clara");
+            page.waitForTimeout(1000);
+            Locator planningResults = planningSection.locator("[data-relationship-list]");
+            assertThat(planningResults.isVisible())
+                .as("Planning autocomplete; html=" + planningResults.innerHTML()
+                    + "; requests=" + relationshipRequests
+                    + "; pageErrors=" + pageErrors
+                    + "; console=" + consoleMessages
+                    + "; section=" + planningSection.innerText())
+                .isTrue();
+            browserButton.focus();
+            page.keyboard().press("Escape");
+            assertThat(planningResults.isVisible()).isFalse();
+            planningSearch.fill("Clara");
+            page.waitForTimeout(1000);
+            assertThat(planningResults.isVisible()).isTrue();
+            page.locator("h1").click();
+            assertThat(planningResults.isVisible()).isFalse();
+            screenshot(page, "getting-started-inverse-combobox", true);
+
             String hrId = createGettingStartedDepartment(page, baseUrl, "HR");
             String itId = createGettingStartedDepartment(page, baseUrl, "IT");
             String employeeId = createGettingStartedEmployee(page, baseUrl, "Anna", "Keller", hrId);
@@ -446,10 +521,14 @@ class GrailsBrowserE2eTest {
             assertThat(section.count())
                 .as("inverse section on Department show:\n" + page.locator("body").innerText())
                 .isEqualTo(1);
-            assertThat(section.locator("[data-inverse-total]").textContent().trim()).isEqualTo("0");
+            assertThat(section.locator("[data-inverse-total-value]")
+                .getAttribute("data-inverse-total-value")).isEqualTo("0");
             assertThat(section.locator("[data-inverse-relationship-form]").count()).isEqualTo(1);
             assertThat(section.locator("[data-inverse-relationship-form]").getAttribute("action"))
                 .endsWith("/department/relationshipAssign/" + itId);
+            assertThat(section.locator("[data-inverse-browser]").count()).isEqualTo(1);
+            assertThat(section.locator("select[name='targetId']").getAttribute("class"))
+                .contains("visually-hidden");
 
             APIResponse optionResponse = page.request().get(
                 baseUrl + "/department/relationshipCollectionOptions/" + itId
@@ -514,6 +593,13 @@ class GrailsBrowserE2eTest {
             assertThat(employeeDepartmentId(schemaName, employeeId)).isEqualTo(itId);
             assertThat(assignedRow.textContent()).contains("Anna");
 
+            APIResponse filteredCollection = page.request().get(
+                baseUrl + "/department/relationshipCollectionPage/" + itId
+                    + "?relationship=employees&q=Anna&max=25&offset=0"
+            );
+            assertThat(filteredCollection.status()).isEqualTo(200);
+            assertThat(filteredCollection.text()).contains("Anna");
+
             page.navigate(baseUrl + "/department/show/" + hrId);
             page.waitForLoadState(LoadState.NETWORKIDLE);
             assertThat(page.locator("[data-inverse-related-id='" + employeeId + "']").count()).isZero();
@@ -535,6 +621,18 @@ class GrailsBrowserE2eTest {
             }
             throw e;
         }
+    }
+
+    private String findGettingStartedDepartment(Page page, String baseUrl, String name) {
+        page.navigate(baseUrl + "/department/index");
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        Locator link = page.locator("a[href*='/department/show/']")
+            .filter(new Locator.FilterOptions().setHasText(name))
+            .first();
+        assertThat(link.count())
+            .as("Getting-Started Department " + name + " on " + page.url())
+            .isEqualTo(1);
+        return showId(link.getAttribute("href"));
     }
 
     private String createGettingStartedDepartment(Page page, String baseUrl, String name) {
