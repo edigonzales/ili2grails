@@ -1,0 +1,159 @@
+---
+ili2grails:
+  language: "de-CH"
+  ui:
+    domains:
+      - iliName: "GsSimpleModel.Organization.Employee"
+        list:
+          displayFields: [firstname, lastname]
+grails:
+  profile: "web"
+  codegen:
+    defaultPackage: "simple.app"
+  gorm:
+    reactor:
+      events: false
+info:
+  app:
+    name: "@info.app.name@"
+    version: "@info.app.version@"
+    grailsVersion: "@info.app.grailsVersion@"
+spring:
+  web:
+    locale: "de-CH"
+    locale-resolver: "fixed"
+  jmx:
+    unique-names: true
+  main:
+    banner-mode: "off"
+  groovy:
+    template:
+      check-template-location: false
+  devtools:
+    restart:
+      additional-exclude:
+      - "*.gsp"
+      - "**/*.gsp"
+      - "*.gson"
+      - "**/*.gson"
+      - "logback-spring.xml"
+      - "*.properties"
+environments:
+  development:
+    management:
+      endpoints:
+        enabled-by-default: true
+        web:
+          base-path: "/actuator"
+          exposure:
+            include: "*"
+  production:
+    management:
+      endpoints:
+        enabled-by-default: false
+    dataSource:
+      url: "${DB_URL}"
+      username: "${DB_USERNAME}"
+      password: "${DB_PASSWORD}"
+      dbCreate: "none"
+    hibernate:
+      dialect: "org.hibernate.dialect.PostgreSQLDialect"
+hibernate:
+  dialect: "org.hibernate.dialect.PostgreSQLDialect"
+---
+grails:
+  mime:
+    disable:
+      accept:
+        header:
+          userAgents:
+          - "Gecko"
+          - "WebKit"
+          - "Presto"
+          - "Trident"
+    types:
+      all: "*/*"
+      atom: "application/atom+xml"
+      css: "text/css"
+      csv: "text/csv"
+      form: "application/x-www-form-urlencoded"
+      html:
+      - "text/html"
+      - "application/xhtml+xml"
+      js: "text/javascript"
+      json:
+      - "application/json"
+      - "text/json"
+      multipartForm: "multipart/form-data"
+      pdf: "application/pdf"
+      rss: "application/rss+xml"
+      text: "text/plain"
+      hal:
+      - "application/hal+json"
+      - "application/hal+xml"
+      xml:
+      - "text/xml"
+      - "application/xml"
+  urlmapping:
+    cache:
+      maxsize: 1000
+  controllers:
+    defaultScope: "singleton"
+  converters:
+    encoding: "UTF-8"
+  views:
+    default:
+      codec: "html"
+    gsp:
+      encoding: "UTF-8"
+      htmlcodec: "xml"
+      codecs:
+        expression: "html"
+        scriptlet: "html"
+        taglib: "none"
+        staticparts: "none"
+hibernate:
+  dialect: "org.hibernate.dialect.PostgreSQLDialect"
+---
+hibernate:
+  cache:
+    queries: false
+    use_second_level_cache: false
+    use_query_cache: false
+  dialect: "org.hibernate.dialect.PostgreSQLDialect"
+dataSource:
+  pooled: true
+  jmxExport: true
+environments:
+  development:
+    dataSource:
+      dbCreate: "none"
+      url: "jdbc:postgresql://localhost:54321/edit?currentSchema=gs_simple"
+      username: "${DB_USERNAME}"
+      password: "${DB_PASSWORD}"
+  test:
+    dataSource:
+      dbCreate: "update"
+      url: "jdbc:h2:mem:testDb;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE"
+  production:
+    dataSource:
+      dbCreate: "none"
+      url: "jdbc:h2:./prodDb;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE"
+      properties:
+        jmxEnabled: true
+        initialSize: 5
+        maxActive: 50
+        minIdle: 5
+        maxIdle: 25
+        maxWait: 10000
+        maxAge: 600000
+        timeBetweenEvictionRunsMillis: 5000
+        minEvictableIdleTimeMillis: 60000
+        validationQuery: "SELECT 1"
+        validationQueryTimeout: 3
+        validationInterval: 15000
+        testOnBorrow: true
+        testWhileIdle: true
+        testOnReturn: false
+        jdbcInterceptors: "ConnectionState"
+        defaultTransactionIsolation: 2

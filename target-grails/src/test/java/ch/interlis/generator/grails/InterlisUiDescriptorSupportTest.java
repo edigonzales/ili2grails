@@ -59,20 +59,18 @@ class InterlisUiDescriptorSupportTest {
         assertThat(defaultList.get("prominentFilters"))
             .isEqualTo(List.of());
         List<?> defaultFormSections = (List<?>) map(defaults.get("form")).get("sections");
-        assertThat(defaultFormSections).hasSize(2);
+        assertThat(defaultFormSections).hasSize(1);
         assertThat(defaultFormSections.get(0).toString()).contains("title=Basisdaten", "name", "longText");
-        assertThat(defaultFormSections.get(1).toString())
-            .contains("title=Verknüpfte Datensätze", "municipality");
         assertThat(defaultFormSections.toString())
-            .contains("Basisdaten", "longText", "Verknüpfte Datensätze", "municipality")
+            .contains("Basisdaten", "longText", "municipality")
             .doesNotContain("Allgemein");
         assertThat(map(defaults.get("form")).get("sections").toString())
             .doesNotContain("position");
         assertThat(map(defaults.get("fieldMeta")).get("description").toString())
             .contains("Dokumentation", "m");
         assertThat(map(defaults.get("detail")).get("sections").toString())
-            .contains("name", "longText")
-            .doesNotContain("municipality", "id", "version");
+            .contains("name", "longText", "municipality")
+            .doesNotContain("id", "version");
 
         Map<String, Object> explicitlyCollapsed = invokeDescriptor(runtime, Map.of(
             "config", Map.of(
@@ -126,8 +124,8 @@ class InterlisUiDescriptorSupportTest {
             .contains("name", "active")
             .contains("Weitere Felder", "description", "year", "status", "municipality", "longText");
         assertThat(map(configured.get("detail")).get("sections").toString())
-            .contains("name", "active", "longText")
-            .doesNotContain("municipality", "id", "version");
+            .contains("name", "active", "longText", "municipality")
+            .doesNotContain("id", "version");
     }
 
     @Test
@@ -433,16 +431,16 @@ class InterlisUiDescriptorSupportTest {
         assertThat(model.get("workspaceDisplayLabel")).isEqualTo("Bahnhofstrasse Zentrum");
         String detailText = model.get("workspaceDetailSections").toString();
         assertThat(detailText)
-            .contains("name", "description")
-            .doesNotContain("municipality", "id", "version");
+            .contains("name", "description", "municipality", "42", "controller", "Bern")
+            .doesNotContain("id", "version");
         assertThat(model.get("workspaceRelationshipLinks").toString())
-            .contains("municipality", "42", "controller", "Bern")
+            .doesNotContain("municipality", "42", "Bern")
             .doesNotContain("java.util.ArrayList");
 
         runtime.domainType.getMethod("setMunicipality", municipalityType).invoke(address, new Object[] {null});
         Map<String, Object> emptyModel = map(showModel.invoke(null, Map.of(), runtime.domainType, address, descriptor));
-        assertThat(emptyModel.get("workspaceRelationshipLinks").toString())
-            .contains("municipality", "empty=true");
+        assertThat(emptyModel.get("workspaceDetailSections").toString())
+            .contains("municipality", "value=");
     }
 
     private GeneratedRuntime generatedRuntime() throws Exception {

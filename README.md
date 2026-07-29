@@ -563,12 +563,20 @@ das Resultat den bisherigen Ort, beispielsweise
 Auftrag mit ausdrücklicher Bestätigung erneut. Es wird weder ein Employee erzeugt
 noch eine `DepartmentEmployee`-Verbindungstabelle beschrieben.
 
-Die inverse Beziehung wird in der Bootstrap-Oberfläche als kompakte Vorschau
-gerendert. Initial werden höchstens zehn verknüpfte Datensätze geladen. Wenn
-weitere Datensätze vorhanden sind, öffnet **Alle anzeigen** eine grosse,
-serverseitig paginierte Ansicht mit 25 Einträgen pro Seite und einer Suche über
-dieselben Display-/Textfelder wie beim Zuweisungs-Picker. Die Detailseite lädt
-damit nie die vollständige Collection in den Browser.
+Die inverse Beziehung wird in der Bootstrap-Oberfläche als fachlich benannte,
+serverseitig gefilterte und paginierte Tabelle gerendert. Initial werden
+höchstens zehn Datensätze geladen; weitere Seiten bleiben in derselben Card und
+verwenden den namespaced Vertrag `inverse.<collection>.q`, `.max`, `.offset`,
+`.sort` und `.order`. Es gibt dafür kein Browse-Modal und keine vollständige
+Collection im Browser. Spalten, Anzeige- und Suchfelder sowie sichere
+Sortierfelder kommen aus dem Descriptor des Zieldomains.
+
+Für direkte, sichere 1:n-Beziehungen erscheint zusätzlich `{Zieldomain}
+erfassen`. Der Link übergibt nur `relationshipField` und
+`relationshipOwnerId`; die Runtime validiert beides gegen generierte
+Relationship-Metadaten. Der Owner wird im Formular sichtbar fixiert und nach
+jedem Binding serverseitig erneut gesetzt. `read-only`, `off`, unsichere
+Mappings und echte Associations bieten diese Aktion nicht an.
 
 Für eine neue Zuweisung gibt es nur noch eine sichtbare Combobox. Das native
 Select bleibt als interner Formularwert erhalten, ist aber nicht zusätzlich als
@@ -1066,9 +1074,11 @@ Der Workspace-Header verwendet die bestehende
 `InterlisRelationshipOptions`-Fallbacklogik für Display Labels und zeigt Domain-Label, ID sowie
 die Objektaktionen Liste, Neu, Bearbeiten und einen visuell nachgeordneten
 Outline-Button zum Löschen. `InterlisUiDescriptorSupport` liefert additive
-Detailsektionen: direkte skalare Attribute werden aus dem Descriptor dargestellt, während `id`,
-`version`, Geometrien, Collections und Relationships nicht als Detailzeilen dupliziert werden.
-Message-Codes haben Vorrang; `interlisFieldMeta` liefert die Fallback-Labels. Konfigurierte
+Detailsektionen: skalare Attribute und integrierbare To-One-Referenzen werden
+gemeinsam aus dem Descriptor dargestellt, während `id`, `version`, Geometrien
+und Collections ausgeschlossen bleiben. To-One-Werte werden als bestehende
+`ili-data-link`-Links gerendert. Message-Codes haben Vorrang; `interlisFieldMeta`
+liefert die Fallback-Labels. Konfigurierte
 `form.sections` ergänzen die Darstellung, ersetzen aber nicht die übrigen skalaren Attribute.
 
 `show.gsp` ist nur noch Orchestrator. Wiederverwendbare managed GSP-Komponenten liegen unter
@@ -1080,9 +1090,11 @@ Message-Codes haben Vorrang; `interlisFieldMeta` liefert die Fallback-Labels. Ko
   Bestätigungsdialog; die sichtbare Aktion liegt im Header.
 - `_association-sections.gsp`, Quick Add, kontextuelle Association-Formulare und
   `_geometry-panel.gsp` bleiben unverändert die Semantikquellen und werden nur eingebettet.
-- Direkte Relationships werden nur für whitelisted To-One-Domainobjekte als Links zur über die
-  `InterlisUiRegistry` aufgelösten Controller-Route gerendert. Association-Collections bleiben
-  beim bestehenden Association-Service.
+- Direkte To-One-Relationships werden nur für whitelisted Domainobjekte als
+  Links zur über die `InterlisUiRegistry` aufgelösten Controller-Route
+  gerendert. Nicht integrierbare Links bleiben im kompatiblen
+  `workspaceRelationshipLinks`-Fallback; Association-Collections bleiben beim
+  bestehenden Association-Service.
 
 Der Löschdialog nennt Domain und konkretes Display Label, fokussiert standardmässig
 `Abbrechen` und verlangt eine explizite Bestätigung über `Endgültig löschen`. Die
@@ -1109,12 +1121,13 @@ Verlauf-/Protokoll-Tabs sind nicht Bestandteil der Implementierung.
 ### Bootstrap Create/Edit-Formulare und Editor-UX (Phase 4)
 
 Create- und Edit-Formulare des managed Bootstrap-Overlays bleiben normale Grails-Forms mit
-serverseitigem PRG. `InterlisUiDescriptorSupport` liefert standardmässig die Sektionen `Basisdaten`
-und `Verknüpfte Datensätze`;
+serverseitigem PRG. `InterlisUiDescriptorSupport` liefert standardmässig eine
+gemeinsame Sektion `Basisdaten` für skalare Felder und editierbare To-One-
+Referenzen;
 `form.sections` kann bekannte editierbare Scalar- und To-One-Felder deterministisch gruppieren.
 Nicht konfigurierte editierbare Felder erscheinen automatisch in `Weitere Felder`. Geometrien,
 Collections, `id` und `version` bleiben ausserhalb dieser Sektionen im bestehenden Geometry-Panel
-beziehungsweise in den bestehenden Relationship-/Association-Komponenten.
+beziehungsweise in den bestehenden To-Many-/Association-Komponenten.
 
 Die generischen CRUD-Aktionen verwenden kurze, kontextbezogene Beschriftungen: Neue Datensätze
 werden über `Neu` mit Plus-Icon gestartet, der Create-Titel lautet `{Domain} erfassen`, der

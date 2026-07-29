@@ -397,15 +397,13 @@ class GrailsTemplateOverlayInstallerTest {
         );
         assertThat(inverseSectionsTemplate)
             .contains("data-inverse-relationship-section")
-            .contains("relationshipCollectionPage")
-            .contains("data-inverse-browser")
-            .contains("data-inverse-total-value")
+            .contains("inverse.\\${section.name}.q")
+            .contains("section.pagination")
+            .contains("contextualCreate")
+            .contains("data-inverse-contextual-create=\"true\"")
             .contains("ili2grails.inverse.count.one")
             .contains("ili2grails.inverse.count.many")
-            .contains("ili2grails.inverse.showAll")
-            .contains("data-inverse-browser-search")
-            .contains("data-inverse-browser-previous")
-            .contains("data-inverse-browser-next")
+            .doesNotContain("data-inverse-browser", "ili2grails.inverse.showAll")
             .contains("inverse-relationship-picker");
         String inversePickerTemplate = Files.readString(
             projectDir.resolve("src/main/templates/scaffolding/_inverse-relationship-picker.gsp")
@@ -591,11 +589,9 @@ class GrailsTemplateOverlayInstallerTest {
             "hidden.bs.modal", "_iliReturnFocus", "aria-activedescendant");
         assertThat(formUx).contains(
             "initInverseRelationshipForms",
-            "initInverseRelationshipBrowsers",
-            "renderInverseBrowserPage",
             "REASSIGNMENT_CONFIRMATION_REQUIRED",
             "assignmentUrl.searchParams.set(\"format\", \"json\")"
-        );
+        ).doesNotContain("initInverseRelationshipBrowsers", "renderInverseBrowserPage", "data-inverse-browser");
 
         String geometryEditor = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js"));
         assertThat(geometryEditor).contains("ol.interaction.Snap");

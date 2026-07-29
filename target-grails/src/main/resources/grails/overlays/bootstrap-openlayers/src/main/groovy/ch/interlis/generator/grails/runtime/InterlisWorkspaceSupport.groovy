@@ -168,15 +168,53 @@ final class InterlisWorkspaceSupport {
             List<Map<String, Object>> fields = (section.fields ?: []).collect { Object rawField ->
                 String fieldName = rawField.toString()
                 Object value = readProperty(instance, fieldName)
-                [
+                Map<String, Object> field = [
                     name : fieldName,
                     label: fieldLabel(descriptor, fieldName),
                     value: renderValue(grailsApplication, value)
                 ]
+                Map<String, Object> link = relationshipLinkForField(
+                    grailsApplication, instance, descriptor, fieldName, value
+                )
+                if (link != null) {
+                    field.link = link
+                }
+                field
             }
             [title: section.title?.toString() ?: localizedMessage(
                 grailsApplication, "ili2grails.workspace.details", "Details", "Details"), fields: fields]
         }.findAll { Map<String, Object> section -> !section.fields.isEmpty() }
+    }
+
+    private static Map<String, Object> relationshipLinkForField(def grailsApplication,
+                                                                 Object instance,
+                                                                 Map<String, Object> descriptor,
+                                                                 String fieldName,
+                                                                 Object value) {
+        if (value == null || value instanceof Collection) {
+            return null
+        }
+        Map<String, Object> relationships = descriptor?.relationships instanceof Map
+            ? descriptor.relationships as Map<String, Object>
+            : [:]
+        Map<String, Object> relationship = relationships[fieldName] instanceof Map
+            ? relationships[fieldName] as Map<String, Object>
+            : null
+        if (relationship == null) {
+            return null
+        }
+        Map<String, Object> registry = registryEntry(value, relationship.targetClass?.toString())
+        String id = readProperty(value, "id")?.toString()
+        String controller = registry?.controller?.toString()
+        if (registry == null || id == null || controller == null || controller.isBlank()) {
+            return null
+        }
+        return [
+            controller: controller,
+            action    : "show",
+            id        : id,
+            label     : renderValue(grailsApplication, value)
+        ]
     }
 
     private static String localizedMessage(def grailsApplication,
@@ -198,10 +236,18 @@ final class InterlisWorkspaceSupport {
     private static List<Map<String, Object>> relationshipLinks(def grailsApplication,
                                                                 Object instance,
                                                                 Map<String, Object> descriptor) {
+        Set<String> integratedFields = descriptor?.detail?.sections instanceof Collection
+            ? descriptor.detail.sections.collectMany { Map<String, Object> section ->
+                (section.fields ?: []).collect { it.toString() }
+            } as Set<String>
+            : [] as Set<String>
         Map<String, Object> relationshipMeta = descriptor?.relationships instanceof Map
             ? descriptor.relationships as Map<String, Object>
             : [:]
         relationshipMeta.collect { String fieldName, Object rawMeta ->
+            if (integratedFields.contains(fieldName)) {
+                return null
+            }
             Map<String, Object> meta = rawMeta instanceof Map ? rawMeta as Map<String, Object> : [:]
             Object target = readProperty(instance, fieldName)
             if (target instanceof Collection) {

@@ -1,0 +1,17 @@
+{
+  "modelName": "CoreIrTestModel",
+  "schemaName": "rt_coreir_1o21aj0mz1",
+  "classCount": 4,
+  "structureCount": 1,
+  "physicalStructureCount": 1,
+  "compositionTargetCount": 1,
+  "generatedStructureCount": 1,
+  "nonGeneratedStructureCount": 0,
+  "compositionTargetNames": ["CoreIrTestModel.Relations.Component"],
+  "relationshipCounts": {"ASSOCIATION_ROLE": 2, "COMPOSITION_ATTRIBUTE": 1, "ILI2DB_FK": 1, "REFERENCE_ATTRIBUTE": 1},
+  "structures": [{"name": "CoreIrTestModel.Relations.Component", "kind": "STRUCTURE", "tableName": "relations_component", "sqlName": "rt_coreir_1o21aj0mz1.relations_component", "physical": true, "compositionTarget": true, "generated": true, "abstract": false}],
+  "compositionRelationships": [{"sourceClass": "CoreIrTestModel.Relations.Child", "targetClass": "CoreIrTestModel.Relations.Component", "sourceAttribute": "Components", "targetRoleName": "Components", "cardinality": "1..1 -> 0..*", "ordered": true, "external": false, "generatedTarget": true}],
+  "generatedClasses": [{"name": "CoreIrTestModel.Relations.Child", "targetName": "Child"}, {"name": "CoreIrTestModel.Relations.Component", "targetName": "Component"}, {"name": "CoreIrTestModel.Relations.Parent", "targetName": "Parent"}, {"name": "CoreIrTestModel.Relations.ParentChild", "targetName": "ParentChild"}],
+  "skippedStructures": [],
+  "notes": []
+}

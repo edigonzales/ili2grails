@@ -49,6 +49,7 @@ public class GrailsTemplateOverlayInstaller {
         "grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipQueryService.groovy",
         "grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipCommandService.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy",
+        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipContextSupport.groovy",
         "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy",
         "grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy",
         "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy",

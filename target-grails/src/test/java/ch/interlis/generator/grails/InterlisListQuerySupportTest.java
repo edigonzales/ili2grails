@@ -115,6 +115,38 @@ class InterlisListQuerySupportTest {
     }
 
     @Test
+    void buildsIndependentNamespacedPagingUrlsForInlineCollections() throws Exception {
+        Class<?> support = supportType();
+        Map<String, Object> query = invokeParse(support, Map.of(
+            "q", "Anna",
+            "max", "10",
+            "offset", "10",
+            "sort", "name",
+            "order", "desc"
+        ), descriptor());
+
+        Map<String, Object> scoped = invokeMap(
+            support, "scopedUrlParams", "inverse.employees", query, Map.of("offset", 0)
+        );
+        assertThat(scoped)
+            .containsEntry("inverse.employees.q", "Anna")
+            .containsEntry("inverse.employees.max", 10)
+            .containsEntry("inverse.employees.offset", 0)
+            .containsEntry("inverse.employees.sort", "name")
+            .containsEntry("inverse.employees.order", "desc")
+            .doesNotContainKey("q")
+            .doesNotContainKey("offset");
+
+        Map<String, Object> pagination = invokeMap(
+            support, "scopedPaginationModel", "inverse.employees", query, 42
+        );
+        Map<String, Object> nextParams = map(pagination.get("nextParams"));
+        assertThat(nextParams).containsEntry("inverse.employees.offset", 20)
+            .containsEntry("inverse.employees.q", "Anna")
+            .doesNotContainKey("offset");
+    }
+
+    @Test
     void derivesCompactAndRangedResultSummariesFromTheFilteredTotal() throws Exception {
         Class<?> support = supportType();
 

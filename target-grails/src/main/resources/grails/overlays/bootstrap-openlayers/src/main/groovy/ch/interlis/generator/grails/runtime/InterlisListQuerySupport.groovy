@@ -249,6 +249,44 @@ final class InterlisListQuerySupport {
         return result
     }
 
+    /**
+     * Builds the same safe list query contract below a namespaced prefix.
+     * This is used by inline related-record tables so multiple collections can
+     * retain independent search and paging state on one show page.
+     */
+    static Map<String, Object> scopedUrlParams(String prefix,
+                                               Map<String, Object> query,
+                                               Map<String, Object> overrides = [:]) {
+        return scopedUrlParams(prefix, query, overrides, [:])
+    }
+
+    static Map<String, Object> scopedUrlParams(String prefix,
+                                               Map<String, Object> query,
+                                               Map<String, Object> overrides,
+                                               Map<String, Object> preservedParams) {
+        if (prefix == null || prefix.isBlank()) {
+            throw new IllegalArgumentException("Scoped list prefix must not be blank")
+        }
+        Map<String, Object> result = new LinkedHashMap<>(preservedParams ?: [:])
+        String normalizedPrefix = prefix.endsWith(".") ? prefix[0..-2] : prefix
+        if (normalized(query?.q) != null) {
+            result[normalizedPrefix + ".q"] = query.q
+        }
+        result[normalizedPrefix + ".sort"] = query?.sort ?: "id"
+        result[normalizedPrefix + ".order"] = query?.order ?: "asc"
+        result[normalizedPrefix + ".max"] = query?.max ?: DEFAULT_MAX
+        result[normalizedPrefix + ".offset"] = query?.offset ?: 0
+        (overrides ?: [:]).each { String key, Object value ->
+            String scopedKey = normalizedPrefix + "." + key
+            if (value == null || value.toString() == "") {
+                result.remove(scopedKey)
+            } else {
+                result[scopedKey] = value
+            }
+        }
+        return result
+    }
+
     static Map<String, Object> removeFilterParams(Map<String, Object> query, String field) {
         Map<String, Object> params = urlParams(query)
         ["filter." + field, "filter." + field + ".min", "filter." + field + ".max",
@@ -264,6 +302,29 @@ final class InterlisListQuerySupport {
     }
 
     static Map<String, Object> paginationModel(Map<String, Object> query, Number total) {
+        return buildPaginationModel(query, total) { Map<String, Object> overrides ->
+            urlParams(query, overrides)
+        }
+    }
+
+    static Map<String, Object> scopedPaginationModel(String prefix,
+                                                     Map<String, Object> query,
+                                                     Number total) {
+        return scopedPaginationModel(prefix, query, total, [:])
+    }
+
+    static Map<String, Object> scopedPaginationModel(String prefix,
+                                                     Map<String, Object> query,
+                                                     Number total,
+                                                     Map<String, Object> preservedParams) {
+        return buildPaginationModel(query, total) { Map<String, Object> overrides ->
+            scopedUrlParams(prefix, query, overrides, preservedParams)
+        }
+    }
+
+    private static Map<String, Object> buildPaginationModel(Map<String, Object> query,
+                                                            Number total,
+                                                            Closure<Map<String, Object>> paramsBuilder) {
         int max = (query?.max ?: DEFAULT_MAX) as int
         int offset = (query?.offset ?: 0) as int
         int count = (total ?: 0) as int
@@ -272,7 +333,7 @@ final class InterlisListQuerySupport {
         int lastPage = count > 0 ? ((count - 1) / max as int) + 1 : 1
         int resultStart = count > 0 ? Math.min(offset + 1, count) : 0
         int resultEnd = count > 0 ? Math.min(offset + max, count) : 0
-        List<Map<String, Object>> pages = paginationPages(query, currentPage, lastPage, max)
+        List<Map<String, Object>> pages = paginationPages(query, currentPage, lastPage, max, paramsBuilder)
         return [
             total: count,
             max: max,
@@ -282,11 +343,11 @@ final class InterlisListQuerySupport {
             showResultRange: count > max,
             resultStart: resultStart,
             resultEnd: resultEnd,
-            pageSizeParams: urlParams(query, [max: null, offset: 0]),
+            pageSizeParams: paramsBuilder([max: null, offset: 0]),
             hasPrevious: offset > 0,
             hasNext: offset < lastOffset,
-            previousParams: urlParams(query, [offset: Math.max(0, offset - max)]),
-            nextParams: urlParams(query, [offset: Math.min(lastOffset, offset + max)]),
+            previousParams: paramsBuilder([offset: Math.max(0, offset - max)]),
+            nextParams: paramsBuilder([offset: Math.min(lastOffset, offset + max)]),
             pages: pages
         ]
     }
@@ -294,9 +355,12 @@ final class InterlisListQuerySupport {
     private static List<Map<String, Object>> paginationPages(Map<String, Object> query,
                                                               int currentPage,
                                                               int lastPage,
-                                                              int max) {
+                                                              int max,
+                                                              Closure<Map<String, Object>> paramsBuilder) {
         if (lastPage <= MAX_VISIBLE_PAGE_NUMBERS) {
-            return (1..lastPage).collect { int pageNumber -> pageItem(query, pageNumber, currentPage, max) }
+            return (1..lastPage).collect { int pageNumber ->
+                pageItem(query, pageNumber, currentPage, max, paramsBuilder)
+            }
         }
 
         List<Integer> pageNumbers
@@ -314,7 +378,7 @@ final class InterlisListQuerySupport {
             if (previousPage != null && pageNumber - previousPage > 1) {
                 pages << [ellipsis: true]
             }
-            pages << pageItem(query, pageNumber, currentPage, max)
+            pages << pageItem(query, pageNumber, currentPage, max, paramsBuilder)
             previousPage = pageNumber
         }
         return pages
@@ -323,12 +387,13 @@ final class InterlisListQuerySupport {
     private static Map<String, Object> pageItem(Map<String, Object> query,
                                                  int pageNumber,
                                                  int currentPage,
-                                                 int max) {
+                                                 int max,
+                                                 Closure<Map<String, Object>> paramsBuilder) {
         int pageOffset = (pageNumber - 1) * max
         [ellipsis: false,
          number: pageNumber,
          current: pageNumber == currentPage,
-         params: urlParams(query, [offset: pageOffset])]
+         params: paramsBuilder([offset: pageOffset])]
     }
 
     static List<Map<String, Object>> activeFilterChips(Map<String, Object> query,

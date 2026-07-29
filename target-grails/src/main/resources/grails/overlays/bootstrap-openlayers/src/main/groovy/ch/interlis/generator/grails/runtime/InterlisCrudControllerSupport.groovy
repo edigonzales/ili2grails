@@ -104,7 +104,7 @@ abstract class InterlisCrudControllerSupport<T> {
         if (contextState == null) {
             respondAssociationError(
                 BAD_REQUEST.value(), "invalid_association_context",
-                "Der Kontext der Assoziation ist ungültig."
+                "Der Kontext des Datensatzes ist ungültig."
             )
             return
         }
@@ -125,7 +125,7 @@ abstract class InterlisCrudControllerSupport<T> {
         if (contextState == null) {
             respondAssociationError(
                 BAD_REQUEST.value(), "invalid_association_context",
-                "Der Kontext der Assoziation ist ungültig."
+                "Der Kontext des Datensatzes ist ungültig."
             )
             return
         }
@@ -151,9 +151,9 @@ abstract class InterlisCrudControllerSupport<T> {
                     code: "default.created.message",
                     args: [message(code: modelKey() + ".label", default: domainType().simpleName), instance.id]
                 ))
-                Map<String, Object> redirectTarget = InterlisFormSupport.saveAndContinue(submitMode)
-                    ? InterlisFormSupport.continueRedirect(instance, contextState)
-                    : contextualRedirectTarget(instance, contextState)
+                Map<String, Object> redirectTarget = successfulSaveRedirect(
+                    instance, contextState, submitMode
+                )
                 if (redirectTarget != null) {
                     redirect redirectTarget
                 } else {
@@ -175,7 +175,7 @@ abstract class InterlisCrudControllerSupport<T> {
         if (contextState == null) {
             respondAssociationError(
                 BAD_REQUEST.value(), "invalid_association_context",
-                "Der Kontext der Assoziation ist ungültig oder gehört nicht zum Datensatz."
+                "Der Kontext ist ungültig oder gehört nicht zum Datensatz."
             )
             return
         }
@@ -195,7 +195,7 @@ abstract class InterlisCrudControllerSupport<T> {
         if (contextState == null) {
             respondAssociationError(
                 BAD_REQUEST.value(), "invalid_association_context",
-                "Der Kontext der Assoziation ist ungültig oder gehört nicht zum Datensatz."
+                "Der Kontext ist ungültig oder gehört nicht zum Datensatz."
             )
             return
         }
@@ -222,9 +222,9 @@ abstract class InterlisCrudControllerSupport<T> {
                     code: "default.updated.message",
                     args: [message(code: modelKey() + ".label", default: domainType().simpleName), instance.id]
                 ))
-                Map<String, Object> redirectTarget = InterlisFormSupport.saveAndContinue(submitMode)
-                    ? InterlisFormSupport.continueRedirect(instance, contextState)
-                    : contextualRedirectTarget(instance, contextState)
+                Map<String, Object> redirectTarget = successfulSaveRedirect(
+                    instance, contextState, submitMode
+                )
                 if (redirectTarget != null) {
                     redirect redirectTarget
                 } else {
@@ -320,7 +320,9 @@ abstract class InterlisCrudControllerSupport<T> {
                 relationshipName,
                 normalizedQuery(params.q),
                 boundedMax(params.int("max")),
-                safeOffset(params.int("offset"))
+                safeOffset(params.int("offset")),
+                params.sort?.toString(),
+                params.order?.toString()
             )
             render page as JSON
         } catch (InterlisInverseRelationshipSupport.InverseRelationshipNotFoundException e) {
@@ -665,7 +667,8 @@ abstract class InterlisCrudControllerSupport<T> {
                 inverseRelationshipSections: inverseRelationshipQueryService().sections(
                     domainType(),
                     instance.id as java.io.Serializable,
-                    associationPageSize()
+                    associationPageSize(),
+                    params
                 )
             ]
         } catch (IllegalArgumentException e) {
@@ -767,12 +770,19 @@ abstract class InterlisCrudControllerSupport<T> {
         model.put("hiddenRelationshipFields", [])
         model.put("fixedRelationshipLabels", [:])
         model.put("associationContextState", null)
+        model.put("relationshipContextState", null)
         if (contextState != null && !contextState.isEmpty()) {
-            model.put("hiddenRelationshipFields",
-                InterlisAssociationContextSupport.hiddenRelationshipFields(contextState))
-            model.put("fixedRelationshipLabels",
-                InterlisAssociationContextSupport.fixedRelationshipLabels(contextState))
-            model.put("associationContextState", contextState)
+            if (contextState.contextKind == "DIRECT_RELATIONSHIP") {
+                model.put("hiddenRelationshipFields", [contextState.fixedProperty])
+                model.put("fixedRelationshipLabels", [(contextState.fixedProperty): contextState.ownerLabel])
+                model.put("relationshipContextState", contextState)
+            } else {
+                model.put("hiddenRelationshipFields",
+                    InterlisAssociationContextSupport.hiddenRelationshipFields(contextState))
+                model.put("fixedRelationshipLabels",
+                    InterlisAssociationContextSupport.fixedRelationshipLabels(contextState))
+                model.put("associationContextState", contextState)
+            }
         }
         return model
     }
@@ -783,6 +793,13 @@ abstract class InterlisCrudControllerSupport<T> {
 
     protected Map<String, Object> associationContextState(T instance, boolean edit) {
         try {
+            if (edit && hasInverseRelationshipParameters(params)) {
+                throw new IllegalArgumentException("Direct relationship context is only valid for create")
+            }
+            if (!edit && hasInverseRelationshipParameters(params)) {
+                return InterlisInverseRelationshipContextSupport.prepareCreateContext(
+                    grailsApplication, domainType(), params)
+            }
             if (edit && hasAssociationContext(params)) {
                 return InterlisAssociationContextSupport.prepareEditContext(
                     grailsApplication, domainType(), instance, params)
@@ -790,27 +807,62 @@ abstract class InterlisCrudControllerSupport<T> {
             return InterlisAssociationContextSupport.prepareCreateContext(
                 grailsApplication, domainType(), params)
         } catch (Exception e) {
-            if (hasAssociationContext(params)) {
-                log.warn("Association context rejected for ${domainType().simpleName}: ${e.message}")
+            if (hasAnyContext(params)) {
+                log.warn("Context rejected for ${domainType().simpleName}: ${e.message}")
                 return null
             }
-            log.info("Association context not applied for ${domainType().simpleName}: ${e.message}")
+            log.info("Context not applied for ${domainType().simpleName}: ${e.message}")
             return [:]
         }
     }
 
     protected void applyAssociationContext(T instance, Map<String, Object> state) {
-        InterlisAssociationContextSupport.applyFixedRole(instance, state)
+        if (state?.contextKind == "DIRECT_RELATIONSHIP") {
+            InterlisInverseRelationshipContextSupport.applyFixedRelationship(instance, state)
+        } else {
+            InterlisAssociationContextSupport.applyFixedRole(instance, state)
+        }
     }
 
     protected Map<String, Object> contextualRedirectTarget(T instance, Map<String, Object> state) {
         if (state == null || state.isEmpty()) {
             return null
         }
-        return InterlisAssociationContextSupport.redirectTarget(state)
+        return state.contextKind == "DIRECT_RELATIONSHIP"
+            ? InterlisInverseRelationshipContextSupport.redirectTarget(grailsApplication, state)
+            : InterlisAssociationContextSupport.redirectTarget(state)
+    }
+
+    /**
+     * A direct inverse create is an action launched from the owner page. It
+     * therefore always returns to that owner, including when the generic form
+     * submitter happens to be "save and continue". Association forms retain
+     * their existing continue behavior.
+     */
+    protected Map<String, Object> successfulSaveRedirect(T instance,
+                                                          Map<String, Object> state,
+                                                          String submitMode) {
+        if (state?.contextKind == "DIRECT_RELATIONSHIP") {
+            return contextualRedirectTarget(instance, state)
+        }
+        return InterlisFormSupport.saveAndContinue(submitMode)
+            ? InterlisFormSupport.continueRedirect(instance, state)
+            : contextualRedirectTarget(instance, state)
     }
 
     protected Map<String, Object> loadContextStateFromParams(T instance = null, boolean edit = false) {
+        if (hasInverseRelationshipParameters(params)) {
+            if (edit) {
+                return null
+            }
+            try {
+                return InterlisInverseRelationshipContextSupport.prepareCreateContext(
+                    grailsApplication, domainType(), params)
+            } catch (Exception e) {
+                log.warn("Failed to load direct relationship context for ${domainType().simpleName}: ${e.message}")
+                return null
+            }
+        }
         String contextId = params.associationContext?.toString()
         String ownerIdStr = params.associationOwnerId?.toString()
         if (contextId == null || contextId.isBlank() || ownerIdStr == null || ownerIdStr.isBlank()) {
@@ -825,7 +877,7 @@ abstract class InterlisCrudControllerSupport<T> {
                 grailsApplication, domainType(), params)
         } catch (Exception e) {
             log.warn("Failed to re-load association context for ${domainType().simpleName}: ${e.message}")
-            if (hasAssociationContext(params)) {
+            if (hasAnyContext(params)) {
                 return null
             }
             return [:]
@@ -876,6 +928,17 @@ abstract class InterlisCrudControllerSupport<T> {
         String contextId = sourceParams?.associationContext?.toString()
         String ownerId = sourceParams?.associationOwnerId?.toString()
         return contextId != null && !contextId.isBlank() && ownerId != null && !ownerId.isBlank()
+    }
+
+    protected boolean hasInverseRelationshipParameters(Map sourceParams) {
+        String relationshipField = sourceParams?.relationshipField?.toString()
+        String ownerId = sourceParams?.relationshipOwnerId?.toString()
+        return (relationshipField != null && !relationshipField.isBlank())
+            || (ownerId != null && !ownerId.isBlank())
+    }
+
+    protected boolean hasAnyContext(Map sourceParams) {
+        return hasAssociationContext(sourceParams) || hasInverseRelationshipParameters(sourceParams)
     }
 
     protected void renderValidationForm(String viewName,

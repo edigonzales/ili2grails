@@ -24,6 +24,7 @@
     hiddenRelationshipFields: hiddenRelationshipFields,
     fixedRelationshipLabels: fixedRelationshipLabels,
     associationContextState: associationContextState,
+    relationshipContextState: relationshipContextState,
     formSections: formSections,
     fieldMeta: fieldMeta
 ]}"/>

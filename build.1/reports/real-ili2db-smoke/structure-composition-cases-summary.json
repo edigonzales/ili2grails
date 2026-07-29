@@ -1,0 +1,17 @@
+{
+  "modelName": "StructureCompositionCases",
+  "schemaName": "rt_structcomp_1o1xwk8kwh",
+  "classCount": 7,
+  "structureCount": 3,
+  "physicalStructureCount": 3,
+  "compositionTargetCount": 3,
+  "generatedStructureCount": 3,
+  "nonGeneratedStructureCount": 0,
+  "compositionTargetNames": ["StructureCompositionCases.Cases.Attachment", "StructureCompositionCases.Cases.Inspection", "StructureCompositionCases.Cases.Part"],
+  "relationshipCounts": {"ASSOCIATION_ROLE": 2, "COMPOSITION_ATTRIBUTE": 3, "ILI2DB_FK": 3, "REFERENCE_ATTRIBUTE": 1},
+  "structures": [{"name": "StructureCompositionCases.Cases.Attachment", "kind": "STRUCTURE", "tableName": "cases_attachment", "sqlName": "rt_structcomp_1o1xwk8kwh.cases_attachment", "physical": true, "compositionTarget": true, "generated": true, "abstract": false}, {"name": "StructureCompositionCases.Cases.Inspection", "kind": "STRUCTURE", "tableName": "cases_inspection", "sqlName": "rt_structcomp_1o1xwk8kwh.cases_inspection", "physical": true, "compositionTarget": true, "generated": true, "abstract": false}, {"name": "StructureCompositionCases.Cases.Part", "kind": "STRUCTURE", "tableName": "cases_part", "sqlName": "rt_structcomp_1o1xwk8kwh.cases_part", "physical": true, "compositionTarget": true, "generated": true, "abstract": false}],
+  "compositionRelationships": [{"sourceClass": "StructureCompositionCases.Cases.Asset", "targetClass": "StructureCompositionCases.Cases.Attachment", "sourceAttribute": "OptionalAttachment", "targetRoleName": "OptionalAttachment", "cardinality": "1..1 -> 0..1", "ordered": false, "external": false, "generatedTarget": true}, {"sourceClass": "StructureCompositionCases.Cases.Asset", "targetClass": "StructureCompositionCases.Cases.Inspection", "sourceAttribute": "MainInspection", "targetRoleName": "MainInspection", "cardinality": "1..1 -> 1..1", "ordered": false, "external": false, "generatedTarget": true}, {"sourceClass": "StructureCompositionCases.Cases.Asset", "targetClass": "StructureCompositionCases.Cases.Part", "sourceAttribute": "Parts", "targetRoleName": "Parts", "cardinality": "1..1 -> 0..*", "ordered": true, "external": false, "generatedTarget": true}],
+  "generatedClasses": [{"name": "StructureCompositionCases.Cases.Asset", "targetName": "Asset"}, {"name": "StructureCompositionCases.Cases.AssetDocument", "targetName": "AssetDocument"}, {"name": "StructureCompositionCases.Cases.Attachment", "targetName": "Attachment"}, {"name": "StructureCompositionCases.Cases.Document", "targetName": "Document"}, {"name": "StructureCompositionCases.Cases.Inspection", "targetName": "Inspection"}, {"name": "StructureCompositionCases.Cases.Owner", "targetName": "Owner"}, {"name": "StructureCompositionCases.Cases.Part", "targetName": "Part"}],
+  "skippedStructures": [],
+  "notes": []
+}

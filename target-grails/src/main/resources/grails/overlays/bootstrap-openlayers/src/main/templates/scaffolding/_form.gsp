@@ -42,6 +42,10 @@
             <g:hiddenField name="associationContext" value="\${associationContextState.contextId}" />
             <g:hiddenField name="associationOwnerId" value="\${associationContextState.ownerId}" />
         </g:if>
+        <g:if test="\${relationshipContextState}">
+            <g:hiddenField name="relationshipField" value="\${relationshipContextState.relationshipField}" />
+            <g:hiddenField name="relationshipOwnerId" value="\${relationshipContextState.ownerId}" />
+        </g:if>
 
         <div class="ili-split-layout \${geometryFields ? 'ili-split-with-map' : 'ili-split-single'}">
             <section class="ili-form-column">

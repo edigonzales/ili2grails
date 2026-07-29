@@ -76,6 +76,12 @@ class InterlisWorkspaceSupportTest {
                 static String displayLabel(Object value) { value?.toString() }
             }
             """, "InterlisRelationshipOptions.groovy");
+        classLoader.parseClass("""
+            package ch.interlis.generator.grails.runtime
+            class InterlisUiDescriptorSupport {
+                static Map staticDomainMap(Class type, String name) { [:] }
+            }
+            """, "InterlisUiDescriptorSupport.groovy");
         return classLoader.parseClass(Files.readString(RUNTIME_SOURCE), "InterlisWorkspaceSupport.groovy");
     }
 

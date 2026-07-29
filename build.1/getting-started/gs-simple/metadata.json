@@ -1,0 +1,609 @@
+{
+  "modelName" : "GsSimpleModel",
+  "modelVersion" : "2026-06-09",
+  "iliVersion" : "2.3",
+  "schemaName" : "gs_simple",
+  "ili2dbVersion" : "ili2pg-5.5.1-2ee4413c5be30411a59b684e351729d2e5d8dffd",
+  "settings" : {
+    "ch.ehi.ili2db.BasketHandling" : "readWrite",
+    "ch.ehi.ili2db.StrokeArcs" : "enable",
+    "ch.ehi.ili2db.arrayTrafo" : "coalesce",
+    "ch.ehi.ili2db.catalogueRefTrafo" : "coalesce",
+    "ch.ehi.ili2db.createEnumDefs" : "multiTable",
+    "ch.ehi.ili2db.createForeignKey" : "yes",
+    "ch.ehi.ili2db.defaultSrsAuthority" : "EPSG",
+    "ch.ehi.ili2db.defaultSrsCode" : "2056",
+    "ch.ehi.ili2db.inheritanceTrafo" : "smart2",
+    "ch.ehi.ili2db.jsonTrafo" : "coalesce",
+    "ch.ehi.ili2db.localisedTrafo" : "expand",
+    "ch.ehi.ili2db.maxSqlNameLength" : "60",
+    "ch.ehi.ili2db.multiLineTrafo" : "coalesce",
+    "ch.ehi.ili2db.multiPointTrafo" : "coalesce",
+    "ch.ehi.ili2db.multiSurfaceTrafo" : "coalesce",
+    "ch.ehi.ili2db.multilingualTrafo" : "expand",
+    "ch.ehi.ili2db.nameOptimization" : "topic",
+    "ch.ehi.ili2db.sender" : "ili2pg-5.5.1-2ee4413c5be30411a59b684e351729d2e5d8dffd",
+    "ch.ehi.ili2db.structTrafo" : "expand",
+    "ch.ehi.ili2db.uuidDefaultValue" : "uuid_generate_v4()",
+    "ch.interlis.ili2c.ilidirs" : "/Users/stefan/sources/ili2grails/docs/getting-started/models"
+  },
+  "classes" : [ {
+    "name" : "GsSimpleModel.Organization.Company",
+    "simpleName" : "Company",
+    "topicName" : "GsSimpleModel.Organization",
+    "tableName" : "organization_company",
+    "sqlName" : "gs_simple.organization_company",
+    "abstract" : false,
+    "kind" : "CLASS",
+    "labels" : { },
+    "attributes" : [ {
+      "name" : "LegalId",
+      "qualifiedName" : "GsSimpleModel.Organization.Company.LegalId",
+      "columnName" : "legalid",
+      "sqlName" : "legalid",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "dbType" : "VARCHAR",
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 30,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 30,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    }, {
+      "name" : "Name",
+      "qualifiedName" : "GsSimpleModel.Organization.Company.Name",
+      "columnName" : "aname",
+      "sqlName" : "aname",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "dbType" : "VARCHAR",
+      "mandatory" : true,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 80,
+      "cardinalityMin" : 1,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 80,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    }, {
+      "name" : "t_id",
+      "qualifiedName" : "GsSimpleModel.Organization.Company.t_id",
+      "columnName" : "t_id",
+      "sqlName" : "t_id",
+      "coreType" : "NUMERIC",
+      "targetHints" : {
+        "javaType" : "Long"
+      },
+      "dbType" : "BIGINT",
+      "mandatory" : true,
+      "primaryKey" : true,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 19,
+      "precision" : 19,
+      "scale" : 0,
+      "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 19,
+        "precision" : 19,
+        "scale" : 0,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
+  }, {
+    "name" : "GsSimpleModel.Organization.CompanyDepartment",
+    "simpleName" : "CompanyDepartment",
+    "topicName" : "GsSimpleModel.Organization",
+    "abstract" : false,
+    "kind" : "ASSOCIATION",
+    "labels" : { },
+    "attributes" : [ ]
+  }, {
+    "name" : "GsSimpleModel.Organization.Department",
+    "simpleName" : "Department",
+    "topicName" : "GsSimpleModel.Organization",
+    "tableName" : "organization_department",
+    "sqlName" : "gs_simple.organization_department",
+    "abstract" : false,
+    "kind" : "CLASS",
+    "labels" : { },
+    "attributes" : [ {
+      "name" : "Company",
+      "qualifiedName" : "GsSimpleModel.Organization.CompanyDepartment.Company",
+      "columnName" : "company",
+      "sqlName" : "company",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Long"
+      },
+      "dbType" : "BIGINT",
+      "mandatory" : true,
+      "primaryKey" : false,
+      "foreignKey" : true,
+      "geometry" : false,
+      "maxLength" : 19,
+      "precision" : 19,
+      "scale" : 0,
+      "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 19,
+        "precision" : 19,
+        "scale" : 0,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "referencedClass" : "GsSimpleModel.Organization.Company",
+      "labels" : { }
+    }, {
+      "name" : "Name",
+      "qualifiedName" : "GsSimpleModel.Organization.Department.Name",
+      "columnName" : "aname",
+      "sqlName" : "aname",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "dbType" : "VARCHAR",
+      "mandatory" : true,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 80,
+      "cardinalityMin" : 1,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 80,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    }, {
+      "name" : "t_id",
+      "qualifiedName" : "GsSimpleModel.Organization.Department.t_id",
+      "columnName" : "t_id",
+      "sqlName" : "t_id",
+      "coreType" : "NUMERIC",
+      "targetHints" : {
+        "javaType" : "Long"
+      },
+      "dbType" : "BIGINT",
+      "mandatory" : true,
+      "primaryKey" : true,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 19,
+      "precision" : 19,
+      "scale" : 0,
+      "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 19,
+        "precision" : 19,
+        "scale" : 0,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
+  }, {
+    "name" : "GsSimpleModel.Organization.DepartmentEmployee",
+    "simpleName" : "DepartmentEmployee",
+    "topicName" : "GsSimpleModel.Organization",
+    "abstract" : false,
+    "kind" : "ASSOCIATION",
+    "labels" : { },
+    "attributes" : [ ]
+  }, {
+    "name" : "GsSimpleModel.Organization.Employee",
+    "simpleName" : "Employee",
+    "topicName" : "GsSimpleModel.Organization",
+    "tableName" : "organization_employee",
+    "sqlName" : "gs_simple.organization_employee",
+    "abstract" : false,
+    "kind" : "CLASS",
+    "labels" : { },
+    "attributes" : [ {
+      "name" : "Department",
+      "qualifiedName" : "GsSimpleModel.Organization.DepartmentEmployee.Department",
+      "columnName" : "department",
+      "sqlName" : "department",
+      "coreType" : "REFERENCE",
+      "targetHints" : {
+        "javaType" : "Long"
+      },
+      "dbType" : "BIGINT",
+      "mandatory" : true,
+      "primaryKey" : false,
+      "foreignKey" : true,
+      "geometry" : false,
+      "maxLength" : 19,
+      "precision" : 19,
+      "scale" : 0,
+      "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 19,
+        "precision" : 19,
+        "scale" : 0,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "referencedClass" : "GsSimpleModel.Organization.Department",
+      "labels" : { }
+    }, {
+      "name" : "Email",
+      "qualifiedName" : "GsSimpleModel.Organization.Employee.Email",
+      "columnName" : "email",
+      "sqlName" : "email",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "dbType" : "VARCHAR",
+      "mandatory" : false,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 120,
+      "cardinalityMin" : 0,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "constraints" : {
+        "required" : false,
+        "maxLength" : 120,
+        "cardinalityMin" : 0,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    }, {
+      "name" : "FirstName",
+      "qualifiedName" : "GsSimpleModel.Organization.Employee.FirstName",
+      "columnName" : "firstname",
+      "sqlName" : "firstname",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "dbType" : "VARCHAR",
+      "mandatory" : true,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 50,
+      "cardinalityMin" : 1,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 50,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    }, {
+      "name" : "LastName",
+      "qualifiedName" : "GsSimpleModel.Organization.Employee.LastName",
+      "columnName" : "lastname",
+      "sqlName" : "lastname",
+      "iliType" : "TextType",
+      "coreType" : "TEXT",
+      "targetHints" : {
+        "javaType" : "String"
+      },
+      "dbType" : "VARCHAR",
+      "mandatory" : true,
+      "primaryKey" : false,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 50,
+      "cardinalityMin" : 1,
+      "cardinalityMax" : 1,
+      "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 50,
+        "cardinalityMin" : 1,
+        "cardinalityMax" : 1,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    }, {
+      "name" : "t_id",
+      "qualifiedName" : "GsSimpleModel.Organization.Employee.t_id",
+      "columnName" : "t_id",
+      "sqlName" : "t_id",
+      "coreType" : "NUMERIC",
+      "targetHints" : {
+        "javaType" : "Long"
+      },
+      "dbType" : "BIGINT",
+      "mandatory" : true,
+      "primaryKey" : true,
+      "foreignKey" : false,
+      "geometry" : false,
+      "maxLength" : 19,
+      "precision" : 19,
+      "scale" : 0,
+      "ordered" : false,
+      "constraints" : {
+        "required" : true,
+        "maxLength" : 19,
+        "precision" : 19,
+        "scale" : 0,
+        "ordered" : false
+      },
+      "enumValues" : [ ],
+      "labels" : { }
+    } ]
+  } ],
+  "associations" : [ {
+    "name" : "GsSimpleModel.Organization.CompanyDepartment",
+    "associationClass" : "GsSimpleModel.Organization.CompanyDepartment",
+    "roles" : [ {
+      "name" : "Company",
+      "targetClass" : "GsSimpleModel.Organization.Company",
+      "oppositeRoleName" : "Departments",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 1,
+        "maxTarget" : 1
+      },
+      "mandatory" : true,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "GsSimpleModel.Organization.CompanyDepartment.Company",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    }, {
+      "name" : "Departments",
+      "targetClass" : "GsSimpleModel.Organization.Department",
+      "oppositeRoleName" : "Company",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "GsSimpleModel.Organization.CompanyDepartment.Departments",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    } ],
+    "attributes" : [ ]
+  }, {
+    "name" : "GsSimpleModel.Organization.DepartmentEmployee",
+    "associationClass" : "GsSimpleModel.Organization.DepartmentEmployee",
+    "roles" : [ {
+      "name" : "Department",
+      "targetClass" : "GsSimpleModel.Organization.Department",
+      "oppositeRoleName" : "Employees",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 1,
+        "maxTarget" : 1
+      },
+      "mandatory" : true,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "GsSimpleModel.Organization.DepartmentEmployee.Department",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    }, {
+      "name" : "Employees",
+      "targetClass" : "GsSimpleModel.Organization.Employee",
+      "oppositeRoleName" : "Department",
+      "cardinality" : {
+        "minSource" : 1,
+        "maxSource" : 1,
+        "minTarget" : 0,
+        "maxTarget" : -1
+      },
+      "mandatory" : false,
+      "ordered" : false,
+      "external" : false,
+      "composition" : false,
+      "semanticName" : "GsSimpleModel.Organization.DepartmentEmployee.Employees",
+      "source" : "ili2c",
+      "mergeReason" : "ILI2C_ONLY",
+      "mergeConfidence" : "NONE"
+    } ],
+    "attributes" : [ ]
+  } ],
+  "enums" : [ ],
+  "relationships" : [ {
+    "name" : "GsSimpleModel.Organization.CompanyDepartment.Company",
+    "sourceClass" : "GsSimpleModel.Organization.CompanyDepartment",
+    "targetClass" : "GsSimpleModel.Organization.Company",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "GsSimpleModel.Organization.CompanyDepartment",
+    "sourceRoleName" : "Departments",
+    "targetRoleName" : "Company",
+    "oppositeRoleName" : "Departments",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 1,
+      "maxTarget" : 1
+    },
+    "mandatory" : true,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c",
+    "semanticName" : "GsSimpleModel.Organization.CompanyDepartment.Company",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
+  }, {
+    "name" : "GsSimpleModel.Organization.CompanyDepartment.Departments",
+    "sourceClass" : "GsSimpleModel.Organization.CompanyDepartment",
+    "targetClass" : "GsSimpleModel.Organization.Department",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "GsSimpleModel.Organization.CompanyDepartment",
+    "sourceRoleName" : "Company",
+    "targetRoleName" : "Departments",
+    "oppositeRoleName" : "Company",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : -1
+    },
+    "mandatory" : false,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c",
+    "semanticName" : "GsSimpleModel.Organization.CompanyDepartment.Departments",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
+  }, {
+    "name" : "GsSimpleModel.Organization.Department_Company",
+    "sourceClass" : "GsSimpleModel.Organization.Department",
+    "targetClass" : "GsSimpleModel.Organization.Company",
+    "type" : "MANY_TO_ONE",
+    "semanticKind" : "ILI2DB_FK",
+    "sourceAttribute" : "company",
+    "targetAttribute" : "T_Id",
+    "targetRoleName" : "Company",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 1,
+      "maxTarget" : 1
+    },
+    "mandatory" : true,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2db",
+    "physicalName" : "company",
+    "mergeReason" : "ILI2DB_ONLY",
+    "mergeConfidence" : "NONE"
+  }, {
+    "name" : "GsSimpleModel.Organization.DepartmentEmployee.Department",
+    "sourceClass" : "GsSimpleModel.Organization.DepartmentEmployee",
+    "targetClass" : "GsSimpleModel.Organization.Department",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "GsSimpleModel.Organization.DepartmentEmployee",
+    "sourceRoleName" : "Employees",
+    "targetRoleName" : "Department",
+    "oppositeRoleName" : "Employees",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 1,
+      "maxTarget" : 1
+    },
+    "mandatory" : true,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c",
+    "semanticName" : "GsSimpleModel.Organization.DepartmentEmployee.Department",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
+  }, {
+    "name" : "GsSimpleModel.Organization.DepartmentEmployee.Employees",
+    "sourceClass" : "GsSimpleModel.Organization.DepartmentEmployee",
+    "targetClass" : "GsSimpleModel.Organization.Employee",
+    "type" : "ASSOCIATION",
+    "semanticKind" : "ASSOCIATION_ROLE",
+    "associationName" : "GsSimpleModel.Organization.DepartmentEmployee",
+    "sourceRoleName" : "Department",
+    "targetRoleName" : "Employees",
+    "oppositeRoleName" : "Department",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 0,
+      "maxTarget" : -1
+    },
+    "mandatory" : false,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2c",
+    "semanticName" : "GsSimpleModel.Organization.DepartmentEmployee.Employees",
+    "mergeReason" : "ILI2C_ONLY",
+    "mergeConfidence" : "NONE"
+  }, {
+    "name" : "GsSimpleModel.Organization.Employee_Department",
+    "sourceClass" : "GsSimpleModel.Organization.Employee",
+    "targetClass" : "GsSimpleModel.Organization.Department",
+    "type" : "MANY_TO_ONE",
+    "semanticKind" : "ILI2DB_FK",
+    "sourceAttribute" : "department",
+    "targetAttribute" : "T_Id",
+    "targetRoleName" : "Department",
+    "cardinality" : {
+      "minSource" : 1,
+      "maxSource" : 1,
+      "minTarget" : 1,
+      "maxTarget" : 1
+    },
+    "mandatory" : true,
+    "ordered" : false,
+    "external" : false,
+    "composition" : false,
+    "source" : "ili2db",
+    "physicalName" : "department",
+    "mergeReason" : "ILI2DB_ONLY",
+    "mergeConfidence" : "NONE"
+  } ]
+}

@@ -27,6 +27,7 @@ Generierte Grails-Anwendung (Runtime)
   InterlisInverseRelationshipQueryService   → direkte 1:n-Listen und Suche
   InterlisInverseRelationshipCommandService → FK-Zuweisung/Umteilung
   InterlisAssociationContextSupport    → Kontextuelle Formulare
+  InterlisInverseRelationshipContextSupport → sichere direkte 1:n-Create-Kontexte
   InterlisNavigationSupport            → Navigationsfilter
 ```
 
@@ -128,6 +129,42 @@ Die Suchresultate lassen bereits dem aktuellen Owner zugeordnete Datensätze weg
 und zeigen bei anderen Ownern den bisherigen Anzeigenamen, zum Beispiel
 `Anna Keller · aktuell: HR`. Version 1 unterstützt kein Entfernen einer
 Zuordnung. `t_basket` wird weder gelesen noch geändert.
+
+### Generische Darstellung in Create/Edit und Show
+
+To-One-Referenzen sind im UI normale fachliche Felder. Sie stehen in der
+gemeinsamen Default-Sektion `Basisdaten` und können über `form.sections`
+fachlich gruppiert werden. Auf der Show-Seite erscheinen sie in den normalen
+Detailsektionen; vorhandene Werte werden als `ili-data-link` gerendert. Die
+historische Card `Verknüpfte Datensätze` bleibt nur als kompatibler Fallback für
+Links erhalten, die nicht in eine Detailsektion integriert werden können.
+
+Inverse direkte 1:n-Beziehungen werden als Inline-Tabelle dargestellt. Ihre
+Spalten, Display-Felder, Suchfelder und whitelisted Sortierfelder kommen aus
+dem Descriptor des Zieldomains. Jede Tabelle liest und schreibt ihren Zustand
+unabhängig über:
+
+```text
+inverse.<collection>.q
+inverse.<collection>.max
+inverse.<collection>.offset
+inverse.<collection>.sort
+inverse.<collection>.order
+```
+
+Die Initialseite ist begrenzt; weiteres Paging bleibt in derselben Card. Das
+alte Browse-Modal ist damit nicht mehr Teil der direkten 1:n-UX. Die JSON-
+Endpunkte für Relationship-Optionen und Paging bleiben für bestehende Clients
+kompatibel.
+
+Eine sichere direkte 1:n-Tabelle kann kontextuell einen abhängigen Datensatz
+erfassen. Der Link übergibt nur `relationshipField` und
+`relationshipOwnerId`. `InterlisInverseRelationshipContextSupport` löst das
+Ziel und den Owner aus generierten Metadaten auf, prüft Sichtbarkeit und
+Schreibbarkeit und setzt die FK nach jedem Binding erneut. Manipulierte Owner-
+IDs, unbekannte Felder und nicht direkte oder read-only Beziehungen werden
+abgewiesen. Nach erfolgreichem Speichern erfolgt die Rückleitung zur
+Elternseite.
 
 Laufzeitkonfiguration:
 

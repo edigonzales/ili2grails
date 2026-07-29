@@ -452,8 +452,6 @@ class GrailsRuntimeSmokeTest {
                     def descriptor = InterlisUiDescriptorSupport.descriptor(grailsApplication, Record)
                     def workspace = InterlisWorkspaceSupport.showModel(
                         grailsApplication, Record, Record.findByName('Bahnhof Bern'), descriptor)
-                    def municipalityLink = workspace.workspaceRelationshipLinks.find { it.name == 'municipality' }
-
                     when:
                     def query = InterlisListQuerySupport.parse([
                         q: 'Bern', max: '10', offset: '0', sort: 'year', order: 'desc',
@@ -468,9 +466,9 @@ class GrailsRuntimeSmokeTest {
                     query.warnings.isEmpty()
                     workspace.workspaceDisplayLabel == 'Bahnhof Bern'
                     workspace.workspaceDetailSections.toString().contains('name')
-                    !workspace.workspaceDetailSections.toString().contains('municipality')
-                    municipalityLink.id == bern.id.toString()
-                    municipalityLink.controller == 'municipality'
+                    workspace.workspaceDetailSections.toString().contains('municipality')
+                    workspace.workspaceDetailSections.toString().contains('link')
+                    workspace.workspaceRelationshipLinks.isEmpty()
 
                     when:
                     Municipality.withSession { session ->
@@ -499,8 +497,7 @@ class GrailsRuntimeSmokeTest {
                     then:
                     !invalid.validate()
                     invalid.errors.hasFieldErrors('year')
-                    viewModel.formSections*.title.contains('Basisdaten')
-                    viewModel.formSections*.title.contains('Verknüpfte Datensätze')
+                    viewModel.formSections*.title == ['Basisdaten']
                     viewModel.relationshipValues.municipality == municipality.id.toString()
                     viewModel.submittedValues.name == 'Retained value'
                     selected.id == municipality.id.toString()
@@ -520,6 +517,7 @@ class GrailsRuntimeSmokeTest {
 
             import com.example.domain.Department
             import com.example.domain.Employee
+            import ch.interlis.generator.grails.runtime.InterlisInverseRelationshipContextSupport
             import grails.testing.mixin.integration.Integration
             import grails.gorm.transactions.Rollback
             import spock.lang.Specification
@@ -530,7 +528,39 @@ class GrailsRuntimeSmokeTest {
 
                 def interlisInverseRelationshipQueryService
                 def interlisInverseRelationshipCommandService
+                def grailsApplication
                 def sessionFactory
+
+                def "validates and reapplies a direct relationship create context"() {
+                    given:
+                    def planning = new Department(name: 'Planning').save(failOnError: true, flush: true)
+
+                    when:
+                    def context = InterlisInverseRelationshipContextSupport.prepareCreateContext(
+                        grailsApplication, Employee, [
+                            relationshipField: 'department',
+                            relationshipOwnerId: planning.id.toString()
+                        ]
+                    )
+                    def employee = new Employee(firstName: 'Context', lastName: 'Created')
+                    InterlisInverseRelationshipContextSupport.applyFixedRelationship(employee, context)
+
+                    then:
+                    context.contextKind == 'DIRECT_RELATIONSHIP'
+                    context.ownerId == planning.id
+                    employee.department.id == planning.id
+
+                    when:
+                    InterlisInverseRelationshipContextSupport.prepareCreateContext(
+                        grailsApplication, Employee, [
+                            relationshipField: 'department',
+                            relationshipOwnerId: '999999999'
+                        ]
+                    )
+
+                    then:
+                    thrown(IllegalArgumentException)
+                }
 
                 def "requires confirmation and then moves the existing employee"() {
                     given:

@@ -454,39 +454,46 @@ class GrailsBrowserE2eTest {
                 .isEqualTo("400");
             screenshot(page, "getting-started-inverse-preview", true);
 
-            Locator browserButton = planningSection.locator("[data-inverse-open-browser]");
-            assertThat(browserButton.textContent()).contains("400");
-            browserButton.click();
-            Locator browserModal = planningSection.locator("[data-inverse-browser]");
-            browserModal.waitFor();
-            page.waitForTimeout(500);
-            assertThat(browserModal.locator("[data-inverse-browser-rows] tr").count()).isEqualTo(25);
-            assertThat(browserModal.locator("[data-inverse-browser-total]").textContent().trim())
-                .isNotEqualTo("400");
-            screenshot(page, "getting-started-inverse-browser", true);
+            assertThat(planningSection.locator("[data-inverse-browser]").count()).isZero();
+            assertThat(planningSection.locator("thead th").count()).isGreaterThan(1);
+            Locator inlineNext = planningSection.locator(".ili-pagination-controls a").last();
+            assertThat(inlineNext.textContent()).contains("Weiter");
+            inlineNext.click();
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            planningSection = page.locator(
+                "[data-inverse-relationship-section][data-relationship-name='employees']"
+            );
+            assertThat(planningSection.locator("[data-inverse-relationship-rows] tr").count())
+                .isEqualTo(10);
+            assertThat(page.url()).contains("inverse.employees.offset=10");
+            screenshot(page, "getting-started-inverse-inline-page-2", true);
 
-            Locator browserNext = browserModal.locator("[data-inverse-browser-next]");
-            assertThat(browserNext.isDisabled()).isFalse();
-            browserNext.click();
-            page.waitForTimeout(300);
-            assertThat(browserModal.locator("[data-inverse-browser-rows] tr").count()).isEqualTo(25);
-
-            Locator browserSearch = browserModal.locator("[data-inverse-browser-search]");
-            browserSearch.fill("Employee 399");
-            page.waitForTimeout(500);
-            assertThat(browserModal.locator("[data-inverse-browser-rows] tr").count()).isEqualTo(1);
-            assertThat(browserModal.locator("[data-inverse-browser-rows]").textContent())
+            Locator inlineSearch = planningSection.locator("input[name='inverse.employees.q']");
+            inlineSearch.fill("Employee 399");
+            inlineSearch.press("Enter");
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            planningSection = page.locator(
+                "[data-inverse-relationship-section][data-relationship-name='employees']"
+            );
+            assertThat(planningSection.locator("[data-inverse-relationship-rows] tr").count()).isEqualTo(1);
+            assertThat(planningSection.locator("[data-inverse-relationship-rows]").textContent())
                 .contains("demo.employee399@example.com");
-            browserSearch.fill("does-not-exist");
-            page.waitForTimeout(500);
-            assertThat(browserModal.locator("[data-inverse-browser-rows] tr").count()).isZero();
-            assertThat(browserModal.locator("[data-inverse-browser-empty]").isVisible()).isTrue();
-            assertThat(browserModal.locator("[data-inverse-browser-next]").isDisabled()).isTrue();
-            screenshot(page, "getting-started-inverse-browser-empty", true);
-            browserModal.locator("[data-bs-dismiss='modal']").click();
-            browserModal.waitFor(new Locator.WaitForOptions().setState(
-                com.microsoft.playwright.options.WaitForSelectorState.HIDDEN
-            ));
+            inlineSearch = planningSection.locator("input[name='inverse.employees.q']");
+            inlineSearch.fill("does-not-exist");
+            inlineSearch.press("Enter");
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            planningSection = page.locator(
+                "[data-inverse-relationship-section][data-relationship-name='employees']"
+            );
+            assertThat(planningSection.locator("[data-inverse-relationship-rows] tr").count()).isZero();
+            assertThat(planningSection.locator("[data-inverse-empty]").isVisible()).isTrue();
+            screenshot(page, "getting-started-inverse-inline-empty", true);
+
+            page.navigate(baseUrl + "/department/show/" + planningId);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            planningSection = page.locator(
+                "[data-inverse-relationship-section][data-relationship-name='employees']"
+            );
 
             Locator planningSearch = planningSection.locator("[data-relationship-collection='employees']");
             planningSearch.fill("Clara");
@@ -499,7 +506,7 @@ class GrailsBrowserE2eTest {
                     + "; console=" + consoleMessages
                     + "; section=" + planningSection.innerText())
                 .isTrue();
-            browserButton.focus();
+            planningSearch.focus();
             page.keyboard().press("Escape");
             assertThat(planningResults.isVisible()).isFalse();
             planningSearch.fill("Clara");
@@ -526,7 +533,7 @@ class GrailsBrowserE2eTest {
             assertThat(section.locator("[data-inverse-relationship-form]").count()).isEqualTo(1);
             assertThat(section.locator("[data-inverse-relationship-form]").getAttribute("action"))
                 .endsWith("/department/relationshipAssign/" + itId);
-            assertThat(section.locator("[data-inverse-browser]").count()).isEqualTo(1);
+            assertThat(section.locator("[data-inverse-browser]").count()).isZero();
             assertThat(section.locator("select[name='targetId']").getAttribute("class"))
                 .contains("visually-hidden");
 
@@ -606,7 +613,7 @@ class GrailsBrowserE2eTest {
 
             page.navigate(baseUrl + "/employee/show/" + employeeId);
             page.waitForLoadState(LoadState.NETWORKIDLE);
-            assertThat(page.locator("[data-workspace-relationships]").textContent()).contains("IT");
+            assertThat(page.locator("[data-workspace-details]").textContent()).contains("IT");
 
             APIResponse invalid = page.request().post(
                 baseUrl + "/department/relationshipAssign/" + itId
@@ -653,10 +660,8 @@ class GrailsBrowserE2eTest {
         page.navigate(baseUrl + "/employee/create");
         page.waitForLoadState(LoadState.NETWORKIDLE);
         Locator formSections = page.locator("[data-form-section]");
-        assertThat(formSections.count()).isEqualTo(2);
+        assertThat(formSections.count()).isEqualTo(1);
         assertThat(formSections.nth(0).getAttribute("data-form-section")).isEqualTo("Basisdaten");
-        assertThat(formSections.nth(1).getAttribute("data-form-section"))
-            .isEqualTo("Verknüpfte Datensätze");
         page.locator("input[name='firstname']").fill(firstName);
         page.locator("input[name='lastname']").fill(lastName);
         page.locator("input[name='email']").fill(
@@ -1421,12 +1426,11 @@ class GrailsBrowserE2eTest {
         assertThat(page.locator("[data-workspace-domain-label]").count()).isZero();
         assertThat(page.locator(".ili-workspace-header .ili-page-subtitle").textContent()).contains("· #");
         assertThat(page.locator("[data-workspace-details]").count()).isEqualTo(1);
-        int expectedRelationshipSections = expectedMunicipalityId == null ? 0 : 1;
-        assertThat(page.locator("[data-workspace-relationships]").count())
-            .isEqualTo(expectedRelationshipSections);
-        if (expectedRelationshipSections == 1) {
-            assertThat(page.locator("[data-workspace-relationships]").textContent())
-                .contains("Verknüpfte Datensätze");
+        assertThat(page.locator("[data-workspace-relationships]").count()).isZero();
+        if (expectedMunicipalityId != null) {
+            assertThat(page.locator("[data-workspace-details] .ili-data-link").count()).isGreaterThan(0);
+            assertThat(page.locator("[data-workspace-details] .ili-data-link").first()
+                .getAttribute("href")).contains(expectedMunicipalityId);
         }
         assertThat(page.locator("[data-workspace-danger-zone]").count()).isZero();
         assertThat(page.locator("[data-delete-modal]").count()).isEqualTo(1);
@@ -1445,7 +1449,7 @@ class GrailsBrowserE2eTest {
             "Audit", "Verlauf", "Protokoll", "Timeline", "Restore");
         if (expectedMunicipalityId != null) {
             Locator municipalityLink = page.locator(
-                "[data-workspace-relationships] a.ili-workspace-relationship-link");
+                "[data-workspace-details] a.ili-data-link");
             assertThat(municipalityLink.count()).isGreaterThan(0);
             assertThat(municipalityLink.first().getAttribute("href"))
                 .contains("/municipality/show/" + expectedMunicipalityId);

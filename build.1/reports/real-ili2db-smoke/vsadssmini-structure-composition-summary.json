@@ -1,0 +1,17 @@
+{
+  "modelName": "VSADSSMINI_2020_LV95",
+  "schemaName": "rt_vsadssmini_1o1yq7fups",
+  "classCount": 73,
+  "structureCount": 0,
+  "physicalStructureCount": 0,
+  "compositionTargetCount": 0,
+  "generatedStructureCount": 0,
+  "nonGeneratedStructureCount": 0,
+  "compositionTargetNames": [],
+  "relationshipCounts": {"ASSOCIATION_ROLE": 90, "ILI2DB_FK": 119},
+  "structures": [],
+  "compositionRelationships": [],
+  "generatedClasses": [{"name": "SIA405_Base_Abwasser_LV95.Administration.Organisation", "targetName": "Organisation"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.ALR", "targetName": "ALR"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Bauwerkskomponente", "targetName": "Bauwerkskomponente"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Kennlinie_Stuetzpunkt", "targetName": "KennlinieStuetzpunkt"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Knoten", "targetName": "Knoten"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Knoten_Text", "targetName": "KnotenText"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Leitung", "targetName": "Leitung"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Leitung_Text", "targetName": "LeitungText"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Massnahme", "targetName": "Massnahme"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Massnahme_KnotenAssoc", "targetName": "MassnahmeKnotenAssoc"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Massnahme_LeitungAssoc", "targetName": "MassnahmeLeitungAssoc"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Rohrprofil", "targetName": "Rohrprofil"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Rohrprofil_Geometrie", "targetName": "RohrprofilGeometrie"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.SK_Autonome_Messstelle", "targetName": "SKAutonomeMessstelle"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.SK_Duekeroberhaupt", "targetName": "SKDuekeroberhaupt"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.SK_Einleitstelle", "targetName": "SKEinleitstelle"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.SK_Pumpwerk", "targetName": "SKPumpwerk"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.SK_Regenrueckhaltebecken_kanal", "targetName": "SKRegenrueckhaltebeckenKanal"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.SK_Regenueberlauf", "targetName": "SKRegenueberlauf"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.SK_Regenueberlaufbecken", "targetName": "SKRegenueberlaufbecken"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.SK_Trennbauwerk", "targetName": "SKTrennbauwerk"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.SK_Uebrige", "targetName": "SKUebrige"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Teileinzugsgebiet", "targetName": "Teileinzugsgebiet"}, {"name": "VSADSSMINI_2020_LV95.VSADSSMini.Ueberlauf_Foerderaggregat", "targetName": "UeberlaufFoerderaggregat"}],
+  "skippedStructures": [],
+  "notes": ["No STRUCTURE or COMPOSITION_ATTRIBUTE entries found in real ili2pg metadata."]
+}

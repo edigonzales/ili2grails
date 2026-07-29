@@ -10,7 +10,17 @@
                                 <g:message code="${domainPropertyName}.${detailField.name}.label"
                                            default="${detailField.label ?: detailField.name}"/>
                             </dt>
-                            <dd>${detailField.value ?: '—'}</dd>
+                            <dd>
+                                <g:if test="${detailField.link?.controller && detailField.link?.id != null}">
+                                    <g:link controller="${detailField.link.controller}"
+                                            action="${detailField.link.action ?: 'show'}"
+                                            id="${detailField.link.id}"
+                                            class="ili-data-link">
+                                        ${detailField.value ?: detailField.link.label ?: detailField.link.id}
+                                    </g:link>
+                                </g:if>
+                                <g:else>${detailField.value ?: '—'}</g:else>
+                            </dd>
                         </div>
                     </g:each>
                 </dl>

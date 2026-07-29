@@ -565,18 +565,12 @@ final class InterlisUiDescriptorSupport {
 
     private static List<Map<String, Object>> defaultFormSections(List<Map<String, Object>> properties) {
         List<Map<String, Object>> sections = []
-        List<String> scalarFields = properties
-            .findAll { editableScalarFormField(it) }
-            .collect { it.name }
-        List<String> relationshipFields = properties
-            .findAll { editableRelationshipFormField(it) }
+        List<String> fields = properties
+            .findAll { editableFormField(it) }
             .collect { it.name }
 
-        if (!scalarFields.isEmpty()) {
-            sections << [title: DEFAULT_BASE_DATA_TITLE, fields: scalarFields]
-        }
-        if (!relationshipFields.isEmpty()) {
-            sections << [title: DEFAULT_LINKED_RECORDS_TITLE, fields: relationshipFields]
+        if (!fields.isEmpty()) {
+            sections << [title: DEFAULT_BASE_DATA_TITLE, fields: fields]
         }
         return sections
     }
@@ -765,7 +759,6 @@ final class InterlisUiDescriptorSupport {
 
     private static boolean scalarDetailProperty(Map<String, Object> property) {
         return !(property?.name in ["id", "version"])
-            && property?.relationship != true
             && property?.geometry != true
             && property?.collection != true
     }
