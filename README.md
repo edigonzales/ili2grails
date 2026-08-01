@@ -510,7 +510,7 @@ ili2c-Informationen nachvollziehbar bleibt:
 | `semanticName` | Fachlicher ili2c-Name, z. B. Attribut- oder Rollenname inklusive Scope. |
 | `mergeReason` | Grund des aktuellen Zustands: `ILI2DB_ONLY`, `ILI2C_ONLY`, `EXACT_NAME`, `EXACT_SOURCE_ATTRIBUTE`, `EXACT_TARGET_ROLE` oder `NORMALIZED_TOKEN`. |
 | `mergeConfidence` | Einschätzung der Match-Qualität: `NONE`, `EXACT` oder `MEDIUM`. |
-| `mergeToken` | Normalisierter Token, der bei heuristischen Matches den Ausschlag gab. |
+| `mergeToken` | Token, der bei normalisierten Matches den Ausschlag gab (exakter Match-Wert). |
 
 `NORMALIZED_TOKEN` ist bewusst als mittlere Confidence markiert: dieser Pfad ist
 praktisch für reale ili2db-Spalten wie `person_id`, bleibt aber der kritischste
@@ -522,16 +522,62 @@ Association, Rolle, Zielklasse, `physicalName`, `semanticName`, `mergeReason` un
 `mergeConfidence` ausgegeben. Die CLI-Option bleibt unverändert: `--merge-report`
 schreibt weiterhin je Modell eine Markdown- und eine JSON-Datei.
 
+### Deterministischer Metadata-Merge (P0)
+Der Merge von physischen (ili2db) und semantischen (ili2c) Metadaten läuft seit
+P0 ausschliesslich über den deterministischen `MetadataMerger`
+(`ch.interlis.generator.metadata.merge`). Es gibt kein *first match wins*:
+
+- Matchphasen sind explizit (`AttributeMatcher`, `RelationshipMatcher`):
+  exakte qualifizierte Namen, exakte Namen, exakte Spalten-/Rollen-/Source-
+  Attribute, normalisierte Voll-Tokens, normalisierte ID-Suffix-Tokens.
+- Pro Phase wird ein Kandidatengraph gebildet; akzeptiert wird nur eine Komponente
+  mit genau einem physischen und einem semantischen Element. 1:n, n:1 oder n:m
+  ist `AMBIGUOUS` und blockiert die Standardgenerierung.
+- Ein physisches Element wird höchstens einmal konsumiert; der semantische Input
+  wird niemals mutiert (tiefe Kopie über `ModelMetadataCopier`).
+- Ambiguitäten, ungematchte Elemente, physische Wiederverwendung und
+  Invarianten-Verletzungen werden als strukturierte `MergeDiagnostic`s
+  (Severity + stabiler `MergeDiagnosticCode` + qualifizierte Namen + Details)
+  geliefert. Tests parsen keine Meldungstexte.
+- `MetadataMergePolicy.STRICT` wirft nach vollständiger Auswertung eine
+  `MetadataMergeException` mit den blockierenden Diagnostics;
+  `DIAGNOSTIC` liefert ein inspizierbares Resultat.
+- Die CLI gibt die gewählten Modelle und die Diagnostics aus; bei blockierenden
+  Diagnostics wird die Generierung mit Exit-Code 65 (EX_DATAERR) beendet, ohne
+  halbfertige Target-Dateien.
+
+### SQL-Identifier (P0)
+Dynamische Schema-, Tabellen- und Spaltennamen werden als typisierte Identifier
+behandelt (`ch.interlis.generator.reader.sql`): `SqlIdentifier` validiert
+Benutzereingaben strikt (kein `;`, keine SQL-Kommentarsequenzen, keine
+Steuerzeichen, kein Punkt, erlaubte Zeichen), `DATABASE_DISCOVERED`-Namen
+erlauben einen breiten Zeichensatz und werden beim Rendering korrekt gequotet,
+`INTERNAL_CONSTANT` unterliegt einem festen Muster. Das Quoting läuft über
+`SqlIdentifierRenderer` mit dem `DatabaseMetaData.getIdentifierQuoteString()`
+der Verbindung. Es gibt keine `{schema}`-Stringersetzung und keine ungeprüfte
+Identifier-Konkatenation in SQL. Raw-Namen in der Core-IR bleiben ungequoted.
+
+### Modellauswahl (P0)
+`readMetadata("RootModel")` liest nur das Root-Modell plus seine transitiven
+echten Imports (über die ili2c-TransferDescription; `Model.getImporting()` in
+ili2c 5.6.8 liefert die direkt importierten Modelle). Unabhängige Modelle
+desselben Schemas werden nicht mehr pauschal aus `t_ili2db_model` gelesen.
+Ohne ili2c gilt der Root-only-Fallback. Das Root-Modell muss in der Datenbank
+vorhanden sein; fehlende Dependencies werden diagnostiziert. ili2db schreibt
+Modellnamen mit Imports als `Name{imports}` in `t_ili2db_model`; der kanonische
+Name ist der Teil vor der geschweiften Klammer.
+
 ### Grails Relationship-/Structure-Mapping
 - Grails nutzt eine interne `GrailsRelationshipMapper`-Schicht statt roher Relationship-Listen.
 - Association-Rollen werden bevorzugt aus `AssociationMetadata` gelesen; `ASSOCIATION_ROLE`-Relationships bleiben Fallback.
 - Das Relationship-Matching berücksichtigt `sourceAttribute`, `targetRoleName` und `physicalName`, damit gemergte ili2db-Spaltennamen wie von Django erkannt werden.
 - `CLASS` und `ASSOCIATION` werden generiert, wenn sie nicht abstrakt sind.
 - `STRUCTURE` wird nur als Domain generiert, wenn sie physisch gemappt ist (`tableName`/`sqlName`) oder Ziel einer `COMPOSITION_ATTRIBUTE` ist.
-- Normale `ILI2DB_FK`- und `REFERENCE_ATTRIBUTE`-Beziehungen werden als typisierte Properties ausgegeben, erzeugen aber kein automatisches `belongsTo`.
-- `COMPOSITION_ATTRIBUTE` erzeugt bei `max > 1` oder `max = -1` ein `hasMany`; bei `max = 1` eine einfache Ziel-Property.
-- `belongsTo` wird nur für physisch vorhandene Composition-FKs ausgegeben. Der Generator erfindet dafür keine synthetischen DB-Spalten.
- - Association-Rollen werden in v1 als Properties auf der Association-Domain modelliert; inverse `hasMany` auf den Zielklassen und direkte Many-to-Many-Abbildungen bleiben bewusst aus.
+- Normale `ILI2DB_FK`- und `REFERENCE_ATTRIBUTE`-Beziehungen werden als typisierte Properties ausgegeben, erzeugen aber kein automatisches `belongsTo` und **keine inverse GORM-Collection**.
+- `COMPOSITION_ATTRIBUTE` erzeugt bei `max > 1` oder `max = -1` ein `hasMany` – aber nur, wenn die physische Abbildung eindeutig belegt ist: das Child besitzt genau eine `MANY_TO_ONE`-Property mit FK-Spalte auf den Owner. Dann wird `mappedBy` gesetzt; bei Mehrdeutigkeit wird fail-closed entschieden (keine Collection, `COMPOSITION_MAPPED_BY_AMBIGUOUS`-Diagnostic).
+- `belongsTo` wird nur für physisch vorhandene Composition-FKs ausgegeben. Der Generator erfindet dafür keine synthetischen DB-Spalten und keine Join-Tabellen.
+- Inverse Related-Sections plant ausschliesslich der `GrailsInverseRelationshipPlanner` query-basiert direkt aus den Core-Relationships (`interlisInverseRelationshipMeta`); sie erzeugen nie `static hasMany`. Mehrere FKs zur selben Zielklasse bleiben getrennte Pläne mit eigenen Property-Namen.
+- Association-Rollen werden in v1 als Properties auf der Association-Domain modelliert; direkte Many-to-Many-Abbildungen bleiben bewusst aus.
 
 #### Association-UX: Quick-Link (binäre Associations)
 - Für binäre `LINK_ENTITY`-Associations ohne eigene Attribute (vom Planner als `QUICK` klassifiziert) bietet die generierte App direktes Hinzufügen und Entfernen aus der Perspektive eines beteiligten Fachobjekts.
@@ -592,8 +638,8 @@ sicher ist:
 - auf der n-Seite existiert genau eine generierte `MANY_TO_ONE`-Property mit
   physischer FK-Spalte, zum Beispiel `Employee.department`;
 - die zugehörige Collection auf der 1-Seite, zum Beispiel
-  `Department.employees`, wurde von derselben `GrailsRelationshipMapper`-Instanz
-  erzeugt;
+  `Department.employees`, wurde von demselben
+  `GrailsInverseRelationshipPlanner` query-basiert geplant;
 - beide Domainklassen werden generiert;
 - die Beziehung ist weder Komposition noch `EXTERNAL`, `ORDERED` oder
   mehrdeutig.
@@ -1417,6 +1463,42 @@ Hinweise zu leeren Befunden. `StructureCompositionCases` ist der deterministisch
 Structure-/Composition-Realtest ohne externe Modell-Repositories; `VSADSSMINI_2020_LV95`
 bleibt das große opportunistische Realmodell. Docker-, ili2pg- oder Repository-Probleme
 führen zu einem sauberen Skip statt zu einem roten Standard-Build.
+
+### Realer Grails-/PostgreSQL-/ili2pg-Vertragstest (P0)
+Der kombinierte Vertragstest beweist die ausgelieferte Kette end-to-end:
+
+```text
+.ili-Modell → ili2pg-Import → physischer Reader → semantischer Reader →
+ModelSelection → MetadataMerger → Grails-Generator → temporäre echte Grails-App →
+GORM/Hibernate → echtes PostgreSQL-Schema → Runtime-Service-Aufrufe
+```
+
+```bash
+PATH=$HOME/.sdkman/candidates/grails/current/bin:$PATH \
+  ./gradlew :target-grails:grailsPostgresContractTest -PcontractTestRequired=true
+```
+
+- Testmodell `test-models/P0PersistenceContract.ili`: zwei FKs auf dieselbe
+  Zielklasse (`Journey.DepartureStation`/`ArrivalStation`), normale 1:n-Referenz
+  (`Document.Owner`), to-many-Komposition mit Child-FK (`Building.Components`),
+  attributlose Link-Tabellen-Associations (Quick-Link) inklusive begrenztem
+  Kardinalitäts-Maximum sowie eine attributierte Association.
+- Abgedeckt werden Quick-Link create/duplicate/delete über
+  `InterlisAssociationCommandService`, Ownership-Mismatch, inverse
+  assign/reassign mit Bestätigung, Validierung/Rollback, `CARDINALITY_MAX_EXCEEDED`,
+  Optimistic-Locking (`CONCURRENT_MODIFICATION`) und die Kompositionspersistenz
+  ohne Join-Tabelle.
+- Die Spock-Integration-Spec wird von der Java-Harness aus `TargetNameRegistry`,
+  `GrailsRelationshipMapper` und den Plannern gerendert – keine hartcodierten
+  Klassennamen. Direktes JDBC-SQL ist auf Setup und unabhängige Verifikation
+  beschränkt; die Businessoperationen laufen über die generierten Services.
+- Im Modus `-PcontractTestRequired=false` (Default) wird fehlende Infrastruktur mit
+  einem Skip gemeldet; im obligatorischen Modus ist jedes fehlende Werkzeug ein
+  Fehler. Reports landen in
+  `build/reports/grails-postgres-contract/` (Environment, App-Pfad,
+  Metadata-Diagnostics, Integration-Test-Log, Domain- und DB-Mapping-Summary;
+  Passwörter redigiert).
+- Skript: `scripts/run-p0-contract-tests.sh`.
 
 ## Weitere Dokumente
 
