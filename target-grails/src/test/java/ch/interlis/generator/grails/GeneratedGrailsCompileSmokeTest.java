@@ -37,8 +37,8 @@ class GeneratedGrailsCompileSmokeTest {
         assertThat(workerDomain).doesNotContain("belongsTo = [baseRef");
 
         String topicADomain = Files.readString(domainDir.resolve("TopicAGebaeude.groovy"));
-        assertThat(topicADomain).contains("components: Component");
-        assertThat(topicADomain).doesNotContain("componentses");
+        assertThat(topicADomain).doesNotContain("static hasMany");
+        assertThat(topicADomain).contains("interlisInverseRelationshipMeta");
 
         String associationDomain = Files.readString(domainDir.resolve("GebaeudeLink.groovy"));
         assertThat(associationDomain).contains("TopicAGebaeude source");
@@ -92,6 +92,8 @@ class GeneratedGrailsCompileSmokeTest {
         AttributeMetadata owner = new AttributeMetadata("owner");
         owner.setForeignKey(true);
         owner.setReferencedClass(topicAGebaeude.getName());
+        owner.setColumnName("owner");
+        owner.setSqlName("owner");
         owner.setJavaType("Long");
         owner.setMandatory(false);
         topicBGebaeude.addAttribute(owner);

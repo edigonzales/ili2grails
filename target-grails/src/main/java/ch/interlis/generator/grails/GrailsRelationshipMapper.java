@@ -19,7 +19,19 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Maps core IR relationships into Grails/GORM domain decisions.
+ * Plant ausschliesslich die GORM-Persistenzabbildung (Properties, echte
+ * Kompositions-Collections, belongsTo, mappedBy).
+ *
+ * <p>Normale eingehende {@code MANY_TO_ONE}-Relationships erzeugen auf der
+ * Zielklasse bewusst keine GORM-Collection (kein {@code static hasMany}).
+ * Inverse/Navigationsbeziehungen plant ausschliesslich der
+ * {@link GrailsInverseRelationshipPlanner} query-basiert.</p>
+ *
+ * <p>Eine to-many-Komposition wird nur dann persistent ({@code hasMany} +
+ * {@code mappedBy}), wenn die physische Abbildung eindeutig belegt ist:
+ * genau ein Child-Property zeigt auf den Owner. Bei Unsicherheit wird
+ * fail-closed entschieden: keine Collection, stattdessen ein
+ * {@link PersistenceDiagnostic}.</p>
  */
 public final class GrailsRelationshipMapper {
 
@@ -58,10 +70,61 @@ public final class GrailsRelationshipMapper {
             .toList();
     }
 
+    /**
+     * Eingehende Relationships einer Zielklasse (Zielklasse == targetClass).
+     */
+    public List<RelationshipMetadata> incomingRelationships(String targetClassName) {
+        if (targetClassName == null) {
+            return List.of();
+        }
+        return List.copyOf(relationshipsByTarget.getOrDefault(targetClassName, List.of()));
+    }
+
+    /**
+     * Ausgehende Relationships einer Source-Klasse.
+     */
+    public List<RelationshipMetadata> outgoingRelationships(String sourceClassName) {
+        if (sourceClassName == null) {
+            return List.of();
+        }
+        return List.copyOf(relationshipsBySource.getOrDefault(sourceClassName, List.of()));
+    }
+
+    /**
+     * Löst die persistente Property einer Relationship auf der Source-Klasse auf.
+     * Es wird nie der erste Kandidat gewählt: 0 Kandidaten sind {@code NOT_FOUND},
+     * mehrere sind {@code AMBIGUOUS}.
+     */
+    public PropertyResolution resolvePropertyForRelationship(ClassMetadata sourceClass,
+                                                             RelationshipMetadata relationship) {
+        Objects.requireNonNull(sourceClass, "sourceClass");
+        Objects.requireNonNull(relationship, "relationship");
+        List<DomainProperty> matches = new ArrayList<>();
+        Set<String> used = new LinkedHashSet<>();
+        for (AttributeMetadata attribute : sourceClass.getAllAttributes()) {
+            if (attribute.isPrimaryKey()) {
+                continue;
+            }
+            RelationshipMetadata attributeRelationship =
+                relationshipForAttribute(sourceClass, attribute);
+            if (attributeRelationship != null && sameRelationship(attributeRelationship, relationship)) {
+                matches.add(propertyForAttribute(sourceClass, attribute, attributeRelationship, used));
+            }
+        }
+        if (matches.size() == 1) {
+            return new PropertyResolution(PropertyResolution.Status.RESOLVED, matches.get(0), List.of());
+        }
+        if (matches.isEmpty()) {
+            return new PropertyResolution(PropertyResolution.Status.NOT_FOUND, null, List.of());
+        }
+        return new PropertyResolution(PropertyResolution.Status.AMBIGUOUS, null, matches);
+    }
+
     public DomainMapping map(ClassMetadata classMetadata) {
         List<DomainProperty> properties = new ArrayList<>();
-        List<DomainCollection> collections = new ArrayList<>();
+        List<PersistentCollection> collections = new ArrayList<>();
         List<DomainOwnership> belongsTo = new ArrayList<>();
+        List<PersistenceDiagnostic> diagnostics = new ArrayList<>();
         Set<String> usedProperties = new LinkedHashSet<>();
         Set<String> representedRelationships = new LinkedHashSet<>();
 
@@ -70,13 +133,13 @@ public final class GrailsRelationshipMapper {
                 continue;
             }
             RelationshipMetadata relationship = relationshipForAttribute(classMetadata, attribute);
-            if (isToManyComposition(relationship) && isGenerated(relationship.getTargetClass())) {
-                collections.add(new DomainCollection(
-                    uniquePropertyName(registry.collectionPropertyName(relationship), usedProperties),
-                    registry.className(relationship.getTargetClass()),
-                    relationship
-                ));
-                representedRelationships.add(relationshipKey(relationship));
+            if (isToManyComposition(relationship)) {
+                PersistentCollection collection = resolveCompositionCollection(
+                    classMetadata, relationship, usedProperties, diagnostics);
+                if (collection != null) {
+                    collections.add(collection);
+                    representedRelationships.add(relationshipKey(relationship));
+                }
                 continue;
             }
 
@@ -98,32 +161,104 @@ public final class GrailsRelationshipMapper {
             if (relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE) {
                 properties.add(propertyForRelationship(relationship, usedProperties));
             } else if (isToManyComposition(relationship)) {
-                collections.add(new DomainCollection(
-                    uniquePropertyName(registry.collectionPropertyName(relationship), usedProperties),
-                    registry.className(relationship.getTargetClass()),
-                    relationship
-                ));
+                PersistentCollection collection = resolveCompositionCollection(
+                    classMetadata, relationship, usedProperties, diagnostics);
+                if (collection != null) {
+                    collections.add(collection);
+                }
             } else if (relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE
                 || relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE) {
                 properties.add(propertyForRelationship(relationship, usedProperties));
             }
         }
 
-        for (RelationshipMetadata relationship : relationshipsByTarget.getOrDefault(classMetadata.getName(), List.of())) {
-            if (relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE
-                || relationship.getSemanticKind() == RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE
-                || !isGenerated(relationship.getSourceClass())
-                || relationship.getType() != RelationshipMetadata.RelationType.MANY_TO_ONE) {
-                continue;
-            }
-            collections.add(new DomainCollection(
-                uniquePropertyName(registry.collectionPropertyName(relationship), usedProperties),
-                registry.className(relationship.getSourceClass()),
-                relationship
-            ));
+        return new DomainMapping(classMetadata, properties, collections, belongsTo, diagnostics);
+    }
+
+    /**
+     * Löst eine to-many-Kompositions-Collection mit eindeutigem Child-FK auf.
+     * Fail-closed: ohne eindeutige physische Abbildung entsteht keine Collection.
+     */
+    private PersistentCollection resolveCompositionCollection(ClassMetadata ownerClass,
+                                                              RelationshipMetadata relationship,
+                                                              Set<String> usedProperties,
+                                                              List<PersistenceDiagnostic> diagnostics) {
+        if (!isToManyComposition(relationship)) {
+            return null;
+        }
+        String childClassName = relationship.getTargetClass();
+        if (childClassName == null || !isGenerated(childClassName)) {
+            return null;
+        }
+        ClassMetadata childClass = metadata.getClass(childClassName);
+        if (childClass == null) {
+            return null;
         }
 
-        return new DomainMapping(classMetadata, properties, collections, belongsTo);
+        List<DomainProperty> candidateProperties = new ArrayList<>();
+        for (RelationshipMetadata fk : outgoingRelationships(childClassName)) {
+            if (!Objects.equals(fk.getTargetClass(), ownerClass.getName())
+                || fk.getType() != RelationshipMetadata.RelationType.MANY_TO_ONE
+                || fk.isExternal()
+                || (fk.getSemanticKind() != RelationshipMetadata.SemanticKind.ILI2DB_FK
+                && fk.getSemanticKind() != RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE)) {
+                continue;
+            }
+            PropertyResolution resolution = resolvePropertyForRelationship(childClass, fk);
+            if (resolution.status() == PropertyResolution.Status.RESOLVED) {
+                candidateProperties.add(resolution.property());
+            } else if (resolution.status() == PropertyResolution.Status.AMBIGUOUS) {
+                diagnostics.add(new PersistenceDiagnostic(
+                    PersistenceDiagnostic.Severity.ERROR,
+                    PersistenceDiagnostic.Code.RELATIONSHIP_PROPERTY_AMBIGUOUS,
+                    ownerClass.getName(),
+                    relationship.getName(),
+                    "composition child property for relationship '" + fk.getName()
+                        + "' is ambiguous"
+                ));
+            }
+        }
+
+        if (candidateProperties.size() == 1) {
+            DomainProperty mappedBy = candidateProperties.get(0);
+            if (mappedBy.columnName() == null || mappedBy.columnName().isBlank()) {
+                diagnostics.add(new PersistenceDiagnostic(
+                    PersistenceDiagnostic.Severity.WARNING,
+                    PersistenceDiagnostic.Code.COMPOSITION_COLLECTION_UNRESOLVED,
+                    ownerClass.getName(),
+                    relationship.getName(),
+                    "composition collection has no physical child FK column"
+                ));
+                return null;
+            }
+            return new PersistentCollection(
+                uniquePropertyName(registry.collectionPropertyName(relationship), usedProperties),
+                registry.className(childClassName),
+                mappedBy.name(),
+                CollectionKind.COMPOSITION,
+                relationship
+            );
+        }
+
+        if (candidateProperties.isEmpty()) {
+            diagnostics.add(new PersistenceDiagnostic(
+                PersistenceDiagnostic.Severity.WARNING,
+                PersistenceDiagnostic.Code.COMPOSITION_COLLECTION_UNRESOLVED,
+                ownerClass.getName(),
+                relationship.getName(),
+                "composition collection has no resolvable child FK property"
+            ));
+        } else {
+            diagnostics.add(new PersistenceDiagnostic(
+                PersistenceDiagnostic.Severity.ERROR,
+                PersistenceDiagnostic.Code.COMPOSITION_MAPPED_BY_AMBIGUOUS,
+                ownerClass.getName(),
+                relationship.getName(),
+                "composition collection has multiple child FK properties; "
+                    + "mappedBy is not guessed"
+            ));
+        }
+        return null;
     }
 
     private DomainProperty propertyForAttribute(ClassMetadata owner,
@@ -431,6 +566,18 @@ public final class GrailsRelationshipMapper {
         );
     }
 
+    private boolean sameRelationship(RelationshipMetadata left, RelationshipMetadata right) {
+        if (left == null || right == null) {
+            return false;
+        }
+        return Objects.equals(left.getName(), right.getName())
+            && Objects.equals(left.getSourceClass(), right.getSourceClass())
+            && Objects.equals(left.getTargetClass(), right.getTargetClass())
+            && Objects.equals(left.getSourceAttribute(), right.getSourceAttribute())
+            && Objects.equals(left.getTargetRoleName(), right.getTargetRoleName())
+            && left.getSemanticKind() == right.getSemanticKind();
+    }
+
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }
@@ -440,12 +587,46 @@ public final class GrailsRelationshipMapper {
         String className(RelationshipMetadata relationship);
     }
 
+    /**
+     * Ergebnis der Property-Auflösung für eine Relationship.
+     */
+    public record PropertyResolution(
+        Status status,
+        DomainProperty property,
+        List<DomainProperty> candidates
+    ) {
+
+        public enum Status {
+            RESOLVED,
+            NOT_FOUND,
+            AMBIGUOUS
+        }
+
+        public PropertyResolution {
+            candidates = candidates == null
+                ? List.of()
+                : List.copyOf(candidates);
+        }
+    }
+
+    /**
+     * Persistenzplan einer Klasse: Properties, persistente Collections,
+     * Ownerships und Persistenz-Diagnostics.
+     */
     public record DomainMapping(
         ClassMetadata classMetadata,
         List<DomainProperty> properties,
-        List<DomainCollection> collections,
-        List<DomainOwnership> belongsTo
+        List<PersistentCollection> collections,
+        List<DomainOwnership> belongsTo,
+        List<PersistenceDiagnostic> diagnostics
     ) {
+
+        public DomainMapping {
+            properties = List.copyOf(properties);
+            collections = List.copyOf(collections);
+            belongsTo = List.copyOf(belongsTo);
+            diagnostics = List.copyOf(diagnostics);
+        }
     }
 
     public record DomainProperty(
@@ -468,11 +649,24 @@ public final class GrailsRelationshipMapper {
     ) {
     }
 
-    public record DomainCollection(
+    /**
+     * Persistente GORM-Collection. Es gibt bewusst keine Navigations- oder
+     * Related-Section-Art in diesem Persistenztyp.
+     */
+    public record PersistentCollection(
         String name,
-        String type,
+        String elementType,
+        String mappedByProperty,
+        CollectionKind kind,
         RelationshipMetadata relationship
     ) {
+    }
+
+    /**
+     * Art einer persistenten Collection. Aktuell nur echte Komposition.
+     */
+    public enum CollectionKind {
+        COMPOSITION
     }
 
     public record DomainOwnership(

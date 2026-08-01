@@ -22,8 +22,6 @@ class Asset {
         optionalAttachment: [targetClass: 'Attachment', semanticKind: 'COMPOSITION_ATTRIBUTE', label: 'OptionalAttachment', sourceAttribute: 'OptionalAttachment', targetRole: 'OptionalAttachment', mandatory: false]
     ]
 
-    static hasMany = [parts: Part]
-
     static mapping = {
         version false
     }

@@ -11,11 +11,13 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Resolves safe inverse editors for physical many-to-one relationships.
+ * Plant inverse/navigationale Related-Sections direkt aus den Core-Relationships
+ * und den tatsächlichen Child-Properties.
  *
- * <p>The mapper remains the source of truth for the generated collection and
- * property names. This is important when ili2db names need normalization or
- * collide with other generated properties.
+ * <p>Eine inverse Related-Section ist keine GORM-Collection. Der Planner erzeugt
+ * bewusst kein {@code static hasMany}; die Navigation läuft über den
+ * Query-Service. Mehrere FKs derselben Zielklasse erzeugen getrennte Pläne mit
+ * unterschiedlichen Property-Namen.</p>
  */
 public final class GrailsInverseRelationshipPlanner {
 
@@ -61,77 +63,97 @@ public final class GrailsInverseRelationshipPlanner {
 
     private List<GrailsInverseRelationshipPlan> buildPlans() {
         List<GrailsInverseRelationshipPlan> result = new ArrayList<>();
-        for (ClassMetadata ownerClass : relationshipMapper.generatedClasses()) {
-            if (!isRegularPersistentClass(ownerClass)) {
+
+        for (RelationshipMetadata relationship : eligibleRelationships()) {
+            ClassMetadata ownerClass = metadata.getClass(relationship.getTargetClass());
+            ClassMetadata relatedClass = metadata.getClass(relationship.getSourceClass());
+            if (ownerClass == null || relatedClass == null) {
                 continue;
             }
-            GrailsRelationshipMapper.DomainMapping ownerMapping = relationshipMapper.map(ownerClass);
-            for (GrailsRelationshipMapper.DomainCollection collection : ownerMapping.collections()) {
-                RelationshipMetadata relationship = collection.relationship();
-                if (!isSafeInverseRelationship(ownerClass, relationship)) {
-                    continue;
-                }
-                ClassMetadata relatedClass = metadata.getClass(relationship.getSourceClass());
-                if (!isRegularPersistentClass(relatedClass) || !relationshipMapper.shouldGenerate(relatedClass)) {
-                    continue;
-                }
-                List<GrailsRelationshipMapper.DomainProperty> relatedProperties =
-                    matchingRelatedProperties(relatedClass, relationship);
-                if (relatedProperties.size() != 1) {
-                    continue;
-                }
-                GrailsRelationshipMapper.DomainProperty relatedProperty = relatedProperties.get(0);
-                if (!registry.className(ownerClass).equals(relatedProperty.type())
-                    || relatedProperty.columnName() == null
-                    || relatedProperty.columnName().isBlank()) {
-                    continue;
-                }
 
-                result.add(new GrailsInverseRelationshipPlan(
-                    ownerClass.getName(),
-                    collection.name(),
-                    relatedClass.getName(),
-                    registry.domainPackage() + "." + registry.className(relatedClass),
-                    relatedProperty.name(),
-                    relationship.getName(),
-                    collectionLabel(relatedClass),
-                    classLabel(relatedClass),
-                    !relatedProperty.nullable(),
-                    config.isAssociationUiEnabled(),
-                    config.isAssociationUiEditable()
-                ));
+            GrailsRelationshipMapper.PropertyResolution resolution =
+                relationshipMapper.resolvePropertyForRelationship(relatedClass, relationship);
+            if (resolution.status() != GrailsRelationshipMapper.PropertyResolution.Status.RESOLVED) {
+                continue;
             }
+            GrailsRelationshipMapper.DomainProperty relatedProperty = resolution.property();
+            if (relatedProperty.columnName() == null || relatedProperty.columnName().isBlank()) {
+                continue;
+            }
+            if (!registry.className(ownerClass).equals(relatedProperty.type())) {
+                continue;
+            }
+
+            result.add(toPlan(ownerClass, relatedClass, relatedProperty, relationship));
         }
-        return List.copyOf(result);
+
+        return sortedImmutable(result);
     }
 
-    private List<GrailsRelationshipMapper.DomainProperty> matchingRelatedProperties(
-        ClassMetadata relatedClass,
-        RelationshipMetadata relationship
-    ) {
-        return relationshipMapper.map(relatedClass).properties().stream()
-            .filter(property -> sameRelationship(property.relationship(), relationship))
+    private List<GrailsInverseRelationshipPlan> sortedImmutable(List<GrailsInverseRelationshipPlan> result) {
+        return result.stream()
+            .sorted(Comparator
+                .comparing(GrailsInverseRelationshipPlan::ownerIliClassName,
+                    Comparator.nullsLast(String::compareTo))
+                .thenComparing(GrailsInverseRelationshipPlan::collectionPropertyName,
+                    Comparator.nullsLast(String::compareTo)))
             .toList();
     }
 
-    private boolean isSafeInverseRelationship(ClassMetadata ownerClass, RelationshipMetadata relationship) {
-        if (relationship == null
-            || relationship.getType() != RelationshipMetadata.RelationType.MANY_TO_ONE
-            || relationship.isComposition()
-            || relationship.isExternal()
-            || relationship.isOrdered()) {
-            return false;
-        }
-        if (relationship.getSemanticKind() != RelationshipMetadata.SemanticKind.ILI2DB_FK
-            && relationship.getSemanticKind() != RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE) {
-            return false;
-        }
-        return ownerClass.getName().equals(relationship.getTargetClass())
-            && relationship.getSourceClass() != null;
+    private GrailsInverseRelationshipPlan toPlan(ClassMetadata ownerClass,
+                                                 ClassMetadata relatedClass,
+                                                 GrailsRelationshipMapper.DomainProperty relatedProperty,
+                                                 RelationshipMetadata relationship) {
+        return new GrailsInverseRelationshipPlan(
+            ownerClass.getName(),
+            registry.collectionPropertyName(relationship),
+            relatedClass.getName(),
+            registry.domainPackage() + "." + registry.className(relatedClass),
+            relatedProperty.name(),
+            relationship.getName(),
+            collectionLabel(relatedClass),
+            classLabel(relatedClass),
+            !relatedProperty.nullable(),
+            config.isAssociationUiEnabled(),
+            config.isAssociationUiEditable(),
+            false
+        );
     }
 
-    private boolean isRegularPersistentClass(ClassMetadata classMetadata) {
-        if (classMetadata == null) {
+    /**
+     * Nur einfache inverse MANY_TO_ONE-Relationships: ILI2DB_FK oder
+     * REFERENCE_ATTRIBUTE, keine Association-Rolle, keine Komposition, nicht
+     * external, nicht ordered, physisch belegt, auf generierten regulären
+     * persistenten Klassen.
+     */
+    private List<RelationshipMetadata> eligibleRelationships() {
+        return metadata.getAllRelationships().stream()
+            .filter(relationship -> relationship.getType() == RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .filter(relationship -> relationship.getSemanticKind()
+                == RelationshipMetadata.SemanticKind.ILI2DB_FK
+                || relationship.getSemanticKind()
+                == RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE)
+            .filter(relationship -> !relationship.isComposition())
+            .filter(relationship -> !relationship.isExternal())
+            .filter(relationship -> !relationship.isOrdered())
+            .filter(relationship -> relationship.getTargetClass() != null
+                && relationship.getSourceClass() != null)
+            .filter(relationship -> isRegularGeneratedPersistentClass(
+                metadata.getClass(relationship.getTargetClass())))
+            .filter(relationship -> isRegularGeneratedPersistentClass(
+                metadata.getClass(relationship.getSourceClass())))
+            .sorted(Comparator
+                .comparing(RelationshipMetadata::getSourceClass,
+                    Comparator.nullsLast(String::compareTo))
+                .thenComparing(RelationshipMetadata::getTargetClass,
+                    Comparator.nullsLast(String::compareTo))
+                .thenComparing(RelationshipMetadata::getTargetRoleName,
+                    Comparator.nullsLast(String::compareTo)))
+            .toList();
+    }
+
+    private boolean isRegularGeneratedPersistentClass(ClassMetadata classMetadata) {
+        if (classMetadata == null || !relationshipMapper.shouldGenerate(classMetadata)) {
             return false;
         }
         if (classMetadata.getKind() == ClassMetadata.ClassKind.ASSOCIATION
@@ -139,18 +161,6 @@ public final class GrailsInverseRelationshipPlanner {
             return false;
         }
         return notBlank(classMetadata.getTableName()) || notBlank(classMetadata.getSqlName());
-    }
-
-    private boolean sameRelationship(RelationshipMetadata left, RelationshipMetadata right) {
-        if (left == null || right == null) {
-            return false;
-        }
-        return Objects.equals(left.getName(), right.getName())
-            && Objects.equals(left.getSourceClass(), right.getSourceClass())
-            && Objects.equals(left.getTargetClass(), right.getTargetClass())
-            && Objects.equals(left.getSourceAttribute(), right.getSourceAttribute())
-            && Objects.equals(left.getTargetRoleName(), right.getTargetRoleName())
-            && left.getSemanticKind() == right.getSemanticKind();
     }
 
     private String collectionLabel(ClassMetadata relatedClass) {

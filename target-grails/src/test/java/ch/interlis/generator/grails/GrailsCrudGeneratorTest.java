@@ -46,8 +46,8 @@ class GrailsCrudGeneratorTest {
         assertThat(domainContent).contains("person nullable: true");
 
         String personDomain = Files.readString(domainDir.resolve("Person.groovy"));
-        assertThat(personDomain).contains("static hasMany");
-        assertThat(personDomain).contains("addresses: Address");
+        assertThat(personDomain).doesNotContain("static hasMany");
+        assertThat(personDomain).doesNotContain("addresses: Address");
     }
 
     @Test
@@ -74,7 +74,11 @@ class GrailsCrudGeneratorTest {
         assertThat(topicADomain).contains("class TopicAGebaeude");
         assertThat(topicADomain).contains("import com.example.enums.TopicAStatus");
         assertThat(topicADomain).contains("TopicAStatus status");
-        assertThat(topicADomain).contains("static hasMany = [topicBGebaeudes: TopicBGebaeude]");
+        assertThat(topicADomain).doesNotContain("static hasMany");
+        assertThat(topicADomain).contains(
+            "interlisInverseRelationshipMeta");
+        assertThat(topicADomain).contains(
+            "topicBGebaeudes: [relatedDomainClass: 'com.example.domain.TopicBGebaeude'");
 
         String topicBDomain = Files.readString(topicBFile);
         assertThat(topicBDomain).contains("class TopicBGebaeude");
@@ -161,6 +165,8 @@ class GrailsCrudGeneratorTest {
         AttributeMetadata owner = new AttributeMetadata("owner");
         owner.setForeignKey(true);
         owner.setReferencedClass(topicAGebaeude.getName());
+        owner.setColumnName("owner");
+        owner.setSqlName("owner");
         owner.setMandatory(false);
         topicBGebaeude.addAttribute(owner);
 

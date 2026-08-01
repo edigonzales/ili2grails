@@ -46,7 +46,10 @@ class GrailsCrudGeneratorTest {
         assertThat(domainContent).contains("firstName column: 'first_name'");
         assertThat(domainContent).contains("firstName maxSize: 40");
         assertThat(domainContent).contains("status nullable: true");
-        assertThat(domainContent).contains("static hasMany = [personAddresses: PersonAddress]");
+        assertThat(domainContent).doesNotContain("static hasMany");
+        assertThat(domainContent).contains(
+            "static final Map<String, Map<String, Object>> interlisInverseRelationshipMeta");
+        assertThat(domainContent).contains("personAddresses:");
 
         String enumContent = Files.readString(enumFile);
         assertThat(enumContent).contains("package com.example.enums");
@@ -146,6 +149,8 @@ class GrailsCrudGeneratorTest {
         rel.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
         rel.setSourceClass(personAddress.getName());
         rel.setTargetClass(person.getName());
+        rel.setSourceAttribute("person_id");
+        rel.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
         personAddress.addRelationship(rel);
         metadata.addClass(personAddress);
 

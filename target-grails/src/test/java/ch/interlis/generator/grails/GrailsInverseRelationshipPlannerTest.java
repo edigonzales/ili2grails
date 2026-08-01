@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -128,6 +129,76 @@ class GrailsInverseRelationshipPlannerTest {
         assertThat(employee)
             .contains("Department department")
             .contains("department column: 'department'");
+    }
+
+    @Test
+    void twoFksToSameTargetProduceSeparatePlans() {
+        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ClassMetadata station = persistentClass("TestModel.Transport.Station", "station");
+        ClassMetadata journey = persistentClass("TestModel.Transport.Journey", "journey");
+
+        AttributeMetadata departure = new AttributeMetadata("departureStation");
+        departure.setJavaType("Long");
+        departure.setForeignKey(true);
+        departure.setReferencedClass(station.getName());
+        departure.setSqlName("departure_station_id");
+        departure.setColumnName("departure_station_id");
+        journey.addAttribute(departure);
+        AttributeMetadata arrival = new AttributeMetadata("arrivalStation");
+        arrival.setJavaType("Long");
+        arrival.setForeignKey(true);
+        arrival.setReferencedClass(station.getName());
+        arrival.setSqlName("arrival_station_id");
+        arrival.setColumnName("arrival_station_id");
+        journey.addAttribute(arrival);
+        metadata.addClass(station);
+        metadata.addClass(journey);
+
+        RelationshipMetadata departureRelationship = new RelationshipMetadata(
+            "TestModel.Transport.Journey_Departure");
+        departureRelationship.setSourceClass(journey.getName());
+        departureRelationship.setTargetClass(station.getName());
+        departureRelationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
+        departureRelationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
+        departureRelationship.setSourceAttribute("departure_station_id");
+        departureRelationship.setTargetRoleName("DepartureStation");
+        metadata.addRelationship(departureRelationship);
+
+        RelationshipMetadata arrivalRelationship = new RelationshipMetadata(
+            "TestModel.Transport.Journey_Arrival");
+        arrivalRelationship.setSourceClass(journey.getName());
+        arrivalRelationship.setTargetClass(station.getName());
+        arrivalRelationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
+        arrivalRelationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
+        arrivalRelationship.setSourceAttribute("arrival_station_id");
+        arrivalRelationship.setTargetRoleName("ArrivalStation");
+        metadata.addRelationship(arrivalRelationship);
+
+        List<GrailsInverseRelationshipPlan> plans =
+            planner(metadata, defaultConfig()).plansForOwner(station.getName());
+
+        assertThat(plans).hasSize(2);
+        assertThat(plans)
+            .extracting(GrailsInverseRelationshipPlan::collectionPropertyName)
+            .containsExactlyInAnyOrder("departureStations", "arrivalStations");
+        assertThat(plans)
+            .extracting(GrailsInverseRelationshipPlan::relatedPropertyName)
+            .containsExactlyInAnyOrder("departureStationId", "arrivalStationId");
+        assertThat(plans)
+            .extracting(GrailsInverseRelationshipPlan::persistentCollectionBacked)
+            .containsOnly(false);
+    }
+
+    @Test
+    void normalInversePlansAreNotPersistentCollectionBacked() {
+        Fixture fixture = fixture("departmentReference", "department");
+
+        assertThat(planner(fixture.metadata(), defaultConfig()).plans())
+            .singleElement()
+            .satisfies(plan -> {
+                assertThat(plan.persistentCollectionBacked()).isFalse();
+                assertThat(plan.relatedPropertyName()).isEqualTo("department");
+            });
     }
 
     private GrailsInverseRelationshipPlanner planner(ModelMetadata metadata, GenerationConfig config) {

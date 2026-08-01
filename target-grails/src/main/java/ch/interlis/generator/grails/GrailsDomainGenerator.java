@@ -203,17 +203,12 @@ public class GrailsDomainGenerator {
         }
 
         if (!mapping.collections().isEmpty()) {
-            String hasManyBlock = mapping.collections().stream()
-                .map(collection -> collection.name() + ": " + collection.type())
-                .collect(Collectors.joining(", "));
-            sb.append("\n    static hasMany = [").append(hasManyBlock).append("]\n");
+            renderHasMany(sb, mapping.collections());
+            renderMappedBy(sb, mapping.collections());
         }
 
         if (!mapping.belongsTo().isEmpty()) {
-            String belongsToBlock = mapping.belongsTo().stream()
-                .map(ownership -> ownership.name() + ": " + ownership.type())
-                .collect(Collectors.joining(", "));
-            sb.append("\n    static belongsTo = [").append(belongsToBlock).append("]\n");
+            renderBelongsTo(sb, mapping.belongsTo());
         }
 
         sb.append("\n    static mapping = {\n");
@@ -325,6 +320,49 @@ public class GrailsDomainGenerator {
             return true;
         }
         return "version".equalsIgnoreCase(attr.getName());
+    }
+
+    /**
+     * Rendert {@code static hasMany} ausschliesslich aus persistenten
+     * Collections (echte Kompositionen mit eindeutiger physischer Abbildung).
+     */
+    private void renderHasMany(StringBuilder sb,
+                               List<GrailsRelationshipMapper.PersistentCollection> collections) {
+        String hasManyBlock = collections.stream()
+            .sorted(java.util.Comparator.comparing(
+                GrailsRelationshipMapper.PersistentCollection::name))
+            .map(collection -> collection.name() + ": " + collection.elementType())
+            .collect(Collectors.joining(", "));
+        sb.append("\n    static hasMany = [").append(hasManyBlock).append("]\n");
+    }
+
+    /**
+     * Rendert {@code static mappedBy} nur für Collections mit eindeutig
+     * aufgelöster Child-Property (nichtblanker {@code mappedByProperty}).
+     */
+    private void renderMappedBy(StringBuilder sb,
+                                List<GrailsRelationshipMapper.PersistentCollection> collections) {
+        String mappedByBlock = collections.stream()
+            .filter(collection -> collection.mappedByProperty() != null
+                && !collection.mappedByProperty().isBlank())
+            .sorted(java.util.Comparator.comparing(
+                GrailsRelationshipMapper.PersistentCollection::name))
+            .map(collection -> collection.name() + ": '" + escapeGroovy(collection.mappedByProperty()) + "'")
+            .collect(Collectors.joining(", "));
+        if (!mappedByBlock.isEmpty()) {
+            sb.append("\n    static mappedBy = [").append(mappedByBlock).append("]\n");
+        }
+    }
+
+    /**
+     * Rendert {@code static belongsTo} nur für echte Ownership/Komposition.
+     */
+    private void renderBelongsTo(StringBuilder sb,
+                                 List<GrailsRelationshipMapper.DomainOwnership> ownerships) {
+        String belongsToBlock = ownerships.stream()
+            .map(ownership -> ownership.name() + ": " + ownership.type())
+            .collect(Collectors.joining(", "));
+        sb.append("\n    static belongsTo = [").append(belongsToBlock).append("]\n");
     }
 
     private String renderGeometryMeta(GrailsRelationshipMapper.DomainProperty property) {

@@ -98,6 +98,119 @@ class GrailsDomainGeneratorTest {
     }
 
     @Test
+    void twoFksToSameTargetProduceNoHasManyAndTwoInverseMetaEntries(@TempDir Path tempDir)
+        throws Exception {
+        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ClassMetadata station = new ClassMetadata("TestModel.Station");
+        station.setTableName("station");
+        station.addAttribute(primaryKeyAttribute());
+        metadata.addClass(station);
+
+        ClassMetadata journey = new ClassMetadata("TestModel.Journey");
+        journey.setTableName("journey");
+        journey.addAttribute(primaryKeyAttribute());
+        journey.addAttribute(foreignKeyAttribute(
+            "departureStation", "departure_station_id", station.getName()));
+        journey.addAttribute(foreignKeyAttribute(
+            "arrivalStation", "arrival_station_id", station.getName()));
+        metadata.addClass(journey);
+
+        metadata.addRelationship(manYToOne("journey_departure", journey, station,
+            "departure_station_id", "DepartureStation"));
+        metadata.addRelationship(manYToOne("journey_arrival", journey, station,
+            "arrival_station_id", "ArrivalStation"));
+
+        GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
+        new GrailsDomainGenerator().generate(metadata, config);
+
+        Path stationDomain = tempDir.resolve("grails-app/domain/com/example/Station.groovy");
+        String content = Files.readString(stationDomain);
+
+        assertThat(content).doesNotContain("static hasMany");
+        assertThat(content)
+            .contains("static final Map<String, Map<String, Object>> interlisInverseRelationshipMeta");
+        assertThat(content).contains("departureStations: [");
+        assertThat(content).contains("arrivalStations: [");
+        assertThat(content).contains("relatedProperty: 'departureStationId'");
+        assertThat(content).contains("relatedProperty: 'arrivalStationId'");
+        assertThat(content).doesNotContain("static mappedBy");
+    }
+
+    @Test
+    void compositionWithUniqueMappedByRendersHasManyAndMappedBy(@TempDir Path tempDir)
+        throws Exception {
+        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ClassMetadata owner = new ClassMetadata("TestModel.Owner");
+        owner.setTableName("owner");
+        owner.addAttribute(primaryKeyAttribute());
+        metadata.addClass(owner);
+
+        ClassMetadata part = new ClassMetadata("TestModel.Part");
+        part.setTableName("part");
+        part.addAttribute(primaryKeyAttribute());
+        part.addAttribute(foreignKeyAttribute("owner", "owner_id", owner.getName()));
+        metadata.addClass(part);
+
+        RelationshipMetadata composition = new RelationshipMetadata("owner_parts");
+        composition.setSourceClass(owner.getName());
+        composition.setTargetClass(part.getName());
+        composition.setType(RelationshipMetadata.RelationType.ONE_TO_MANY);
+        composition.setSemanticKind(RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE);
+        composition.setSourceAttribute("parts");
+        composition.setComposition(true);
+        composition.setCardinality(new RelationshipMetadata.Cardinality(1, 1, 0, -1));
+        metadata.addRelationship(composition);
+
+        RelationshipMetadata ownerFk = new RelationshipMetadata("part_owner");
+        ownerFk.setSourceClass(part.getName());
+        ownerFk.setTargetClass(owner.getName());
+        ownerFk.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
+        ownerFk.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
+        ownerFk.setSourceAttribute("owner_id");
+        ownerFk.setComposition(true);
+        metadata.addRelationship(ownerFk);
+
+        GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
+        new GrailsDomainGenerator().generate(metadata, config);
+
+        Path ownerDomain = tempDir.resolve("grails-app/domain/com/example/Owner.groovy");
+        String content = Files.readString(ownerDomain);
+
+        assertThat(content).contains("static hasMany = [parts: Part]");
+        assertThat(content).contains("static mappedBy = [parts: 'ownerId']");
+
+        Path partDomain = tempDir.resolve("grails-app/domain/com/example/Part.groovy");
+        String partContent = Files.readString(partDomain);
+        assertThat(partContent).contains("Owner ownerId");
+        assertThat(partContent).contains("static belongsTo = [ownerId: Owner]");
+    }
+
+    private RelationshipMetadata manYToOne(String name,
+                                           ClassMetadata source,
+                                           ClassMetadata target,
+                                           String sourceAttribute,
+                                           String targetRoleName) {
+        RelationshipMetadata relationship = new RelationshipMetadata(name);
+        relationship.setSourceClass(source.getName());
+        relationship.setTargetClass(target.getName());
+        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
+        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
+        relationship.setSourceAttribute(sourceAttribute);
+        relationship.setTargetRoleName(targetRoleName);
+        relationship.setPhysicalName(sourceAttribute);
+        return relationship;
+    }
+
+    private AttributeMetadata foreignKeyAttribute(String name, String columnName, String referencedClass) {
+        AttributeMetadata attribute = new AttributeMetadata(name);
+        attribute.setSqlName(columnName);
+        attribute.setColumnName(columnName);
+        attribute.setForeignKey(true);
+        attribute.setReferencedClass(referencedClass);
+        return attribute;
+    }
+
+    @Test
     void rendersGeometryMetaWithTypedKindAndValidationFlags(@TempDir Path tempDir) throws Exception {
         ModelMetadata metadata = new ModelMetadata("TestModel");
         ClassMetadata parcel = new ClassMetadata("TestModel.Parcel");
