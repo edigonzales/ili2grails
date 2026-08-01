@@ -561,10 +561,12 @@ class GrailsRuntimeSmokeTest {
                     sections[0].total == 0
                     options.results*.id == [employee.id.toString()]
                     options.results[0].label.contains('HR')
-                    needsConfirmation.status == 409
-                    needsConfirmation.code == 'REASSIGNMENT_CONFIRMATION_REQUIRED'
-                    firstAssignment.success
-                    firstAssignment.code == 'ASSIGNED'
+                    needsConfirmation.httpStatus() == 409
+                    needsConfirmation.code() ==
+                        ch.interlis.generator.grails.runtime.api.command.CommandCode.REASSIGNMENT_CONFIRMATION_REQUIRED
+                    firstAssignment.success()
+                    firstAssignment.code() ==
+                        ch.interlis.generator.grails.runtime.api.command.CommandCode.ASSIGNED
                     Employee.get(employee.id).department.id == hr.id
                     Employee.get(unassigned.id).department.id == operations.id
 
@@ -580,15 +582,18 @@ class GrailsRuntimeSmokeTest {
                         Department, operations.id, 'unknown', employee.id, false)
 
                     then:
-                    moved.success
-                    moved.code == 'REASSIGNED'
+                    moved.success()
+                    moved.code() ==
+                        ch.interlis.generator.grails.runtime.api.command.CommandCode.REASSIGNED
                     Employee.get(employee.id).department.id == operations.id
                     operationRows.total == 2
                     operationRows.rows*.id.toSet() == [employee.id.toString(), unassigned.id.toString()].toSet()
-                    repeated.success
-                    repeated.code == 'ALREADY_ASSIGNED'
-                    invalid.status == 400
-                    invalid.code == 'RELATIONSHIP_INVALID'
+                    repeated.success()
+                    repeated.code() ==
+                        ch.interlis.generator.grails.runtime.api.command.CommandCode.ALREADY_ASSIGNED
+                    invalid.httpStatus() == 400
+                    invalid.code() ==
+                        ch.interlis.generator.grails.runtime.api.command.CommandCode.RELATIONSHIP_INVALID
                 }
             }
             """;

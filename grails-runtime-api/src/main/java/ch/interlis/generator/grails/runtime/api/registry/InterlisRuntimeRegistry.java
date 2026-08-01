@@ -186,4 +186,8 @@ public final class InterlisRuntimeRegistry {
     public Collection<AssociationDescriptor> associations() {
         return java.util.Collections.unmodifiableCollection(associationsByName.values());
     }
+
+    public Collection<AssociationContextDescriptor> contexts() {
+        return java.util.Collections.unmodifiableCollection(contextsById.values());
+    }
 }

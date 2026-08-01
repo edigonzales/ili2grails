@@ -737,6 +737,7 @@ public class GrailsPostgresContractTest {
             import ch.interlis.generator.grails.runtime.InterlisAssociationCommandService
             import ch.interlis.generator.grails.runtime.InterlisInverseRelationshipCommandService
             import ch.interlis.generator.grails.runtime.InterlisInverseRelationshipQueryService
+            import ch.interlis.generator.grails.runtime.api.command.CommandCode
             import %1$s.%2$s
             import %1$s.%3$s
             import %1$s.%4$s
@@ -846,11 +847,11 @@ public class GrailsPostgresContractTest {
                         %6$s, parcel.id, JOURNEY_LINK_CONTEXT, JOURNEY_LINK_EDITABLE_ROLE, journey.id)
 
                     then:
-                    created.success == true
-                    created.status == 201
+                    created.success() == true
+                    created.httpStatus() == 201
                     created.associationId != null
-                    duplicate.success == false
-                    duplicate.code == 'DUPLICATE_LINK'
+                    duplicate.success() == false
+                    duplicate.code() == ch.interlis.generator.grails.runtime.api.command.CommandCode.DUPLICATE_LINK
 
                     when:
                     def link = %9$s.get(created.associationId as Long)
@@ -861,8 +862,8 @@ public class GrailsPostgresContractTest {
                     link != null
                     link[JOURNEY_LINK_PROPS['LinkedJourney']].id == parcel.id
                     link[JOURNEY_LINK_PROPS['LinkedParcel']].id == journey.id
-                    deleted.success == true
-                    deleted.status == 204
+                    deleted.success() == true
+                    deleted.httpStatus() == 204
                     %9$s.get(created.associationId as Long) == null
                     %6$s.get(parcel.id) != null
                     %2$s.get(journey.id) != null
@@ -881,9 +882,9 @@ public class GrailsPostgresContractTest {
                         %6$s, parcelB.id, JOURNEY_LINK_CONTEXT, created.associationId)
 
                     then:
-                    created.success == true
-                    foreignDelete.success == false
-                    foreignDelete.code == 'OWNERSHIP_MISMATCH'
+                    created.success() == true
+                    foreignDelete.success() == false
+                    foreignDelete.code() == ch.interlis.generator.grails.runtime.api.command.CommandCode.OWNERSHIP_MISMATCH
                     %9$s.get(created.associationId as Long) != null
                 }
 
@@ -900,8 +901,8 @@ public class GrailsPostgresContractTest {
                     def firstReload = %4$s.get(related.id)
 
                     then:
-                    assigned.success == true
-                    assigned.code == 'ASSIGNED'
+                    assigned.success() == true
+                    assigned.code() == ch.interlis.generator.grails.runtime.api.command.CommandCode.ASSIGNED
                     firstReload[DOCUMENT_PROPS['Owner']].id == ownerA.id
 
                     when:
@@ -909,8 +910,8 @@ public class GrailsPostgresContractTest {
                         %5$s, ownerB.id, DOCUMENT_OWNER_RELATIONSHIP, related.id, false)
 
                     then:
-                    needsConfirmation.success == false
-                    needsConfirmation.code == 'REASSIGNMENT_CONFIRMATION_REQUIRED'
+                    needsConfirmation.success() == false
+                    needsConfirmation.code() == ch.interlis.generator.grails.runtime.api.command.CommandCode.REASSIGNMENT_CONFIRMATION_REQUIRED
 
                     when:
                     def reassigned = interlisInverseRelationshipCommandService.assign(
@@ -919,8 +920,8 @@ public class GrailsPostgresContractTest {
                     def secondReload = %4$s.get(related.id)
 
                     then:
-                    reassigned.success == true
-                    reassigned.code == 'REASSIGNED'
+                    reassigned.success() == true
+                    reassigned.code() == ch.interlis.generator.grails.runtime.api.command.CommandCode.REASSIGNED
                     secondReload[DOCUMENT_PROPS['Owner']].id == ownerB.id
                 }
 
@@ -933,8 +934,8 @@ public class GrailsPostgresContractTest {
                         %6$s, parcel.id, JOURNEY_LINK_CONTEXT, JOURNEY_LINK_EDITABLE_ROLE, 999999999L)
 
                     then:
-                    unknownTarget.success == false
-                    unknownTarget.code == 'TARGET_NOT_FOUND'
+                    unknownTarget.success() == false
+                    unknownTarget.code() == ch.interlis.generator.grails.runtime.api.command.CommandCode.TARGET_NOT_FOUND
                     %9$s.count() == 0
 
                     when:
@@ -942,8 +943,8 @@ public class GrailsPostgresContractTest {
                         %5$s, 999999999L, DOCUMENT_OWNER_RELATIONSHIP, 999999999L, false)
 
                     then:
-                    unknownOwner.success == false
-                    unknownOwner.code == 'OWNER_NOT_FOUND'
+                    unknownOwner.success() == false
+                    unknownOwner.code() == ch.interlis.generator.grails.runtime.api.command.CommandCode.OWNER_NOT_FOUND
                     %4$s.count() == 0
                 }
 
@@ -963,10 +964,10 @@ public class GrailsPostgresContractTest {
                         %6$s, parcel.id, PARCEL_OWNER_LINK_CONTEXT, PARCEL_OWNER_EDITABLE_ROLE, third.id)
 
                     then:
-                    firstLink.success == true
-                    secondLink.success == true
-                    tooMany.success == false
-                    tooMany.code == 'CARDINALITY_MAX_EXCEEDED'
+                    firstLink.success() == true
+                    secondLink.success() == true
+                    tooMany.success() == false
+                    tooMany.code() == ch.interlis.generator.grails.runtime.api.command.CommandCode.CARDINALITY_MAX_EXCEEDED
                     %27$s.count() == 2
                 }
 
@@ -986,8 +987,8 @@ public class GrailsPostgresContractTest {
                         %5$s, owner.id, DOCUMENT_OWNER_RELATIONSHIP, related.id, true)
 
                     then:
-                    result.success == false
-                    result.code == 'CONCURRENT_MODIFICATION'
+                    result.success() == false
+                    result.code() == ch.interlis.generator.grails.runtime.api.command.CommandCode.CONCURRENT_MODIFICATION
                     sessionFactory.currentSession.clear()
                     %4$s.get(related.id)[DOCUMENT_PROPS['Owner']] == null
                 }

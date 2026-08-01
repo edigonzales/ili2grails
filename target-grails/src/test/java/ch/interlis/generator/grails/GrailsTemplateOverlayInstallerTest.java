@@ -446,7 +446,9 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport)
             .contains("anderen Datensätzen verwendet wird")
             .doesNotContain("Datenbank-Integritätsbedingung");
-        assertThat(controllerSupport).contains("respondAssociationCommand(T instance, Map<String, Object> result)");
+        assertThat(controllerSupport).contains(
+            "respondAssociationCommand(T instance,\n" +
+            "                                             ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult result)");
         assertThat(controllerSupport).contains("respondAssociationError(int status, String code, String message)");
         assertThat(controllerSupport).contains("inverseRelationshipModel(T instance)");
         assertThat(controllerSupport).contains("relationshipCollectionPage(Long id)");
@@ -457,8 +459,8 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("CONFIGURATION_INVALID");
         String inverseCommandService = Files.readString(PluginSourcePaths.service("InterlisInverseRelationshipCommandService.groovy".replace(".groovy","")));
         assertThat(inverseCommandService)
-            .contains("REASSIGNMENT_CONFIRMATION_REQUIRED")
-            .contains("CONFIGURATION_INVALID")
+            .contains("reassignmentRequired(")
+            .contains("CommandCode.CONFIGURATION_INVALID")
             .contains("related.\"${relatedProperty}\" = owner");
 
         String uiDescriptorSupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisUiDescriptorSupport.groovy".replace(".groovy","")));

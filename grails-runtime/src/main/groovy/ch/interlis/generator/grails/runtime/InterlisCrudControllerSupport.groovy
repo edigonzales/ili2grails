@@ -391,7 +391,7 @@ class InterlisCrudControllerSupport<T> {
             notFound()
             return
         }
-        Map<String, Object> result
+        ch.interlis.generator.grails.runtime.api.command.InverseRelationshipCommandResult result
         try {
             result = inverseRelationshipCommandService().assign(
                 domainType(),
@@ -405,12 +405,12 @@ class InterlisCrudControllerSupport<T> {
                 "relationshipAssign failed for ${domainType().simpleName}#${id}: ${e.message}",
                 e
             )
-            result = [
-                success: false,
-                status: 500,
-                code: "INTERNAL_ERROR",
-                message: "Die Zuordnung konnte nicht verarbeitet werden."
-            ]
+            result = ch.interlis.generator.grails.runtime.api.command.InverseRelationshipCommandResult.failure(
+                500,
+                ch.interlis.generator.grails.runtime.api.command.CommandStatus.SERVER_ERROR,
+                ch.interlis.generator.grails.runtime.api.command.CommandCode.INTERNAL_ERROR,
+                "Die Zuordnung konnte nicht verarbeitet werden."
+            )
         }
         respondInverseRelationshipCommand(instance, result)
     }
@@ -504,7 +504,7 @@ class InterlisCrudControllerSupport<T> {
                     message: InterlisMessageSupport.text(grailsApplication, "ili2grails.association.error.MISSING_CONTEXT", "Der Assoziationskontext fehlt.")] as JSON)
             return
         }
-        Map<String, Object> result
+        ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult result
         try {
             result = associationCommandService().createQuickLink(
                 domainType(),
@@ -513,21 +513,14 @@ class InterlisCrudControllerSupport<T> {
                 targetRoleName,
                 targetId as java.io.Serializable
             )
-        } catch (InterlisAssociationRegistrySupport.AssociationContextNotFoundException e) {
-            log.info("associationCreate context not found for ${domainType().simpleName}#${id}: ${e.message}")
-            result = [success: false, status: 404, code: "CONTEXT_NOT_FOUND",
-                      message: InterlisMessageSupport.text(grailsApplication,
-                          "ili2grails.association.error.CONTEXT_NOT_FOUND", "Der Assoziationskontext wurde nicht gefunden.")]
-        } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
-            log.warn("associationCreate ownership mismatch for ${domainType().simpleName}#${id}: ${e.message}")
-            result = [success: false, status: 404, code: "OWNERSHIP_MISMATCH",
-                      message: InterlisMessageSupport.text(grailsApplication,
-                          "ili2grails.association.error.OWNERSHIP_MISMATCH", "Die Zuordnung gehört nicht zu diesem Datensatz.")]
         } catch (Exception e) {
             log.error("associationCreate failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
-            result = [success: false, status: 500, code: "INTERNAL_ERROR",
-                      message: InterlisMessageSupport.text(grailsApplication,
-                          "ili2grails.association.error.INTERNAL_ERROR", "Die Zuordnung konnte nicht erstellt werden.")]
+            result = ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult.failure(
+                500,
+                ch.interlis.generator.grails.runtime.api.command.CommandStatus.SERVER_ERROR,
+                ch.interlis.generator.grails.runtime.api.command.CommandCode.INTERNAL_ERROR,
+                InterlisMessageSupport.text(grailsApplication,
+                    "ili2grails.association.error.INTERNAL_ERROR", "Die Zuordnung konnte nicht erstellt werden."))
         }
         respondAssociationCommand(instance, result)
     }
@@ -548,7 +541,7 @@ class InterlisCrudControllerSupport<T> {
                         "ili2grails.association.error.MISSING_PARAMS", "Kontext und Assoziations-ID werden benötigt.")] as JSON)
             return
         }
-        Map<String, Object> result
+        ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult result
         try {
             result = associationCommandService().deleteLink(
                 domainType(),
@@ -556,29 +549,25 @@ class InterlisCrudControllerSupport<T> {
                 contextId,
                 associationId as java.io.Serializable
             )
-        } catch (InterlisAssociationRegistrySupport.AssociationContextNotFoundException e) {
-            log.info("associationDelete context not found for ${domainType().simpleName}#${id}: ${e.message}")
-            result = [success: false, status: 404, code: "CONTEXT_NOT_FOUND",
-                      message: InterlisMessageSupport.text(grailsApplication,
-                          "ili2grails.association.error.CONTEXT_NOT_FOUND", "Der Assoziationskontext wurde nicht gefunden.")]
-        } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
-            log.warn("associationDelete ownership mismatch for ${domainType().simpleName}#${id}: ${e.message}")
-            result = [success: false, status: 404, code: "OWNERSHIP_MISMATCH",
-                      message: InterlisMessageSupport.text(grailsApplication,
-                          "ili2grails.association.error.OWNERSHIP_MISMATCH", "Die Zuordnung gehört nicht zu diesem Datensatz.")]
         } catch (Exception e) {
             log.error("associationDelete failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
-            result = [success: false, status: 500, code: "INTERNAL_ERROR",
-                      message: InterlisMessageSupport.text(grailsApplication,
-                          "ili2grails.association.error.INTERNAL_ERROR", "Die Zuordnung kann nicht entfernt werden.")]
+            result = ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult.failure(
+                500,
+                ch.interlis.generator.grails.runtime.api.command.CommandStatus.SERVER_ERROR,
+                ch.interlis.generator.grails.runtime.api.command.CommandCode.INTERNAL_ERROR,
+                InterlisMessageSupport.text(grailsApplication,
+                    "ili2grails.association.error.INTERNAL_ERROR", "Die Zuordnung kann nicht entfernt werden."))
         }
         respondAssociationCommand(instance, result)
     }
 
-    protected void respondAssociationCommand(T instance, Map<String, Object> result) {
-        boolean success = result?.success == true
-        int status = (result?.status ?: (success ? 200 : 400)) as int
-        String userMessage = result?.message?.toString()
+    protected void respondAssociationCommand(T instance,
+                                             ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult result) {
+        Map<String, Object> legacyResult =
+            ch.interlis.generator.grails.runtime.presenter.RuntimeResponseMapper.toLegacyMap(result)
+        boolean success = result?.success() == true
+        int status = (result?.httpStatus() ?: (success ? 200 : 400)) as int
+        String userMessage = result?.message()?.toString()
         request.withFormat {
             form multipartForm {
                 if (userMessage != null && !userMessage.isBlank()) {
@@ -588,21 +577,24 @@ class InterlisCrudControllerSupport<T> {
             }
             "*" {
                 response.status = status
-                render result as JSON
+                render legacyResult as JSON
             }
         }
     }
 
-    protected void respondInverseRelationshipCommand(T instance, Map<String, Object> result) {
-        boolean success = result?.success == true
-        int status = (result?.status ?: (success ? 200 : 400)) as int
-        String userMessage = result?.message?.toString()
+    protected void respondInverseRelationshipCommand(T instance,
+                                                     ch.interlis.generator.grails.runtime.api.command.InverseRelationshipCommandResult result) {
+        Map<String, Object> legacyResult =
+            ch.interlis.generator.grails.runtime.presenter.RuntimeResponseMapper.toLegacyMap(result)
+        boolean success = result?.success() == true
+        int status = (result?.httpStatus() ?: (success ? 200 : 400)) as int
+        String userMessage = result?.message()?.toString()
         if (success && userMessage != null && !userMessage.isBlank()) {
             flashNotification("success", userMessage)
         }
         if (inverseRelationshipJsonRequested()) {
             response.status = status
-            render result as JSON
+            render legacyResult as JSON
             return
         }
         request.withFormat {
@@ -614,7 +606,7 @@ class InterlisCrudControllerSupport<T> {
             }
             "*" {
                 response.status = status
-                render result as JSON
+                render legacyResult as JSON
             }
         }
     }

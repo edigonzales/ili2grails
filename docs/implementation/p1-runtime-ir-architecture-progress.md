@@ -142,6 +142,16 @@ Die verschobenen Runtime-Klassen dürfen die generierten Registries der Host-App
 
 `grails-runtime` (artifactId `ili2grails-runtime`) und `grails-runtime-api` publizieren nach `mavenLocal()`. Der Smoke-/Contract-Harness injiziert die Plugin-Coordinates plus `mavenLocal()`-Repository und `cacheChangingModulesFor 0` (nur Test-Harness). Das App-Gradle bricht die SNAPSHOT-Auflösung sonst 24h.
 
+### M-7 Command-/Query-Services (Phase 5)
+
+Die beiden Command-Services liefern typisierte Results (`AssociationCommandResult`, `InverseRelationshipCommandResult`), injizieren `InterlisRuntimeRegistry`, `InterlisAuthorizationPolicy`, `InterlisLifecycleHooks`, `RuntimeRecordLoader` und `InterlisRuntimeOverridesService` (Bean-Namen = Injektionsvertrag; App-Beans gleichen Namens überschreiben Defaults). Locking: nur `LOCK_UNSUPPORTED` fällt auf `get()` zurück; Stale-State-Lock-Fehler werden als `CONCURRENT_MODIFICATION` gemeldet, andere unerwartete Lock-Fehler nicht verschluckt. Die Controller-Grenze konvertiert über `RuntimeResponseMapper` in den Legacy-JSON-Vertrag (Statuscodes, Codes, fieldErrors-Map, Reassignment-Payload bleiben kompatibel).
+
+Die Query-Services liefern ihre GSP-/JSON-View-Modelle weiterhin als Maps (View-Grenze, dokumentiert); die Registry-Zugriffe laufen über die typed Registry. Die Umstellung der Query-Endpunkte auf `PageResult`/`OptionPage` erfolgt im Rahmen der Controller-Flow-Aufteilung (Phase 6).
+
+### M-8 Startup-Registry-Validierung
+
+`InterlisRuntimeRegistryValidator` validiert die generierten Deskriptoren einmal beim Startup gegen `GrailsApplication.mappingContext` (Domainklassen, Properties, Rollen, Context-Fixed-Properties, inverse Properties, Geometry-Felder). Strict-Modus (Default, `ili2grails.runtime.strict-descriptor-validation`) schlägt mit einer zusammengefassten Exception fehl. `grailsApplication` wird für Plugin-Beans explizit verdrahtet (`ref('grailsApplication')`). Wichtige Korrektur: Context-`fixedProperty` liegt auf der Association-Domain-Klasse, nicht auf der Teilnehmer-Klasse.
+
 ---
 
 ## 6. Ausgeführte Befehle
@@ -195,5 +205,6 @@ Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unv
 | `04278da` | feat(runtime-api): add typed descriptors and operation results (Phase 1) |
 | `c450bdd` | refactor(grails): generate typed runtime registries (Phase 2) |
 | `46ae8fa` | feat(runtime): add ili2grails Grails runtime plugin (Phase 3) |
-| (folgt) | refactor(grails): replace runtime overlay with plugin dependency (Phase 4) |
+| `857b90f` | refactor(grails): replace runtime overlay with plugin dependency (Phase 4) |
+| (folgt) | refactor(runtime): replace map contracts with typed descriptors (Phase 5) |
 | (folgt) | ... |
