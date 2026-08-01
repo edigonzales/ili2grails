@@ -1,0 +1,36 @@
+INTERLIS 2.4;
+
+MODEL MergeAmbiguityCases (en)
+  AT "mailto:ili2grails@example.org" VERSION "2026-01-01" =
+
+  TOPIC Base =
+
+    CLASS Owner =
+      Name: TEXT;
+    END Owner;
+
+    /* Zwei semantische Referenzen mit aehnlichen Namen auf dieselbe Zielklasse.
+       Die physische Abbildung besitzt nur EINE FK-Spalte: der Match ist
+       absichtlich mehrdeutig (n:1-Kandidatenkomponente). */
+    CLASS Child =
+      Name: TEXT;
+      Owner: REFERENCE TO Owner;
+      The_Owner: REFERENCE TO Owner;
+    END Child;
+
+    /* Eindeutiger Physical-Mismatch-Fall: der physische Spaltenname weicht ab,
+       die Rolle stimmt exakt ueberein. */
+    CLASS MismatchChild =
+      Name: TEXT;
+      SemanticOwner: REFERENCE TO Owner;
+    END MismatchChild;
+
+    /* Association mit zwei Rollen auf derselben Zielklasse. */
+    ASSOCIATION SameTargetAssoc =
+      PrimaryOwner -- {0..*} Owner;
+      SecondaryOwner -- {0..*} Owner;
+    END SameTargetAssoc;
+
+  END Base;
+
+END MergeAmbiguityCases.

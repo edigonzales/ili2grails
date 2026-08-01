@@ -554,6 +554,51 @@ public class AttributeMetadata {
     public void setLabels(Map<String, String> labels) {
         this.labels = labels;
     }
+
+    /**
+     * Kopiert alle Werte aus einer Quell-Attributmetadaten in diese Instanz.
+     * Wird vom Merge verwendet, um gemergte Werte an der Position der
+     * physischen Instanz zu aktualisieren.
+     */
+    public void copyFrom(AttributeMetadata source) {
+        if (source == null) {
+            return;
+        }
+        this.name = source.name;
+        this.qualifiedName = source.qualifiedName;
+        this.columnName = source.columnName;
+        this.sqlName = source.sqlName;
+        this.iliType = source.iliType;
+        this.domainName = source.domainName;
+        this.coreType = source.coreType;
+        this.javaType = source.javaType;
+        this.dbType = source.dbType;
+        this.mandatory = source.mandatory;
+        this.isPrimaryKey = source.isPrimaryKey;
+        this.isForeignKey = source.isForeignKey;
+        this.isGeometry = source.isGeometry;
+        this.geometrySrid = source.geometrySrid;
+        this.geometryKind = source.geometryKind;
+        this.geometryHasZ = source.geometryHasZ;
+        this.geometryHasM = source.geometryHasM;
+        this.allowEmptyGeometry = source.allowEmptyGeometry;
+        this.documentation = source.documentation;
+        this.maxLength = source.maxLength;
+        this.minValue = source.minValue;
+        this.maxValue = source.maxValue;
+        this.precision = source.precision;
+        this.scale = source.scale;
+        this.cardinalityMin = source.cardinalityMin;
+        this.cardinalityMax = source.cardinalityMax;
+        this.ordered = source.ordered;
+        this.enumType = source.enumType;
+        this.unit = source.unit;
+        this.referencedClass = source.referencedClass;
+        this.referencedAttribute = source.referencedAttribute;
+        this.labels = source.labels == null ? new HashMap<>() : new HashMap<>(source.labels);
+        this.enumValues.clear();
+        this.enumValues.addAll(source.enumValues);
+    }
     
     @Override
     public String toString() {
