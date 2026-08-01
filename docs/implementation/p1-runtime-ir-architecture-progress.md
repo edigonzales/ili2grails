@@ -152,6 +152,16 @@ Die Query-Services liefern ihre GSP-/JSON-View-Modelle weiterhin als Maps (View-
 
 `InterlisRuntimeRegistryValidator` validiert die generierten Deskriptoren einmal beim Startup gegen `GrailsApplication.mappingContext` (Domainklassen, Properties, Rollen, Context-Fixed-Properties, inverse Properties, Geometry-Felder). Strict-Modus (Default, `ili2grails.runtime.strict-descriptor-validation`) schlägt mit einer zusammengefassten Exception fehl. `grailsApplication` wird für Plugin-Beans explizit verdrahtet (`ref('grailsApplication')`). Wichtige Korrektur: Context-`fixedProperty` liegt auf der Association-Domain-Klasse, nicht auf der Teilnehmer-Klasse.
 
+### M-9 Controller-Flow-Aufteilung (Phase 6)
+
+`InterlisCrudControllerSupport<T>` ist jetzt eine dünne Delegationsschicht: Alle 15 öffentlichen Actions delegieren an typisierte Flows (`InterlisListControllerFlow`, `InterlisFormControllerFlow`, `InterlisAssociationControllerFlow`, `InterlisInverseRelationshipControllerFlow`, `InterlisRelationshipOptionsControllerFlow`). `InterlisControllerContext<T>` bündelt die injizierten Abhängigkeiten (Domain-Typ, Services, `grailsApplication`, `runtimeRegistry`, `authorizationPolicy`), `InterlisControllerResponseSupport` zentralisiert Flash/JSON/notFound/Command-Responses, `InterlisSecurityHeaderSupport` die Security-Header.
+
+**Abweichung (dokumentiert):** Die Flow-Klassen liegen im Paket `ch.interlis.generator.grails.runtime` (nicht `...runtime.controller`) — nur so können sie die protected View-Model-Helper der Basisklasse aufrufen, ohne die gesamte Helper-API public zu machen. Die Klassennamen entsprechen der Spezifikation. Die Spec fordert `InterlisControllerContext` unter `controller/` — diese Klasse liegt korrekt unter `...runtime.controller`.
+
+Authorization: `index`/`show`/`edit` prüfen `canView`, `create`/`save` `canCreate`, `update` `canUpdate`, `delete` `canDelete` (Default-Policy erlaubt alles → kein Verhaltensbruch). Actions, URLs, Statuscodes und JSON-Strukturen bleiben kompatibel.
+
+**Dokumentierte Restposition:** `InterlisUiDescriptorSupport` bleibt bis auf Weiteres der View-Model-Builder (GSP-Grenze). Der vollständig typisierte `UiDescriptor`-Service (Spec 8.11) ist als Restposition notiert; die Registry-Deskriptoren werden bereits typisiert konsumiert, und die GSP-Model-Konvertierung ist die erlaubte View-Grenze.
+
 ---
 
 ## 6. Ausgeführte Befehle
@@ -206,5 +216,6 @@ Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unv
 | `c450bdd` | refactor(grails): generate typed runtime registries (Phase 2) |
 | `46ae8fa` | feat(runtime): add ili2grails Grails runtime plugin (Phase 3) |
 | `857b90f` | refactor(grails): replace runtime overlay with plugin dependency (Phase 4) |
-| (folgt) | refactor(runtime): replace map contracts with typed descriptors (Phase 5) |
+| `70ba4f1` | refactor(runtime): replace map contracts with typed descriptors (Phase 5) |
+| (folgt) | refactor(runtime): add injectable policies and split controller flows (Phase 6) |
 | (folgt) | ... |

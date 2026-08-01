@@ -1,5 +1,8 @@
 package ch.interlis.generator.grails.runtime
 
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
+import ch.interlis.generator.grails.runtime.api.security.InterlisAuthorizationPolicy
+import ch.interlis.generator.grails.runtime.controller.InterlisControllerContext
 import grails.converters.JSON
 import grails.validation.ValidationException
 import groovy.util.logging.Slf4j
@@ -12,10 +15,32 @@ import java.time.temporal.TemporalAccessor
 
 import static org.springframework.http.HttpStatus.*
 
+/**
+ * Base class of generated CRUD controllers.
+ *
+ * <p>Since the controller-flow split this class is a thin delegation layer:
+ * the public actions delegate to typed flows ({@link InterlisListControllerFlow},
+ * {@link InterlisFormControllerFlow}, {@link InterlisAssociationControllerFlow},
+ * {@link InterlisInverseRelationshipControllerFlow},
+ * {@link InterlisRelationshipOptionsControllerFlow}). The remaining protected
+ * helpers build the GSP view models at the web boundary.</p>
+ */
 abstract @Slf4j
 class InterlisCrudControllerSupport<T> {
 
-    private static final String CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    def grailsApplication
+
+    InterlisAuthorizationPolicy authorizationPolicy
+    InterlisRuntimeRegistry runtimeRegistry
+
+    private static final InterlisListControllerFlow LIST_FLOW = new InterlisListControllerFlow()
+    private static final InterlisFormControllerFlow FORM_FLOW = new InterlisFormControllerFlow()
+    private static final InterlisAssociationControllerFlow ASSOCIATION_FLOW =
+        new InterlisAssociationControllerFlow()
+    private static final InterlisInverseRelationshipControllerFlow INVERSE_FLOW =
+        new InterlisInverseRelationshipControllerFlow()
+    private static final InterlisRelationshipOptionsControllerFlow OPTIONS_FLOW =
+        new InterlisRelationshipOptionsControllerFlow()
 
     protected abstract Class<T> domainType()
 
@@ -29,257 +54,81 @@ class InterlisCrudControllerSupport<T> {
 
     protected abstract Object inverseRelationshipCommandService()
 
-    def index(Integer max, Integer offset) {
-        applySecurityHeaders()
-        Map<String, Object> descriptor = uiDescriptor()
-        Map<String, Object> listQuery = InterlisListQuerySupport.parse(params, descriptor)
-        if (max != null) {
-            listQuery.max = boundedMax(max)
-        }
-        if (offset != null) {
-            listQuery.offset = safeOffset(offset)
-        }
-        listQuery.params = InterlisListQuerySupport.urlParams(listQuery)
-        List<String> columns = tableColumns()
-        Map<String, Object> page = InterlisListQuerySupport.page(
-            crudService(), domainType(), descriptor, listQuery
+    private InterlisControllerContext<T> controllerContext() {
+        return new InterlisControllerContext<T>(
+            domainType(),
+            crudService(),
+            associationQueryService(),
+            associationCommandService(),
+            inverseRelationshipQueryService(),
+            inverseRelationshipCommandService(),
+            grailsApplication,
+            runtimeRegistry,
+            authorizationPolicy
         )
-        List<T> records = page.records as List<T>
-        List<Map<String, Object>> filters = filterFields()
-        Map<String, Object> filterOptions = relationshipFilterOptions(filters, listQuery)
-        listQuery.chips = InterlisListQuerySupport.activeFilterChips(listQuery, filterOptions)
-        respond records, model: [
-            (modelKey() + "List"): records,
-            (modelKey() + "Count"): page.total,
-            uiDescriptor: descriptor,
-            listQuery: listQuery,
-            listQueryWarnings: listQuery.warnings,
-            tableColumns: columns,
-            tableRows: tableRows(records, columns),
-            displayColumn: descriptor.list.displayField,
-            typedFilters: filters,
-            prominentFilterFields: filters.findAll { listQueryProminent(descriptor, it.name) },
-            advancedFilterFields: filters.findAll { !listQueryProminent(descriptor, it.name) },
-            filterOptions: filterOptions,
-            activeFilters: listQuery.activeFilters,
-            activeFilterChips: listQuery.chips,
-            domainHasRecords: page.domainHasRecords == true,
-            hasActiveListQuery: listQuery.q != null || !listQuery.filters.isEmpty(),
-            sortUrls: columns.collectEntries { String column ->
-                [(column): InterlisListQuerySupport.sortParams(listQuery, column)]
-            },
-            pagination: InterlisListQuerySupport.paginationModel(listQuery, page.total as Number),
-            q: listQuery.q,
-            max: listQuery.max,
-            offset: listQuery.offset,
-            sort: listQuery.sort,
-            order: listQuery.order,
-            listUrlParams: listQuery.params
-        ]
+    }
+
+    def index(Integer max, Integer offset) {
+        return LIST_FLOW.index(this, controllerContext(), max, offset)
     }
 
     def show(Long id) {
-        applySecurityHeaders()
-        T instance = crudService().get(id) as T
-        if (instance == null) {
-            notFound()
-            return
-        }
-        Map<String, Object> descriptor = uiDescriptor()
-        Map<String, Object> model = [:]
-        model.putAll(geometryModel(instance))
-        model.putAll(relationshipModel(instance))
-        model.putAll(detailModel(instance))
-        model.putAll(inverseRelationshipModel(instance))
-        model.putAll(associationModel(instance))
-        model.putAll(InterlisWorkspaceSupport.showModel(grailsApplication, domainType(), instance, descriptor))
-        model.put("uiDescriptor", descriptor)
-        respond instance, model: model
+        return LIST_FLOW.show(this, controllerContext(), id)
     }
 
     def create() {
-        applySecurityHeaders()
-        T instance = domainType().newInstance(domainBindParams()) as T
-        Map<String, Object> contextState = associationContextState(instance)
-        if (contextState == null) {
-            respondAssociationError(
-                BAD_REQUEST.value(), "invalid_association_context",
-                "Der Kontext des Datensatzes ist ungültig."
-            )
-            return
-        }
-        if (!contextState.isEmpty()) {
-            applyAssociationContext(instance, contextState)
-        }
-        InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
-        Map<String, Object> model = formModelWithContext(instance, contextState)
-        model.put(modelKey(), instance)
-        render view: "create", model: model
+        return FORM_FLOW.create(this, controllerContext())
     }
 
     def save() {
-        applySecurityHeaders()
-        String submitMode = InterlisFormSupport.submitMode(params.submitMode)
-        T instance = domainType().newInstance(domainBindParams()) as T
-        Map<String, Object> contextState = loadContextStateFromParams()
-        if (contextState == null) {
-            respondAssociationError(
-                BAD_REQUEST.value(), "invalid_association_context",
-                "Der Kontext des Datensatzes ist ungültig."
-            )
-            return
-        }
-        if (!contextState.isEmpty()) {
-            applyAssociationContext(instance, contextState)
-        }
-        InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
-        if (instance.hasErrors()) {
-            renderValidationForm("create", instance, contextState)
-            return
-        }
-
-        try {
-            crudService().save(instance)
-        } catch (ValidationException ignored) {
-            renderValidationForm("create", instance, contextState)
-            return
-        }
-
-        request.withFormat {
-            form multipartForm {
-                flashNotification("success", message(
-                    code: "default.created.message",
-                    args: [message(code: modelKey() + ".label", default: domainType().simpleName), instance.id]
-                ))
-                Map<String, Object> redirectTarget = successfulSaveRedirect(
-                    instance, contextState, submitMode
-                )
-                if (redirectTarget != null) {
-                    redirect redirectTarget
-                } else {
-                    redirect instance
-                }
-            }
-            "*" { respond instance, [status: CREATED] }
-        }
+        return FORM_FLOW.save(this, controllerContext())
     }
 
     def edit(Long id) {
-        applySecurityHeaders()
-        T instance = crudService().get(id) as T
-        if (instance == null) {
-            notFound()
-            return
-        }
-        Map<String, Object> contextState = associationContextState(instance, true)
-        if (contextState == null) {
-            respondAssociationError(
-                BAD_REQUEST.value(), "invalid_association_context",
-                "Der Kontext ist ungültig oder gehört nicht zum Datensatz."
-            )
-            return
-        }
-        respond instance, model: formModelWithContext(instance, contextState)
+        return FORM_FLOW.edit(this, controllerContext(), id)
     }
 
     def update(Long id) {
-        applySecurityHeaders()
-        T instance = crudService().get(id) as T
-        if (instance == null) {
-            notFound()
-            return
-        }
-
-        String submitMode = InterlisFormSupport.submitMode(params.submitMode)
-        Map<String, Object> contextState = loadContextStateFromParams(instance, true)
-        if (contextState == null) {
-            respondAssociationError(
-                BAD_REQUEST.value(), "invalid_association_context",
-                "Der Kontext ist ungültig oder gehört nicht zum Datensatz."
-            )
-            return
-        }
-        bindData(instance, domainBindParams())
-        InterlisGeometryBinder.bindGeometryFromParams(instance, params, geometryMeta(), grailsApplication, this)
-        if (!contextState.isEmpty()) {
-            applyAssociationContext(instance, contextState)
-        }
-        if (instance.hasErrors()) {
-            renderValidationForm("edit", instance, contextState)
-            return
-        }
-
-        try {
-            crudService().save(instance)
-        } catch (ValidationException ignored) {
-            renderValidationForm("edit", instance, contextState)
-            return
-        }
-
-        request.withFormat {
-            form multipartForm {
-                flashNotification("success", message(
-                    code: "default.updated.message",
-                    args: [message(code: modelKey() + ".label", default: domainType().simpleName), instance.id]
-                ))
-                Map<String, Object> redirectTarget = successfulSaveRedirect(
-                    instance, contextState, submitMode
-                )
-                if (redirectTarget != null) {
-                    redirect redirectTarget
-                } else {
-                    redirect instance
-                }
-            }
-            "*" { respond instance, [status: OK] }
-        }
+        return FORM_FLOW.update(this, controllerContext(), id)
     }
 
     def delete(Long id) {
-        applySecurityHeaders()
-        if (id == null) {
-            notFound()
-            return
-        }
-
-        try {
-            crudService().delete(id)
-        } catch (Exception failure) {
-            if (!isDeleteIntegrityConflict(failure)) {
-                throw failure
-            }
-            String conflictMessage = InterlisMessageSupport.text(
-                grailsApplication,
-                "ili2grails.runtime.deleteIntegrity",
-                "Datensatz ${id} konnte nicht gelöscht werden, weil er noch von anderen Datensätzen verwendet wird.",
-                [id] as Object[]
-            )
-            request.withFormat {
-                form multipartForm {
-                    flashNotification("danger", conflictMessage)
-                    redirect action: "index", method: "GET"
-                }
-                "*" {
-                    response.status = CONFLICT.value()
-                    render([error: conflictMessage] as JSON)
-                }
-            }
-            return
-        }
-
-        request.withFormat {
-            form multipartForm {
-                flashNotification("success", message(
-                    code: "default.deleted.message",
-                    args: [message(code: modelKey() + ".label", default: domainType().simpleName), id]
-                ))
-                redirect action: "index", method: "GET"
-            }
-            "*" { render status: NO_CONTENT }
-        }
+        return FORM_FLOW.delete(this, controllerContext(), id)
     }
 
-    private static boolean isDeleteIntegrityConflict(Throwable failure) {
+    def relationshipOptions() {
+        return OPTIONS_FLOW.relationshipOptions(this, controllerContext())
+    }
+
+    def relationshipCollectionPage(Long id) {
+        return INVERSE_FLOW.relationshipCollectionPage(this, controllerContext(), id)
+    }
+
+    def relationshipCollectionOptions(Long id) {
+        return INVERSE_FLOW.relationshipCollectionOptions(this, controllerContext(), id)
+    }
+
+    def relationshipAssign(Long id) {
+        return INVERSE_FLOW.relationshipAssign(this, controllerContext(), id)
+    }
+
+    def associationPage(Long id) {
+        return ASSOCIATION_FLOW.associationPage(this, controllerContext(), id)
+    }
+
+    def associationOptions(Long id) {
+        return ASSOCIATION_FLOW.associationOptions(this, controllerContext(), id)
+    }
+
+    def associationCreate(Long id) {
+        return ASSOCIATION_FLOW.associationCreate(this, controllerContext(), id)
+    }
+
+    def associationDelete(Long id) {
+        return ASSOCIATION_FLOW.associationDelete(this, controllerContext(), id)
+    }
+
+    static boolean isDeleteIntegrityConflict(Throwable failure) {
         Throwable current = failure
         while (current != null) {
             if (current instanceof DataIntegrityViolationException ||
@@ -292,344 +141,6 @@ class InterlisCrudControllerSupport<T> {
             current = current.cause
         }
         return false
-    }
-
-    def relationshipOptions() {
-        applySecurityHeaders()
-        Map<String, Object> page = relationshipOptionPage(
-            params.field?.toString(),
-            normalizedQuery(params.q),
-            boundedMax(params.int("max")),
-            safeOffset(params.int("offset"))
-        )
-        render page as JSON
-    }
-
-    def relationshipCollectionPage(Long id) {
-        applySecurityHeaders()
-        T instance = crudService().get(id) as T
-        if (instance == null) {
-            notFound()
-            return
-        }
-        String relationshipName = params.relationship?.toString()
-        try {
-            Map<String, Object> page = inverseRelationshipQueryService().page(
-                domainType(),
-                instance.id as java.io.Serializable,
-                relationshipName,
-                normalizedQuery(params.q),
-                boundedMax(params.int("max")),
-                safeOffset(params.int("offset")),
-                params.sort?.toString(),
-                params.order?.toString()
-            )
-            render page as JSON
-        } catch (InterlisInverseRelationshipSupport.InverseRelationshipNotFoundException e) {
-            response.status = BAD_REQUEST.value()
-            render([error: e.message] as JSON)
-        } catch (IllegalArgumentException e) {
-            response.status = INTERNAL_SERVER_ERROR.value()
-            render([
-                code: "CONFIGURATION_INVALID",
-                error: "Ungültige Beziehungs-Konfiguration: ${e.message}"
-            ] as JSON)
-        } catch (Exception e) {
-            log.error(
-                "relationshipCollectionPage failed for ${domainType().simpleName}#${id} " +
-                    "relationship ${relationshipName}: ${e.message}",
-                e
-            )
-            response.status = INTERNAL_SERVER_ERROR.value()
-            render([error: "Beziehungsdaten konnten nicht geladen werden."] as JSON)
-        }
-    }
-
-    def relationshipCollectionOptions(Long id) {
-        applySecurityHeaders()
-        T instance = crudService().get(id) as T
-        if (instance == null) {
-            notFound()
-            return
-        }
-        String relationshipName = params.relationship?.toString()
-        try {
-            Map<String, Object> page = inverseRelationshipQueryService().optionPage(
-                domainType(),
-                instance.id as java.io.Serializable,
-                relationshipName,
-                normalizedQuery(params.q),
-                boundedMax(params.int("max")),
-                safeOffset(params.int("offset"))
-            )
-            render page as JSON
-        } catch (InterlisInverseRelationshipSupport.InverseRelationshipNotFoundException e) {
-            response.status = BAD_REQUEST.value()
-            render([results: [], pagination: [more: false, total: 0, nextOffset: 0], error: e.message] as JSON)
-        } catch (IllegalArgumentException e) {
-            response.status = INTERNAL_SERVER_ERROR.value()
-            render([
-                results: [],
-                pagination: [more: false, total: 0, nextOffset: 0],
-                code: "CONFIGURATION_INVALID",
-                error: "Ungültige Beziehungs-Konfiguration: ${e.message}"
-            ] as JSON)
-        } catch (Exception e) {
-            log.warn(
-                "relationshipCollectionOptions failed for ${domainType().simpleName}#${id} " +
-                    "relationship ${relationshipName}: ${e.message}",
-                e
-            )
-            render([results: [], pagination: [more: false, total: 0, nextOffset: 0]] as JSON)
-        }
-    }
-
-    def relationshipAssign(Long id) {
-        applySecurityHeaders()
-        T instance = crudService().get(id) as T
-        if (instance == null) {
-            notFound()
-            return
-        }
-        ch.interlis.generator.grails.runtime.api.command.InverseRelationshipCommandResult result
-        try {
-            result = inverseRelationshipCommandService().assign(
-                domainType(),
-                instance.id as java.io.Serializable,
-                params.relationship?.toString(),
-                params.long("targetId") as java.io.Serializable,
-                params.boolean("confirmReassignment")
-            )
-        } catch (Exception e) {
-            log.error(
-                "relationshipAssign failed for ${domainType().simpleName}#${id}: ${e.message}",
-                e
-            )
-            result = ch.interlis.generator.grails.runtime.api.command.InverseRelationshipCommandResult.failure(
-                500,
-                ch.interlis.generator.grails.runtime.api.command.CommandStatus.SERVER_ERROR,
-                ch.interlis.generator.grails.runtime.api.command.CommandCode.INTERNAL_ERROR,
-                "Die Zuordnung konnte nicht verarbeitet werden."
-            )
-        }
-        respondInverseRelationshipCommand(instance, result)
-    }
-
-    def associationPage(Long id) {
-        applySecurityHeaders()
-        T instance = crudService().get(id) as T
-        if (instance == null) {
-            notFound()
-            return
-        }
-        String contextId = params.context?.toString()
-        if (contextId == null || contextId.isBlank()) {
-            response.status = BAD_REQUEST.value()
-            render([error: "context parameter required"] as JSON)
-            return
-        }
-        try {
-            Map<String, Object> page = associationQueryService().page(
-                domainType(),
-                instance.id as java.io.Serializable,
-                contextId,
-                boundedMax(params.int("max")),
-                safeOffset(params.int("offset")),
-                params.sort?.toString(),
-                params.order?.toString()
-            )
-            render page as JSON
-        } catch (InterlisAssociationRegistrySupport.AssociationContextNotFoundException e) {
-            response.status = BAD_REQUEST.value()
-            render([error: e.message] as JSON)
-        } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
-            response.status = BAD_REQUEST.value()
-            render([error: e.message] as JSON)
-        } catch (Exception e) {
-            log.error("associationPage failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
-            response.status = INTERNAL_SERVER_ERROR.value()
-            render([error: "Fehler beim Laden der Assoziationsdaten."] as JSON)
-        }
-    }
-
-    def associationOptions(Long id) {
-        applySecurityHeaders()
-        T instance = crudService().get(id) as T
-        if (instance == null) {
-            notFound()
-            return
-        }
-        String contextId = params.context?.toString()
-        String roleName = params.role?.toString()
-        if (contextId == null || contextId.isBlank() || roleName == null || roleName.isBlank()) {
-            response.status = BAD_REQUEST.value()
-            render([results: [], pagination: [more: false, total: 0, nextOffset: 0]] as JSON)
-            return
-        }
-        try {
-            Map<String, Object> page = associationQueryService().optionPage(
-                domainType(),
-                contextId,
-                roleName,
-                normalizedQuery(params.q),
-                boundedMax(params.int("max")),
-                safeOffset(params.int("offset"))
-            )
-            render page as JSON
-        } catch (InterlisAssociationRegistrySupport.AssociationContextNotFoundException e) {
-            response.status = BAD_REQUEST.value()
-            render([error: e.message] as JSON)
-        } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
-            response.status = BAD_REQUEST.value()
-            render([error: e.message] as JSON)
-        } catch (Exception e) {
-            log.warn("associationOptions failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
-            render([results: [], pagination: [more: false, total: 0, nextOffset: 0]] as JSON)
-        }
-    }
-
-    def associationCreate(Long id) {
-        applySecurityHeaders()
-        T instance = crudService().get(id) as T
-        if (instance == null) {
-            notFound()
-            return
-        }
-        String contextId = params.context?.toString()
-        String targetRoleName = params.role?.toString()
-        Long targetId = params.long("targetId")
-        if (contextId == null || contextId.isBlank()) {
-            response.status = BAD_REQUEST.value()
-                    render([success: false, status: 400, code: "MISSING_CONTEXT",
-                    message: InterlisMessageSupport.text(grailsApplication, "ili2grails.association.error.MISSING_CONTEXT", "Der Assoziationskontext fehlt.")] as JSON)
-            return
-        }
-        ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult result
-        try {
-            result = associationCommandService().createQuickLink(
-                domainType(),
-                instance.id as java.io.Serializable,
-                contextId,
-                targetRoleName,
-                targetId as java.io.Serializable
-            )
-        } catch (Exception e) {
-            log.error("associationCreate failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
-            result = ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult.failure(
-                500,
-                ch.interlis.generator.grails.runtime.api.command.CommandStatus.SERVER_ERROR,
-                ch.interlis.generator.grails.runtime.api.command.CommandCode.INTERNAL_ERROR,
-                InterlisMessageSupport.text(grailsApplication,
-                    "ili2grails.association.error.INTERNAL_ERROR", "Die Zuordnung konnte nicht erstellt werden."))
-        }
-        respondAssociationCommand(instance, result)
-    }
-
-    def associationDelete(Long id) {
-        applySecurityHeaders()
-        T instance = crudService().get(id) as T
-        if (instance == null) {
-            notFound()
-            return
-        }
-        String contextId = params.context?.toString()
-        Long associationId = params.long("associationId")
-        if (contextId == null || contextId.isBlank() || associationId == null) {
-            response.status = BAD_REQUEST.value()
-            render([success: false, status: 400, code: "MISSING_PARAMS",
-                    message: InterlisMessageSupport.text(grailsApplication,
-                        "ili2grails.association.error.MISSING_PARAMS", "Kontext und Assoziations-ID werden benötigt.")] as JSON)
-            return
-        }
-        ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult result
-        try {
-            result = associationCommandService().deleteLink(
-                domainType(),
-                instance.id as java.io.Serializable,
-                contextId,
-                associationId as java.io.Serializable
-            )
-        } catch (Exception e) {
-            log.error("associationDelete failed for ${domainType().simpleName}#${id} context ${contextId}: ${e.message}", e)
-            result = ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult.failure(
-                500,
-                ch.interlis.generator.grails.runtime.api.command.CommandStatus.SERVER_ERROR,
-                ch.interlis.generator.grails.runtime.api.command.CommandCode.INTERNAL_ERROR,
-                InterlisMessageSupport.text(grailsApplication,
-                    "ili2grails.association.error.INTERNAL_ERROR", "Die Zuordnung kann nicht entfernt werden."))
-        }
-        respondAssociationCommand(instance, result)
-    }
-
-    protected void respondAssociationCommand(T instance,
-                                             ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult result) {
-        Map<String, Object> legacyResult =
-            ch.interlis.generator.grails.runtime.presenter.RuntimeResponseMapper.toLegacyMap(result)
-        boolean success = result?.success() == true
-        int status = (result?.httpStatus() ?: (success ? 200 : 400)) as int
-        String userMessage = result?.message()?.toString()
-        request.withFormat {
-            form multipartForm {
-                if (userMessage != null && !userMessage.isBlank()) {
-                    flashNotification(success ? "success" : "danger", userMessage)
-                }
-                redirect action: "show", id: instance.id, method: "GET"
-            }
-            "*" {
-                response.status = status
-                render legacyResult as JSON
-            }
-        }
-    }
-
-    protected void respondInverseRelationshipCommand(T instance,
-                                                     ch.interlis.generator.grails.runtime.api.command.InverseRelationshipCommandResult result) {
-        Map<String, Object> legacyResult =
-            ch.interlis.generator.grails.runtime.presenter.RuntimeResponseMapper.toLegacyMap(result)
-        boolean success = result?.success() == true
-        int status = (result?.httpStatus() ?: (success ? 200 : 400)) as int
-        String userMessage = result?.message()?.toString()
-        if (success && userMessage != null && !userMessage.isBlank()) {
-            flashNotification("success", userMessage)
-        }
-        if (inverseRelationshipJsonRequested()) {
-            response.status = status
-            render legacyResult as JSON
-            return
-        }
-        request.withFormat {
-            form multipartForm {
-                if (!success && userMessage != null && !userMessage.isBlank()) {
-                    flashNotification("danger", userMessage)
-                }
-                redirect action: "show", id: instance.id, method: "GET"
-            }
-            "*" {
-                response.status = status
-                render legacyResult as JSON
-            }
-        }
-    }
-
-    protected boolean inverseRelationshipJsonRequested() {
-        if (params.format?.toString()?.equalsIgnoreCase("json")) {
-            return true
-        }
-        String accept = request.getHeader("Accept")
-        return accept != null && accept.toLowerCase(Locale.ROOT).contains("application/json")
-    }
-
-    protected void respondAssociationError(int status, String code, String message) {
-        request.withFormat {
-            form multipartForm {
-                flashNotification("danger", message)
-                redirect action: "index", method: "GET"
-            }
-            "*" {
-                response.status = status
-                render([success: false, status: status, code: code, message: message] as JSON)
-            }
-        }
     }
 
     protected Map<String, Object> associationModel(T instance) {
@@ -687,53 +198,17 @@ class InterlisCrudControllerSupport<T> {
         return 10
     }
 
-    protected void notFound() {
-        applySecurityHeaders()
-        request.withFormat {
-            form multipartForm {
-                flashNotification("danger", message(
-                    code: "default.not.found.message",
-                    args: [message(code: modelKey() + ".label", default: domainType().simpleName), params.id]
-                ))
-                redirect action: "index", method: "GET"
-            }
-            "*" { render status: NOT_FOUND }
-        }
-    }
-
-    /**
-     * Stores a typed, render-safe notification for the shared layout. The
-     * legacy flash.message fallback remains supported for generated or custom
-     * views that still populate it directly.
-     */
     protected void flashNotification(String type,
                                      String text,
                                      String title = null,
                                      Map<String, Object> extras = [:]) {
-        if (text == null || text.isBlank()) {
-            return
-        }
-        List<String> supportedTypes = ["success", "info", "warning", "danger"]
-        String normalizedType = supportedTypes.contains(type) ? type : "info"
-        Map<String, Object> notification = [type: normalizedType, message: text]
-        if (title != null && !title.isBlank()) {
-            notification.title = title
-        }
-        ["detail", "actionLabel", "actionUrl", "icon"].each { String key ->
-            Object value = extras?.get(key)
-            if (value != null && value.toString().trim()) {
-                notification[key] = value.toString()
-            }
-        }
-        flash.notification = notification
+        ch.interlis.generator.grails.runtime.controller.InterlisControllerResponseSupport
+            .flashNotification(this, type, text, title, extras)
     }
 
     protected void applySecurityHeaders() {
-        response.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY)
-        response.setHeader("X-Content-Type-Options", "nosniff")
-        response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin")
-        response.setHeader("X-Frame-Options", "DENY")
-        response.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        ch.interlis.generator.grails.runtime.controller.InterlisSecurityHeaderSupport
+            .apply(this, response)
     }
 
     protected Map<String, Object> formModel(T instance, Map sourceParams = params) {
