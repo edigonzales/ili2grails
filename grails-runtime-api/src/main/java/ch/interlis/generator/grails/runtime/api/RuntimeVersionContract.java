@@ -17,6 +17,9 @@ public final class RuntimeVersionContract {
     public static final String RUNTIME_GROUP = "ch.interlis.generator";
     public static final String RUNTIME_ARTIFACT = "ili2grails-runtime";
 
+    /** Version published by the root build; generator and plugin must match. */
+    public static final String RUNTIME_VERSION = "1.0.0-SNAPSHOT";
+
     private RuntimeVersionContract() {
     }
 }

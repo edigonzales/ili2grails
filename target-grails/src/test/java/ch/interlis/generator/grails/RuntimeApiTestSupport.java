@@ -50,10 +50,9 @@ final class RuntimeApiTestSupport {
 
     static void installRuntimePluginDependency(Path appDir) throws IOException {
         ensureMavenLocalRepository(appDir.resolve("build.gradle"));
-        new GrailsBuildGradleUpdater().ensureManagedDependency(
+        new ch.interlis.generator.grails.project.GrailsRuntimeDependencyInstaller().install(
             appDir.resolve("build.gradle"),
-            RUNTIME_DEPENDENCY_MARKER,
-            "implementation \"" + RUNTIME_NOTATION + "\""
+            ch.interlis.generator.grails.project.RuntimeCoordinates.ili2grailsRuntime()
         );
         ensureChangingSnapshotResolution(appDir.resolve("build.gradle"));
     }

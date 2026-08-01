@@ -101,6 +101,15 @@ target-django             (unverändert)
 cli                       (unverändert)
 ```
 
+### Overlay-Inventar nach Phase 4 (Klassifikation)
+
+| Kategorie | Artefakte | Status |
+|---|---|---|
+| Runtime-Plugin | 14 Runtime-Support-Groovy, 4 Services, InterlisUiController, InterlisUiTagLib, 14 interlisUi-Views, layouts (main/ili2grails), i18n-Bundles, 4 JS, ili-modern.css, 7 Fonts, 2 OFL | nach `grails-runtime` verschoben (Phase 3) |
+| Generator-managed | 22 Scaffolding-Templates, `grails-app/conf/spring/resources.groovy` (Locale), Asset-Requires, Plugin-Dependency-Block | verbleiben im Overlay bzw. im Customizer |
+| Legacy-Runtime (Migration) | 49 Dateien unter `target-grails/src/main/resources/grails/migration/legacy-runtime-v1/**` (Stand c450bdd) | Hash-basierte Erkennung + sichere Löschung |
+| Obsolet | LEGACY_FILES (ili-carbon-*, FiraSans-Bold) | wie bisher bereinigt |
+
 ---
 
 ## 5. API-Migrationsentscheidungen
@@ -185,5 +194,6 @@ Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unv
 | `1a50e32` | docs: record P1 architecture baseline |
 | `04278da` | feat(runtime-api): add typed descriptors and operation results (Phase 1) |
 | `c450bdd` | refactor(grails): generate typed runtime registries (Phase 2) |
-| (folgt) | feat(runtime): add ili2grails Grails runtime plugin (Phase 3) |
+| `46ae8fa` | feat(runtime): add ili2grails Grails runtime plugin (Phase 3) |
+| (folgt) | refactor(grails): replace runtime overlay with plugin dependency (Phase 4) |
 | (folgt) | ... |

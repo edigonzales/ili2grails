@@ -59,5 +59,11 @@ public class GrailsCrudGenerator {
             config.getDefaultSrid(),
             config.getLanguage()
         );
+        ch.interlis.generator.grails.project.GrailsProjectCustomizer.defaultCustomizer()
+            .customize(
+                config.getOutputDir(),
+                config,
+                ch.interlis.generator.grails.project.RuntimeCoordinates.ili2grailsRuntime()
+            );
     }
 }
