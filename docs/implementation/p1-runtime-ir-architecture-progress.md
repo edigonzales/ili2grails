@@ -184,19 +184,39 @@ Verhaltensgleichheit: Modell-Präfix-Filter und Tabellenname-OR-Filter der Attri
 
 ## 6. Ausgeführte Befehle
 
-(wird laufend ergänzt; siehe Abschnitt 1 für die Baseline)
+| Zweck | Befehl | Ergebnis |
+|---|---|---|
+| Core-Tests | `JAVA_HOME=.../17.0.18-tem ./gradlew :core:test --no-daemon` | grün (Stand Phase 10: 178) |
+| Django-/CLI-Tests | `./gradlew :target-django:test :cli:test` | grün |
+| Target-Grails-Tests | `./gradlew :target-grails:test` | grün (151) |
+| Runtime/API-Tests | `./gradlew :grails-runtime-api:test :grails-runtime:test` | grün (32/19) |
+| Runtime-Smoke | `./gradlew :target-grails:grailsRuntimeSmokeTest --rerun-tasks` | grün (6, ~1m43s) |
+| Real-ili2pg-Smoke | `./gradlew :target-grails:realIli2dbSmokeTest --rerun-tasks` | grün (9) |
+| PostgreSQL-Contract | `./gradlew :target-grails:grailsPostgresContractTest -PcontractTestRequired=true --rerun-tasks` | grün (1, ~37s) |
 
 ---
 
 ## 7. Testresultate
 
-(wird laufend ergänzt)
+| Modul | Anzahl | Status |
+|---|---|---|
+| core | 178 (166 bestehend + 8 ili2db-Komponenten-/Guard-Tests + SQLite + Guards) | grün |
+| grails-runtime-api | 32 | grün |
+| grails-runtime | 19 | grün |
+| target-grails | 151 | grün |
+| target-django | 7 | grün |
+| cli | 14 | grün |
+| grailsRuntimeSmokeTest | 6 | grün |
+| realIli2dbSmokeTest | 9 | grün |
+| grailsPostgresContractTest | 1 | grün |
+
+Neue Phase-9-Tests: `Ili2dbCatalogReaderTest` (typed Rows, Capabilities case-insensitiv, REQUIRED-FATAL), `Ili2dbEnumReaderTest` (Cache pro Tabelle/Lauf, WARN bei unlesbarer Tabelle), `Ili2dbMetadataAssemblerTest` (Snapshots → IR: Typen, FK, Enum, Geometry, PK, Unit), `Ili2dbDeriversTest` (Relationship-/Association-Ableitung), `SqliteSchemaIntrospectorTest` (PRAGMA-Spalten/PK, Größe/Dezimalstellen). Guards: `ImmutableCoreIrGuardTest` (final, keine Mutatoren, keine Class-Relationships), `ReaderBoundaryGuardTest` (catalog/schema ohne IR-Builder-Importe, Fassade ohne SQL-Strings).
 
 ---
 
 ## 8. Skips
 
-- Browser-E2E: nicht als Baseline ausgeführt (optional). Wird in Phase 10 geprüft, sofern Umgebung (Playwright-Browser, bootRun) verfügbar ist.
+- Browser-E2E: nicht ausgeführt (optional; benötigt Playwright-Browser und bootRun). Die Asset-Auslieferung ist über `runtimeOnly cloud.wondrify:asset-pipeline-grails` (Standard-Grails-7-App), Plugin-Jar-Packaging und die Overlay-/Smoke-Assertions abgesichert; die vollständige HTTP-Renderprüfung bleibt dem optionalen `browserE2eTest` vorbehalten.
 
 ---
 
@@ -207,7 +227,7 @@ Verhaltensgleichheit: Modell-Präfix-Filter und Tabellenname-OR-Filter der Attri
 | `grails-snapshots/*/.../InterlisUiRegistry.groovy` (3 Fixtures) | komplett neuer typed Aufbau (`DomainDescriptor`-Liste, implements `DomainRegistry`, Legacy-Map-API) | P1-B Phase 2: typed Registry-Generierung |
 | `grails-snapshots/association-cases/.../InterlisAssociationRegistry.groovy` | komplett neuer typed Aufbau (`AssociationDescriptor`-Maps, implements `AssociationRegistry`, Legacy-Map-API) | P1-B Phase 2 |
 
-Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unverändert in Phase 2).
+Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unverändert in Phase 2). Reader-Tests: keine Snapshot-/Golden-Änderungen durch die Reader-Zerlegung (Verhaltensgleichheit).
 
 ---
 
@@ -216,12 +236,15 @@ Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unv
 1. **JDK-25/Groovy-4.0.24-Inkompatibilität:** Alle Tests müssen mit JDK 17 laufen (s. Baseline).
 2. **Overlay-Testkopplung:** Smoke-/Contract-Tests prüfen derzeit Dateipfade im Overlay (z. B. `src/main/groovy/.../InterlisUiDescriptorSupport.groovy`); diese Tests müssen auf Plugin-Verträge umgestellt werden.
 3. **Snapshot-Fixtures** (`target-grails/src/test/resources/grails-snapshots/*`): ändern sich bei typed Registries; jede Änderung wird einzeln dokumentiert.
+4. **Geometry-Snapshot-Kopplung:** `PostgisGeometryIntrospector` setzt voraus, dass `geometry_columns` lesbar ist; ohne PostGIS fallback auf generischen `GEOMETRY`-Kind (WARN `GEOMETRY_METADATA_UNAVAILABLE`, non-blocking) – gleiches Verhalten wie P0 (per-Spalten-Abfragen schlugen dort still fehl).
+5. **Fachliche Einordnung Metatabellen:** `t_ili2db_table_prop` wird für die Klassenart benötigt, ist aber nicht im FATAL-Pfad der Capability-Detection (nur classname/attrname). Klassen ohne Table-Prop-Zeile werden übersprungen (wie P0).
 
 ---
 
 ## 11. Verbleibende Arbeit
 
-(wird laufend ergänzt)
+- Phase 10: Browser-E2E nur bei verfügbarer Playwright-Umgebung (optional, dokumentiert).
+- `Ili2dbReadRequest.schemaName`/`includeEnumValues` sind derzeit API-Oberfläche; der Coordinator konsumiert den Kontext als einzige Quelle (dokumentierte Vereinfachung; bei Bedarf in Phase 10 nachziehen).
 
 ---
 
@@ -237,4 +260,6 @@ Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unv
 | `70ba4f1` | refactor(runtime): replace map contracts with typed descriptors (Phase 5) |
 | `3231f5f` | refactor(runtime): add injectable policies and split controller flows (Phase 6) |
 | `b6305e3` | refactor(core): introduce immutable metadata builders and indexes (Phase 7+8; Phasen 7 und 8 in einem Commit, da der Baum nach Phase 7 bereits clean war) |
-| (folgt) | refactor(core): split ili2db catalog schema and assembly layers (Phase 9) |
+| `0c8bcae` | refactor(core): split ili2db catalog schema and assembly layers (Phase 9) |
+| (folgt) | test: verify plugin and immutable IR consumer contracts (Phase 10) |
+| (folgt) | docs: complete P1 runtime and IR migration (Phase 10) |
