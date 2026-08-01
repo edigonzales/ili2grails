@@ -277,23 +277,13 @@ public class Ili2dbMetadataReader {
                     String target = rs.getString("target");
 
                     String ownerClassName = extractOwnerClassName(iliName);
-                    ClassMetadata classMetadata = metadata.getClass(ownerClassName);
-                    if (classMetadata == null && owner != null && !owner.isBlank()) {
-                        classMetadata = metadata.getClass(owner);
-                        if (classMetadata != null) {
-                            ownerClassName = owner;
-                        } else {
-                            classMetadata = findClassByTableName(metadata, owner);
-                            if (classMetadata != null) {
-                                ownerClassName = classMetadata.getName();
-                            }
-                        }
-                    }
+                    ClassMetadata classMetadata = resolveAttributeOwner(metadata, ownerClassName, owner);
                     if (classMetadata == null) {
                         logger.warn("Attribute {} belongs to unknown class {} (owner table: {})",
                             iliName, ownerClassName, owner);
                         continue;
                     }
+                    ownerClassName = classMetadata.getName();
                     
                     String simpleName = extractSimpleName(iliName);
                     AttributeMetadata attrMetadata = new AttributeMetadata(simpleName);
@@ -1039,6 +1029,38 @@ public class Ili2dbMetadataReader {
         }
     }
 
+    /**
+     * Bestimmt die Owner-Klasse eines Attributs.
+     *
+     * <p>Reihenfolge: (1) der COLOWNER als Tabellenname (physische Wahrheit: die
+     * Spalte liegt in dieser Tabelle — bei Kompositions-FKs weicht die Tabelle
+     * vom iliname-Präfix ab), (2) der iliname-Präfix als Klassenname, (3) der
+     * COLOWNER als Klassenname.</p>
+     */
+    private ClassMetadata resolveAttributeOwner(ModelMetadata metadata,
+                                                String ownerClassName,
+                                                String ownerTableName) {
+        if (ownerTableName != null && !ownerTableName.isBlank()) {
+            ClassMetadata byTable = findClassByTableName(metadata, ownerTableName);
+            if (byTable != null) {
+                return byTable;
+            }
+        }
+        if (ownerClassName != null) {
+            ClassMetadata byIliName = metadata.getClass(ownerClassName);
+            if (byIliName != null) {
+                return byIliName;
+            }
+        }
+        if (ownerTableName != null && !ownerTableName.isBlank()) {
+            ClassMetadata byClassName = metadata.getClass(ownerTableName);
+            if (byClassName != null) {
+                return byClassName;
+            }
+        }
+        return null;
+    }
+
     private String extractSimpleName(String qualifiedName) {
         if (qualifiedName == null) {
             return null;
@@ -1105,7 +1127,7 @@ public class Ili2dbMetadataReader {
                 if (contentColumn != null && isTypeModel(rs.getString(contentColumn))) {
                     continue;
                 }
-                modelNames.add(modelName);
+                modelNames.add(canonicalModelName(modelName));
                 logger.debug("Detected ili2db model: {}", modelName);
             }
         } catch (SQLException e) {
@@ -1114,6 +1136,20 @@ public class Ili2dbMetadataReader {
             return modelNames;
         }
         return modelNames;
+    }
+
+    /**
+     * ili2db schreibt für Modelle mit Imports den Namen als
+     * {@code Name{imports}} in {@code t_ili2db_model}. Der kanonische
+     * Modellname ist der Teil vor der geschweiften Klammer.
+     */
+    private String canonicalModelName(String modelName) {
+        int braceIndex = modelName.indexOf('{');
+        if (braceIndex < 0) {
+            return modelName;
+        }
+        String canonical = modelName.substring(0, braceIndex).trim();
+        return canonical.isBlank() ? modelName : canonical;
     }
 
     /**

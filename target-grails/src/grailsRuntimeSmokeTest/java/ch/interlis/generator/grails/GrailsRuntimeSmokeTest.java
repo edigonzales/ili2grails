@@ -475,9 +475,17 @@ class GrailsRuntimeSmokeTest {
                         session.delete(bern)
                         session.flush()
                     }
+                    def danglingQuery = InterlisListQuerySupport.page(
+                        Record, Record, descriptor, query)
 
                     then:
-                    thrown(DataIntegrityViolationException)
+                    // P0-B: normale inverse MANY_TO_ONE-Referenzen erzeugen keine
+                    // synthetische hasMany-Join-Tabelle mehr. Die FK-Integrität wird
+                    // im echten ili2pg-Schema (--createFk) von der Datenbank
+                    // durchgesetzt; H2 (GORM create-drop) exportiert keine
+                    // many-to-one-FK-Constraints. Die Navigation schlägt hier laut
+                    // fehl (EntityNotFoundException) statt still zu verfälschen.
+                    thrown(jakarta.persistence.EntityNotFoundException)
                 }
 
                 def "builds sectioned form state and preserves submitted relationship selection"() {

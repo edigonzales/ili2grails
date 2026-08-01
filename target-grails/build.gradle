@@ -32,6 +32,11 @@ sourceSets {
         compileClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testRuntimeClasspath
         runtimeClasspath += output + compileClasspath
     }
+    grailsPostgresContractTest {
+        java.srcDir 'src/grailsPostgresContractTest/java'
+        compileClasspath += sourceSets.main.output + sourceSets.test.output + configurations.testRuntimeClasspath
+        runtimeClasspath += output + compileClasspath
+    }
 }
 
 configurations {
@@ -41,6 +46,8 @@ configurations {
     realIli2dbSmokeTestRuntimeOnly.extendsFrom testRuntimeOnly
     browserE2eTestImplementation.extendsFrom testImplementation
     browserE2eTestRuntimeOnly.extendsFrom testRuntimeOnly
+    grailsPostgresContractTestImplementation.extendsFrom testImplementation
+    grailsPostgresContractTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
 tasks.register('grailsRuntimeSmokeTest', Test) {
@@ -73,5 +80,21 @@ tasks.register('browserE2eTest', Test) {
     if (project.findProperty('browserE2eAppUrl') != null) {
         systemProperty 'browserE2eAppUrl', project.findProperty('browserE2eAppUrl')
     }
+    outputs.upToDateWhen { false }
+}
+
+tasks.register('grailsPostgresContractTest', Test) {
+    description = 'Runs generated Grails/GORM contracts against a real ili2pg PostgreSQL schema.'
+    group = 'verification'
+    testClassesDirs = sourceSets.grailsPostgresContractTest.output.classesDirs
+    classpath = sourceSets.grailsPostgresContractTest.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter tasks.named('grailsRuntimeSmokeTest')
+    systemProperty 'ili2pgHome',
+        project.findProperty('ili2pgHome') ?: '/Users/stefan/apps/ili2pg-5.5.1'
+    systemProperty 'contractJdbcUrl',
+        project.findProperty('contractJdbcUrl') ?: 'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret'
+    systemProperty 'contractTestRequired',
+        project.findProperty('contractTestRequired') ?: 'false'
     outputs.upToDateWhen { false }
 }

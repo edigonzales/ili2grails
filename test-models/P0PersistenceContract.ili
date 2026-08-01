@@ -1,0 +1,73 @@
+INTERLIS 2.4;
+
+MODEL P0PersistenceContract (en)
+  AT "mailto:ili2grails@example.org" VERSION "2026-01-01" =
+
+  DOMAIN
+    LineCoord = COORD
+      0.000 .. 1000000.000,
+      0.000 .. 1000000.000;
+
+  TOPIC Contract =
+
+    CLASS Station =
+      Name: TEXT;
+    END Station;
+
+    /* Zwei direkte Referenzen auf dieselbe Zielklasse. */
+    CLASS Journey =
+      Name: TEXT;
+      DepartureStation: REFERENCE TO Station;
+      ArrivalStation: REFERENCE TO Station;
+    END Journey;
+
+    CLASS Person =
+      Name: TEXT;
+    END Person;
+
+    /* Normale 1:n-Referenz (keine Komposition). */
+    CLASS Document =
+      Name: TEXT;
+      Owner: REFERENCE TO Person;
+    END Document;
+
+    CLASS Parcel =
+      Number: TEXT;
+      Geometry: SURFACE WITH (STRAIGHTS) VERTEX LineCoord WITHOUT OVERLAPS > 0.001;
+    END Parcel;
+
+    /* Component-Struktur für die to-many-Komposition. */
+    STRUCTURE Component =
+      Label: TEXT;
+    END Component;
+
+    /* To-many-Komposition mit Child-FK-Abbildung. */
+    CLASS Building =
+      Name: TEXT;
+      Components: BAG {0..*} OF Component;
+    END Building;
+
+    /* Attributlose binäre Association: nach ili2pg-Import eine Link-Tabelle,
+       Quick-Link-faehig. */
+    ASSOCIATION JourneyLink =
+      LinkedJourney -- {0..*} Parcel;
+      LinkedParcel -- {0..*} Journey;
+    END JourneyLink;
+
+    /* Attributlose binäre Association mit begrenztem Maximum: ein Parcel darf
+       hoechstens zwei Personen zugeordnet sein (Cardinality-Test). */
+    ASSOCIATION ParcelOwnerLink =
+      LinkedPerson -- {0..*} Parcel;
+      OwnedParcel -- {0..2} Person;
+    END ParcelOwnerLink;
+
+    /* Association mit eigenem Attribut: echte Association-Domain. */
+    ASSOCIATION DocumentLink =
+      DocumentPerson -- {0..*} Document;
+      OwnedDocument -- {0..1} Person;
+      Note: TEXT*30;
+    END DocumentLink;
+
+  END Contract;
+
+END P0PersistenceContract.
