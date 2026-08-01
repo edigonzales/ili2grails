@@ -362,6 +362,7 @@ public class GrailsPostgresContractTest {
         if (!Files.isRegularFile(appDir.resolve("grailsw"))) {
             throw new IOException("grails create-app did not produce " + appDir);
         }
+        RuntimeApiTestSupport.installRuntimeApiJar(appDir);
         return appDir;
     }
 

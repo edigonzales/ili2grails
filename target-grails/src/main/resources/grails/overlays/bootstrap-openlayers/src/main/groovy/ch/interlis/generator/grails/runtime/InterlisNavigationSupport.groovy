@@ -25,7 +25,7 @@ final class InterlisNavigationSupport {
         }
         List<Map<String, Object>> domains = []
 
-        InterlisUiRegistry.domains().each { Map<String, Object> registryEntry ->
+        InterlisUiRegistry.legacyDomains().each { Map<String, Object> registryEntry ->
             String controller = text(registryEntry.controller)
             if (controller == null) {
                 return
@@ -140,7 +140,7 @@ final class InterlisNavigationSupport {
             shortName = "Unbekannt"
         }
         try {
-            def entity = InterlisAssociationRegistry.ENTITIES[domainType?.name]
+            def entity = InterlisAssociationRegistry.legacyEntity(domainType?.name)
             if (entity?.iliName != null) {
                 String iliName = entity.iliName.toString()
                 int lastDot = iliName.lastIndexOf('.')

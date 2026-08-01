@@ -478,24 +478,24 @@ class InterlisUiDescriptorSupportTest {
             .domainPackage("com.example.ui")
             .enumPackage("com.example.enums")
             .build();
-        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
-        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
-        GrailsAssociationPlanner planner =
-            GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
-        new GrailsUiRegistryGenerator().generate(metadata, config, registry, mapper, planner);
+        new GrailsUiRegistryGenerator().generate(
+            GrailsUiRegistryGeneratorTest.plan(metadata, config),
+            config,
+            TargetNameRegistry.forMetadata(metadata, config)
+        );
 
         GroovyClassLoader classLoader = new GroovyClassLoader(getClass().getClassLoader());
         Path registrySource = tempDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy"
         );
         assertThat(Files.readString(registrySource))
-            .contains("domainClassName: 'com.example.ui.Address'");
+            .contains("'com.example.ui.Address'");
         classLoader.parseClass(registrySource.toFile());
         classLoader.parseClass(domainSource(), "Address.groovy");
         Class<?> domainType = classLoader.loadClass("com.example.ui.Address");
         Class<?> municipalityType = classLoader.loadClass("com.example.ui.Municipality");
         assertThat(Files.readString(registrySource))
-            .contains("domainClassName: 'com.example.ui.Municipality'");
+            .contains("'com.example.ui.Municipality'");
         classLoader.parseClass(Files.readString(TABLE_MODEL_SOURCE), "InterlisTableModel.groovy");
         Class<?> supportType = classLoader.parseClass(Files.readString(RUNTIME_SOURCE), "InterlisUiDescriptorSupport.groovy");
         classLoader.parseClass(Files.readString(RELATIONSHIP_OPTIONS_SOURCE), "InterlisRelationshipOptions.groovy");

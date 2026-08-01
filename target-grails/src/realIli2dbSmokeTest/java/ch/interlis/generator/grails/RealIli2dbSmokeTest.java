@@ -398,7 +398,7 @@ class RealIli2dbSmokeTest {
         assertThat(registryContent).contains("ASSOCIATIONS = [");
         assertThat(registryContent).contains("CONTEXTS = [");
         assertThat(registryContent).contains("ENTITIES = [");
-        assertThat(registryContent).contains("createMode: 'QUICK'");
+        assertThat(registryContent).contains("AssociationCreateMode.QUICK");
     }
 
     @Test

@@ -75,7 +75,7 @@ final class InterlisInverseRelationshipSupport {
         if (domainType == null) {
             return null
         }
-        Map<String, Object> entry = ch.interlis.generator.grails.generated.InterlisUiRegistry.DOMAINS.find {
+        Map<String, Object> entry = ch.interlis.generator.grails.generated.InterlisUiRegistry.legacyDomains().find {
             it.domainClassName?.toString() == domainType.name
         } as Map<String, Object>
         return entry?.controller?.toString()

@@ -124,6 +124,7 @@ class InterlisNavigationSupportTest {
             package ch.interlis.generator.grails.generated
             class InterlisAssociationRegistry {
                 static final Map ENTITIES = [:]
+                static Map<String, Object> legacyEntity(String name) { ENTITIES[name] }
             }
             """, "InterlisAssociationRegistry.groovy");
         classLoader.parseClass("""
@@ -144,7 +145,7 @@ class InterlisNavigationSupportTest {
                      label: 'Missing', className: 'Missing', iliName: 'AlphaModel.Addresses.Missing',
                      navigationVisible: true, associationDomain: false]
                 ]
-                static List domains() { DOMAINS }
+                static List legacyDomains() { DOMAINS }
             }
             """, "InterlisUiRegistry.groovy");
         classLoader.parseClass("""

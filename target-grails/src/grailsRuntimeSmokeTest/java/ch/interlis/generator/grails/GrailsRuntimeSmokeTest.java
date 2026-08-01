@@ -335,6 +335,7 @@ class GrailsRuntimeSmokeTest {
         appDir.resolve("grailsw").toFile().setExecutable(true);
         assertThat(appDir.resolve("build.gradle")).exists();
         assertThat(appDir.resolve("grailsw")).exists();
+        RuntimeApiTestSupport.installRuntimeApiJar(appDir);
         return appDir;
     }
 

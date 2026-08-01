@@ -290,7 +290,7 @@ final class InterlisWorkspaceSupport {
     private static Map<String, Object> registryEntry(Object target, String targetClassName) {
         Class candidate = target?.class
         while (candidate != null) {
-            Map<String, Object> exact = InterlisUiRegistry.DOMAINS.find {
+            Map<String, Object> exact = InterlisUiRegistry.legacyDomains().find {
                 it.domainClassName?.toString() == candidate.name
             } as Map<String, Object>
             if (exact != null) {
@@ -301,7 +301,7 @@ final class InterlisWorkspaceSupport {
         if (targetClassName == null) {
             return null
         }
-        return InterlisUiRegistry.DOMAINS.find {
+        return InterlisUiRegistry.legacyDomains().find {
             it.domainClassName?.toString() == targetClassName
                 || it.className?.toString() == targetClassName
         } as Map<String, Object>

@@ -19,12 +19,12 @@ final class InterlisAssociationContextSupport {
             return [:]
         }
 
-        Map<String, Object> context = InterlisAssociationRegistry.CONTEXTS[contextId]
+        Map<String, Object> context = InterlisAssociationRegistry.legacyContext(contextId)
         if (context == null) {
             throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
                     "Unknown association context: ${contextId}")
         }
-        Map<String, Object> association = InterlisAssociationRegistry.association(context.associationName)
+        Map<String, Object> association = InterlisAssociationRegistry.legacyAssociation(context.associationName)
 
         if (InterlisAssociationRegistrySupport.isAssociationDomain(domainType)) {
             verifyContextMatchesAssociation(domainType, context, association)
@@ -64,12 +64,12 @@ final class InterlisAssociationContextSupport {
             return [:]
         }
 
-        Map<String, Object> context = InterlisAssociationRegistry.CONTEXTS[contextId]
+        Map<String, Object> context = InterlisAssociationRegistry.legacyContext(contextId)
         if (context == null) {
             throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
                     "Unknown association context: ${contextId}")
         }
-        Map<String, Object> association = InterlisAssociationRegistry.association(context.associationName)
+        Map<String, Object> association = InterlisAssociationRegistry.legacyAssociation(context.associationName)
         verifyContextMatchesAssociation(associationType, context, association)
 
         String participantDomainClass = context.participantDomainClass

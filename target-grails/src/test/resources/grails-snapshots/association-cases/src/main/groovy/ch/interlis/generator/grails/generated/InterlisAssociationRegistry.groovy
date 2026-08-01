@@ -1,885 +1,847 @@
 package ch.interlis.generator.grails.generated
 
-final class InterlisAssociationRegistry {
+import ch.interlis.generator.grails.runtime.api.compat.LegacyDescriptorMapAdapter
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationAttributeDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationCreateMode
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationStorageKind
+import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind
+import ch.interlis.generator.grails.runtime.api.descriptor.EntityDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeCoreType
+import ch.interlis.generator.grails.runtime.api.registry.AssociationRegistry
 
-    static final Map<String, Map<String, Object>> ASSOCIATIONS = [
-        'AssociationCases.Base.AssociationWithAttribute': [
-            associationName: 'AssociationCases.Base.AssociationWithAttribute',
-            iliClassName: 'AssociationCases.Base.AssociationWithAttribute',
-            domainClassName: 'AssociationWithAttribute',
-            domainClassQualifiedName: 'ch.example.association.domain.AssociationWithAttribute',
-            controllerName: 'associationWithAttribute',
-            viewPath: 'associationWithAttribute',
-            physicalTable: 'associationwithattribute',
-            physicalSqlName: 'associationwithattribute',
-            storageKind: 'LINK_ENTITY',
-            writable: true,
-            showInNavigation: false,
-            roles: [
-                [
-                    name: 'DocumentRole',
-                    label: 'AssociationCases.Base.AssociationWithAttribute.DocumentRole',
-                    property: 'documentRoleId',
-                    targetIliClass: 'AssociationCases.Base.Document',
-                    targetDomainClass: 'ch.example.association.domain.Document',
-                    min: 0,
-                    max: -1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ],
-                [
-                    name: 'PersonRole',
-                    label: 'AssociationCases.Base.AssociationWithAttribute.PersonRole',
-                    property: 'personRoleId',
-                    targetIliClass: 'AssociationCases.Base.Person',
-                    targetDomainClass: 'ch.example.association.domain.Person',
-                    min: 0,
-                    max: -1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ]
+final class InterlisAssociationRegistry implements AssociationRegistry {
+
+    static final Map<String, AssociationDescriptor> ASSOCIATIONS = [
+        'AssociationCases.Base.AssociationWithAttribute': new AssociationDescriptor(
+            'AssociationCases.Base.AssociationWithAttribute',
+            'AssociationCases.Base.AssociationWithAttribute',
+            'ch.example.association.domain.AssociationWithAttribute',
+            'associationWithAttribute',
+            'associationWithAttribute',
+            'associationwithattribute',
+            'associationwithattribute',
+            AssociationStorageKind.LINK_ENTITY,
+            true,
+            false,
+            [
+                new AssociationRoleDescriptor(
+                    'DocumentRole',
+                    'AssociationCases.Base.AssociationWithAttribute.DocumentRole',
+                    'documentRoleId',
+                    'AssociationCases.Base.Document',
+                    'ch.example.association.domain.Document',
+                    0,
+                    -1,
+                    false,
+                    false,
+                    false,
+                    false
+                ),
+                new AssociationRoleDescriptor(
+                    'PersonRole',
+                    'AssociationCases.Base.AssociationWithAttribute.PersonRole',
+                    'personRoleId',
+                    'AssociationCases.Base.Person',
+                    'ch.example.association.domain.Person',
+                    0,
+                    -1,
+                    false,
+                    false,
+                    false,
+                    false
+                )
             ],
-            attributes: [
-                [
-                    iliName: 'RoleNote',
-                    property: 'roleNote',
-                    type: 'String',
-                    coreType: 'TEXT',
-                    label: 'RoleNote',
-                    mandatory: false,
-                    maxLength: 30,
-                    unit: null,
-                    enumType: null,
-                    geometry: false
-                ]
+            [
+                new AssociationAttributeDescriptor(
+                    'RoleNote',
+                    'roleNote',
+                    'String',
+                    RuntimeCoreType.TEXT,
+                    'RoleNote',
+                    false,
+                    30,
+                    null,
+                    null,
+                    false
+                )
             ],
-            diagnostics: []
-        ],
-        'AssociationCases.Base.EmptyAssociation': [
-            associationName: 'AssociationCases.Base.EmptyAssociation',
-            iliClassName: 'AssociationCases.Base.EmptyAssociation',
-            domainClassName: 'EmptyAssociation',
-            domainClassQualifiedName: 'ch.example.association.domain.EmptyAssociation',
-            controllerName: 'emptyAssociation',
-            viewPath: 'emptyAssociation',
-            physicalTable: 'emptyassociation',
-            physicalSqlName: 'emptyassociation',
-            storageKind: 'LINK_ENTITY',
-            writable: true,
-            showInNavigation: false,
-            roles: [
-                [
-                    name: 'ParcelRole',
-                    label: 'AssociationCases.Base.EmptyAssociation.ParcelRole',
-                    property: 'parcelRoleId',
-                    targetIliClass: 'AssociationCases.Base.Parcel',
-                    targetDomainClass: 'ch.example.association.domain.Parcel',
-                    min: 0,
-                    max: 1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ],
-                [
-                    name: 'PersonRole',
-                    label: 'AssociationCases.Base.EmptyAssociation.PersonRole',
-                    property: 'personRoleId',
-                    targetIliClass: 'AssociationCases.Base.Person',
-                    targetDomainClass: 'ch.example.association.domain.Person',
-                    min: 0,
-                    max: -1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ]
+            []
+        ),
+        'AssociationCases.Base.EmptyAssociation': new AssociationDescriptor(
+            'AssociationCases.Base.EmptyAssociation',
+            'AssociationCases.Base.EmptyAssociation',
+            'ch.example.association.domain.EmptyAssociation',
+            'emptyAssociation',
+            'emptyAssociation',
+            'emptyassociation',
+            'emptyassociation',
+            AssociationStorageKind.LINK_ENTITY,
+            true,
+            false,
+            [
+                new AssociationRoleDescriptor(
+                    'ParcelRole',
+                    'AssociationCases.Base.EmptyAssociation.ParcelRole',
+                    'parcelRoleId',
+                    'AssociationCases.Base.Parcel',
+                    'ch.example.association.domain.Parcel',
+                    0,
+                    1,
+                    false,
+                    false,
+                    false,
+                    false
+                ),
+                new AssociationRoleDescriptor(
+                    'PersonRole',
+                    'AssociationCases.Base.EmptyAssociation.PersonRole',
+                    'personRoleId',
+                    'AssociationCases.Base.Person',
+                    'ch.example.association.domain.Person',
+                    0,
+                    -1,
+                    false,
+                    false,
+                    false,
+                    false
+                )
             ],
-            attributes: [],
-            diagnostics: []
-        ],
-        'AssociationCases.Base.ExternalCompositeAssociation': [
-            associationName: 'AssociationCases.Base.ExternalCompositeAssociation',
-            iliClassName: 'AssociationCases.Base.ExternalCompositeAssociation',
-            domainClassName: 'ExternalCompositeAssociation',
-            domainClassQualifiedName: 'ch.example.association.domain.ExternalCompositeAssociation',
-            controllerName: 'externalCompositeAssociation',
-            viewPath: 'externalCompositeAssociation',
-            physicalTable: 'externalcompositeassociation',
-            physicalSqlName: 'externalcompositeassociation',
-            storageKind: 'LINK_ENTITY',
-            writable: true,
-            showInNavigation: false,
-            roles: [
-                [
-                    name: 'Buildings',
-                    label: 'AssociationCases.Base.ExternalCompositeAssociation.Buildings',
-                    property: 'buildingId',
-                    targetIliClass: 'AssociationCases.Base.Building',
-                    targetDomainClass: 'ch.example.association.domain.Building',
-                    min: 0,
-                    max: -1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ],
-                [
-                    name: 'Owner',
-                    label: 'AssociationCases.Base.ExternalCompositeAssociation.Owner',
-                    property: 'ownerId',
-                    targetIliClass: 'AssociationCases.Base.Person',
-                    targetDomainClass: 'ch.example.association.domain.Person',
-                    min: 1,
-                    max: 1,
-                    mandatory: true,
-                    ordered: false,
-                    external: true,
-                    composition: true
-                ]
+            [],
+            []
+        ),
+        'AssociationCases.Base.ExternalCompositeAssociation': new AssociationDescriptor(
+            'AssociationCases.Base.ExternalCompositeAssociation',
+            'AssociationCases.Base.ExternalCompositeAssociation',
+            'ch.example.association.domain.ExternalCompositeAssociation',
+            'externalCompositeAssociation',
+            'externalCompositeAssociation',
+            'externalcompositeassociation',
+            'externalcompositeassociation',
+            AssociationStorageKind.LINK_ENTITY,
+            true,
+            false,
+            [
+                new AssociationRoleDescriptor(
+                    'Buildings',
+                    'AssociationCases.Base.ExternalCompositeAssociation.Buildings',
+                    'buildingId',
+                    'AssociationCases.Base.Building',
+                    'ch.example.association.domain.Building',
+                    0,
+                    -1,
+                    false,
+                    false,
+                    false,
+                    false
+                ),
+                new AssociationRoleDescriptor(
+                    'Owner',
+                    'AssociationCases.Base.ExternalCompositeAssociation.Owner',
+                    'ownerId',
+                    'AssociationCases.Base.Person',
+                    'ch.example.association.domain.Person',
+                    1,
+                    1,
+                    true,
+                    false,
+                    true,
+                    true
+                )
             ],
-            attributes: [],
-            diagnostics: []
-        ],
-        'AssociationCases.Base.OrderedAssociation': [
-            associationName: 'AssociationCases.Base.OrderedAssociation',
-            iliClassName: 'AssociationCases.Base.OrderedAssociation',
-            domainClassName: 'OrderedAssociation',
-            domainClassQualifiedName: 'ch.example.association.domain.OrderedAssociation',
-            controllerName: 'orderedAssociation',
-            viewPath: 'orderedAssociation',
-            physicalTable: 'orderedassociation',
-            physicalSqlName: 'orderedassociation',
-            storageKind: 'LINK_ENTITY',
-            writable: true,
-            showInNavigation: false,
-            roles: [
-                [
-                    name: 'Docs',
-                    label: 'AssociationCases.Base.OrderedAssociation.Docs',
-                    property: 'docsId',
-                    targetIliClass: 'AssociationCases.Base.Document',
-                    targetDomainClass: 'ch.example.association.domain.Document',
-                    min: 0,
-                    max: -1,
-                    mandatory: false,
-                    ordered: true,
-                    external: false,
-                    composition: false
-                ],
-                [
-                    name: 'Owner',
-                    label: 'AssociationCases.Base.OrderedAssociation.Owner',
-                    property: 'ownerId',
-                    targetIliClass: 'AssociationCases.Base.Person',
-                    targetDomainClass: 'ch.example.association.domain.Person',
-                    min: 1,
-                    max: 1,
-                    mandatory: true,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ]
+            [],
+            []
+        ),
+        'AssociationCases.Base.OrderedAssociation': new AssociationDescriptor(
+            'AssociationCases.Base.OrderedAssociation',
+            'AssociationCases.Base.OrderedAssociation',
+            'ch.example.association.domain.OrderedAssociation',
+            'orderedAssociation',
+            'orderedAssociation',
+            'orderedassociation',
+            'orderedassociation',
+            AssociationStorageKind.LINK_ENTITY,
+            true,
+            false,
+            [
+                new AssociationRoleDescriptor(
+                    'Docs',
+                    'AssociationCases.Base.OrderedAssociation.Docs',
+                    'docsId',
+                    'AssociationCases.Base.Document',
+                    'ch.example.association.domain.Document',
+                    0,
+                    -1,
+                    false,
+                    true,
+                    false,
+                    false
+                ),
+                new AssociationRoleDescriptor(
+                    'Owner',
+                    'AssociationCases.Base.OrderedAssociation.Owner',
+                    'ownerId',
+                    'AssociationCases.Base.Person',
+                    'ch.example.association.domain.Person',
+                    1,
+                    1,
+                    true,
+                    false,
+                    false,
+                    false
+                )
             ],
-            attributes: [],
-            diagnostics: []
-        ],
-        'AssociationCases.Base.PhysicalMismatchAssociation': [
-            associationName: 'AssociationCases.Base.PhysicalMismatchAssociation',
-            iliClassName: 'AssociationCases.Base.PhysicalMismatchAssociation',
-            domainClassName: 'PhysicalMismatchAssociation',
-            domainClassQualifiedName: 'ch.example.association.domain.PhysicalMismatchAssociation',
-            controllerName: 'physicalMismatchAssociation',
-            viewPath: 'physicalMismatchAssociation',
-            physicalTable: 'physicalmismatchassociation',
-            physicalSqlName: 'physicalmismatchassociation',
-            storageKind: 'LINK_ENTITY',
-            writable: true,
-            showInNavigation: false,
-            roles: [
-                [
-                    name: 'OwnedParcel',
-                    label: 'AssociationCases.Base.PhysicalMismatchAssociation.OwnedParcel',
-                    property: 'parcelFk',
-                    targetIliClass: 'AssociationCases.Base.Parcel',
-                    targetDomainClass: 'ch.example.association.domain.Parcel',
-                    min: 0,
-                    max: -1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ],
-                [
-                    name: 'SemanticOwner',
-                    label: 'AssociationCases.Base.PhysicalMismatchAssociation.SemanticOwner',
-                    property: 'ownerFk',
-                    targetIliClass: 'AssociationCases.Base.Person',
-                    targetDomainClass: 'ch.example.association.domain.Person',
-                    min: 1,
-                    max: 1,
-                    mandatory: true,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ]
+            [],
+            []
+        ),
+        'AssociationCases.Base.PhysicalMismatchAssociation': new AssociationDescriptor(
+            'AssociationCases.Base.PhysicalMismatchAssociation',
+            'AssociationCases.Base.PhysicalMismatchAssociation',
+            'ch.example.association.domain.PhysicalMismatchAssociation',
+            'physicalMismatchAssociation',
+            'physicalMismatchAssociation',
+            'physicalmismatchassociation',
+            'physicalmismatchassociation',
+            AssociationStorageKind.LINK_ENTITY,
+            true,
+            false,
+            [
+                new AssociationRoleDescriptor(
+                    'OwnedParcel',
+                    'AssociationCases.Base.PhysicalMismatchAssociation.OwnedParcel',
+                    'parcelFk',
+                    'AssociationCases.Base.Parcel',
+                    'ch.example.association.domain.Parcel',
+                    0,
+                    -1,
+                    false,
+                    false,
+                    false,
+                    false
+                ),
+                new AssociationRoleDescriptor(
+                    'SemanticOwner',
+                    'AssociationCases.Base.PhysicalMismatchAssociation.SemanticOwner',
+                    'ownerFk',
+                    'AssociationCases.Base.Person',
+                    'ch.example.association.domain.Person',
+                    1,
+                    1,
+                    true,
+                    false,
+                    false,
+                    false
+                )
             ],
-            attributes: [],
-            diagnostics: []
-        ],
-        'AssociationCases.Base.SameTargetAssociation': [
-            associationName: 'AssociationCases.Base.SameTargetAssociation',
-            iliClassName: 'AssociationCases.Base.SameTargetAssociation',
-            domainClassName: 'SameTargetAssociation',
-            domainClassQualifiedName: 'ch.example.association.domain.SameTargetAssociation',
-            controllerName: 'sameTargetAssociation',
-            viewPath: 'sameTargetAssociation',
-            physicalTable: 'sametargetassociation',
-            physicalSqlName: 'sametargetassociation',
-            storageKind: 'LINK_ENTITY',
-            writable: true,
-            showInNavigation: false,
-            roles: [
-                [
-                    name: 'PrimaryPerson',
-                    label: 'AssociationCases.Base.SameTargetAssociation.PrimaryPerson',
-                    property: 'primaryPersonId',
-                    targetIliClass: 'AssociationCases.Base.Person',
-                    targetDomainClass: 'ch.example.association.domain.Person',
-                    min: 0,
-                    max: 1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ],
-                [
-                    name: 'SecondaryPerson',
-                    label: 'AssociationCases.Base.SameTargetAssociation.SecondaryPerson',
-                    property: 'secondaryPersonId',
-                    targetIliClass: 'AssociationCases.Base.Person',
-                    targetDomainClass: 'ch.example.association.domain.Person',
-                    min: 0,
-                    max: 1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ]
+            [],
+            []
+        ),
+        'AssociationCases.Base.SameTargetAssociation': new AssociationDescriptor(
+            'AssociationCases.Base.SameTargetAssociation',
+            'AssociationCases.Base.SameTargetAssociation',
+            'ch.example.association.domain.SameTargetAssociation',
+            'sameTargetAssociation',
+            'sameTargetAssociation',
+            'sametargetassociation',
+            'sametargetassociation',
+            AssociationStorageKind.LINK_ENTITY,
+            true,
+            false,
+            [
+                new AssociationRoleDescriptor(
+                    'PrimaryPerson',
+                    'AssociationCases.Base.SameTargetAssociation.PrimaryPerson',
+                    'primaryPersonId',
+                    'AssociationCases.Base.Person',
+                    'ch.example.association.domain.Person',
+                    0,
+                    1,
+                    false,
+                    false,
+                    false,
+                    false
+                ),
+                new AssociationRoleDescriptor(
+                    'SecondaryPerson',
+                    'AssociationCases.Base.SameTargetAssociation.SecondaryPerson',
+                    'secondaryPersonId',
+                    'AssociationCases.Base.Person',
+                    'ch.example.association.domain.Person',
+                    0,
+                    1,
+                    false,
+                    false,
+                    false,
+                    false
+                )
             ],
-            attributes: [],
-            diagnostics: []
-        ],
-        'AssociationCases.Extended.ExtendedTopicAssociation': [
-            associationName: 'AssociationCases.Extended.ExtendedTopicAssociation',
-            iliClassName: 'AssociationCases.Extended.ExtendedTopicAssociation',
-            domainClassName: 'ExtendedTopicAssociation',
-            domainClassQualifiedName: 'ch.example.association.domain.ExtendedTopicAssociation',
-            controllerName: 'extendedTopicAssociation',
-            viewPath: 'extendedTopicAssociation',
-            physicalTable: 'extendedtopicassociation',
-            physicalSqlName: 'extendedtopicassociation',
-            storageKind: 'LINK_ENTITY',
-            writable: true,
-            showInNavigation: false,
-            roles: [
-                [
-                    name: 'ExtendedParcelRole',
-                    label: 'AssociationCases.Extended.ExtendedTopicAssociation.ExtendedParcelRole',
-                    property: 'extParcelId',
-                    targetIliClass: 'AssociationCases.Extended.ExtendedParcel',
-                    targetDomainClass: 'ch.example.association.domain.ExtendedParcel',
-                    min: 0,
-                    max: 1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ],
-                [
-                    name: 'ExtendedPersonRole',
-                    label: 'AssociationCases.Extended.ExtendedTopicAssociation.ExtendedPersonRole',
-                    property: 'extPersonId',
-                    targetIliClass: 'AssociationCases.Base.Person',
-                    targetDomainClass: 'ch.example.association.domain.Person',
-                    min: 0,
-                    max: -1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ]
+            [],
+            []
+        ),
+        'AssociationCases.Extended.ExtendedTopicAssociation': new AssociationDescriptor(
+            'AssociationCases.Extended.ExtendedTopicAssociation',
+            'AssociationCases.Extended.ExtendedTopicAssociation',
+            'ch.example.association.domain.ExtendedTopicAssociation',
+            'extendedTopicAssociation',
+            'extendedTopicAssociation',
+            'extendedtopicassociation',
+            'extendedtopicassociation',
+            AssociationStorageKind.LINK_ENTITY,
+            true,
+            false,
+            [
+                new AssociationRoleDescriptor(
+                    'ExtendedParcelRole',
+                    'AssociationCases.Extended.ExtendedTopicAssociation.ExtendedParcelRole',
+                    'extParcelId',
+                    'AssociationCases.Extended.ExtendedParcel',
+                    'ch.example.association.domain.ExtendedParcel',
+                    0,
+                    1,
+                    false,
+                    false,
+                    false,
+                    false
+                ),
+                new AssociationRoleDescriptor(
+                    'ExtendedPersonRole',
+                    'AssociationCases.Extended.ExtendedTopicAssociation.ExtendedPersonRole',
+                    'extPersonId',
+                    'AssociationCases.Base.Person',
+                    'ch.example.association.domain.Person',
+                    0,
+                    -1,
+                    false,
+                    false,
+                    false,
+                    false
+                )
             ],
-            attributes: [],
-            diagnostics: []
-        ],
-        'AssociationCases.Extended.TernaryAssociation': [
-            associationName: 'AssociationCases.Extended.TernaryAssociation',
-            iliClassName: 'AssociationCases.Extended.TernaryAssociation',
-            domainClassName: 'TernaryAssociation',
-            domainClassQualifiedName: 'ch.example.association.domain.TernaryAssociation',
-            controllerName: 'ternaryAssociation',
-            viewPath: 'ternaryAssociation',
-            physicalTable: 'ternaryassociation',
-            physicalSqlName: 'ternaryassociation',
-            storageKind: 'LINK_ENTITY',
-            writable: true,
-            showInNavigation: false,
-            roles: [
-                [
-                    name: 'DocumentRole',
-                    label: 'AssociationCases.Extended.TernaryAssociation.DocumentRole',
-                    property: 'documentRoleId',
-                    targetIliClass: 'AssociationCases.Base.Document',
-                    targetDomainClass: 'ch.example.association.domain.Document',
-                    min: 0,
-                    max: 1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ],
-                [
-                    name: 'ParcelRole',
-                    label: 'AssociationCases.Extended.TernaryAssociation.ParcelRole',
-                    property: 'parcelRoleId',
-                    targetIliClass: 'AssociationCases.Base.Parcel',
-                    targetDomainClass: 'ch.example.association.domain.Parcel',
-                    min: 0,
-                    max: -1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ],
-                [
-                    name: 'PersonRole',
-                    label: 'AssociationCases.Extended.TernaryAssociation.PersonRole',
-                    property: 'personRoleId',
-                    targetIliClass: 'AssociationCases.Base.Person',
-                    targetDomainClass: 'ch.example.association.domain.Person',
-                    min: 0,
-                    max: -1,
-                    mandatory: false,
-                    ordered: false,
-                    external: false,
-                    composition: false
-                ]
+            [],
+            []
+        ),
+        'AssociationCases.Extended.TernaryAssociation': new AssociationDescriptor(
+            'AssociationCases.Extended.TernaryAssociation',
+            'AssociationCases.Extended.TernaryAssociation',
+            'ch.example.association.domain.TernaryAssociation',
+            'ternaryAssociation',
+            'ternaryAssociation',
+            'ternaryassociation',
+            'ternaryassociation',
+            AssociationStorageKind.LINK_ENTITY,
+            true,
+            false,
+            [
+                new AssociationRoleDescriptor(
+                    'DocumentRole',
+                    'AssociationCases.Extended.TernaryAssociation.DocumentRole',
+                    'documentRoleId',
+                    'AssociationCases.Base.Document',
+                    'ch.example.association.domain.Document',
+                    0,
+                    1,
+                    false,
+                    false,
+                    false,
+                    false
+                ),
+                new AssociationRoleDescriptor(
+                    'ParcelRole',
+                    'AssociationCases.Extended.TernaryAssociation.ParcelRole',
+                    'parcelRoleId',
+                    'AssociationCases.Base.Parcel',
+                    'ch.example.association.domain.Parcel',
+                    0,
+                    -1,
+                    false,
+                    false,
+                    false,
+                    false
+                ),
+                new AssociationRoleDescriptor(
+                    'PersonRole',
+                    'AssociationCases.Extended.TernaryAssociation.PersonRole',
+                    'personRoleId',
+                    'AssociationCases.Base.Person',
+                    'ch.example.association.domain.Person',
+                    0,
+                    -1,
+                    false,
+                    false,
+                    false,
+                    false
+                )
             ],
-            attributes: [
-                [
-                    iliName: 'Note',
-                    property: 'note',
-                    type: 'String',
-                    coreType: 'TEXT',
-                    label: 'Note',
-                    mandatory: false,
-                    maxLength: 50,
-                    unit: null,
-                    enumType: null,
-                    geometry: false
-                ]
+            [
+                new AssociationAttributeDescriptor(
+                    'Note',
+                    'note',
+                    'String',
+                    RuntimeCoreType.TEXT,
+                    'Note',
+                    false,
+                    50,
+                    null,
+                    null,
+                    false
+                )
             ],
-            diagnostics: []
-        ]
+            []
+        )
     ]
 
-    static final Map<String, Map<String, Object>> CONTEXTS = [
-        'AssociationCases.Base.AssociationWithAttribute::DocumentRole': [
-            id: 'AssociationCases.Base.AssociationWithAttribute::DocumentRole',
-            associationName: 'AssociationCases.Base.AssociationWithAttribute',
-            participantDomainClass: 'ch.example.association.domain.Document',
-            fixedRole: 'DocumentRole',
-            fixedProperty: 'documentRoleId',
-            editableRoles: [
-                'PersonRole'
-            ],
-            editableProperties: [
-                'personRoleId'
-            ],
-            defaultLabel: 'Persons',
-            messageCode: 'interlis.association.associationCasesBaseAssociationWithAttribute.documentRole.label',
-            presentation: 'CONTEXTUAL_FORM',
-            createMode: 'CONTEXTUAL_FORM',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: -1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.AssociationWithAttribute::PersonRole': [
-            id: 'AssociationCases.Base.AssociationWithAttribute::PersonRole',
-            associationName: 'AssociationCases.Base.AssociationWithAttribute',
-            participantDomainClass: 'ch.example.association.domain.Person',
-            fixedRole: 'PersonRole',
-            fixedProperty: 'personRoleId',
-            editableRoles: [
-                'DocumentRole'
-            ],
-            editableProperties: [
-                'documentRoleId'
-            ],
-            defaultLabel: 'Documents',
-            messageCode: 'interlis.association.associationCasesBaseAssociationWithAttribute.personRole.label',
-            presentation: 'CONTEXTUAL_FORM',
-            createMode: 'CONTEXTUAL_FORM',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: -1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.EmptyAssociation::ParcelRole': [
-            id: 'AssociationCases.Base.EmptyAssociation::ParcelRole',
-            associationName: 'AssociationCases.Base.EmptyAssociation',
-            participantDomainClass: 'ch.example.association.domain.Parcel',
-            fixedRole: 'ParcelRole',
-            fixedProperty: 'parcelRoleId',
-            editableRoles: [
-                'PersonRole'
-            ],
-            editableProperties: [
-                'personRoleId'
-            ],
-            defaultLabel: 'Persons',
-            messageCode: 'interlis.association.associationCasesBaseEmptyAssociation.parcelRole.label',
-            presentation: 'RELATED_LIST',
-            createMode: 'QUICK',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: -1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.EmptyAssociation::PersonRole': [
-            id: 'AssociationCases.Base.EmptyAssociation::PersonRole',
-            associationName: 'AssociationCases.Base.EmptyAssociation',
-            participantDomainClass: 'ch.example.association.domain.Person',
-            fixedRole: 'PersonRole',
-            fixedProperty: 'personRoleId',
-            editableRoles: [
-                'ParcelRole'
-            ],
-            editableProperties: [
-                'parcelRoleId'
-            ],
-            defaultLabel: 'Parcel',
-            messageCode: 'interlis.association.associationCasesBaseEmptyAssociation.personRole.label',
-            presentation: 'RELATED_TO_ONE',
-            createMode: 'QUICK',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: 1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.ExternalCompositeAssociation::Buildings': [
-            id: 'AssociationCases.Base.ExternalCompositeAssociation::Buildings',
-            associationName: 'AssociationCases.Base.ExternalCompositeAssociation',
-            participantDomainClass: 'ch.example.association.domain.Building',
-            fixedRole: 'Buildings',
-            fixedProperty: 'buildingId',
-            editableRoles: [
-                'Owner'
-            ],
-            editableProperties: [
-                'ownerId'
-            ],
-            defaultLabel: 'Person',
-            messageCode: 'interlis.association.associationCasesBaseExternalCompositeAssociation.buildings.label',
-            presentation: 'RELATED_TO_ONE',
-            createMode: 'CONTEXTUAL_FORM',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 1,
-            perspectiveMax: 1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.ExternalCompositeAssociation::Owner': [
-            id: 'AssociationCases.Base.ExternalCompositeAssociation::Owner',
-            associationName: 'AssociationCases.Base.ExternalCompositeAssociation',
-            participantDomainClass: 'ch.example.association.domain.Person',
-            fixedRole: 'Owner',
-            fixedProperty: 'ownerId',
-            editableRoles: [
-                'Buildings'
-            ],
-            editableProperties: [
-                'buildingId'
-            ],
-            defaultLabel: 'Buildings',
-            messageCode: 'interlis.association.associationCasesBaseExternalCompositeAssociation.owner.label',
-            presentation: 'RELATED_LIST',
-            createMode: 'CONTEXTUAL_FORM',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: -1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.OrderedAssociation::Docs': [
-            id: 'AssociationCases.Base.OrderedAssociation::Docs',
-            associationName: 'AssociationCases.Base.OrderedAssociation',
-            participantDomainClass: 'ch.example.association.domain.Document',
-            fixedRole: 'Docs',
-            fixedProperty: 'docsId',
-            editableRoles: [
-                'Owner'
-            ],
-            editableProperties: [
-                'ownerId'
-            ],
-            defaultLabel: 'Person',
-            messageCode: 'interlis.association.associationCasesBaseOrderedAssociation.docs.label',
-            presentation: 'RELATED_TO_ONE',
-            createMode: 'CONTEXTUAL_FORM',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 1,
-            perspectiveMax: 1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.OrderedAssociation::Owner': [
-            id: 'AssociationCases.Base.OrderedAssociation::Owner',
-            associationName: 'AssociationCases.Base.OrderedAssociation',
-            participantDomainClass: 'ch.example.association.domain.Person',
-            fixedRole: 'Owner',
-            fixedProperty: 'ownerId',
-            editableRoles: [
-                'Docs'
-            ],
-            editableProperties: [
-                'docsId'
-            ],
-            defaultLabel: 'Documents',
-            messageCode: 'interlis.association.associationCasesBaseOrderedAssociation.owner.label',
-            presentation: 'RELATED_LIST',
-            createMode: 'CONTEXTUAL_FORM',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: -1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.PhysicalMismatchAssociation::OwnedParcel': [
-            id: 'AssociationCases.Base.PhysicalMismatchAssociation::OwnedParcel',
-            associationName: 'AssociationCases.Base.PhysicalMismatchAssociation',
-            participantDomainClass: 'ch.example.association.domain.Parcel',
-            fixedRole: 'OwnedParcel',
-            fixedProperty: 'parcelFk',
-            editableRoles: [
-                'SemanticOwner'
-            ],
-            editableProperties: [
-                'ownerFk'
-            ],
-            defaultLabel: 'Person',
-            messageCode: 'interlis.association.associationCasesBasePhysicalMismatchAssociation.ownedParcel.label',
-            presentation: 'RELATED_TO_ONE',
-            createMode: 'QUICK',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 1,
-            perspectiveMax: 1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.PhysicalMismatchAssociation::SemanticOwner': [
-            id: 'AssociationCases.Base.PhysicalMismatchAssociation::SemanticOwner',
-            associationName: 'AssociationCases.Base.PhysicalMismatchAssociation',
-            participantDomainClass: 'ch.example.association.domain.Person',
-            fixedRole: 'SemanticOwner',
-            fixedProperty: 'ownerFk',
-            editableRoles: [
-                'OwnedParcel'
-            ],
-            editableProperties: [
-                'parcelFk'
-            ],
-            defaultLabel: 'Parcels',
-            messageCode: 'interlis.association.associationCasesBasePhysicalMismatchAssociation.semanticOwner.label',
-            presentation: 'RELATED_LIST',
-            createMode: 'QUICK',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: -1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.SameTargetAssociation::PrimaryPerson': [
-            id: 'AssociationCases.Base.SameTargetAssociation::PrimaryPerson',
-            associationName: 'AssociationCases.Base.SameTargetAssociation',
-            participantDomainClass: 'ch.example.association.domain.Person',
-            fixedRole: 'PrimaryPerson',
-            fixedProperty: 'primaryPersonId',
-            editableRoles: [
-                'SecondaryPerson'
-            ],
-            editableProperties: [
-                'secondaryPersonId'
-            ],
-            defaultLabel: 'Person',
-            messageCode: 'interlis.association.associationCasesBaseSameTargetAssociation.primaryPerson.label',
-            presentation: 'RELATED_TO_ONE',
-            createMode: 'QUICK',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: 1,
-            diagnostics: []
-        ],
-        'AssociationCases.Base.SameTargetAssociation::SecondaryPerson': [
-            id: 'AssociationCases.Base.SameTargetAssociation::SecondaryPerson',
-            associationName: 'AssociationCases.Base.SameTargetAssociation',
-            participantDomainClass: 'ch.example.association.domain.Person',
-            fixedRole: 'SecondaryPerson',
-            fixedProperty: 'secondaryPersonId',
-            editableRoles: [
-                'PrimaryPerson'
-            ],
-            editableProperties: [
-                'primaryPersonId'
-            ],
-            defaultLabel: 'Person',
-            messageCode: 'interlis.association.associationCasesBaseSameTargetAssociation.secondaryPerson.label',
-            presentation: 'RELATED_TO_ONE',
-            createMode: 'QUICK',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: 1,
-            diagnostics: []
-        ],
-        'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedParcelRole': [
-            id: 'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedParcelRole',
-            associationName: 'AssociationCases.Extended.ExtendedTopicAssociation',
-            participantDomainClass: 'ch.example.association.domain.ExtendedParcel',
-            fixedRole: 'ExtendedParcelRole',
-            fixedProperty: 'extParcelId',
-            editableRoles: [
-                'ExtendedPersonRole'
-            ],
-            editableProperties: [
-                'extPersonId'
-            ],
-            defaultLabel: 'Persons',
-            messageCode: 'interlis.association.associationCasesExtendedExtendedTopicAssociation.extendedParcelRole.label',
-            presentation: 'RELATED_LIST',
-            createMode: 'QUICK',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: -1,
-            diagnostics: []
-        ],
-        'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedPersonRole': [
-            id: 'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedPersonRole',
-            associationName: 'AssociationCases.Extended.ExtendedTopicAssociation',
-            participantDomainClass: 'ch.example.association.domain.Person',
-            fixedRole: 'ExtendedPersonRole',
-            fixedProperty: 'extPersonId',
-            editableRoles: [
-                'ExtendedParcelRole'
-            ],
-            editableProperties: [
-                'extParcelId'
-            ],
-            defaultLabel: 'ExtendedParcel',
-            messageCode: 'interlis.association.associationCasesExtendedExtendedTopicAssociation.extendedPersonRole.label',
-            presentation: 'RELATED_TO_ONE',
-            createMode: 'QUICK',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: 0,
-            perspectiveMax: 1,
-            diagnostics: []
-        ],
-        'AssociationCases.Extended.TernaryAssociation::DocumentRole': [
-            id: 'AssociationCases.Extended.TernaryAssociation::DocumentRole',
-            associationName: 'AssociationCases.Extended.TernaryAssociation',
-            participantDomainClass: 'ch.example.association.domain.Document',
-            fixedRole: 'DocumentRole',
-            fixedProperty: 'documentRoleId',
-            editableRoles: [
-                'ParcelRole',
-                'PersonRole'
-            ],
-            editableProperties: [
-                'parcelRoleId',
-                'personRoleId'
-            ],
-            defaultLabel: 'AssociationCases.Extended.TernaryAssociation.DocumentRole',
-            messageCode: 'interlis.association.associationCasesExtendedTernaryAssociation.documentRole.label',
-            presentation: 'NARY_CONTEXTUAL_FORM',
-            createMode: 'CONTEXTUAL_FORM',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: null,
-            perspectiveMax: null,
-            diagnostics: []
-        ],
-        'AssociationCases.Extended.TernaryAssociation::ParcelRole': [
-            id: 'AssociationCases.Extended.TernaryAssociation::ParcelRole',
-            associationName: 'AssociationCases.Extended.TernaryAssociation',
-            participantDomainClass: 'ch.example.association.domain.Parcel',
-            fixedRole: 'ParcelRole',
-            fixedProperty: 'parcelRoleId',
-            editableRoles: [
-                'DocumentRole',
-                'PersonRole'
-            ],
-            editableProperties: [
-                'documentRoleId',
-                'personRoleId'
-            ],
-            defaultLabel: 'AssociationCases.Extended.TernaryAssociation.ParcelRole',
-            messageCode: 'interlis.association.associationCasesExtendedTernaryAssociation.parcelRole.label',
-            presentation: 'NARY_CONTEXTUAL_FORM',
-            createMode: 'CONTEXTUAL_FORM',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: null,
-            perspectiveMax: null,
-            diagnostics: []
-        ],
-        'AssociationCases.Extended.TernaryAssociation::PersonRole': [
-            id: 'AssociationCases.Extended.TernaryAssociation::PersonRole',
-            associationName: 'AssociationCases.Extended.TernaryAssociation',
-            participantDomainClass: 'ch.example.association.domain.Person',
-            fixedRole: 'PersonRole',
-            fixedProperty: 'personRoleId',
-            editableRoles: [
-                'DocumentRole',
-                'ParcelRole'
-            ],
-            editableProperties: [
-                'documentRoleId',
-                'parcelRoleId'
-            ],
-            defaultLabel: 'AssociationCases.Extended.TernaryAssociation.PersonRole',
-            messageCode: 'interlis.association.associationCasesExtendedTernaryAssociation.personRole.label',
-            presentation: 'NARY_CONTEXTUAL_FORM',
-            createMode: 'CONTEXTUAL_FORM',
-            writable: true,
-            removable: true,
-            showAssociationObjectLink: true,
-            perspectiveMin: null,
-            perspectiveMax: null,
-            diagnostics: []
-        ]
+    static final Map<String, AssociationContextDescriptor> CONTEXTS = [
+        'AssociationCases.Base.AssociationWithAttribute::DocumentRole': new AssociationContextDescriptor(
+            'AssociationCases.Base.AssociationWithAttribute::DocumentRole',
+            'AssociationCases.Base.AssociationWithAttribute',
+            'ch.example.association.domain.Document',
+            'DocumentRole',
+            'documentRoleId',
+            ['PersonRole'],
+            ['personRoleId'],
+            'Persons',
+            'interlis.association.associationCasesBaseAssociationWithAttribute.documentRole.label',
+            'CONTEXTUAL_FORM',
+            AssociationCreateMode.CONTEXTUAL_FORM,
+            true,
+            true,
+            true,
+            0,
+            -1,
+            []
+        ),
+        'AssociationCases.Base.AssociationWithAttribute::PersonRole': new AssociationContextDescriptor(
+            'AssociationCases.Base.AssociationWithAttribute::PersonRole',
+            'AssociationCases.Base.AssociationWithAttribute',
+            'ch.example.association.domain.Person',
+            'PersonRole',
+            'personRoleId',
+            ['DocumentRole'],
+            ['documentRoleId'],
+            'Documents',
+            'interlis.association.associationCasesBaseAssociationWithAttribute.personRole.label',
+            'CONTEXTUAL_FORM',
+            AssociationCreateMode.CONTEXTUAL_FORM,
+            true,
+            true,
+            true,
+            0,
+            -1,
+            []
+        ),
+        'AssociationCases.Base.EmptyAssociation::ParcelRole': new AssociationContextDescriptor(
+            'AssociationCases.Base.EmptyAssociation::ParcelRole',
+            'AssociationCases.Base.EmptyAssociation',
+            'ch.example.association.domain.Parcel',
+            'ParcelRole',
+            'parcelRoleId',
+            ['PersonRole'],
+            ['personRoleId'],
+            'Persons',
+            'interlis.association.associationCasesBaseEmptyAssociation.parcelRole.label',
+            'RELATED_LIST',
+            AssociationCreateMode.QUICK,
+            true,
+            true,
+            true,
+            0,
+            -1,
+            []
+        ),
+        'AssociationCases.Base.EmptyAssociation::PersonRole': new AssociationContextDescriptor(
+            'AssociationCases.Base.EmptyAssociation::PersonRole',
+            'AssociationCases.Base.EmptyAssociation',
+            'ch.example.association.domain.Person',
+            'PersonRole',
+            'personRoleId',
+            ['ParcelRole'],
+            ['parcelRoleId'],
+            'Parcel',
+            'interlis.association.associationCasesBaseEmptyAssociation.personRole.label',
+            'RELATED_TO_ONE',
+            AssociationCreateMode.QUICK,
+            true,
+            true,
+            true,
+            0,
+            1,
+            []
+        ),
+        'AssociationCases.Base.ExternalCompositeAssociation::Buildings': new AssociationContextDescriptor(
+            'AssociationCases.Base.ExternalCompositeAssociation::Buildings',
+            'AssociationCases.Base.ExternalCompositeAssociation',
+            'ch.example.association.domain.Building',
+            'Buildings',
+            'buildingId',
+            ['Owner'],
+            ['ownerId'],
+            'Person',
+            'interlis.association.associationCasesBaseExternalCompositeAssociation.buildings.label',
+            'RELATED_TO_ONE',
+            AssociationCreateMode.CONTEXTUAL_FORM,
+            true,
+            true,
+            true,
+            1,
+            1,
+            []
+        ),
+        'AssociationCases.Base.ExternalCompositeAssociation::Owner': new AssociationContextDescriptor(
+            'AssociationCases.Base.ExternalCompositeAssociation::Owner',
+            'AssociationCases.Base.ExternalCompositeAssociation',
+            'ch.example.association.domain.Person',
+            'Owner',
+            'ownerId',
+            ['Buildings'],
+            ['buildingId'],
+            'Buildings',
+            'interlis.association.associationCasesBaseExternalCompositeAssociation.owner.label',
+            'RELATED_LIST',
+            AssociationCreateMode.CONTEXTUAL_FORM,
+            true,
+            true,
+            true,
+            0,
+            -1,
+            []
+        ),
+        'AssociationCases.Base.OrderedAssociation::Docs': new AssociationContextDescriptor(
+            'AssociationCases.Base.OrderedAssociation::Docs',
+            'AssociationCases.Base.OrderedAssociation',
+            'ch.example.association.domain.Document',
+            'Docs',
+            'docsId',
+            ['Owner'],
+            ['ownerId'],
+            'Person',
+            'interlis.association.associationCasesBaseOrderedAssociation.docs.label',
+            'RELATED_TO_ONE',
+            AssociationCreateMode.CONTEXTUAL_FORM,
+            true,
+            true,
+            true,
+            1,
+            1,
+            []
+        ),
+        'AssociationCases.Base.OrderedAssociation::Owner': new AssociationContextDescriptor(
+            'AssociationCases.Base.OrderedAssociation::Owner',
+            'AssociationCases.Base.OrderedAssociation',
+            'ch.example.association.domain.Person',
+            'Owner',
+            'ownerId',
+            ['Docs'],
+            ['docsId'],
+            'Documents',
+            'interlis.association.associationCasesBaseOrderedAssociation.owner.label',
+            'RELATED_LIST',
+            AssociationCreateMode.CONTEXTUAL_FORM,
+            true,
+            true,
+            true,
+            0,
+            -1,
+            []
+        ),
+        'AssociationCases.Base.PhysicalMismatchAssociation::OwnedParcel': new AssociationContextDescriptor(
+            'AssociationCases.Base.PhysicalMismatchAssociation::OwnedParcel',
+            'AssociationCases.Base.PhysicalMismatchAssociation',
+            'ch.example.association.domain.Parcel',
+            'OwnedParcel',
+            'parcelFk',
+            ['SemanticOwner'],
+            ['ownerFk'],
+            'Person',
+            'interlis.association.associationCasesBasePhysicalMismatchAssociation.ownedParcel.label',
+            'RELATED_TO_ONE',
+            AssociationCreateMode.QUICK,
+            true,
+            true,
+            true,
+            1,
+            1,
+            []
+        ),
+        'AssociationCases.Base.PhysicalMismatchAssociation::SemanticOwner': new AssociationContextDescriptor(
+            'AssociationCases.Base.PhysicalMismatchAssociation::SemanticOwner',
+            'AssociationCases.Base.PhysicalMismatchAssociation',
+            'ch.example.association.domain.Person',
+            'SemanticOwner',
+            'ownerFk',
+            ['OwnedParcel'],
+            ['parcelFk'],
+            'Parcels',
+            'interlis.association.associationCasesBasePhysicalMismatchAssociation.semanticOwner.label',
+            'RELATED_LIST',
+            AssociationCreateMode.QUICK,
+            true,
+            true,
+            true,
+            0,
+            -1,
+            []
+        ),
+        'AssociationCases.Base.SameTargetAssociation::PrimaryPerson': new AssociationContextDescriptor(
+            'AssociationCases.Base.SameTargetAssociation::PrimaryPerson',
+            'AssociationCases.Base.SameTargetAssociation',
+            'ch.example.association.domain.Person',
+            'PrimaryPerson',
+            'primaryPersonId',
+            ['SecondaryPerson'],
+            ['secondaryPersonId'],
+            'Person',
+            'interlis.association.associationCasesBaseSameTargetAssociation.primaryPerson.label',
+            'RELATED_TO_ONE',
+            AssociationCreateMode.QUICK,
+            true,
+            true,
+            true,
+            0,
+            1,
+            []
+        ),
+        'AssociationCases.Base.SameTargetAssociation::SecondaryPerson': new AssociationContextDescriptor(
+            'AssociationCases.Base.SameTargetAssociation::SecondaryPerson',
+            'AssociationCases.Base.SameTargetAssociation',
+            'ch.example.association.domain.Person',
+            'SecondaryPerson',
+            'secondaryPersonId',
+            ['PrimaryPerson'],
+            ['primaryPersonId'],
+            'Person',
+            'interlis.association.associationCasesBaseSameTargetAssociation.secondaryPerson.label',
+            'RELATED_TO_ONE',
+            AssociationCreateMode.QUICK,
+            true,
+            true,
+            true,
+            0,
+            1,
+            []
+        ),
+        'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedParcelRole': new AssociationContextDescriptor(
+            'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedParcelRole',
+            'AssociationCases.Extended.ExtendedTopicAssociation',
+            'ch.example.association.domain.ExtendedParcel',
+            'ExtendedParcelRole',
+            'extParcelId',
+            ['ExtendedPersonRole'],
+            ['extPersonId'],
+            'Persons',
+            'interlis.association.associationCasesExtendedExtendedTopicAssociation.extendedParcelRole.label',
+            'RELATED_LIST',
+            AssociationCreateMode.QUICK,
+            true,
+            true,
+            true,
+            0,
+            -1,
+            []
+        ),
+        'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedPersonRole': new AssociationContextDescriptor(
+            'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedPersonRole',
+            'AssociationCases.Extended.ExtendedTopicAssociation',
+            'ch.example.association.domain.Person',
+            'ExtendedPersonRole',
+            'extPersonId',
+            ['ExtendedParcelRole'],
+            ['extParcelId'],
+            'ExtendedParcel',
+            'interlis.association.associationCasesExtendedExtendedTopicAssociation.extendedPersonRole.label',
+            'RELATED_TO_ONE',
+            AssociationCreateMode.QUICK,
+            true,
+            true,
+            true,
+            0,
+            1,
+            []
+        ),
+        'AssociationCases.Extended.TernaryAssociation::DocumentRole': new AssociationContextDescriptor(
+            'AssociationCases.Extended.TernaryAssociation::DocumentRole',
+            'AssociationCases.Extended.TernaryAssociation',
+            'ch.example.association.domain.Document',
+            'DocumentRole',
+            'documentRoleId',
+            ['ParcelRole', 'PersonRole'],
+            ['parcelRoleId', 'personRoleId'],
+            'AssociationCases.Extended.TernaryAssociation.DocumentRole',
+            'interlis.association.associationCasesExtendedTernaryAssociation.documentRole.label',
+            'NARY_CONTEXTUAL_FORM',
+            AssociationCreateMode.CONTEXTUAL_FORM,
+            true,
+            true,
+            true,
+            0,
+            -1,
+            []
+        ),
+        'AssociationCases.Extended.TernaryAssociation::ParcelRole': new AssociationContextDescriptor(
+            'AssociationCases.Extended.TernaryAssociation::ParcelRole',
+            'AssociationCases.Extended.TernaryAssociation',
+            'ch.example.association.domain.Parcel',
+            'ParcelRole',
+            'parcelRoleId',
+            ['DocumentRole', 'PersonRole'],
+            ['documentRoleId', 'personRoleId'],
+            'AssociationCases.Extended.TernaryAssociation.ParcelRole',
+            'interlis.association.associationCasesExtendedTernaryAssociation.parcelRole.label',
+            'NARY_CONTEXTUAL_FORM',
+            AssociationCreateMode.CONTEXTUAL_FORM,
+            true,
+            true,
+            true,
+            0,
+            -1,
+            []
+        ),
+        'AssociationCases.Extended.TernaryAssociation::PersonRole': new AssociationContextDescriptor(
+            'AssociationCases.Extended.TernaryAssociation::PersonRole',
+            'AssociationCases.Extended.TernaryAssociation',
+            'ch.example.association.domain.Person',
+            'PersonRole',
+            'personRoleId',
+            ['DocumentRole', 'ParcelRole'],
+            ['documentRoleId', 'parcelRoleId'],
+            'AssociationCases.Extended.TernaryAssociation.PersonRole',
+            'interlis.association.associationCasesExtendedTernaryAssociation.personRole.label',
+            'NARY_CONTEXTUAL_FORM',
+            AssociationCreateMode.CONTEXTUAL_FORM,
+            true,
+            true,
+            true,
+            0,
+            -1,
+            []
+        )
     ]
 
     static final Map<String, List<String>> CONTEXT_IDS_BY_PARTICIPANT = [
-        'ch.example.association.domain.Building': [
-            'AssociationCases.Base.ExternalCompositeAssociation::Buildings'
-        ],
-        'ch.example.association.domain.Document': [
-            'AssociationCases.Base.AssociationWithAttribute::DocumentRole',
-            'AssociationCases.Base.OrderedAssociation::Docs',
-            'AssociationCases.Extended.TernaryAssociation::DocumentRole'
-        ],
-        'ch.example.association.domain.ExtendedParcel': [
-            'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedParcelRole'
-        ],
-        'ch.example.association.domain.Parcel': [
-            'AssociationCases.Base.EmptyAssociation::ParcelRole',
-            'AssociationCases.Base.PhysicalMismatchAssociation::OwnedParcel',
-            'AssociationCases.Extended.TernaryAssociation::ParcelRole'
-        ],
-        'ch.example.association.domain.Person': [
-            'AssociationCases.Base.AssociationWithAttribute::PersonRole',
-            'AssociationCases.Base.EmptyAssociation::PersonRole',
-            'AssociationCases.Base.ExternalCompositeAssociation::Owner',
-            'AssociationCases.Base.OrderedAssociation::Owner',
-            'AssociationCases.Base.PhysicalMismatchAssociation::SemanticOwner',
-            'AssociationCases.Base.SameTargetAssociation::PrimaryPerson',
-            'AssociationCases.Base.SameTargetAssociation::SecondaryPerson',
-            'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedPersonRole',
-            'AssociationCases.Extended.TernaryAssociation::PersonRole'
-        ]
+        'ch.example.association.domain.Building': ['AssociationCases.Base.ExternalCompositeAssociation::Buildings'],
+        'ch.example.association.domain.Document': ['AssociationCases.Base.AssociationWithAttribute::DocumentRole', 'AssociationCases.Base.OrderedAssociation::Docs', 'AssociationCases.Extended.TernaryAssociation::DocumentRole'],
+        'ch.example.association.domain.ExtendedParcel': ['AssociationCases.Extended.ExtendedTopicAssociation::ExtendedParcelRole'],
+        'ch.example.association.domain.Parcel': ['AssociationCases.Base.EmptyAssociation::ParcelRole', 'AssociationCases.Base.PhysicalMismatchAssociation::OwnedParcel', 'AssociationCases.Extended.TernaryAssociation::ParcelRole'],
+        'ch.example.association.domain.Person': ['AssociationCases.Base.AssociationWithAttribute::PersonRole', 'AssociationCases.Base.EmptyAssociation::PersonRole', 'AssociationCases.Base.ExternalCompositeAssociation::Owner', 'AssociationCases.Base.OrderedAssociation::Owner', 'AssociationCases.Base.PhysicalMismatchAssociation::SemanticOwner', 'AssociationCases.Base.SameTargetAssociation::PrimaryPerson', 'AssociationCases.Base.SameTargetAssociation::SecondaryPerson', 'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedPersonRole', 'AssociationCases.Extended.TernaryAssociation::PersonRole']
     ]
 
-    static final Map<String, Map<String, Object>> ENTITIES = [
-        'ch.example.association.domain.AssociationWithAttribute': [
-            iliName: 'AssociationCases.Base.AssociationWithAttribute',
-            kind: 'ASSOCIATION',
-            showInNavigation: false
-        ],
-        'ch.example.association.domain.EmptyAssociation': [
-            iliName: 'AssociationCases.Base.EmptyAssociation',
-            kind: 'ASSOCIATION',
-            showInNavigation: false
-        ],
-        'ch.example.association.domain.ExtendedTopicAssociation': [
-            iliName: 'AssociationCases.Extended.ExtendedTopicAssociation',
-            kind: 'ASSOCIATION',
-            showInNavigation: false
-        ],
-        'ch.example.association.domain.ExternalCompositeAssociation': [
-            iliName: 'AssociationCases.Base.ExternalCompositeAssociation',
-            kind: 'ASSOCIATION',
-            showInNavigation: false
-        ],
-        'ch.example.association.domain.OrderedAssociation': [
-            iliName: 'AssociationCases.Base.OrderedAssociation',
-            kind: 'ASSOCIATION',
-            showInNavigation: false
-        ],
-        'ch.example.association.domain.PhysicalMismatchAssociation': [
-            iliName: 'AssociationCases.Base.PhysicalMismatchAssociation',
-            kind: 'ASSOCIATION',
-            showInNavigation: false
-        ],
-        'ch.example.association.domain.SameTargetAssociation': [
-            iliName: 'AssociationCases.Base.SameTargetAssociation',
-            kind: 'ASSOCIATION',
-            showInNavigation: false
-        ],
-        'ch.example.association.domain.TernaryAssociation': [
-            iliName: 'AssociationCases.Extended.TernaryAssociation',
-            kind: 'ASSOCIATION',
-            showInNavigation: false
-        ]
+    static final Map<String, EntityDescriptor> ENTITIES = [
+        'ch.example.association.domain.AssociationWithAttribute': new EntityDescriptor(
+            'AssociationCases.Base.AssociationWithAttribute',
+            DomainKind.ASSOCIATION,
+            false
+        ),
+        'ch.example.association.domain.EmptyAssociation': new EntityDescriptor(
+            'AssociationCases.Base.EmptyAssociation',
+            DomainKind.ASSOCIATION,
+            false
+        ),
+        'ch.example.association.domain.ExtendedTopicAssociation': new EntityDescriptor(
+            'AssociationCases.Extended.ExtendedTopicAssociation',
+            DomainKind.ASSOCIATION,
+            false
+        ),
+        'ch.example.association.domain.ExternalCompositeAssociation': new EntityDescriptor(
+            'AssociationCases.Base.ExternalCompositeAssociation',
+            DomainKind.ASSOCIATION,
+            false
+        ),
+        'ch.example.association.domain.OrderedAssociation': new EntityDescriptor(
+            'AssociationCases.Base.OrderedAssociation',
+            DomainKind.ASSOCIATION,
+            false
+        ),
+        'ch.example.association.domain.PhysicalMismatchAssociation': new EntityDescriptor(
+            'AssociationCases.Base.PhysicalMismatchAssociation',
+            DomainKind.ASSOCIATION,
+            false
+        ),
+        'ch.example.association.domain.SameTargetAssociation': new EntityDescriptor(
+            'AssociationCases.Base.SameTargetAssociation',
+            DomainKind.ASSOCIATION,
+            false
+        ),
+        'ch.example.association.domain.TernaryAssociation': new EntityDescriptor(
+            'AssociationCases.Extended.TernaryAssociation',
+            DomainKind.ASSOCIATION,
+            false
+        )
     ]
 
-    static Map<String, Object> association(String associationName) {
-        return ASSOCIATIONS[associationName]
+    static final InterlisAssociationRegistry INSTANCE = new InterlisAssociationRegistry(ASSOCIATIONS, CONTEXTS)
+
+    private final Map<String, AssociationDescriptor> associationsByName
+    private final Map<String, AssociationContextDescriptor> contextsById
+
+    private InterlisAssociationRegistry(Map<String, AssociationDescriptor> associations, Map<String, AssociationContextDescriptor> contexts) {
+        associationsByName = Collections.unmodifiableMap(new LinkedHashMap<>(associations))
+        contextsById = Collections.unmodifiableMap(new LinkedHashMap<>(contexts))
     }
 
-    static Map<String, Object> context(String contextId) {
-        return CONTEXTS[contextId]
+    @Override
+    Collection<AssociationDescriptor> associations() { ASSOCIATIONS.values() }
+
+    @Override
+    Optional<AssociationDescriptor> association(String name) {
+        return Optional.ofNullable(associationsByName[name])
     }
 
-    static List<Map<String, Object>> contextsForParticipant(String domainClassName) {
+    @Override
+    Collection<AssociationContextDescriptor> contexts() { CONTEXTS.values() }
+
+    @Override
+    Optional<AssociationContextDescriptor> context(String id) {
+        return Optional.ofNullable(contextsById[id])
+    }
+
+    @Override
+    List<AssociationContextDescriptor> contextsForParticipant(String domainClassName) {
         return (CONTEXT_IDS_BY_PARTICIPANT[domainClassName] ?: [])
-            .collect { String id -> CONTEXTS[id] }
+            .collect { String id -> contextsById[id] }
             .findAll { it != null }
     }
 
-    static boolean showInNavigation(String domainClassName) {
-        Map entity = ENTITIES[domainClassName]
-        return entity == null || entity.showInNavigation != false
+    // ------------------------------------------------------------------
+    // Legacy map API for the pre-plugin runtime (migration only).
+    // ------------------------------------------------------------------
+
+    @Deprecated(forRemoval = true)
+    static Map<String, Object> legacyAssociation(String associationName) {
+        AssociationDescriptor descriptor = INSTANCE.associationsByName[associationName]
+        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyAssociationMap(descriptor)
     }
 
-    private InterlisAssociationRegistry() {
+    @Deprecated(forRemoval = true)
+    static Map<String, Object> legacyContext(String contextId) {
+        AssociationContextDescriptor descriptor = INSTANCE.contextsById[contextId]
+        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyContextMap(descriptor)
+    }
+
+    @Deprecated(forRemoval = true)
+    static List<Map<String, Object>> legacyContextsForParticipant(String domainClassName) {
+        return INSTANCE.contextsForParticipant(domainClassName).collect {
+            AssociationContextDescriptor descriptor ->
+                LegacyDescriptorMapAdapter.toLegacyContextMap(descriptor)
+        }
+    }
+
+    @Deprecated(forRemoval = true)
+    static List<Map<String, Object>> legacyEntities() {
+        return ENTITIES.values().collect { EntityDescriptor e ->
+            LegacyDescriptorMapAdapter.toLegacyEntityMap(e)
+        }
+    }
+
+    @Deprecated(forRemoval = true)
+    static Map<String, Object> legacyEntity(String domainClassName) {
+        EntityDescriptor descriptor = ENTITIES[domainClassName]
+        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyEntityMap(descriptor)
+    }
+
+    @Deprecated(forRemoval = true)
+    static boolean legacyShowInNavigation(String domainClassName) {
+        EntityDescriptor entity = ENTITIES[domainClassName]
+        return entity == null || entity.showInNavigation()
     }
 }

@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     api project(':core')
+    implementation project(':grails-runtime-api')
 
     implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${rootProject.jacksonVersion}"
 

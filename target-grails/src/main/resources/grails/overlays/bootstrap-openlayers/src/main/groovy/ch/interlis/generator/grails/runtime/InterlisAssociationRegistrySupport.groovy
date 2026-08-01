@@ -11,7 +11,7 @@ final class InterlisAssociationRegistrySupport {
         if (domainType == null) {
             return []
         }
-        return InterlisAssociationRegistry.contextsForParticipant(domainType.name)
+        return InterlisAssociationRegistry.legacyContextsForParticipant(domainType.name)
     }
 
     static Map<String, Object> requireContext(Class participantType, String contextId) {
@@ -21,7 +21,7 @@ final class InterlisAssociationRegistrySupport {
         if (contextId == null || contextId.isBlank()) {
             throw new IllegalArgumentException("contextId must not be null or blank")
         }
-        Map<String, Object> context = InterlisAssociationRegistry.context(contextId)
+        Map<String, Object> context = InterlisAssociationRegistry.legacyContext(contextId)
         if (context == null) {
             throw new AssociationContextNotFoundException("Unknown association context: ${contextId}")
         }
@@ -33,7 +33,7 @@ final class InterlisAssociationRegistrySupport {
             )
         }
         String associationName = context.associationName
-        Map<String, Object> association = InterlisAssociationRegistry.association(associationName)
+        Map<String, Object> association = InterlisAssociationRegistry.legacyAssociation(associationName)
         if (association == null) {
             throw new AssociationContextNotFoundException("Association ${associationName} not found in registry for context ${contextId}")
         }
@@ -53,7 +53,7 @@ final class InterlisAssociationRegistrySupport {
         if (associationName == null || associationName.isBlank()) {
             throw new IllegalArgumentException("associationName must not be null or blank")
         }
-        Map<String, Object> association = InterlisAssociationRegistry.association(associationName)
+        Map<String, Object> association = InterlisAssociationRegistry.legacyAssociation(associationName)
         if (association == null) {
             throw new AssociationContextNotFoundException("Unknown association: ${associationName}")
         }
@@ -77,7 +77,7 @@ final class InterlisAssociationRegistrySupport {
             return null
         }
         String associationName = context.associationName
-        Map<String, Object> association = InterlisAssociationRegistry.association(associationName)
+        Map<String, Object> association = InterlisAssociationRegistry.legacyAssociation(associationName)
         if (association == null) {
             return null
         }
@@ -113,7 +113,7 @@ final class InterlisAssociationRegistrySupport {
         if (domainType == null) {
             return false
         }
-        def entity = InterlisAssociationRegistry.ENTITIES[domainType.name]
+        def entity = InterlisAssociationRegistry.legacyEntity(domainType.name)
         return entity != null && entity.kind == 'ASSOCIATION'
     }
 
@@ -121,7 +121,7 @@ final class InterlisAssociationRegistrySupport {
         if (domainType == null) {
             return false
         }
-        return InterlisAssociationRegistry.showInNavigation(domainType.name)
+        return InterlisAssociationRegistry.legacyShowInNavigation(domainType.name)
     }
 
     static class AssociationContextNotFoundException extends RuntimeException {

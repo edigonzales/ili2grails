@@ -31,6 +31,10 @@ public class GrailsCrudGenerator {
         GrailsInverseRelationshipPlanner inverseRelationshipPlanner =
             GrailsInverseRelationshipPlanner.forMetadata(metadata, config, registry, relationshipMapper);
 
+        RuntimeDescriptorPlanner descriptorPlanner = new RuntimeDescriptorPlanner(
+            registry, relationshipMapper, associationPlanner, inverseRelationshipPlanner);
+        RuntimeDescriptorPlan descriptorPlan = descriptorPlanner.plan(metadata, config);
+
         enumGenerator.generate(metadata, config, registry);
         domainGenerator.generate(
             metadata,
@@ -39,8 +43,8 @@ public class GrailsCrudGenerator {
             relationshipMapper,
             inverseRelationshipPlanner
         );
-        associationRegistryGenerator.generate(metadata, config, registry, associationPlanner);
-        uiRegistryGenerator.generate(metadata, config, registry, relationshipMapper, associationPlanner);
+        associationRegistryGenerator.generate(descriptorPlan, config);
+        uiRegistryGenerator.generate(descriptorPlan, config, registry);
         //controllerGenerator.generate(metadata, config, registry);
         //viewGenerator.generate(metadata, config, registry);
         buildGradleUpdater.ensureDependencies(

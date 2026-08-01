@@ -55,7 +55,8 @@ class GrailsCrudGeneratorTest {
         assertThat(enumContent).contains("package com.example.enums");
         assertThat(enumContent).contains("enum Status");
         assertThat(enumContent).contains("active, inactive");
-        assertThat(Files.readString(uiRegistryFile)).contains("iliName: 'SampleModel.Person'");
+        assertThat(Files.readString(uiRegistryFile)).contains("'SampleModel.Person'");
+        assertThat(Files.readString(uiRegistryFile)).contains("implements DomainRegistry");
     }
 
     @Test

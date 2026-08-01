@@ -105,7 +105,21 @@ cli                       (unverändert)
 
 ## 5. API-Migrationsentscheidungen
 
-(wird laufend ergänzt)
+### M-1 Legacy-Map-Adapter in der generierten Registry
+
+Die generierten Registries `InterlisUiRegistry`/`InterlisAssociationRegistry` implementieren die typed Interfaces (`DomainRegistry`/`AssociationRegistry`) und halten immutable Deskriptoren. Für den Migrationszeitraum (bis die kopierte Runtime durch das Plugin ersetzt ist) stellen sie zusätzliche, als `@Deprecated(forRemoval = true)` markierte statische Legacy-Map-Methoden bereit, die über `LegacyDescriptorMapAdapter` (Paket `grails-runtime-api.api.compat`) in den alten Map-Vertrag konvertieren. Neue Runtime-Komponenten dürfen diese Methoden nicht verwenden.
+
+Benennung der Legacy-Accessoren (vermeidet statisch/instanz-Konflikte mit den Interface-Methoden):
+- `InterlisUiRegistry`: `legacyDomains()`, `domain(iliName)`, `domainForClassName(name)`, `domainsForModel(model)` (die ersten drei behalten ihre alten Namen; nur `domains()` musste wegen des Interface-Konflikts umbenannt werden).
+- `InterlisAssociationRegistry`: `legacyAssociation(name)`, `legacyContext(id)`, `legacyContextsForParticipant(name)`, `legacyEntities()`, `legacyEntity(name)`, `legacyShowInNavigation(name)`.
+
+### M-2 Zwischen-Bridge für die Smoke-/Contract-Tests
+
+Die generierten Apps der Smoke-/Contract-Tests kompilieren die typed Registry und benötigen daher `grails-runtime-api` auf dem Klassenpfad. Bis Phase 4 (Plugin-Dependency-Installer) injiziert `RuntimeApiTestSupport` (nur Test-Harness) das gebaute API-JAR als `implementation files('libs/grails-runtime-api.jar')` in die temporäre App. Ersetzt durch Plugin-Coordinates in Phase 4.
+
+### M-3 GrailsBuildGradleUpdater.ensureManagedDependency
+
+Generischer, idempotenter Insert einer markierten Dependency-Zeile in den Top-Level-`dependencies`-Block der Ziel-App (keine Regex-Volltext-Ersetzung). Grundlage für den `GrailsRuntimeDependencyInstaller` (Phase 4).
 
 ---
 
@@ -129,7 +143,12 @@ cli                       (unverändert)
 
 ## 9. Snapshot-Änderungen
 
-(wird laufend ergänzt)
+| Snapshot | Änderung | Grund |
+|---|---|---|
+| `grails-snapshots/*/.../InterlisUiRegistry.groovy` (3 Fixtures) | komplett neuer typed Aufbau (`DomainDescriptor`-Liste, implements `DomainRegistry`, Legacy-Map-API) | P1-B Phase 2: typed Registry-Generierung |
+| `grails-snapshots/association-cases/.../InterlisAssociationRegistry.groovy` | komplett neuer typed Aufbau (`AssociationDescriptor`-Maps, implements `AssociationRegistry`, Legacy-Map-API) | P1-B Phase 2 |
+
+Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unverändert in Phase 2).
 
 ---
 
@@ -151,4 +170,7 @@ cli                       (unverändert)
 
 | Commit | Inhalt |
 |---|---|
+| `1a50e32` | docs: record P1 architecture baseline |
+| `04278da` | feat(runtime-api): add typed descriptors and operation results (Phase 1) |
+| (folgt) | refactor(grails): generate typed runtime registries (Phase 2) |
 | (folgt) | ... |

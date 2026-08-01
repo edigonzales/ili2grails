@@ -17,7 +17,8 @@ public record RelationshipDescriptor(
     public RelationshipDescriptor {
         name = DescriptorValidation.requireText(name, "name");
         propertyName = DescriptorValidation.requireText(propertyName, "propertyName");
-        targetDomainClassName = DescriptorValidation.requireText(
-            targetDomainClassName, "targetDomainClassName");
+        if (targetDomainClassName != null && targetDomainClassName.isBlank()) {
+            throw new IllegalArgumentException("targetDomainClassName must not be blank");
+        }
     }
 }

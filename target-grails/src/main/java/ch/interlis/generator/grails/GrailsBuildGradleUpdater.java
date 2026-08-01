@@ -24,6 +24,49 @@ class GrailsBuildGradleUpdater {
         ensureDependencies(buildGradlePath, false);
     }
 
+    /**
+     * Inserts or updates a single managed dependency line inside the
+     * top-level {@code dependencies} block. Idempotent: existing lines with
+     * the same marker are replaced, no duplicates are created.
+     */
+    void ensureManagedDependency(Path buildGradlePath,
+                                 String marker,
+                                 String dependencyLine) throws IOException {
+        if (!Files.exists(buildGradlePath)) {
+            return;
+        }
+        List<String> lines = Files.readAllLines(buildGradlePath, StandardCharsets.UTF_8);
+        List<String> updated = ensureManagedDependency(lines, marker, dependencyLine);
+        if (!updated.equals(lines)) {
+            Files.write(buildGradlePath, updated, StandardCharsets.UTF_8);
+        }
+    }
+
+    private List<String> ensureManagedDependency(List<String> lines,
+                                                 String marker,
+                                                 String dependencyLine) {
+        List<String> updated = new java.util.ArrayList<>();
+        boolean foundMarker = false;
+        for (String line : lines) {
+            if (line.contains(marker)) {
+                foundMarker = true;
+                continue;
+            }
+            updated.add(line);
+        }
+        if (foundMarker) {
+            return updated;
+        }
+        int[] buildscriptRange = findBlockRange(updated, "buildscript", null);
+        int[] dependenciesRange = findBlockRange(updated, "dependencies", buildscriptRange);
+        if (dependenciesRange == null) {
+            return lines;
+        }
+        String indent = detectIndent(updated, dependenciesRange[0]);
+        updated.add(dependenciesRange[1], indent + dependencyLine);
+        return updated;
+    }
+
     void ensureDependencies(Path buildGradlePath, boolean geometryEnabled) throws IOException {
         if (!Files.exists(buildGradlePath)) {
             return;

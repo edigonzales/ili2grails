@@ -51,7 +51,7 @@ class InterlisAssociationQueryService {
         String fixedProperty = context.fixedProperty
         String sortField = safeSort(sort, associationType)
         String sortOrder = safeOrder(requestedOrder)
-        Map<String, Object> associationDescriptor = InterlisAssociationRegistry.ASSOCIATIONS[context.associationName]
+        Map<String, Object> associationDescriptor = InterlisAssociationRegistry.legacyAssociation(context.associationName)
         List<Map<String, Object>> editableRoleList = InterlisAssociationRegistrySupport.editableRoles(associationDescriptor, context)
         def results = associationType.createCriteria().list(max: pageMax, offset: pageOffset) {
             eq(fixedProperty + ".id", participantId)
@@ -87,7 +87,7 @@ class InterlisAssociationQueryService {
     Map<String, Object> optionPage(Class participantType, String contextId, String roleName,
                                    String query, Integer max, Integer offset) {
         Map<String, Object> context = InterlisAssociationRegistrySupport.requireContext(participantType, contextId)
-        Map<String, Object> associationDesc = InterlisAssociationRegistry.ASSOCIATIONS[context.associationName]
+        Map<String, Object> associationDesc = InterlisAssociationRegistry.legacyAssociation(context.associationName)
         Map<String, Object> roleDesc = InterlisAssociationRegistrySupport.role(associationDesc, roleName)
         if (roleDesc == null) {
             return [results: [], pagination: [more: false, total: 0, nextOffset: offset]]
@@ -159,7 +159,7 @@ class InterlisAssociationQueryService {
 
     private Map<String, Object> buildSection(Class participantType, Object participant,
                                              Map<String, Object> context, Integer limit) {
-        Map<String, Object> associationDesc = InterlisAssociationRegistry.ASSOCIATIONS[context.associationName]
+        Map<String, Object> associationDesc = InterlisAssociationRegistry.legacyAssociation(context.associationName)
         if (associationDesc == null) {
             return null
         }
