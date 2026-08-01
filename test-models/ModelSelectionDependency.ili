@@ -1,0 +1,13 @@
+INTERLIS 2.4;
+
+MODEL ModelSelectionDependency (en)
+  AT "mailto:ili2grails@example.org" VERSION "2026-01-01" =
+  IMPORTS ModelSelectionTransitiveDependency;
+  TOPIC DependencyTopic =
+    DEPENDS ON ModelSelectionTransitiveDependency.TransitiveTopic;
+    CLASS DependencyClass =
+      Name: TEXT;
+      Ref: REFERENCE TO (EXTERNAL) ModelSelectionTransitiveDependency.TransitiveTopic.TransitiveClass;
+    END DependencyClass;
+  END DependencyTopic;
+END ModelSelectionDependency.

@@ -39,6 +39,8 @@ import ch.interlis.ili2c.metamodel.Topic;
 import ch.interlis.ili2c.metamodel.TransferDescription;
 import ch.interlis.ili2c.metamodel.Type;
 import ch.interlis.ili2c.metamodel.TypeAlias;
+import ch.interlis.generator.metadata.selection.ModelSelection;
+import ch.interlis.generator.metadata.selection.ModelSelectionResolver;
 import ch.interlis.generator.model.*;
 import ch.interlis.ilirepository.IliManager;
 import org.slf4j.Logger;
@@ -169,6 +171,42 @@ public class Ili2cModelReader {
         return td;
     }
     
+    /**
+     * Resultat eines kompletten ili2c-Lesedurchgangs: semantische Metadaten,
+     * präzise Modellauswahl und die TransferDescription.
+     */
+    public record Ili2cReadResult(
+        ModelMetadata metadata,
+        ModelSelection modelSelection,
+        TransferDescription transferDescription
+    ) {
+    }
+
+    /**
+     * Liest das Modell mit genau einem Kompilierdurchgang.
+     * Das Modell wird nur einmal kompiliert; die TransferDescription wird nicht
+     * doppelt aufgelöst.
+     */
+    public Ili2cReadResult read(String modelName) throws Ili2cFailure {
+        if (td == null) {
+            compileModel(modelName);
+        }
+        ModelSelection selection = new ModelSelectionResolver()
+            .fromTransferDescription(td, modelName);
+        ModelMetadata metadata = readMetadata(modelName);
+        return new Ili2cReadResult(metadata, selection, td);
+    }
+
+    /**
+     * Bestimmt die Modellauswahl aus der TransferDescription (kompiliert bei Bedarf).
+     */
+    public ModelSelection resolveModelSelection(String modelName) throws Ili2cFailure {
+        if (td == null) {
+            compileModel(modelName);
+        }
+        return new ModelSelectionResolver().fromTransferDescription(td, modelName);
+    }
+
     /**
      * Liest Metadaten aus dem kompilierten Modell.
      */

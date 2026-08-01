@@ -1,0 +1,13 @@
+INTERLIS 2.4;
+
+MODEL ModelSelectionRoot (en)
+  AT "mailto:ili2grails@example.org" VERSION "2026-01-01" =
+  IMPORTS ModelSelectionDependency;
+  TOPIC RootTopic =
+    DEPENDS ON ModelSelectionDependency.DependencyTopic;
+    CLASS RootClass =
+      Name: TEXT;
+      Ref: REFERENCE TO (EXTERNAL) ModelSelectionDependency.DependencyTopic.DependencyClass;
+    END RootClass;
+  END RootTopic;
+END ModelSelectionRoot.

@@ -1,0 +1,10 @@
+INTERLIS 2.4;
+
+MODEL ModelSelectionUnrelated (en)
+  AT "mailto:ili2grails@example.org" VERSION "2026-01-01" =
+  TOPIC UnrelatedTopic =
+    CLASS UnrelatedClass =
+      Name: TEXT;
+    END UnrelatedClass;
+  END UnrelatedTopic;
+END ModelSelectionUnrelated.

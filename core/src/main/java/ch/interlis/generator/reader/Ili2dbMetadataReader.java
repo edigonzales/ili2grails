@@ -1,5 +1,6 @@
 package ch.interlis.generator.reader;
 
+import ch.interlis.generator.metadata.selection.ModelSelection;
 import ch.interlis.generator.model.*;
 import ch.interlis.generator.reader.sql.QualifiedSqlName;
 import ch.interlis.generator.reader.sql.SqlIdentifier;
@@ -121,41 +122,57 @@ public class Ili2dbMetadataReader {
     }
     
     /**
-     * Liest die kompletten Metadaten für ein bestimmtes Modell.
+     * Kompatibilitäts-API: liest nur das Root-Modell
+     * ({@link ModelSelection#rootOnly(String)}).
      */
     public ModelMetadata readMetadata(String modelName) throws SQLException {
-        logger.info("Reading ili2db metadata for model: {}", modelName);
-        
+        return readMetadata(ModelSelection.rootOnly(modelName));
+    }
+
+    /**
+     * Liest die kompletten Metadaten für die übergebene Modellauswahl.
+     *
+     * <p>Gelesen wird nur die Schnittmenge aus {@link ModelSelection#includedModelNames()}
+     * und den in {@code t_ili2db_model} verfügbaren Modellen. Unabhängige Modelle des
+     * Schemas werden nie hinzugefügt. Das Root-Modell muss in der Datenbank vorhanden
+     * sein.</p>
+     */
+    public ModelMetadata readMetadata(ModelSelection selection) throws SQLException {
+        Objects.requireNonNull(selection, "selection");
+        String modelName = selection.rootModelName();
+        logger.info("Reading ili2db metadata for selection: {} -> {}", modelName,
+            selection.includedModelNames());
+
         ModelMetadata metadata = new ModelMetadata(modelName);
-        
+
         metadata.setSchemaName(schema != null ? schema.value() : null);
-        
+
         // Settings lesen
         readSettings(metadata);
-        
-        Set<String> modelNames = resolveRelevantModelNames(modelName);
+
+        Set<String> modelNames = effectiveModelNames(selection, availableDatabaseModels());
 
         // Klassen lesen
         readClasses(metadata, modelNames);
-        
+
         // Attribute lesen
         readAttributes(metadata, modelNames);
-        
+
         // Vererbung auflösen
         readInheritance(metadata, modelNames);
-        
+
         // Spalten-Properties lesen (Constraints, etc.)
         readColumnProperties(metadata);
-        
+
         // Beziehungen ableiten
         deriveRelationships(metadata);
 
         // Association-Klassen als eigene Core-IR vorbereiten
         deriveAssociations(metadata);
-        
-        logger.info("Metadata reading complete: {} classes, {} enums", 
+
+        logger.info("Metadata reading complete: {} classes, {} enums",
             metadata.getClasses().size(), metadata.getEnums().size());
-        
+
         return metadata;
     }
     
@@ -1063,19 +1080,19 @@ public class Ili2dbMetadataReader {
         return prefixes;
     }
 
-    private Set<String> resolveRelevantModelNames(String requestedModel) {
+    /**
+     * Ermittelt die in {@code t_ili2db_model} verfügbaren Modelle.
+     * Nicht lesbare oder fehlende Metatabelle liefert eine leere Menge mit Warnung.
+     */
+    private Set<String> availableDatabaseModels() throws SQLException {
         Set<String> modelNames = new LinkedHashSet<>();
-        if (requestedModel != null && !requestedModel.isBlank()) {
-            modelNames.add(requestedModel);
-        }
-
         String sql = "SELECT * FROM " + metaTable("t_ili2db_model");
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             ResultSetMetaData meta = rs.getMetaData();
             String modelColumn = findColumn(meta, "modelname", "model", "name");
             if (modelColumn == null) {
-                logger.warn("Could not detect model name column in t_ili2db_model, using requested model only.");
+                logger.warn("Could not detect model name column in t_ili2db_model.");
                 return modelNames;
             }
             String contentColumn = findColumn(meta, "content");
@@ -1092,10 +1109,43 @@ public class Ili2dbMetadataReader {
                 logger.debug("Detected ili2db model: {}", modelName);
             }
         } catch (SQLException e) {
-            logger.warn("Could not read model list from t_ili2db_model, using requested model only.", e);
+            logger.warn("Could not read model list from t_ili2db_model; "
+                + "falling back to root-only selection.", e);
+            return modelNames;
         }
-
         return modelNames;
+    }
+
+    /**
+     * Effektive Modellnamen = Auswahl ∩ verfügbare DB-Modelle.
+     *
+     * <p>Das Root-Modell muss in der Datenbank vorhanden sein (sonst Fehler).
+     * Fehlende benötigte Dependencies werden übersprungen und gewarnt;
+     * unabhängige DB-Modelle werden nie hinzugefügt. Wenn die Metatabelle nicht
+     * lesbar ist (leere Verfügbarkeitsmenge), wird Root-only gelesen.</p>
+     */
+    private Set<String> effectiveModelNames(
+        ModelSelection selection,
+        Set<String> availableDatabaseModels
+    ) {
+        if (availableDatabaseModels.isEmpty()) {
+            logger.warn("Dependency graph models not verifiable against t_ili2db_model; "
+                + "reading root model only: {}", selection.rootModelName());
+            return new LinkedHashSet<>(Set.of(selection.rootModelName()));
+        }
+        if (!availableDatabaseModels.contains(selection.rootModelName())) {
+            throw new IllegalArgumentException(
+                "Root model not found in t_ili2db_model: " + selection.rootModelName());
+        }
+        Set<String> effective = new LinkedHashSet<>();
+        for (String name : selection.includedModelNames()) {
+            if (availableDatabaseModels.contains(name)) {
+                effective.add(name);
+            } else {
+                logger.warn("Requested model {} is not present in t_ili2db_model; skipping.", name);
+            }
+        }
+        return effective;
     }
 
     private String findColumn(ResultSetMetaData meta, String... candidates) throws SQLException {

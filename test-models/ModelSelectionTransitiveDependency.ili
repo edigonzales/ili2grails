@@ -1,0 +1,10 @@
+INTERLIS 2.4;
+
+MODEL ModelSelectionTransitiveDependency (en)
+  AT "mailto:ili2grails@example.org" VERSION "2026-01-01" =
+  TOPIC TransitiveTopic =
+    CLASS TransitiveClass =
+      Name: TEXT;
+    END TransitiveClass;
+  END TransitiveTopic;
+END ModelSelectionTransitiveDependency.

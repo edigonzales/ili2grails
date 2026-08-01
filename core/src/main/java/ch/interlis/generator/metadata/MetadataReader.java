@@ -51,26 +51,42 @@ public class MetadataReader {
      */
     public ModelMetadata readMetadata(String modelName) throws SQLException, Ili2cFailure {
         logger.info("Reading combined metadata for model: {}", modelName);
-        
-        // ili2db Metatabellen lesen (Basis-Struktur)
-        logger.info("Reading ili2db metadata from database");
-        Ili2dbMetadataReader ili2dbReader = new Ili2dbMetadataReader(connection, schemaName);
-        ModelMetadata metadata = ili2dbReader.readMetadata(modelName);
-        
-        // ili2c Modell lesen (Semantische Anreicherung)
+
         boolean hasModelFile = modelFile != null && modelFile.exists();
         boolean hasModelRepositories = modelDirs != null && !modelDirs.isEmpty();
+
         if (hasModelFile || hasModelRepositories) {
+            // 1. Modell einmal kompilieren und semantischen Snapshot + Auswahl lesen
+            Ili2cModelReader ili2cReader = new Ili2cModelReader(modelFile, modelDirs);
+            Ili2cModelReader.Ili2cReadResult ili2cResult = ili2cReader.read(modelName);
+
+            // 2. physischen Snapshot nur für die Modellauswahl lesen
+            logger.info("Reading ili2db metadata from database for selection: {}",
+                ili2cResult.modelSelection().includedModelNames());
+            Ili2dbMetadataReader ili2dbReader =
+                Ili2dbMetadataReader.create(connection, schemaName);
+            ModelMetadata metadata = ili2dbReader.readMetadata(ili2cResult.modelSelection());
+
+            // 3. Semantische Anreicherung
             logger.info("Enriching with ili2c model information");
-            enrichFromIli2cModel(metadata, modelName);
-        } else {
-            logger.warn("No model file or repositories provided. Skipping ili2c enrichment.");
+            enrichFromIli2cModel(metadata, ili2cResult.metadata());
+
+            // 4. Nachbearbeitung
+            logger.info("Post-processing metadata");
+            postProcess(metadata);
+
+            logger.info("Metadata reading complete");
+            return metadata;
         }
-        
-        // Nachbearbeitung
+
+        logger.warn("No model file or repositories provided. Skipping ili2c enrichment.");
+        Ili2dbMetadataReader ili2dbReader = Ili2dbMetadataReader.create(connection, schemaName);
+        ModelMetadata metadata = ili2dbReader.readMetadata(
+            ch.interlis.generator.metadata.selection.ModelSelection.rootOnly(modelName));
+
         logger.info("Post-processing metadata");
         postProcess(metadata);
-        
+
         logger.info("Metadata reading complete");
         return metadata;
     }
@@ -78,12 +94,7 @@ public class MetadataReader {
     /**
      * Reichert die Metadaten mit Informationen aus dem ili2c-Modell an.
      */
-    private void enrichFromIli2cModel(ModelMetadata metadata, String modelName) 
-            throws Ili2cFailure {
-        
-        Ili2cModelReader ili2cReader = new Ili2cModelReader(modelFile, modelDirs);
-        
-        ModelMetadata ili2cMetadata = ili2cReader.readMetadata(modelName);
+    private void enrichFromIli2cModel(ModelMetadata metadata, ModelMetadata ili2cMetadata) {
         
         // ILI-Version
         if (ili2cMetadata.getIliVersion() != null) {
