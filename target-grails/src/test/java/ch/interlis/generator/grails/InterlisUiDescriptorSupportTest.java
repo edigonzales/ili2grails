@@ -431,7 +431,9 @@ class InterlisUiDescriptorSupportTest {
         assertThat(model.get("workspaceDisplayLabel")).isEqualTo("Bahnhofstrasse Zentrum");
         String detailText = model.get("workspaceDetailSections").toString();
         assertThat(detailText)
-            .contains("name", "description", "municipality", "42", "controller", "Bern")
+            .contains("name", "description", "municipality", "42", "controller", "Bern");
+        assertThat(workspaceFieldNames(detailText))
+            .contains("name", "description", "municipality")
             .doesNotContain("id", "version");
         assertThat(model.get("workspaceRelationshipLinks").toString())
             .doesNotContain("municipality", "42", "Bern")
@@ -441,6 +443,22 @@ class InterlisUiDescriptorSupportTest {
         Map<String, Object> emptyModel = map(showModel.invoke(null, Map.of(), runtime.domainType, address, descriptor));
         assertThat(emptyModel.get("workspaceDetailSections").toString())
             .contains("municipality", "value=");
+    }
+
+    /**
+     * Extrahiert die sichtbaren Feldnamen aus dem Workspace-Detail-Abschnitt.
+     * Die Link-Metadaten enthalten bewusst eine {@code id} für die Navigation;
+     * sie dürfen aber nicht als sichtbare skalare Feldnamen exponiert werden.
+     */
+    private static List<String> workspaceFieldNames(String detailText) {
+        java.util.regex.Pattern fieldPattern =
+            java.util.regex.Pattern.compile("\\{name=([^,}{]+), label=");
+        java.util.regex.Matcher matcher = fieldPattern.matcher(detailText);
+        List<String> names = new java.util.ArrayList<>();
+        while (matcher.find()) {
+            names.add(matcher.group(1).trim());
+        }
+        return names;
     }
 
     private GeneratedRuntime generatedRuntime() throws Exception {
