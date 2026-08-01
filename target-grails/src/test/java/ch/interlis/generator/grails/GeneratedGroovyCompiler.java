@@ -10,12 +10,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-final class GeneratedGroovyCompiler {
+public final class GeneratedGroovyCompiler {
 
     private GeneratedGroovyCompiler() {
     }
 
-    static void compileGeneratedSources(Path generatedRoot) throws IOException {
+    public static void compileGeneratedSources(Path generatedRoot) throws IOException {
         List<Path> sources = new ArrayList<>();
         sources.addAll(findGroovySources(generatedRoot.resolve("src/main/groovy")));
         sources.addAll(findGroovySources(generatedRoot.resolve("grails-app/domain")));

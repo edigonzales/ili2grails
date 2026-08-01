@@ -79,6 +79,14 @@ tasks.register('verifyModelCorpusManifest', JavaExec) {
     systemProperty 'corpusFile', rootProject.file('verification/model-corpus.yaml').absolutePath
 }
 
+tasks.register('verifyFeatureMatrixUpToDate', JavaExec) {
+    description = 'Regeneriert die Feature-Matrix und vergleicht sie mit der committeden Datei.'
+    group = 'verification'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'ch.interlis.generator.grails.verification.corpus.FeatureMatrixVerifier'
+    systemProperty 'corpusFile', rootProject.file('verification/model-corpus.yaml').absolutePath
+}
+
 tasks.register('verifyGenerationOwnershipRules', JavaExec) {
     description = 'Validiert die Ownership-Regeln der Generator-Projektdateien.'
     group = 'verification'
