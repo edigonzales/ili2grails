@@ -62,136 +62,126 @@ class GeneratedGrailsCompileSmokeTest {
     }
 
     private ModelMetadata collisionMetadata() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ch.interlis.generator.model.builder.ModelMetadataBuilder builder =
+            ch.interlis.generator.model.builder.ModelMetadataBuilder.model("TestModel");
 
-        EnumMetadata topicAStatus = new EnumMetadata("TestModel.TopicA.Status");
-        topicAStatus.setValues(List.of(
-            new EnumMetadata.EnumValue("ACTIVE", 0),
-            new EnumMetadata.EnumValue("in.Betrieb", 1),
-            new EnumMetadata.EnumValue("class", 2),
-            new EnumMetadata.EnumValue("a.b", 3),
-            new EnumMetadata.EnumValue("a_b", 4)
-        ));
-        metadata.addEnum(topicAStatus);
+        ch.interlis.generator.model.builder.EnumMetadataBuilder topicAStatus =
+            builder.enumBuilder("TestModel.TopicA.Status");
+        topicAStatus.value("ACTIVE", 0)
+            .value("in.Betrieb", 1)
+            .value("class", 2)
+            .value("a.b", 3)
+            .value("a_b", 4);
 
-        EnumMetadata topicBStatus = new EnumMetadata("TestModel.TopicB.Status");
-        topicBStatus.setValues(List.of(new EnumMetadata.EnumValue("ACTIVE", 0)));
-        metadata.addEnum(topicBStatus);
+        ch.interlis.generator.model.builder.EnumMetadataBuilder topicBStatus =
+            builder.enumBuilder("TestModel.TopicB.Status");
+        topicBStatus.value("ACTIVE", 0);
 
-        ClassMetadata topicAGebaeude = new ClassMetadata("TestModel.TopicA.Gebaeude");
-        topicAGebaeude.setTableName("gebaeude_a");
-        topicAGebaeude.addAttribute(enumAttribute("status", topicAStatus.getName()));
-        topicAGebaeude.addAttribute(geometryAttribute("position"));
-        topicAGebaeude.addAttribute(textAttribute("display-name", "name"));
-        topicAGebaeude.addAttribute(textAttribute("primary_name", "name"));
-        metadata.addClass(topicAGebaeude);
+        builder.classBuilder("TestModel.TopicA.Gebaeude")
+            .tableName("gebaeude_a")
+            .attribute(enumAttribute("status", topicAStatus.name()))
+            .attribute(geometryAttribute("position"))
+            .attribute(textAttribute("display-name", "name"))
+            .attribute(textAttribute("primary_name", "name"));
 
-        ClassMetadata topicBGebaeude = new ClassMetadata("TestModel.TopicB.Gebaeude");
-        topicBGebaeude.setTableName("gebaeude_b");
-        topicBGebaeude.addAttribute(enumAttribute("status", topicBStatus.getName()));
-        AttributeMetadata owner = new AttributeMetadata("owner");
-        owner.setForeignKey(true);
-        owner.setReferencedClass(topicAGebaeude.getName());
-        owner.setColumnName("owner");
-        owner.setSqlName("owner");
-        owner.setJavaType("Long");
-        owner.setMandatory(false);
-        topicBGebaeude.addAttribute(owner);
-        metadata.addClass(topicBGebaeude);
+        ch.interlis.generator.model.builder.ClassMetadataBuilder topicBGebaeude =
+            builder.classBuilder("TestModel.TopicB.Gebaeude");
+        topicBGebaeude.tableName("gebaeude_b");
+        topicBGebaeude.attribute(enumAttribute("status", topicBStatus.name()));
+        ch.interlis.generator.model.builder.AttributeMetadataBuilder owner =
+            new ch.interlis.generator.model.builder.AttributeMetadataBuilder("owner");
+        owner.foreignKey(true);
+        owner.referencedClass("TestModel.TopicA.Gebaeude");
+        owner.columnName("owner");
+        owner.sqlName("owner");
+        owner.javaType("Long");
+        owner.mandatory(false);
+        topicBGebaeude.attribute(owner);
 
-        RelationshipMetadata generatedRelationship = new RelationshipMetadata("TopicB_Gebaeude_owner");
-        generatedRelationship.setSourceClass(topicBGebaeude.getName());
-        generatedRelationship.setTargetClass(topicAGebaeude.getName());
-        generatedRelationship.setSourceAttribute("owner");
-        generatedRelationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        generatedRelationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        metadata.addRelationship(generatedRelationship);
+        builder.relationshipBuilder("TopicB_Gebaeude_owner")
+            .sourceClass(topicBGebaeude.name())
+            .targetClass("TestModel.TopicA.Gebaeude")
+            .sourceAttribute("owner")
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
 
-        ClassMetadata component = new ClassMetadata("TestModel.TopicA.Component");
-        component.setKind(ClassMetadata.ClassKind.STRUCTURE);
-        component.addAttribute(textAttribute("label", "label"));
-        metadata.addClass(component);
+        builder.classBuilder("TestModel.TopicA.Component")
+            .kind(ClassMetadata.ClassKind.STRUCTURE)
+            .attribute(textAttribute("label", "label"));
 
-        RelationshipMetadata composition = new RelationshipMetadata("TopicA_Gebaeude_components");
-        composition.setSourceClass(topicAGebaeude.getName());
-        composition.setTargetClass(component.getName());
-        composition.setSourceAttribute("Components");
-        composition.setType(RelationshipMetadata.RelationType.ONE_TO_MANY);
-        composition.setSemanticKind(RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE);
-        composition.setComposition(true);
-        composition.setCardinality(new RelationshipMetadata.Cardinality(1, 1, 0, -1));
-        metadata.addRelationship(composition);
+        builder.relationshipBuilder("TopicA_Gebaeude_components")
+            .sourceClass("TestModel.TopicA.Gebaeude")
+            .targetClass("TestModel.TopicA.Component")
+            .sourceAttribute("Components")
+            .type(RelationshipMetadata.RelationType.ONE_TO_MANY)
+            .semanticKind(RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE)
+            .composition(true)
+            .cardinality(ch.interlis.generator.model.Cardinality.of(1, 1, 0, -1));
 
-        ClassMetadata gebaeudeLink = new ClassMetadata("TestModel.TopicA.GebaeudeLink");
-        gebaeudeLink.setKind(ClassMetadata.ClassKind.ASSOCIATION);
-        gebaeudeLink.setTableName("gebaeude_link");
-        metadata.addClass(gebaeudeLink);
+        builder.classBuilder("TestModel.TopicA.GebaeudeLink")
+            .kind(ClassMetadata.ClassKind.ASSOCIATION)
+            .tableName("gebaeude_link");
 
-        RelationshipMetadata sourceRole = new RelationshipMetadata("GebaeudeLink_Source");
-        sourceRole.setSourceClass(gebaeudeLink.getName());
-        sourceRole.setTargetClass(topicAGebaeude.getName());
-        sourceRole.setTargetRoleName("Source");
-        sourceRole.setType(RelationshipMetadata.RelationType.ASSOCIATION);
-        sourceRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
-        sourceRole.setMandatory(true);
-        metadata.addRelationship(sourceRole);
+        builder.relationshipBuilder("GebaeudeLink_Source")
+            .sourceClass("TestModel.TopicA.GebaeudeLink")
+            .targetClass("TestModel.TopicA.Gebaeude")
+            .targetRoleName("Source")
+            .type(RelationshipMetadata.RelationType.ASSOCIATION)
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .mandatory(true);
 
-        RelationshipMetadata targetRole = new RelationshipMetadata("GebaeudeLink_Target");
-        targetRole.setSourceClass(gebaeudeLink.getName());
-        targetRole.setTargetClass(topicBGebaeude.getName());
-        targetRole.setTargetRoleName("Target");
-        targetRole.setType(RelationshipMetadata.RelationType.ASSOCIATION);
-        targetRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
-        targetRole.setMandatory(true);
-        metadata.addRelationship(targetRole);
+        builder.relationshipBuilder("GebaeudeLink_Target")
+            .sourceClass("TestModel.TopicA.GebaeudeLink")
+            .targetClass("TestModel.TopicB.Gebaeude")
+            .targetRoleName("Target")
+            .type(RelationshipMetadata.RelationType.ASSOCIATION)
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .mandatory(true);
 
-        ClassMetadata abstractBase = new ClassMetadata("TestModel.TopicA.AbstractBase");
-        abstractBase.setAbstract(true);
-        metadata.addClass(abstractBase);
+        builder.classBuilder("TestModel.TopicA.AbstractBase")
+            .abstractClass(true);
 
-        ClassMetadata worker = new ClassMetadata("TestModel.TopicA.Worker");
-        AttributeMetadata baseRef = new AttributeMetadata("baseRef");
-        baseRef.setForeignKey(true);
-        baseRef.setReferencedClass(abstractBase.getName());
-        baseRef.setJavaType("Long");
-        baseRef.setMandatory(false);
-        worker.addAttribute(baseRef);
-        metadata.addClass(worker);
+        ch.interlis.generator.model.builder.ClassMetadataBuilder worker =
+            builder.classBuilder("TestModel.TopicA.Worker");
+        ch.interlis.generator.model.builder.AttributeMetadataBuilder baseRef =
+            new ch.interlis.generator.model.builder.AttributeMetadataBuilder("baseRef");
+        baseRef.foreignKey(true);
+        baseRef.referencedClass("TestModel.TopicA.AbstractBase");
+        baseRef.javaType("Long");
+        baseRef.mandatory(false);
+        worker.attribute(baseRef);
 
-        RelationshipMetadata abstractRelationship = new RelationshipMetadata("Worker_AbstractBase");
-        abstractRelationship.setSourceClass(worker.getName());
-        abstractRelationship.setTargetClass(abstractBase.getName());
-        abstractRelationship.setSourceAttribute("baseRef");
-        abstractRelationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        abstractRelationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        metadata.addRelationship(abstractRelationship);
+        builder.relationshipBuilder("Worker_AbstractBase")
+            .sourceClass(worker.name())
+            .targetClass("TestModel.TopicA.AbstractBase")
+            .sourceAttribute("baseRef")
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
 
-        return metadata;
+        return new ch.interlis.generator.model.ModelMetadataFactory()
+            .buildValidated(builder);
     }
 
-    private AttributeMetadata enumAttribute(String name, String enumType) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setEnumType(enumType);
-        attribute.setMandatory(true);
-        return attribute;
+    private ch.interlis.generator.model.builder.AttributeMetadataBuilder enumAttribute(String name, String enumType) {
+        return new ch.interlis.generator.model.builder.AttributeMetadataBuilder(name)
+            .enumType(enumType)
+            .mandatory(true);
     }
 
-    private AttributeMetadata geometryAttribute(String name) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setGeometry(true);
-        attribute.setGeometryKind("POINT");
-        attribute.setGeometrySrid(2056);
-        attribute.setJavaType("org.locationtech.jts.geom.Geometry");
-        attribute.setMandatory(false);
-        return attribute;
+    private ch.interlis.generator.model.builder.AttributeMetadataBuilder geometryAttribute(String name) {
+        return new ch.interlis.generator.model.builder.AttributeMetadataBuilder(name)
+            .geometry(true)
+            .geometryKind("POINT")
+            .geometrySrid(2056)
+            .javaType("org.locationtech.jts.geom.Geometry")
+            .mandatory(false);
     }
 
-    private AttributeMetadata textAttribute(String name, String sqlName) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setSqlName(sqlName);
-        attribute.setColumnName(sqlName);
-        attribute.setJavaType("String");
-        attribute.setMandatory(false);
-        return attribute;
+    private ch.interlis.generator.model.builder.AttributeMetadataBuilder textAttribute(String name, String sqlName) {
+        return new ch.interlis.generator.model.builder.AttributeMetadataBuilder(name)
+            .sqlName(sqlName)
+            .columnName(sqlName)
+            .javaType("String")
+            .mandatory(false);
     }
 }

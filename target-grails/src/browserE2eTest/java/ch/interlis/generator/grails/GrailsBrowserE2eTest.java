@@ -1690,6 +1690,7 @@ class GrailsBrowserE2eTest {
         Path appDir = tempDir.resolve("browser-e2e");
         appDir.resolve("gradlew").toFile().setExecutable(true);
         appDir.resolve("grailsw").toFile().setExecutable(true);
+        RuntimeApiTestSupport.installRuntimePluginDependency(appDir);
         return appDir;
     }
 

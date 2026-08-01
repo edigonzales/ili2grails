@@ -1,0 +1,18 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+dependencies {
+    testImplementation "org.junit.jupiter:junit-jupiter:${rootProject.junitVersion}"
+    testImplementation "org.assertj:assertj-core:${rootProject.assertjVersion}"
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifactId = 'grails-runtime-api'
+        }
+    }
+}

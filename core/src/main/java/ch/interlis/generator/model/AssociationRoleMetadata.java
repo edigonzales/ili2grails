@@ -1,156 +1,140 @@
 package ch.interlis.generator.model;
 
+import java.util.Objects;
+
 /**
- * Rolle einer INTERLIS-Association innerhalb der framework-agnostischen Core-IR.
+ * Immutable Rolle einer INTERLIS-Association.
  */
-public class AssociationRoleMetadata {
+public final class AssociationRoleMetadata {
 
-    private String name;
-    private String targetClass;
-    private String oppositeRoleName;
-    private RelationshipMetadata.Cardinality cardinality;
-    private boolean mandatory;
-    private boolean ordered;
-    private boolean external;
-    private boolean composition;
-    private String sourceAttribute;
-    private String targetAttribute;
-    private String physicalName;
-    private String semanticName;
-    private String source;
-    private RelationshipMetadata.MergeReason mergeReason;
-    private RelationshipMetadata.MergeConfidence mergeConfidence;
-    private String mergeToken;
+    private final String name;
+    private final String targetClass;
+    private final String oppositeRoleName;
+    private final Cardinality cardinality;
+    private final boolean mandatory;
+    private final boolean ordered;
+    private final boolean external;
+    private final boolean composition;
+    private final String sourceAttribute;
+    private final String targetAttribute;
+    private final String physicalName;
+    private final String semanticName;
+    private final String source;
+    private final RelationshipMetadata.MergeReason mergeReason;
+    private final RelationshipMetadata.MergeConfidence mergeConfidence;
+    private final String mergeToken;
 
-    public AssociationRoleMetadata(String name) {
-        this.name = name;
+    public AssociationRoleMetadata(String name,
+                            String targetClass,
+                            String oppositeRoleName,
+                            Cardinality cardinality,
+                            boolean mandatory,
+                            boolean ordered,
+                            boolean external,
+                            boolean composition,
+                            String sourceAttribute,
+                            String targetAttribute,
+                            String physicalName,
+                            String semanticName,
+                            String source,
+                            RelationshipMetadata.MergeReason mergeReason,
+                            RelationshipMetadata.MergeConfidence mergeConfidence,
+                            String mergeToken) {
+        this.name = Objects.requireNonNull(name, "name");
+        this.targetClass = targetClass;
+        this.oppositeRoleName = oppositeRoleName;
+        this.cardinality = cardinality;
+        this.mandatory = mandatory;
+        this.ordered = ordered;
+        this.external = external;
+        this.composition = composition;
+        this.sourceAttribute = sourceAttribute;
+        this.targetAttribute = targetAttribute;
+        this.physicalName = physicalName;
+        this.semanticName = semanticName;
+        this.source = source;
+        this.mergeReason = mergeReason;
+        this.mergeConfidence = mergeConfidence;
+        this.mergeToken = mergeToken;
+    }
+
+    public static ch.interlis.generator.model.builder.AssociationRoleMetadataBuilder builder(String name) {
+        return new ch.interlis.generator.model.builder.AssociationRoleMetadataBuilder(name);
+    }
+
+    public ch.interlis.generator.model.builder.AssociationRoleMetadataBuilder toBuilder() {
+        return ch.interlis.generator.model.builder.AssociationRoleMetadataBuilder.from(this);
     }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
     public String getTargetClass() {
         return targetClass;
-    }
-
-    public void setTargetClass(String targetClass) {
-        this.targetClass = targetClass;
     }
 
     public String getOppositeRoleName() {
         return oppositeRoleName;
     }
 
-    public void setOppositeRoleName(String oppositeRoleName) {
-        this.oppositeRoleName = oppositeRoleName;
-    }
-
-    public RelationshipMetadata.Cardinality getCardinality() {
+    public Cardinality getCardinality() {
         return cardinality;
-    }
-
-    public void setCardinality(RelationshipMetadata.Cardinality cardinality) {
-        this.cardinality = cardinality;
     }
 
     public boolean isMandatory() {
         return mandatory;
     }
 
-    public void setMandatory(boolean mandatory) {
-        this.mandatory = mandatory;
-    }
-
     public boolean isOrdered() {
         return ordered;
-    }
-
-    public void setOrdered(boolean ordered) {
-        this.ordered = ordered;
     }
 
     public boolean isExternal() {
         return external;
     }
 
-    public void setExternal(boolean external) {
-        this.external = external;
-    }
-
     public boolean isComposition() {
         return composition;
-    }
-
-    public void setComposition(boolean composition) {
-        this.composition = composition;
     }
 
     public String getSourceAttribute() {
         return sourceAttribute;
     }
 
-    public void setSourceAttribute(String sourceAttribute) {
-        this.sourceAttribute = sourceAttribute;
-    }
-
     public String getTargetAttribute() {
         return targetAttribute;
-    }
-
-    public void setTargetAttribute(String targetAttribute) {
-        this.targetAttribute = targetAttribute;
     }
 
     public String getPhysicalName() {
         return physicalName;
     }
 
-    public void setPhysicalName(String physicalName) {
-        this.physicalName = physicalName;
-    }
-
     public String getSemanticName() {
         return semanticName;
-    }
-
-    public void setSemanticName(String semanticName) {
-        this.semanticName = semanticName;
     }
 
     public String getSource() {
         return source;
     }
 
-    public void setSource(String source) {
-        this.source = source;
-    }
-
     public RelationshipMetadata.MergeReason getMergeReason() {
         return mergeReason;
-    }
-
-    public void setMergeReason(RelationshipMetadata.MergeReason mergeReason) {
-        this.mergeReason = mergeReason;
     }
 
     public RelationshipMetadata.MergeConfidence getMergeConfidence() {
         return mergeConfidence;
     }
 
-    public void setMergeConfidence(RelationshipMetadata.MergeConfidence mergeConfidence) {
-        this.mergeConfidence = mergeConfidence;
-    }
-
     public String getMergeToken() {
         return mergeToken;
     }
 
-    public void setMergeToken(String mergeToken) {
-        this.mergeToken = mergeToken;
+    @Override
+    public String toString() {
+        return "AssociationRoleMetadata{" +
+            "name='" + name + '\'' +
+            ", targetClass='" + targetClass + '\'' +
+            '}';
     }
 }

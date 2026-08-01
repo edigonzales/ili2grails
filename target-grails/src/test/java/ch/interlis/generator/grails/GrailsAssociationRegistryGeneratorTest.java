@@ -1,5 +1,10 @@
 package ch.interlis.generator.grails;
 
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationCreateMode;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationStorageKind;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.testsupport.MetadataTestFixtures;
 import org.codehaus.groovy.control.CompilationUnit;
@@ -9,6 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,21 +26,20 @@ class GrailsAssociationRegistryGeneratorTest {
     Path tempDir;
 
     @Test
-    void rendersDeterministicGroovyRegistry() throws Exception {
-        GrailsAssociationPlanner planner = mergedPlanner();
-        GenerationConfig config = config();
+    void rendersDeterministicTypedRegistry() throws Exception {
+        RuntimeDescriptorPlan plan = mergedPlan(config());
         GrailsAssociationRegistryGenerator generator = new GrailsAssociationRegistryGenerator();
 
-        String first = generator.renderRegistry(planner.plans(), config);
-        String second = generator.renderRegistry(planner.plans(), config);
+        String first = generator.renderRegistry(plan);
+        String second = generator.renderRegistry(plan);
 
         assertThat(first).isEqualTo(second);
         assertThat(first).startsWith("package ch.interlis.generator.grails.generated\n");
-        assertThat(first).contains("final class InterlisAssociationRegistry {");
-        assertThat(first).contains("static final Map<String, Map<String, Object>> ASSOCIATIONS = [");
-        assertThat(first).contains("static final Map<String, Map<String, Object>> CONTEXTS = [");
+        assertThat(first).contains("final class InterlisAssociationRegistry implements AssociationRegistry {");
+        assertThat(first).contains("static final Map<String, AssociationDescriptor> ASSOCIATIONS = [");
+        assertThat(first).contains("static final Map<String, AssociationContextDescriptor> CONTEXTS = [");
         assertThat(first).contains("static final Map<String, List<String>> CONTEXT_IDS_BY_PARTICIPANT = [");
-        assertThat(first).contains("static final Map<String, Map<String, Object>> ENTITIES = [");
+        assertThat(first).contains("static final Map<String, EntityDescriptor> ENTITIES = [");
         // Associations are emitted in stable, sorted order.
         int withAttribute = first.indexOf("AssociationCases.Base.AssociationWithAttribute");
         int emptyAssociation = first.indexOf("AssociationCases.Base.EmptyAssociation");
@@ -44,56 +49,35 @@ class GrailsAssociationRegistryGeneratorTest {
 
     @Test
     void escapesQuotesBackslashesAndNewlines() throws Exception {
-        ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
-        GenerationConfig config = config();
-        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
-        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
-        GrailsAssociationPlanner planner =
-            GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
-
-        GrailsAssociationPlan original = planner.findPlan("AssociationCases.Base.AssociationWithAttribute")
+        AssociationDescriptor original = mergedPlan(config()).associations().stream()
+            .filter(association -> association.associationName()
+                .equals("AssociationCases.Base.AssociationWithAttribute"))
+            .findFirst()
             .orElseThrow();
-        GrailsAssociationAttributePlan attribute = original.attributes().get(0);
-        GrailsAssociationAttributePlan tricky = new GrailsAssociationAttributePlan(
-            attribute.iliName(),
-            attribute.domainPropertyName(),
-            attribute.javaType(),
-            attribute.coreType(),
-            "Line1\nLine2 with 'quote' and \\ backslash and $var",
-            attribute.documentation(),
-            attribute.unit(),
-            attribute.mandatory(),
-            attribute.maxLength(),
-            attribute.minInclusive(),
-            attribute.maxInclusive(),
-            attribute.precision(),
-            attribute.scale(),
-            attribute.geometry(),
-            attribute.geometryKind(),
-            attribute.geometrySrid(),
-            attribute.enumType()
-        );
-        GrailsAssociationPlan tweaked = new GrailsAssociationPlan(
+        AssociationDescriptor tricky = new AssociationDescriptor(
             original.associationName(),
-            original.associationIliClassName(),
-            original.associationDomainClassName(),
-            original.associationDomainQualifiedName(),
-            original.associationControllerName(),
-            original.associationViewPath(),
+            original.iliClassName(),
+            original.domainClassName(),
+            original.controllerName(),
+            original.viewPath(),
             original.physicalTable(),
             original.physicalSqlName(),
             original.storageKind(),
-            original.physicalMappingPresent(),
             original.writable(),
             original.showInNavigation(),
             original.roles(),
-            java.util.List.of(tricky),
-            original.contexts(),
+            List.of(new ch.interlis.generator.grails.runtime.api.descriptor.AssociationAttributeDescriptor(
+                "attr", "attr", "String",
+                ch.interlis.generator.grails.runtime.api.descriptor.RuntimeCoreType.TEXT,
+                "Line1\nLine2 with 'quote' and \\ backslash and $var",
+                false, null, null, null, false
+            )),
             original.diagnostics()
         );
+        RuntimeDescriptorPlan plan = new RuntimeDescriptorPlan(
+            List.of(), List.of(tricky), List.of(), List.of());
 
-        String rendered = new GrailsAssociationRegistryGenerator()
-            .renderRegistry(java.util.List.of(tweaked), config);
+        String rendered = new GrailsAssociationRegistryGenerator().renderRegistry(plan);
 
         assertThat(rendered).contains("\\n");
         assertThat(rendered).contains("\\'quote\\'");
@@ -106,23 +90,25 @@ class GrailsAssociationRegistryGeneratorTest {
     @Test
     void emitsContextsByParticipant() throws Exception {
         String rendered = new GrailsAssociationRegistryGenerator()
-            .renderRegistry(mergedPlanner().plans(), config());
+            .renderRegistry(mergedPlan(config()));
 
         // The self-association exposes two participant contexts for the same domain class.
         assertThat(rendered).contains(DOMAIN_PACKAGE + ".Person");
         assertThat(rendered).contains("AssociationCases.Base.SameTargetAssociation::PrimaryPerson");
         assertThat(rendered).contains("AssociationCases.Base.SameTargetAssociation::SecondaryPerson");
-        assertThat(rendered).contains("fixedRole: 'PrimaryPerson'");
-        assertThat(rendered).contains("fixedProperty: 'primaryPersonId'");
+        assertThat(rendered).contains("'PrimaryPerson'");
+        assertThat(rendered).contains("'primaryPersonId'");
     }
 
     @Test
     void emitsEntityNavigationMetadata() throws Exception {
-        String rendered = new GrailsAssociationRegistryGenerator()
-            .renderRegistry(mergedPlanner().plans(), config());
-
-        assertThat(rendered).contains("kind: 'ASSOCIATION'");
-        assertThat(entitiesBlock(rendered)).contains("showInNavigation: false");
+        RuntimeDescriptorPlan plan = mergedPlan(config());
+        AssociationDescriptor association = plan.associations().stream()
+            .filter(candidate -> candidate.associationName()
+                .equals("AssociationCases.Base.AssociationWithAttribute"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(association.showInNavigation()).isFalse();
     }
 
     @Test
@@ -132,11 +118,11 @@ class GrailsAssociationRegistryGeneratorTest {
             .enumPackage("ch.example.association.enums")
             .associationNavigation(GenerationConfig.ASSOCIATION_NAVIGATION_SHOW)
             .build();
-        String rendered = new GrailsAssociationRegistryGenerator()
-            .renderRegistry(mergedPlanner().plans(), config);
-
-        assertThat(entitiesBlock(rendered)).contains("kind: 'ASSOCIATION'");
-        assertThat(entitiesBlock(rendered)).doesNotContain("showInNavigation: false");
+        RuntimeDescriptorPlan plan = mergedPlan(config);
+        assertThat(plan.associations().stream().anyMatch(AssociationDescriptor::showInNavigation))
+            .isTrue();
+        assertThat(plan.associations().stream().allMatch(AssociationDescriptor::showInNavigation))
+            .isTrue();
     }
 
     @Test
@@ -146,11 +132,9 @@ class GrailsAssociationRegistryGeneratorTest {
             .enumPackage("ch.example.association.enums")
             .associationNavigation(GenerationConfig.ASSOCIATION_NAVIGATION_HIDE)
             .build();
-        String rendered = new GrailsAssociationRegistryGenerator()
-            .renderRegistry(mergedPlanner().plans(), config);
-
-        assertThat(entitiesBlock(rendered)).contains("showInNavigation: false");
-        assertThat(entitiesBlock(rendered)).doesNotContain("showInNavigation: true");
+        RuntimeDescriptorPlan plan = mergedPlan(config);
+        assertThat(plan.associations().stream().anyMatch(AssociationDescriptor::showInNavigation))
+            .isFalse();
     }
 
     @Test
@@ -158,12 +142,9 @@ class GrailsAssociationRegistryGeneratorTest {
         GrailsAssociationRegistryGenerator generator = new GrailsAssociationRegistryGenerator();
         ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
         GenerationConfig config = config();
-        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
-        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
-        GrailsAssociationPlanner planner =
-            GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
+        RuntimeDescriptorPlan plan = mergedPlan(config);
 
-        generator.generate(metadata, config, registry, planner);
+        generator.generate(plan, config);
 
         Path expected = tempDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy");
@@ -172,15 +153,13 @@ class GrailsAssociationRegistryGeneratorTest {
     }
 
     @Test
-    void emptyAssociationSetProducesValidRegistry() {
-        ModelMetadata metadata = new ModelMetadata("Empty");
+    void emptyAssociationSetProducesValidRegistry() throws Exception {
+        ModelMetadata metadata = new ch.interlis.generator.model.ModelMetadataFactory()
+            .buildValidated(ch.interlis.generator.model.builder.ModelMetadataBuilder.model("Empty"));
         GenerationConfig config = config();
-        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
-        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
-        GrailsAssociationPlanner planner =
-            GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
+        RuntimeDescriptorPlan plan = GrailsUiRegistryGeneratorTest.plan(metadata, config);
 
-        String rendered = new GrailsAssociationRegistryGenerator().renderRegistry(planner.plans(), config);
+        String rendered = new GrailsAssociationRegistryGenerator().renderRegistry(plan);
 
         assertThat(rendered).contains("ASSOCIATIONS = [:]");
         assertThat(rendered).contains("CONTEXTS = [:]");
@@ -196,15 +175,13 @@ class GrailsAssociationRegistryGeneratorTest {
             .enumPackage("ch.example.association.enums")
             .associationUiMode(GenerationConfig.ASSOCIATION_UI_READ_ONLY)
             .build();
-        String rendered = new GrailsAssociationRegistryGenerator()
-            .renderRegistry(mergedPlanner().plans(), config);
+        RuntimeDescriptorPlan plan = mergedPlan(config);
 
-        assertThat(rendered).contains("createMode: 'NONE'");
-        assertThat(rendered).doesNotContain("createMode: 'QUICK'");
-        assertThat(rendered).doesNotContain("createMode: 'CONTEXTUAL_FORM'");
-        assertThat(rendered).doesNotContain("writable: true");
-        assertThat(rendered).doesNotContain("removable: true");
-        assertGroovyCompiles(rendered);
+        assertThat(plan.contexts()).isNotEmpty();
+        assertThat(plan.contexts().stream()
+            .allMatch(context -> context.createMode() == AssociationCreateMode.NONE)).isTrue();
+        assertThat(plan.contexts().stream().noneMatch(AssociationContextDescriptor::writable)).isTrue();
+        assertThat(plan.contexts().stream().noneMatch(AssociationContextDescriptor::removable)).isTrue();
     }
 
     @Test
@@ -214,31 +191,27 @@ class GrailsAssociationRegistryGeneratorTest {
             .enumPackage("ch.example.association.enums")
             .associationUiMode(GenerationConfig.ASSOCIATION_UI_OFF)
             .build();
-        String rendered = new GrailsAssociationRegistryGenerator()
-            .renderRegistry(mergedPlanner().plans(), config);
+        RuntimeDescriptorPlan plan = mergedPlan(config);
 
-        assertThat(rendered).doesNotContain("createMode: 'QUICK'");
-        assertThat(rendered).doesNotContain("writable: true");
-        assertGroovyCompiles(rendered);
+        assertThat(plan.associations().stream().noneMatch(AssociationDescriptor::writable)).isTrue();
+        assertThat(plan.contexts().stream()
+            .allMatch(context -> context.createMode() == AssociationCreateMode.NONE)).isTrue();
     }
 
     @Test
     void autoModeKeepsQuickCreateMode() throws Exception {
-        String rendered = new GrailsAssociationRegistryGenerator()
-            .renderRegistry(mergedPlanner().plans(), config());
+        RuntimeDescriptorPlan plan = mergedPlan(config());
 
-        assertThat(rendered).contains("createMode: 'QUICK'");
-        assertThat(rendered).contains("writable: true");
+        assertThat(plan.contexts().stream()
+            .anyMatch(context -> context.createMode() == AssociationCreateMode.QUICK)).isTrue();
+        assertThat(plan.contexts().stream().anyMatch(AssociationContextDescriptor::writable)).isTrue();
     }
 
     // ------------------------------------------------------------------
 
-    private GrailsAssociationPlanner mergedPlanner() throws Exception {
+    private RuntimeDescriptorPlan mergedPlan(GenerationConfig config) throws Exception {
         ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
-        GenerationConfig config = config();
-        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
-        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
-        return GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
+        return GrailsUiRegistryGeneratorTest.plan(metadata, config);
     }
 
     private GenerationConfig config() {
@@ -248,14 +221,9 @@ class GrailsAssociationRegistryGeneratorTest {
             .build();
     }
 
-    private String entitiesBlock(String rendered) {
-        int start = rendered.indexOf("ENTITIES = [");
-        int end = rendered.indexOf("static Map<String, Object> association(");
-        return rendered.substring(start, end);
-    }
-
     private void assertGroovyCompiles(String source) {
-        CompilerConfiguration configuration = new CompilerConfiguration();        configuration.setClasspath(System.getProperty("java.class.path"));
+        CompilerConfiguration configuration = new CompilerConfiguration();
+        configuration.setClasspath(System.getProperty("java.class.path"));
         CompilationUnit compilationUnit = new CompilationUnit(configuration);
         compilationUnit.addSource("InterlisAssociationRegistry.groovy", source);
         compilationUnit.compile();

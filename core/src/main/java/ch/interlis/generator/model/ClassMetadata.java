@@ -1,99 +1,83 @@
 package ch.interlis.generator.model;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Repräsentiert eine INTERLIS-Klasse (wird zu einer Datenbank-Tabelle).
+ * Immutable Metadaten einer INTERLIS-Klasse.
+ *
+ * <p>Relationships sind nicht Teil der Klasse; die kanonische
+ * Relationship-Liste liegt ausschliesslich im {@link ModelMetadata}
+ * (Indizes via {@code relationshipsFrom}/{@code relationshipsTo}).</p>
  */
-public class ClassMetadata {
-    
-    private String name;                    // INTERLIS Klassenname (qualifiziert)
-    private String simpleName;              // Einfacher Name ohne Topic/Model
-    private String topicName;               // Vollqualifizierter Topic-Name
-    private String tableName;               // Datenbankname der Tabelle
-    private String sqlName;                 // SQL-Name (mit Schema)
-    private String documentation;           // Dokumentation aus dem Modell
-    private boolean isAbstract;
-    private String baseClass;               // Vererbung: Name der Basisklasse
-    private ClassKind kind;                 // CLASS, STRUCTURE, ASSOCIATION
-    
-    private Map<String, AttributeMetadata> attributes = new LinkedHashMap<>();
-    private List<RelationshipMetadata> relationships = new ArrayList<>();
-    private Map<String, String> labels = new HashMap<>();  // Sprache -> Label
-    
-    // ili2db spezifisch
-    private String inheritanceStrategy;     // newClass, superClass, subClass
-    
+public final class ClassMetadata {
+
     public enum ClassKind {
         CLASS,
         STRUCTURE,
         ASSOCIATION
     }
-    
-    public ClassMetadata(String name) {
-        this.name = name;
-        this.simpleName = extractSimpleName(name);
-        this.topicName = extractTopicName(name);
-    }
-    
-    private String extractSimpleName(String qualifiedName) {
-        if (qualifiedName == null) return null;
-        int lastDot = qualifiedName.lastIndexOf('.');
-        return lastDot >= 0 ? qualifiedName.substring(lastDot + 1) : qualifiedName;
+
+    private final String name;
+    private final String simpleName;
+    private final String topicName;
+    private final String tableName;
+    private final String sqlName;
+    private final String documentation;
+    private final boolean abstractClass;
+    private final String baseClass;
+    private final ClassKind kind;
+    private final Map<String, AttributeMetadata> attributes;
+    private final Map<String, String> labels;
+    private final String inheritanceStrategy;
+
+    public ClassMetadata(String name,
+                  String simpleName,
+                  String topicName,
+                  String tableName,
+                  String sqlName,
+                  String documentation,
+                  boolean abstractClass,
+                  String baseClass,
+                  ClassKind kind,
+                  Map<String, AttributeMetadata> attributes,
+                  Map<String, String> labels,
+                  String inheritanceStrategy) {
+        this.name = Objects.requireNonNull(name, "name");
+        this.simpleName = simpleName;
+        this.topicName = topicName;
+        this.tableName = tableName;
+        this.sqlName = sqlName;
+        this.documentation = documentation;
+        this.abstractClass = abstractClass;
+        this.baseClass = baseClass;
+        this.kind = kind;
+        this.attributes = attributes == null
+            ? Map.of()
+            : Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
+        this.labels = labels == null
+            ? Map.of()
+            : Collections.unmodifiableMap(new LinkedHashMap<>(labels));
+        this.inheritanceStrategy = inheritanceStrategy;
     }
 
-    private String extractTopicName(String qualifiedName) {
-        if (qualifiedName == null) return null;
-        int lastDot = qualifiedName.lastIndexOf('.');
-        return lastDot >= 0 ? qualifiedName.substring(0, lastDot) : null;
+    public static ch.interlis.generator.model.builder.ClassMetadataBuilder builder(String name) {
+        return new ch.interlis.generator.model.builder.ClassMetadataBuilder(name);
     }
-    
-    public void addAttribute(AttributeMetadata attribute) {
-        attributes.put(attribute.getName(), attribute);
+
+    public ch.interlis.generator.model.builder.ClassMetadataBuilder toBuilder() {
+        return ch.interlis.generator.model.builder.ClassMetadataBuilder.from(this);
     }
-    
-    public void addRelationship(RelationshipMetadata relationship) {
-        if (relationships.stream().noneMatch(existing -> sameRelationship(existing, relationship))) {
-            relationships.add(relationship);
-        }
-    }
-    
-    public void addLabel(String language, String label) {
-        labels.put(language, label);
-    }
-    
-    public AttributeMetadata getAttribute(String name) {
-        return attributes.get(name);
-    }
-    
-    public Collection<AttributeMetadata> getAllAttributes() {
-        return attributes.values();
-    }
-    
-    public List<AttributeMetadata> getNonGeometryAttributes() {
-        return attributes.values().stream()
-            .filter(a -> !a.isGeometry())
-            .toList();
-    }
-    
-    public List<AttributeMetadata> getGeometryAttributes() {
-        return attributes.values().stream()
-            .filter(AttributeMetadata::isGeometry)
-            .toList();
-    }
-    
-    // Getters and Setters
-    
+
     public String getName() {
         return name;
     }
-    
-    public void setName(String name) {
-        this.name = name;
-        this.simpleName = extractSimpleName(name);
-        this.topicName = extractTopicName(name);
-    }
-    
+
     public String getSimpleName() {
         return simpleName;
     }
@@ -102,108 +86,77 @@ public class ClassMetadata {
         return topicName;
     }
 
-    public void setTopicName(String topicName) {
-        this.topicName = topicName;
-    }
-    
     public String getTableName() {
         return tableName;
     }
-    
-    public void setTableName(String tableName) {
-        this.tableName = tableName;
-    }
-    
+
     public String getSqlName() {
         return sqlName;
     }
-    
-    public void setSqlName(String sqlName) {
-        this.sqlName = sqlName;
-    }
-    
+
     public String getDocumentation() {
         return documentation;
     }
-    
-    public void setDocumentation(String documentation) {
-        this.documentation = documentation;
-    }
-    
+
     public boolean isAbstract() {
-        return isAbstract;
+        return abstractClass;
     }
-    
-    public void setAbstract(boolean anAbstract) {
-        isAbstract = anAbstract;
-    }
-    
+
     public String getBaseClass() {
         return baseClass;
     }
-    
-    public void setBaseClass(String baseClass) {
-        this.baseClass = baseClass;
-    }
-    
+
     public ClassKind getKind() {
         return kind;
     }
-    
-    public void setKind(ClassKind kind) {
-        this.kind = kind;
+
+    public Optional<AttributeMetadata> findAttribute(String name) {
+        return name == null ? Optional.empty() : Optional.ofNullable(attributes.get(name));
     }
-    
+
+    public AttributeMetadata getAttribute(String name) {
+        return attributes.get(name);
+    }
+
+    public Collection<AttributeMetadata> getAllAttributes() {
+        return attributes.values();
+    }
+
+    public List<AttributeMetadata> getGeometryAttributes() {
+        return attributes.values().stream()
+            .filter(AttributeMetadata::isGeometry)
+            .toList();
+    }
+
+    public List<AttributeMetadata> getNonGeometryAttributes() {
+        return attributes.values().stream()
+            .filter(attribute -> !attribute.isGeometry())
+            .toList();
+    }
+
     public Map<String, AttributeMetadata> getAttributes() {
         return attributes;
     }
-    
-    public void setAttributes(Map<String, AttributeMetadata> attributes) {
-        this.attributes = attributes;
-    }
-    
-    public List<RelationshipMetadata> getRelationships() {
-        return relationships;
-    }
-    
-    public void setRelationships(List<RelationshipMetadata> relationships) {
-        this.relationships = relationships;
-    }
-    
+
     public Map<String, String> getLabels() {
         return labels;
     }
-    
-    public void setLabels(Map<String, String> labels) {
-        this.labels = labels;
-    }
-    
+
     public String getInheritanceStrategy() {
         return inheritanceStrategy;
     }
-    
-    public void setInheritanceStrategy(String inheritanceStrategy) {
-        this.inheritanceStrategy = inheritanceStrategy;
-    }
-    
+
     @Override
     public String toString() {
         return "ClassMetadata{" +
-                "name='" + name + '\'' +
-                ", topicName='" + topicName + '\'' +
-                ", tableName='" + tableName + '\'' +
-                ", attributes=" + attributes.size() +
-                ", isAbstract=" + isAbstract +
-                ", kind=" + kind +
-                '}';
+            "name='" + name + '\'' +
+            ", topicName='" + topicName + '\'' +
+            ", tableName='" + tableName + '\'' +
+            ", attributes=" + attributes.size() +
+            ", abstractClass=" + abstractClass +
+            ", kind=" + kind +
+            '}';
     }
 
-    private boolean sameRelationship(RelationshipMetadata left, RelationshipMetadata right) {
-        return Objects.equals(left.getName(), right.getName())
-            && Objects.equals(left.getSourceClass(), right.getSourceClass())
-            && Objects.equals(left.getTargetClass(), right.getTargetClass())
-            && Objects.equals(left.getSourceAttribute(), right.getSourceAttribute())
-            && Objects.equals(left.getTargetRoleName(), right.getTargetRoleName())
-            && Objects.equals(left.getSemanticKind(), right.getSemanticKind());
-    }
 }
+

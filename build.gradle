@@ -13,6 +13,7 @@ ext {
     junitVersion = '5.10.1'
     assertjVersion = '3.24.2'
     h2Version = '2.2.224'
+    sqliteVersion = '3.45.3.0'
     groovyVersion = '4.0.24'
     jtsVersion = '1.19.0'
     playwrightVersion = '1.60.0'

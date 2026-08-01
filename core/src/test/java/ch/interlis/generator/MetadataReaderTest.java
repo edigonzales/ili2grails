@@ -125,8 +125,8 @@ class MetadataReaderTest {
         assertThat(personAddressClass).isNotNull();
         
         // Sollte 2 Beziehungen haben (zu Person und zu Address)
-        assertThat(personAddressClass.getRelationships()).hasSizeGreaterThanOrEqualTo(1);
-        assertThat(personAddressClass.getRelationships())
+        assertThat(metadata.relationshipsFrom(personAddressClass.getName())).hasSizeGreaterThanOrEqualTo(1);
+        assertThat(metadata.relationshipsFrom(personAddressClass.getName()))
             .allSatisfy(relationship -> {
                 assertThat(relationship.getSource()).isEqualTo("ili2db");
                 assertThat(relationship.getPhysicalName()).isEqualTo(relationship.getSourceAttribute());
@@ -145,7 +145,7 @@ class MetadataReaderTest {
 
         ClassMetadata personAddressClass = metadata.getClass("SimpleAddressModel.Addresses.PersonAddress");
         assertThat(personAddressClass).isNotNull();
-        assertThat(personAddressClass.getRelationships()).hasSize(2);
+        assertThat(metadata.relationshipsFrom(personAddressClass.getName())).hasSize(2);
         assertThat(metadata.getAllRelationships())
             .filteredOn(relationship -> relationship.getSourceClass()
                 .equals("SimpleAddressModel.Addresses.PersonAddress"))
@@ -169,8 +169,8 @@ class MetadataReaderTest {
                 assertThat(relationship.getPhysicalName()).isEqualTo("person_id");
                 assertThat(relationship.getSemanticName()).isEqualTo("SimpleAddressModel.Addresses.PersonAddress.Person");
                 assertThat(relationship.getMergeToken()).isEqualTo("person");
-                assertThat(relationship.getCardinality().getMinTarget()).isZero();
-                assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(-1);
+                assertThat(relationship.getCardinality().minTarget()).isZero();
+                assertThat(relationship.getCardinality().maxTarget()).isEqualTo(-1);
             })
             .anySatisfy(relationship -> {
                 assertThat(relationship.getTargetRoleName()).isEqualTo("Address");
@@ -178,8 +178,8 @@ class MetadataReaderTest {
                 assertThat(relationship.getPhysicalName()).isEqualTo("address_id");
                 assertThat(relationship.getSemanticName()).isEqualTo("SimpleAddressModel.Addresses.PersonAddress.Address");
                 assertThat(relationship.getMergeToken()).isEqualTo("address");
-                assertThat(relationship.getCardinality().getMinTarget()).isZero();
-                assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(1);
+                assertThat(relationship.getCardinality().minTarget()).isZero();
+                assertThat(relationship.getCardinality().maxTarget()).isEqualTo(1);
             });
 
         AssociationMetadata association = metadata.getAssociation("SimpleAddressModel.Addresses.PersonAddress");

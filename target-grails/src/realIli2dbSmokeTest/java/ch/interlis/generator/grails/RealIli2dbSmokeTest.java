@@ -398,7 +398,7 @@ class RealIli2dbSmokeTest {
         assertThat(registryContent).contains("ASSOCIATIONS = [");
         assertThat(registryContent).contains("CONTEXTS = [");
         assertThat(registryContent).contains("ENTITIES = [");
-        assertThat(registryContent).contains("createMode: 'QUICK'");
+        assertThat(registryContent).contains("AssociationCreateMode.QUICK");
     }
 
     @Test
@@ -959,13 +959,13 @@ class RealIli2dbSmokeTest {
         return "notTargeted";
     }
 
-    private String formatCardinality(RelationshipMetadata.Cardinality cardinality) {
+    private String formatCardinality(ch.interlis.generator.model.Cardinality cardinality) {
         if (cardinality == null) {
             return "";
         }
-        return cardinality.getMinSource() + ".." + bound(cardinality.getMaxSource())
+        return cardinality.minSource() + ".." + bound(cardinality.maxSource())
             + " -> "
-            + cardinality.getMinTarget() + ".." + bound(cardinality.getMaxTarget());
+            + cardinality.minTarget() + ".." + bound(cardinality.maxTarget());
     }
 
     private String bound(int value) {

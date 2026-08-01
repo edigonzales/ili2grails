@@ -6,7 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-class GrailsBuildGradleUpdater {
+public class GrailsBuildGradleUpdater {
 
     private static final String JTS_DEPENDENCY = "implementation \"org.locationtech.jts:jts-core:1.19.0\"";
     private static final String POSTGRES_JDBC_DEPENDENCY =
@@ -22,6 +22,101 @@ class GrailsBuildGradleUpdater {
 
     void ensureJtsDependency(Path buildGradlePath) throws IOException {
         ensureDependencies(buildGradlePath, false);
+    }
+
+    /**
+     * Inserts or updates a single managed dependency line inside the
+     * top-level {@code dependencies} block. Idempotent: existing lines with
+     * the same marker are replaced, no duplicates are created.
+     */
+    void ensureManagedDependency(Path buildGradlePath,
+                                 String marker,
+                                 String dependencyLine) throws IOException {
+        if (!Files.exists(buildGradlePath)) {
+            return;
+        }
+        List<String> lines = Files.readAllLines(buildGradlePath, StandardCharsets.UTF_8);
+        List<String> updated = ensureManagedDependency(lines, marker, dependencyLine);
+        if (!updated.equals(lines)) {
+            Files.write(buildGradlePath, updated, StandardCharsets.UTF_8);
+        }
+    }
+
+    /**
+     * Inserts or updates a managed dependency block (markers included) inside
+     * the top-level {@code dependencies} block. Idempotent: an existing block
+     * is replaced in place, no duplicates are created.
+     */
+    public void ensureManagedDependencyBlock(Path buildGradlePath,
+                                              String marker,
+                                              String block) throws IOException {
+        if (!Files.exists(buildGradlePath)) {
+            return;
+        }
+        List<String> lines = Files.readAllLines(buildGradlePath, StandardCharsets.UTF_8);
+        List<String> updated = ensureManagedDependencyBlock(lines, marker, block);
+        if (!updated.equals(lines)) {
+            Files.write(buildGradlePath, updated, StandardCharsets.UTF_8);
+        }
+    }
+
+    private List<String> ensureManagedDependencyBlock(List<String> lines,
+                                                      String marker,
+                                                      String block) {
+        List<String> stripped = new java.util.ArrayList<>();
+        boolean inBlock = false;
+        boolean foundBlock = false;
+        for (String line : lines) {
+            if (line.contains("// <" + marker + ">")) {
+                inBlock = true;
+                foundBlock = true;
+                continue;
+            }
+            if (line.contains("// </" + marker + ">")) {
+                inBlock = false;
+                continue;
+            }
+            if (inBlock) {
+                continue;
+            }
+            stripped.add(line);
+        }
+        if (foundBlock) {
+            int[] buildscriptRange = findBlockRange(stripped, "buildscript", null);
+            int[] dependenciesRange = findBlockRange(stripped, "dependencies", buildscriptRange);
+            if (dependenciesRange == null) {
+                return lines;
+            }
+            String indent = detectIndent(stripped, dependenciesRange[0]);
+            List<String> updated = new java.util.ArrayList<>(stripped);
+            updated.add(dependenciesRange[1], indent + block);
+            return updated;
+        }
+        // No block yet: reuse the single-line insertion path so an existing
+        // dependency line with the same marker is replaced.
+        return ensureManagedDependency(stripped, marker, block);
+    }
+
+    private List<String> ensureManagedDependency(List<String> lines,
+                                                 String marker,
+                                                 String dependencyLine) {
+        List<String> updated = new java.util.ArrayList<>();
+        boolean foundMarker = false;
+        for (String line : lines) {
+            if (line.contains(marker)) {
+                foundMarker = true;
+                continue;
+            }
+            updated.add(line);
+        }
+        int[] buildscriptRange = findBlockRange(updated, "buildscript", null);
+        int[] dependenciesRange = findBlockRange(updated, "dependencies", buildscriptRange);
+        if (dependenciesRange == null) {
+            return foundMarker ? updated : lines;
+        }
+        String indent = detectIndent(updated, dependenciesRange[0]);
+        updated.add(dependenciesRange[1], indent + dependencyLine);
+        return updated;
     }
 
     void ensureDependencies(Path buildGradlePath, boolean geometryEnabled) throws IOException {

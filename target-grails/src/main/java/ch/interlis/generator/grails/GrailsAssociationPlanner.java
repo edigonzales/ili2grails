@@ -228,9 +228,9 @@ public final class GrailsAssociationPlanner {
                 propertyName = null;
             }
 
-            RelationshipMetadata.Cardinality cardinality = role.getCardinality();
-            Integer min = cardinality != null ? cardinality.getMinTarget() : null;
-            Integer max = cardinality != null ? cardinality.getMaxTarget() : null;
+            ch.interlis.generator.model.Cardinality cardinality = role.getCardinality();
+            Integer min = cardinality != null ? cardinality.minTarget() : null;
+            Integer max = cardinality != null ? cardinality.maxTarget() : null;
 
             roles.add(new GrailsAssociationRolePlan(
                 role.getName(),

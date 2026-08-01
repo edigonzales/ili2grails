@@ -14,10 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InterlisNavigationSupportTest {
 
-    private static final Path RUNTIME_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy"
-    );
+    private static final Path RUNTIME_SOURCE = RuntimeSourcePaths.runtimeSource("InterlisNavigationSupport");
 
     @Test
     void groupsVisibleRegistryDomainsAndKeepsFallbackControllersSafe() throws Exception {
@@ -120,10 +117,14 @@ class InterlisNavigationSupportTest {
 
     private Class<?> runtimeType() throws Exception {
         GroovyClassLoader classLoader = new GroovyClassLoader(getClass().getClassLoader());
+        classLoader.parseClass(
+            Files.readString(RuntimeSourcePaths.generatedRegistryAccessorSource()),
+            "GeneratedRegistryAccessor.groovy");
         classLoader.parseClass("""
             package ch.interlis.generator.grails.generated
             class InterlisAssociationRegistry {
                 static final Map ENTITIES = [:]
+                static Map<String, Object> legacyEntity(String name) { ENTITIES[name] }
             }
             """, "InterlisAssociationRegistry.groovy");
         classLoader.parseClass("""
@@ -144,7 +145,7 @@ class InterlisNavigationSupportTest {
                      label: 'Missing', className: 'Missing', iliName: 'AlphaModel.Addresses.Missing',
                      navigationVisible: true, associationDomain: false]
                 ]
-                static List domains() { DOMAINS }
+                static List legacyDomains() { DOMAINS }
             }
             """, "InterlisUiRegistry.groovy");
         classLoader.parseClass("""

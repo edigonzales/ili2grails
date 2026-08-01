@@ -1,0 +1,76 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            url = 'https://repo.grails.org/grails/restricted'
+        }
+    }
+    dependencies {
+        classpath platform("org.apache.grails:grails-bom:$grailsVersion")
+        classpath "org.apache.grails:grails-gradle-plugins"
+    }
+}
+
+apply plugin: "org.apache.grails.gradle.grails-plugin"
+apply plugin: 'maven-publish'
+
+repositories {
+    mavenCentral()
+    maven {
+        url = 'https://repo.grails.org/grails/restricted'
+    }
+}
+
+dependencies {
+    api project(':grails-runtime-api')
+
+    console "org.apache.grails:grails-console"
+    developmentOnly "org.springframework.boot:spring-boot-devtools"
+    implementation platform("org.apache.grails:grails-bom:$grailsVersion")
+    implementation "org.springframework.boot:spring-boot-starter-logging"
+    implementation "org.springframework.boot:spring-boot-starter-validation"
+    implementation "org.springframework.boot:spring-boot-autoconfigure"
+    implementation "org.springframework.boot:spring-boot-starter"
+    implementation "org.apache.grails:grails-core"
+    implementation "org.apache.grails:grails-rest-transforms"
+    implementation "org.apache.grails:grails-databinding"
+    implementation "org.apache.grails:grails-services"
+    implementation "org.apache.grails:grails-url-mappings"
+    implementation "org.apache.grails:grails-interceptors"
+    implementation "org.apache.grails:grails-data-hibernate5"
+    implementation "org.apache.grails:grails-gsp"
+    implementation "jakarta.persistence:jakarta.persistence-api:3.1.0"
+    implementation "org.locationtech.jts:jts-core:${rootProject.jtsVersion}"
+    profile "org.apache.grails.profiles:plugin"
+    runtimeOnly "org.fusesource.jansi:jansi"
+    testImplementation "org.apache.grails:grails-testing-support-datamapping"
+    testImplementation "org.spockframework:spock-core"
+}
+
+compileJava.options.release = 17
+
+tasks.named('jar') {
+    // Package the Grails plugin artefacts (views, assets, i18n, spring conf)
+    // into the published JAR so consumers resolve them from the plugin.
+    from('grails-app') {
+        into('grails-app')
+    }
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+// https://github.com/apache/grails-core/issues/15321
+tasks.withType(GroovyCompile).configureEach {
+    groovyOptions.optimizationOptions.indy = false
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifactId = 'ili2grails-runtime'
+        }
+    }
+}

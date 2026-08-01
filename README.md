@@ -13,6 +13,9 @@ Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und e
 - [Programmatische Nutzung](#programmatische-nutzung)
 - [Ausgabe verstehen](#ausgabe-verstehen)
 - [Architektur & Design-Entscheidungen](#architektur--design-entscheidungen)
+  - [ili2db-Reader-Schichten (P1)](#ili2db-reader-schichten-p1)
+  - [Immutable Core-IR (P1)](#immutable-core-ir-p1)
+  - [Runtime-Plugin und typed Runtime API (P1)](#runtime-plugin-und-typed-runtime-api-p1)
 - [Bootstrap UI-Metadaten (Phase 0)](#bootstrap-ui-metadaten-phase-0)
 - [Bootstrap Application Shell (Phase 1)](#bootstrap-application-shell-phase-1)
 - [Bootstrap Domain-Liste (Phase 2)](#bootstrap-domain-liste-phase-2)
@@ -1316,7 +1319,14 @@ ili2grails/
 ├── build.gradle
 ├── settings.gradle
 ├── core/
-│   └── src/main/java/ch/interlis/generator/{model,metadata,reader}/
+│   └── src/main/java/ch/interlis/generator/
+│       ├── model/                 # immutable Core-IR, Builder, Validation, JSON-Vertrag
+│       ├── metadata/              # Merge, Modellauswahl, Post-Processing
+│       └── reader/
+│           ├── Ili2dbMetadataReader.java  # Fassade (Kompatibilitäts-API)
+│           └── ili2db/            # P1-Schichten: catalog, schema, assemble, Enum, Coordinator
+├── grails-runtime-api/            # dependency-neutrale typed Runtime-Verträge (descriptors, registries, commands)
+├── grails-runtime/                # echtes Grails-Plugin: Controller-Flows, Services, Views, Assets, i18n
 ├── target-grails/
 │   └── src/main/java/ch/interlis/generator/grails/
 ├── target-django/
@@ -1327,10 +1337,83 @@ ili2grails/
 ```
 
 Die Gradle-Module bilden die Architekturgrenzen ab:
-- `core`: Core-IR, ili2db-/ili2c-Reader, Merge und JSON-Vertrag.
+- `core`: Core-IR, ili2db-/ili2c-Reader, Merge und JSON-Vertrag. Der ili2db-Reader ist seit P1 in getrennte Schichten zerlegt (siehe [ili2db-Reader-Schichten](#ili2db-reader-schichten-p1)); `Ili2dbMetadataReader` ist eine dünne Fassade.
+- `grails-runtime-api`: typed Descriptors, Registries, Command-Results, Policies und Hooks ohne Grails-Dependency – der Vertrag zwischen Generator und Runtime.
+- `grails-runtime`: versioniertes Grails-Plugin mit den Runtime-Beans (Bean-Namen = Injektionsvertrag), Controller-Flows, Views/Layout, Assets, i18n. Generierte Apps beziehen es als Plugin-Dependency statt lokaler Kopien.
 - `target-grails`: Grails/GORM-Generator, Template-Overlay, Grails-spezifisches Naming und Grails-Smoke-Tests.
 - `target-django`: Django/GeoDjango-Spike gegen die Core-IR.
 - `cli`: Kommandozeilen-Orchestrierung und Application-Entry-Point.
+
+### ili2db-Reader-Schichten (P1)
+
+Der ehemalige Monolith `Ili2dbMetadataReader` (Settings, Klassen-, Attribut- und
+Enum-Mapping, JDBC-/SQLite-/PostGIS-Schema, Vererbung, Column Properties,
+Relationship-/Association-Ableitung in einer Klasse) ist in getrennte Schichten
+zerlegt:
+
+| Schicht | Paket | Verantwortung |
+| --- | --- | --- |
+| Fassade | `reader` | Kompatibilitäts-API `create(Connection, String)`, `readMetadata(...)`; keine SQL-Strings |
+| Coordinator | `reader.ili2db` | orchestriert einen Lesedurchgang, effektive Modellauswahl, bündelt Diagnostics |
+| Catalog | `reader.ili2db.catalog` | liest `t_ili2db_*` als typed Rows/Snapshots (keine IR), Capability-Detection |
+| Schema | `reader.ili2db.schema` | immutable `JdbcSchemaSnapshot`/`GeometrySchemaSnapshot`; JDBC-, SQLite-PRAGMA- und PostGIS-Introspektion tabellen-/batchweise (keine N+1-Schema-Roundtrips pro Attribut) |
+| Enum | `reader.ili2db` | Enum-Tabellenwerte einmal pro Tabelle und Lauf (Cache) |
+| Assembly | `reader.ili2db.assemble` | einzige Stelle, die IR-Builder erzeugt (Assembler, Relationship-/Association-Deriver) |
+
+Fehler sind strukturierte `Ili2dbDiagnostic`-Records mit Severity und Code
+(statt reiner Warnlogs); blockierende Diagnostics führen im STRICT-Modus zu
+`Ili2dbReadException` (extends `SQLException`). Required/Optional-Einordnung der
+Metatabellen: `t_ili2db_classname`/`t_ili2db_attrname`/`t_ili2db_table_prop`
+REQUIRED, Rest OPTIONAL.
+
+### Immutable Core-IR (P1)
+
+Alle Core-IR-Klassen (`ModelMetadata`, `ClassMetadata`, `AttributeMetadata`,
+`RelationshipMetadata`, `AssociationMetadata`, `AssociationRoleMetadata`,
+`EnumMetadata`, `Cardinality`, `ModelMetadataIndexes`, `RelationshipIdentity`)
+sind finale immutable Value Objects: keine öffentlichen Setter/Add-Mutatoren,
+Collections unmodifiable, keine Lazy-Mutation in Gettern. Die kanonische
+Relationship-Liste liegt auf `ModelMetadata`; `ClassMetadata` enthält kein
+Relationship-Feld, Indizes werden einmal beim Freeze aufgebaut.
+
+Aufbau ausschliesslich über Builder (`model.builder`): Mutable Build-Modelle
+werden durch `ModelMetadataFactory.buildValidated()` gefroren (Typ-Auflösung via
+`AttributeTypeResolver` + Validierung). Reader und Merger liefern ausschliesslich
+immutable Resultate; `MetadataMerger` arbeitet auf Buildern und mutiert die
+Inputs nie. Source-Guards (`ImmutableCoreIrGuardTest`,
+`ReaderBoundaryGuardTest`) sichern Finalität, Mutator-Freiheit und
+Reader-Schichtgrenzen dauerhaft ab.
+
+### Runtime-Plugin und typed Runtime API (P1)
+
+- `grails-runtime-api` definiert dependency-neutrale Verträge: `DomainDescriptor`,
+  `FieldDescriptor`, `AssociationDescriptor`/`AssociationContextDescriptor`,
+  Registry-Interfaces (`DomainRegistry`, `AssociationRegistry`), Command-Results
+  (`AssociationCommandResult`, `InverseRelationshipCommandResult`),
+  `InterlisAuthorizationPolicy`, `InterlisLifecycleHooks`,
+  `InterlisDisplayLabelResolver`, `RuntimeRecordLoader`. Es gibt keine
+  fachlichen `Map<String,Object>`-Verträge (Guard: `RuntimeApiStaticGuardTest`).
+- Der Generator erzeugt typisierte Registries (`InterlisUiRegistry` implements
+  `DomainRegistry`, `InterlisAssociationRegistry` implements
+  `AssociationRegistry`); die Legacy-Map-API bleibt als deprecated Adapter.
+- `grails-runtime` (Plugin `ili2grails-runtime`, Gradle-Plugin
+  `org.apache.grails.grails-plugin`) registriert beim Startup die Beans:
+  `authorizationPolicy`, `lifecycleHooks`, `recordLoader`, `runtimeRegistry`,
+  `overridesService`, `interlisRuntimeRegistryValidator`. Defaults: Allow-All
+  Policy, Noop-Hooks, GORM-RecordLoader. Eigene Beans können diese Verträge
+  per Injektion ersetzen.
+- `InterlisRuntimeRegistryValidator` validiert die generierten Deskriptoren
+  einmal beim Startup gegen das Grails `mappingContext` (Strict-Modus default;
+  `ili2grails.runtime.strict-descriptor-validation`).
+- Controller-Actions delegieren an typisierte Flows (List/Form/Association/
+  InverseRelationship/Options); die Konvertierung auf View-Maps/JSON geschieht
+  erst an der View-Grenze.
+- Generierte Apps enthalten keine lokalen Runtime-Klassen/Views/Assets mehr;
+  Templates, Assets und i18n kommen aus dem Plugin (bzw. aus dem
+  Scaffolding-Overlay für `src/main/templates`). `GrailsProjectCustomizer`
+  installiert Plugin-Dependency, Asset-Manifest-Update und migriert veraltete
+  lokale Runtime-Dateien (Legacy-Scanner, SHA-256-basiert, blockiert bei
+  modifizierten Dateien).
 
 ## Bootstrap-UI: Phase-7-Härtung und Abnahme
 
@@ -1508,3 +1591,6 @@ PATH=$HOME/.sdkman/candidates/grails/current/bin:$PATH \
   ili2pg-Datenbank bis zur generierten Grails-Anwendung.
 - [Association-UX](docs/association-ux.md): technische Dokumentation der
   fachlichen Association-Darstellung und ihrer sicheren Schreibpfade.
+- [P1 Fortschrittsdokument](docs/implementation/p1-runtime-ir-architecture-progress.md):
+  laufende Entscheidungen, Testresultate und Commit-Liste der P1-Migration
+  (Runtime-Plugin, immutable Core-IR, Reader-Zerlegung, typed Runtime API).

@@ -4,6 +4,10 @@ import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import ch.interlis.generator.reader.Ili2cModelReader;
 import ch.interlis.generator.testsupport.MetadataTestFixtures;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,13 +58,10 @@ class MetadataJsonWriterTest {
     @Test
     @SuppressWarnings("unchecked")
     void writesCoreTypeAndJavaTargetHintWithoutTopLevelJavaType() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata classMetadata = new ClassMetadata("TestModel.Topic.Sample");
-        AttributeMetadata attribute = new AttributeMetadata("Name");
-        attribute.setIliType("TEXT");
-        attribute.setJavaType("String");
-        classMetadata.addAttribute(attribute);
-        metadata.addClass(classMetadata);
+        ModelMetadataBuilder builder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder classMetadata = builder.classBuilder("TestModel.Topic.Sample");
+        classMetadata.attribute(new AttributeMetadataBuilder("Name").iliType("TEXT").javaType("String"));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(builder);
 
         Map<String, Object> root = JSON_MAPPER.readValue(new MetadataJsonWriter().toJson(metadata), Map.class);
         Map<String, Object> writtenAttribute = (Map<String, Object>) ((List<Object>) ((Map<String, Object>) ((List<Object>) root.get("classes"))
@@ -78,18 +79,17 @@ class MetadataJsonWriterTest {
     @Test
     @SuppressWarnings("unchecked")
     void writesConstraintsObjectAndLegacyConstraintFields() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata classMetadata = new ClassMetadata("TestModel.Topic.Sample");
-        AttributeMetadata amount = new AttributeMetadata("Amount");
-        amount.setCoreType(CoreType.NUMERIC);
-        amount.setJavaType("java.math.BigDecimal");
-        amount.setMandatory(true);
-        amount.setMinValue("0.00");
-        amount.setMaxValue("999.99");
-        amount.setPrecision(5);
-        amount.setScale(2);
-        classMetadata.addAttribute(amount);
-        metadata.addClass(classMetadata);
+        ModelMetadataBuilder builder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder classMetadata = builder.classBuilder("TestModel.Topic.Sample");
+        classMetadata.attribute(new AttributeMetadataBuilder("Amount")
+            .coreType(CoreType.NUMERIC)
+            .javaType("java.math.BigDecimal")
+            .mandatory(true)
+            .minValue("0.00")
+            .maxValue("999.99")
+            .precision(5)
+            .scale(2));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(builder);
 
         Map<String, Object> root = JSON_MAPPER.readValue(new MetadataJsonWriter().toJson(metadata), Map.class);
         Map<String, Object> writtenAttribute = (Map<String, Object>) ((List<Object>) ((Map<String, Object>) ((List<Object>) root.get("classes"))

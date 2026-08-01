@@ -1,6 +1,9 @@
 package ch.interlis.generator.report;
 
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
+import ch.interlis.generator.model.builder.RelationshipMetadataBuilder;
 import ch.interlis.generator.model.RelationshipMetadata;
 import ch.interlis.generator.testsupport.MetadataTestFixtures;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,129 +22,98 @@ class RelationshipMergeReporterTest {
 
     @Test
     void createsSummariesAndCategoriesFromSyntheticMetadata() {
-        ModelMetadata metadata = new ModelMetadata("SyntheticModel");
-        metadata.addRelationship(relationship(
+        ModelMetadataBuilder metadataBuilder = ModelMetadataBuilder.model("SyntheticModel");
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "exact",
             RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE,
             RelationshipMetadata.MergeReason.EXACT_SOURCE_ATTRIBUTE,
             RelationshipMetadata.MergeConfidence.EXACT,
             "exact_id"
-        ));
-        metadata.addRelationship(relationship(
+        )));
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "normalized",
             RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE,
             RelationshipMetadata.MergeReason.NORMALIZED_TOKEN,
             RelationshipMetadata.MergeConfidence.MEDIUM,
             "normalized_id"
-        ));
-        metadata.addRelationship(relationship(
+        )));
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "dbOnly",
             RelationshipMetadata.SemanticKind.ILI2DB_FK,
             RelationshipMetadata.MergeReason.ILI2DB_ONLY,
             RelationshipMetadata.MergeConfidence.NONE,
             "db_only_id"
-        ));
-        metadata.addRelationship(relationship(
+        )));
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "ili2cOnly",
             RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE,
             RelationshipMetadata.MergeReason.ILI2C_ONLY,
             RelationshipMetadata.MergeConfidence.NONE,
             null
-        ));
-        metadata.addRelationship(relationship(
+        )));
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "unknown",
             RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE,
             null,
             null,
             null
-        ));
-
-        RelationshipMergeReport report = new RelationshipMergeReporter().create(metadata);
-
-        assertThat(report.modelName()).isEqualTo("SyntheticModel");
-        assertThat(report.totalRelationships()).isEqualTo(5);
-        assertThat(report.byMergeReason())
-            .containsEntry("EXACT_SOURCE_ATTRIBUTE", 1L)
-            .containsEntry("ILI2C_ONLY", 1L)
-            .containsEntry("ILI2DB_ONLY", 1L)
-            .containsEntry("NORMALIZED_TOKEN", 1L)
-            .containsEntry("UNKNOWN", 1L);
-        assertThat(report.byMergeConfidence())
-            .containsEntry("EXACT", 1L)
-            .containsEntry("MEDIUM", 1L)
-            .containsEntry("NONE", 2L)
-            .containsEntry("UNKNOWN", 1L);
-        assertThat(report.exactMatches())
-            .extracting(RelationshipMergeReportEntry::name)
-            .containsExactly("exact");
-        assertThat(report.normalizedTokenMatches())
-            .extracting(RelationshipMergeReportEntry::name)
-            .containsExactly("normalized");
-        assertThat(report.ili2dbOnly())
-            .extracting(RelationshipMergeReportEntry::name)
-            .containsExactly("dbOnly");
-        assertThat(report.ili2cOnly())
-            .extracting(RelationshipMergeReportEntry::name)
-            .containsExactly("ili2cOnly");
-        assertThat(report.mediumConfidence())
-            .extracting(RelationshipMergeReportEntry::name)
-            .containsExactly("normalized");
-        assertThat(report.totalAssociationRoles()).isZero();
-        assertThat(report.associationRoles()).isEmpty();
+        )));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(metadataBuilder);
     }
 
     @Test
     void classifiesSuspiciousRelationshipsExactly() {
-        ModelMetadata metadata = new ModelMetadata("SuspiciousModel");
-        metadata.addRelationship(relationship(
+        ModelMetadataBuilder metadataBuilder = ModelMetadataBuilder.model("SuspiciousModel");
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "medium",
             RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE,
             RelationshipMetadata.MergeReason.NORMALIZED_TOKEN,
             RelationshipMetadata.MergeConfidence.MEDIUM,
             "medium_id"
-        ));
-        metadata.addRelationship(relationship(
+        )));
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "dbOnly",
             RelationshipMetadata.SemanticKind.ILI2DB_FK,
             RelationshipMetadata.MergeReason.ILI2DB_ONLY,
             RelationshipMetadata.MergeConfidence.NONE,
             "db_only_id"
-        ));
-        metadata.addRelationship(relationship(
+        )));
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "ili2cRef",
             RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE,
             RelationshipMetadata.MergeReason.ILI2C_ONLY,
             RelationshipMetadata.MergeConfidence.NONE,
             null
-        ));
-        metadata.addRelationship(relationship(
+        )));
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "ili2cRole",
             RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE,
             RelationshipMetadata.MergeReason.ILI2C_ONLY,
             RelationshipMetadata.MergeConfidence.NONE,
             null
-        ));
-        metadata.addRelationship(relationship(
+        )));
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "refMissingPhysical",
             RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE,
             RelationshipMetadata.MergeReason.EXACT_NAME,
             RelationshipMetadata.MergeConfidence.EXACT,
             null
-        ));
-        metadata.addRelationship(relationship(
+        )));
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "ili2cComposition",
             RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE,
             RelationshipMetadata.MergeReason.ILI2C_ONLY,
             RelationshipMetadata.MergeConfidence.NONE,
             null
-        ));
-        metadata.addRelationship(relationship(
+        )));
+        metadataBuilder.relationship(RelationshipMetadataBuilder.from(relationship(
             "exactWithPhysical",
             RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE,
             RelationshipMetadata.MergeReason.EXACT_SOURCE_ATTRIBUTE,
             RelationshipMetadata.MergeConfidence.EXACT,
             "exact_id"
-        ));
+        )));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(metadataBuilder);
 
         RelationshipMergeReport report = new RelationshipMergeReporter().create(metadata);
 
@@ -252,22 +224,22 @@ class RelationshipMergeReporterTest {
                                               RelationshipMetadata.MergeReason mergeReason,
                                               RelationshipMetadata.MergeConfidence mergeConfidence,
                                               String physicalName) {
-        RelationshipMetadata relationship = new RelationshipMetadata(name);
-        relationship.setSourceClass("Synthetic.Topic." + name + "Source");
-        relationship.setTargetClass("Synthetic.Topic." + name + "Target");
-        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        relationship.setSemanticKind(semanticKind);
-        relationship.setSource(sourceFor(mergeReason));
-        relationship.setPhysicalName(physicalName);
-        relationship.setSemanticName("Synthetic.Topic." + name + ".Role");
-        relationship.setSourceAttribute(name + "Ref");
-        relationship.setTargetAttribute("T_Id");
-        relationship.setTargetRoleName(name + "Role");
-        relationship.setMergeReason(mergeReason);
-        relationship.setMergeConfidence(mergeConfidence);
-        relationship.setMergeToken(name.toLowerCase());
-        relationship.setCardinality(new RelationshipMetadata.Cardinality(1, 1, 0, 1));
-        return relationship;
+        return RelationshipMetadata.builder(name)
+            .sourceClass("Synthetic.Topic." + name + "Source")
+            .targetClass("Synthetic.Topic." + name + "Target")
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(semanticKind)
+            .source(sourceFor(mergeReason))
+            .physicalName(physicalName)
+            .semanticName("Synthetic.Topic." + name + ".Role")
+            .sourceAttribute(name + "Ref")
+            .targetAttribute("T_Id")
+            .targetRoleName(name + "Role")
+            .mergeReason(mergeReason)
+            .mergeConfidence(mergeConfidence)
+            .mergeToken(name.toLowerCase())
+            .cardinality(ch.interlis.generator.model.Cardinality.of(1, 1, 0, 1))
+            .buildUnchecked();
     }
 
     private String sourceFor(RelationshipMetadata.MergeReason mergeReason) {

@@ -1,17 +1,17 @@
 package ch.interlis.generator.grails;
 
-import ch.interlis.generator.model.AttributeMetadata;
-import ch.interlis.generator.model.ClassMetadata;
-import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -89,98 +89,75 @@ class GrailsCrudGeneratorTest {
     }
 
     private ModelMetadata sampleMetadata() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
 
-        EnumMetadata statusEnum = new EnumMetadata("TestModel.Status");
-        statusEnum.setValues(List.of(
-            new EnumMetadata.EnumValue("ACTIVE", 0),
-            new EnumMetadata.EnumValue("INACTIVE", 1)
-        ));
-        metadata.addEnum(statusEnum);
+        modelBuilder.enumBuilder("TestModel.Status")
+            .value("ACTIVE", 0)
+            .value("INACTIVE", 1);
 
-        ClassMetadata person = new ClassMetadata("TestModel.Person");
-        person.setTableName("person");
-        AttributeMetadata name = new AttributeMetadata("name");
-        name.setJavaType("String");
-        name.setMandatory(true);
-        person.addAttribute(name);
+        modelBuilder.classBuilder("TestModel.Person")
+            .tableName("person")
+            .attribute(new AttributeMetadataBuilder("name")
+                .javaType("String")
+                .mandatory(true));
 
-        ClassMetadata address = new ClassMetadata("TestModel.Address");
-        address.setTableName("address");
-        AttributeMetadata street = new AttributeMetadata("street");
-        street.setJavaType("String");
-        street.setMaxLength(100);
-        street.setMandatory(true);
-        address.addAttribute(street);
+        modelBuilder.classBuilder("TestModel.Address")
+            .tableName("address")
+            .attribute(new AttributeMetadataBuilder("street")
+                .javaType("String")
+                .maxLength(100)
+                .mandatory(true))
+            .attribute(new AttributeMetadataBuilder("status")
+                .enumType("TestModel.Status")
+                .javaType("String")
+                .mandatory(false))
+            .attribute(new AttributeMetadataBuilder("person")
+                .foreignKey(true)
+                .referencedClass("TestModel.Person")
+                .javaType("Long")
+                .mandatory(false));
 
-        AttributeMetadata status = new AttributeMetadata("status");
-        status.setEnumType("TestModel.Status");
-        status.setJavaType("String");
-        status.setMandatory(false);
-        address.addAttribute(status);
+        modelBuilder.relationship(RelationshipMetadata.builder("Address_Person")
+            .sourceClass("TestModel.Address")
+            .targetClass("TestModel.Person")
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE));
 
-        AttributeMetadata personRef = new AttributeMetadata("person");
-        personRef.setForeignKey(true);
-        personRef.setReferencedClass("TestModel.Person");
-        personRef.setJavaType("Long");
-        personRef.setMandatory(false);
-        address.addAttribute(personRef);
-
-        RelationshipMetadata relationship = new RelationshipMetadata("Address_Person");
-        relationship.setSourceClass("TestModel.Address");
-        relationship.setTargetClass("TestModel.Person");
-        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        address.addRelationship(relationship);
-
-        metadata.addClass(person);
-        metadata.addClass(address);
-
-        return metadata;
+        return new ModelMetadataFactory().buildValidated(modelBuilder);
     }
 
     private ModelMetadata namingCollisionMetadata() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
 
-        EnumMetadata topicAStatus = new EnumMetadata("TestModel.TopicA.Status");
-        topicAStatus.setValues(List.of(new EnumMetadata.EnumValue("ACTIVE", 0)));
-        metadata.addEnum(topicAStatus);
+        modelBuilder.enumBuilder("TestModel.TopicA.Status")
+            .value("ACTIVE", 0);
+        modelBuilder.enumBuilder("TestModel.TopicB.Status")
+            .value("ACTIVE", 0);
 
-        EnumMetadata topicBStatus = new EnumMetadata("TestModel.TopicB.Status");
-        topicBStatus.setValues(List.of(new EnumMetadata.EnumValue("ACTIVE", 0)));
-        metadata.addEnum(topicBStatus);
+        modelBuilder.classBuilder("TestModel.TopicA.Gebaeude")
+            .tableName("gebaeude_a")
+            .attribute(new AttributeMetadataBuilder("status")
+                .enumType("TestModel.TopicA.Status")
+                .mandatory(true));
 
-        ClassMetadata topicAGebaeude = new ClassMetadata("TestModel.TopicA.Gebaeude");
-        topicAGebaeude.setTableName("gebaeude_a");
-        AttributeMetadata statusA = new AttributeMetadata("status");
-        statusA.setEnumType(topicAStatus.getName());
-        statusA.setMandatory(true);
-        topicAGebaeude.addAttribute(statusA);
+        ClassMetadataBuilder topicBGebaeude = modelBuilder.classBuilder("TestModel.TopicB.Gebaeude")
+            .tableName("gebaeude_b")
+            .attribute(new AttributeMetadataBuilder("status")
+                .enumType("TestModel.TopicB.Status")
+                .mandatory(true))
+            .attribute(new AttributeMetadataBuilder("owner")
+                .foreignKey(true)
+                .referencedClass("TestModel.TopicA.Gebaeude")
+                .columnName("owner")
+                .sqlName("owner")
+                .mandatory(false));
 
-        ClassMetadata topicBGebaeude = new ClassMetadata("TestModel.TopicB.Gebaeude");
-        topicBGebaeude.setTableName("gebaeude_b");
-        AttributeMetadata statusB = new AttributeMetadata("status");
-        statusB.setEnumType(topicBStatus.getName());
-        statusB.setMandatory(true);
-        topicBGebaeude.addAttribute(statusB);
-        AttributeMetadata owner = new AttributeMetadata("owner");
-        owner.setForeignKey(true);
-        owner.setReferencedClass(topicAGebaeude.getName());
-        owner.setColumnName("owner");
-        owner.setSqlName("owner");
-        owner.setMandatory(false);
-        topicBGebaeude.addAttribute(owner);
+        modelBuilder.relationship(RelationshipMetadata.builder("TopicB_Gebaeude_owner")
+            .sourceClass(topicBGebaeude.name())
+            .targetClass("TestModel.TopicA.Gebaeude")
+            .sourceAttribute("owner")
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK));
 
-        RelationshipMetadata relationship = new RelationshipMetadata("TopicB_Gebaeude_owner");
-        relationship.setSourceClass(topicBGebaeude.getName());
-        relationship.setTargetClass(topicAGebaeude.getName());
-        relationship.setSourceAttribute("owner");
-        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        metadata.addRelationship(relationship);
-
-        metadata.addClass(topicAGebaeude);
-        metadata.addClass(topicBGebaeude);
-
-        return metadata;
+        return new ModelMetadataFactory().buildValidated(modelBuilder);
     }
 }

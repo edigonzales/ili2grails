@@ -113,8 +113,6 @@ public class MetadataReader {
         Ili2dbMetadataReader ili2dbReader = Ili2dbMetadataReader.create(connection, schemaName);
         ModelMetadata metadata = ili2dbReader.readMetadata(selection);
 
-        MetadataPostProcessor postProcessor = new MetadataPostProcessor();
-        postProcessor.process(metadata);
         List<MergeDiagnostic> validatorDiagnostics =
             new MetadataValidator().validate(metadata);
         MetadataMergeResult result = new MetadataMergeResult(metadata, validatorDiagnostics);

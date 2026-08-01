@@ -1,5 +1,6 @@
 package ch.interlis.generator.grails;
 
+import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.testsupport.MetadataTestFixtures;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -171,13 +172,9 @@ class GrailsAssociationRegistrySupportTest {
         GrailsAssociationPlanner planner = buildPlanner(config);
         GrailsAssociationRegistryGenerator generator = new GrailsAssociationRegistryGenerator();
 
-        generator.generate(
-            MetadataTestFixtures.readMergedAssociationCasesMetadata(),
-            config,
-            TargetNameRegistry.forMetadata(
-                MetadataTestFixtures.readMergedAssociationCasesMetadata(), config),
-            planner
-        );
+        ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
+        RuntimeDescriptorPlan plan = GrailsUiRegistryGeneratorTest.plan(metadata, config);
+        generator.generate(plan, config);
 
         Path registryFile = tempDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy");
@@ -189,7 +186,7 @@ class GrailsAssociationRegistrySupportTest {
         assertThat(registryContent).contains("CONTEXT_IDS_BY_PARTICIPANT");
         assertThat(registryContent).contains("ENTITIES = [");
         assertThat(registryContent).contains("contextsForParticipant");
-        assertThat(registryContent).contains("showInNavigation");
+        assertThat(registryContent).contains("legacyShowInNavigation");
 
         GeneratedGroovyCompiler.compileGeneratedSources(tempDir);
     }

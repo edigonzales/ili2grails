@@ -56,7 +56,7 @@ class Ili2cModelReaderTest {
                 assertThat(relationship.getTargetClass()).isEqualTo("CoreIrTestModel.Relations.Component");
                 assertThat(relationship.isComposition()).isTrue();
                 assertThat(relationship.isOrdered()).isTrue();
-                assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(-1);
+                assertThat(relationship.getCardinality().maxTarget()).isEqualTo(-1);
             })
             .anySatisfy(relationship -> {
                 assertThat(relationship.getSemanticKind())
@@ -65,13 +65,13 @@ class Ili2cModelReaderTest {
                 assertThat(relationship.getTargetRoleName()).isEqualTo("Owner");
                 assertThat(relationship.isExternal()).isTrue();
                 assertThat(relationship.isComposition()).isTrue();
-                assertThat(relationship.getCardinality().getMinTarget()).isEqualTo(1);
+                assertThat(relationship.getCardinality().minTarget()).isEqualTo(1);
             })
             .anySatisfy(relationship -> {
                 assertThat(relationship.getSemanticKind())
                     .isEqualTo(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
                 assertThat(relationship.getTargetRoleName()).isEqualTo("Children");
-                assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(-1);
+                assertThat(relationship.getCardinality().maxTarget()).isEqualTo(-1);
             });
 
         AssociationMetadata association = metadata.getAssociation("CoreIrTestModel.Relations.ParentChild");
@@ -88,7 +88,7 @@ class Ili2cModelReaderTest {
                 assertThat(role.getOppositeRoleName()).isEqualTo("Children");
                 assertThat(role.isExternal()).isTrue();
                 assertThat(role.isComposition()).isTrue();
-                assertThat(role.getCardinality().getMinTarget()).isEqualTo(1);
+                assertThat(role.getCardinality().minTarget()).isEqualTo(1);
             });
         assertThat(association.getAllAttributes())
             .extracting(AttributeMetadata::getName)

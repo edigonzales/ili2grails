@@ -12,10 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class InterlisFormSupportTest {
 
-    private static final Path SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisFormSupport.groovy"
-    );
+    private static final Path SOURCE = RuntimeSourcePaths.runtimeSource("InterlisFormSupport");
 
     @Test
     void acceptsOnlyExplicitSubmitModesAndFallsBackSafely() throws Exception {

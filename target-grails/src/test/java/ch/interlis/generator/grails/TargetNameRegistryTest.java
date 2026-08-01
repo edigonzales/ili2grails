@@ -4,6 +4,10 @@ import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
+import ch.interlis.generator.model.builder.EnumValueBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -19,13 +23,11 @@ class TargetNameRegistryTest {
 
     @Test
     void keepsUniqueClassNamesButPrefixesCollisionsWithTopic() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata topicAGebaeude = new ClassMetadata("TestModel.TopicA.Gebaeude");
-        ClassMetadata topicBGebaeude = new ClassMetadata("TestModel.TopicB.Gebaeude");
-        ClassMetadata person = new ClassMetadata("TestModel.TopicA.Person");
-        metadata.addClass(topicAGebaeude);
-        metadata.addClass(topicBGebaeude);
-        metadata.addClass(person);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadata topicAGebaeude = modelBuilder.classBuilder("TestModel.TopicA.Gebaeude").buildUnchecked();
+        ClassMetadata topicBGebaeude = modelBuilder.classBuilder("TestModel.TopicB.Gebaeude").buildUnchecked();
+        ClassMetadata person = modelBuilder.classBuilder("TestModel.TopicA.Person").buildUnchecked();
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         TargetNameRegistry registry = registry(metadata);
 
@@ -36,11 +38,14 @@ class TargetNameRegistryTest {
 
     @Test
     void prefixesEnumNameCollisionsWithTopic() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        EnumMetadata topicAStatus = enumMetadata("TestModel.TopicA.Status");
-        EnumMetadata topicBStatus = enumMetadata("TestModel.TopicB.Status");
-        metadata.addEnum(topicAStatus);
-        metadata.addEnum(topicBStatus);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        EnumMetadata topicAStatus = modelBuilder.enumBuilder("TestModel.TopicA.Status")
+            .value("ACTIVE", 0)
+            .buildUnchecked();
+        EnumMetadata topicBStatus = modelBuilder.enumBuilder("TestModel.TopicB.Status")
+            .value("ACTIVE", 0)
+            .buildUnchecked();
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         TargetNameRegistry registry = registry(metadata);
 
@@ -50,17 +55,16 @@ class TargetNameRegistryTest {
 
     @Test
     void normalizesReservedWordsAndInvalidIdentifiers() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata keywordClass = new ClassMetadata("TestModel.Topic.class");
-        ClassMetadata invalidClass = new ClassMetadata("TestModel.Topic.123-name");
-        ClassMetadata owner = new ClassMetadata("TestModel.Topic.Owner");
-        AttributeMetadata keywordAttribute = new AttributeMetadata("class");
-        AttributeMetadata invalidAttribute = new AttributeMetadata("foo-bar");
-        owner.addAttribute(keywordAttribute);
-        owner.addAttribute(invalidAttribute);
-        metadata.addClass(keywordClass);
-        metadata.addClass(invalidClass);
-        metadata.addClass(owner);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadata keywordClass = modelBuilder.classBuilder("TestModel.Topic.class").buildUnchecked();
+        ClassMetadata invalidClass = modelBuilder.classBuilder("TestModel.Topic.123-name").buildUnchecked();
+        ClassMetadataBuilder ownerBuilder = modelBuilder.classBuilder("TestModel.Topic.Owner");
+        AttributeMetadata keywordAttribute = AttributeMetadata.builder("class").buildUnchecked();
+        AttributeMetadata invalidAttribute = AttributeMetadata.builder("foo-bar").buildUnchecked();
+        ownerBuilder.attribute(keywordAttribute);
+        ownerBuilder.attribute(invalidAttribute);
+        ClassMetadata owner = ownerBuilder.buildUnchecked();
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         TargetNameRegistry registry = registry(metadata);
 
@@ -72,17 +76,20 @@ class TargetNameRegistryTest {
 
     @Test
     void resolvesPropertyCollisionsDeterministicallyWithinClass() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata owner = new ClassMetadata("TestModel.Topic.Owner");
-        AttributeMetadata displayName = new AttributeMetadata("display-name");
-        displayName.setQualifiedName("TestModel.Topic.Owner.display-name");
-        displayName.setSqlName("name");
-        AttributeMetadata primaryName = new AttributeMetadata("primary_name");
-        primaryName.setQualifiedName("TestModel.Topic.Owner.primary_name");
-        primaryName.setSqlName("name");
-        owner.addAttribute(displayName);
-        owner.addAttribute(primaryName);
-        metadata.addClass(owner);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder ownerBuilder = modelBuilder.classBuilder("TestModel.Topic.Owner");
+        AttributeMetadata displayName = AttributeMetadata.builder("display-name")
+            .qualifiedName("TestModel.Topic.Owner.display-name")
+            .sqlName("name")
+            .buildUnchecked();
+        AttributeMetadata primaryName = AttributeMetadata.builder("primary_name")
+            .qualifiedName("TestModel.Topic.Owner.primary_name")
+            .sqlName("name")
+            .buildUnchecked();
+        ownerBuilder.attribute(displayName);
+        ownerBuilder.attribute(primaryName);
+        ClassMetadata owner = ownerBuilder.buildUnchecked();
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         TargetNameRegistry registry = registry(metadata);
 
@@ -95,16 +102,28 @@ class TargetNameRegistryTest {
 
     @Test
     void resolvesEnumConstantsToStableGroovyIdentifiers() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        EnumMetadata enumMetadata = new EnumMetadata("TestModel.Topic.Status");
-        EnumMetadata.EnumValue active = new EnumMetadata.EnumValue("ACTIVE", 0);
-        EnumMetadata.EnumValue hierarchy = new EnumMetadata.EnumValue("in.Betrieb", 1);
-        EnumMetadata.EnumValue keyword = new EnumMetadata.EnumValue("class", 2);
-        EnumMetadata.EnumValue invalidStart = new EnumMetadata.EnumValue("1-start", 3);
-        EnumMetadata.EnumValue dotted = new EnumMetadata.EnumValue("a.b", 4);
-        EnumMetadata.EnumValue underscored = new EnumMetadata.EnumValue("a_b", 5);
-        enumMetadata.setValues(List.of(active, hierarchy, keyword, invalidStart, dotted, underscored));
-        metadata.addEnum(enumMetadata);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        EnumValueBuilder activeBuilder = EnumMetadata.EnumValue.builder("ACTIVE", 0);
+        EnumValueBuilder hierarchyBuilder = EnumMetadata.EnumValue.builder("in.Betrieb", 1);
+        EnumValueBuilder keywordBuilder = EnumMetadata.EnumValue.builder("class", 2);
+        EnumValueBuilder invalidStartBuilder = EnumMetadata.EnumValue.builder("1-start", 3);
+        EnumValueBuilder dottedBuilder = EnumMetadata.EnumValue.builder("a.b", 4);
+        EnumValueBuilder underscoredBuilder = EnumMetadata.EnumValue.builder("a_b", 5);
+        EnumMetadata enumMetadata = modelBuilder.enumBuilder("TestModel.Topic.Status")
+            .value(activeBuilder)
+            .value(hierarchyBuilder)
+            .value(keywordBuilder)
+            .value(invalidStartBuilder)
+            .value(dottedBuilder)
+            .value(underscoredBuilder)
+            .buildUnchecked();
+        EnumMetadata.EnumValue active = activeBuilder.buildUnchecked();
+        EnumMetadata.EnumValue hierarchy = hierarchyBuilder.buildUnchecked();
+        EnumMetadata.EnumValue keyword = keywordBuilder.buildUnchecked();
+        EnumMetadata.EnumValue invalidStart = invalidStartBuilder.buildUnchecked();
+        EnumMetadata.EnumValue dotted = dottedBuilder.buildUnchecked();
+        EnumMetadata.EnumValue underscored = underscoredBuilder.buildUnchecked();
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         TargetNameRegistry registry = registry(metadata);
 
@@ -119,11 +138,5 @@ class TargetNameRegistryTest {
     private TargetNameRegistry registry(ModelMetadata metadata) {
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
         return TargetNameRegistry.forMetadata(metadata, config);
-    }
-
-    private EnumMetadata enumMetadata(String name) {
-        EnumMetadata enumMetadata = new EnumMetadata(name);
-        enumMetadata.addValue(new EnumMetadata.EnumValue("ACTIVE", 0));
-        return enumMetadata;
     }
 }

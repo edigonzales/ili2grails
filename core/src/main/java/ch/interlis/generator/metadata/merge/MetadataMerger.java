@@ -9,7 +9,13 @@ import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
+import ch.interlis.generator.model.builder.EnumMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
+import ch.interlis.generator.model.builder.RelationshipMetadataBuilder;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -25,9 +31,9 @@ import java.util.Set;
  *
  * <p>Es gibt kein first-match-wins: Matchphasen sind explizit, Mehrdeutigkeiten
  * erzeugen strukturierte Diagnostics, und bei Ambiguität wird kein Kandidat
- * ausgewählt. Ein physisches Element wird höchstens einmal konsumiert. Der
- * semantische Input wird niemals mutiert; das Resultat basiert auf einer
- * tiefen Kopie des physischen Inputs.</p>
+ * ausgewählt. Ein physisches Element wird höchstens einmal konsumiert. Die
+ * Inputs werden niemals mutiert; das Resultat wird über Builder erzeugt und
+ * über die {@link ModelMetadataFactory} als immutable Snapshot gefroren.</p>
  */
 public final class MetadataMerger {
 
@@ -35,15 +41,26 @@ public final class MetadataMerger {
     private final RelationshipMatcher relationshipMatcher;
     private final MetadataPostProcessor postProcessor;
     private final MetadataValidator validator;
+    private final ModelMetadataFactory factory;
 
     public MetadataMerger(AttributeMatcher attributeMatcher,
                           RelationshipMatcher relationshipMatcher,
                           MetadataPostProcessor postProcessor,
                           MetadataValidator validator) {
+        this(attributeMatcher, relationshipMatcher, postProcessor, validator,
+            new ModelMetadataFactory());
+    }
+
+    public MetadataMerger(AttributeMatcher attributeMatcher,
+                          RelationshipMatcher relationshipMatcher,
+                          MetadataPostProcessor postProcessor,
+                          MetadataValidator validator,
+                          ModelMetadataFactory factory) {
         this.attributeMatcher = Objects.requireNonNull(attributeMatcher, "attributeMatcher");
         this.relationshipMatcher = Objects.requireNonNull(relationshipMatcher, "relationshipMatcher");
         this.postProcessor = Objects.requireNonNull(postProcessor, "postProcessor");
         this.validator = Objects.requireNonNull(validator, "validator");
+        this.factory = Objects.requireNonNull(factory, "factory");
     }
 
     public static MetadataMerger defaultMerger() {
@@ -77,23 +94,25 @@ public final class MetadataMerger {
             ));
         }
 
-        ModelMetadata target = ModelMetadataCopier.copy(physical);
+        ModelMetadataBuilder target = physical.toBuilder();
 
         if (semantic.getIliVersion() != null) {
-            target.setIliVersion(semantic.getIliVersion());
+            target.iliVersion(semantic.getIliVersion());
         }
         if (semantic.getModelVersion() != null) {
-            target.setModelVersion(semantic.getModelVersion());
+            target.modelVersion(semantic.getModelVersion());
         }
 
-        mergeClasses(target, semantic, diagnostics);
+        mergeClasses(target, physical, semantic, diagnostics);
         mergeEnums(target, semantic);
-        mergeRelationships(target, semantic, diagnostics);
+        mergeRelationships(target, physical, semantic, diagnostics);
         mergeAssociations(target, semantic);
 
         postProcessor.process(target);
 
-        List<MergeDiagnostic> validatorDiagnostics = validator.validate(target);
+        ModelMetadata built = factory.buildValidated(target);
+
+        List<MergeDiagnostic> validatorDiagnostics = validator.validate(built);
         diagnostics.addAll(validatorDiagnostics);
 
         List<MergeDiagnostic> sorted = diagnostics.stream()
@@ -104,7 +123,7 @@ public final class MetadataMerger {
                 .thenComparing(diagnostic -> nullToEmpty(diagnostic.physicalElement())))
             .toList();
 
-        return new MetadataMergeResult(target, sorted);
+        return new MetadataMergeResult(built, sorted);
     }
 
     /**
@@ -117,16 +136,16 @@ public final class MetadataMerger {
         return result.metadata();
     }
 
-    private void mergeClasses(ModelMetadata target,
+    private void mergeClasses(ModelMetadataBuilder target,
+                              ModelMetadata physical,
                               ModelMetadata semantic,
                               List<MergeDiagnostic> diagnostics) {
         for (ClassMetadata semanticClass : sortedSemanticClasses(semantic)) {
-            ClassMetadata targetClass = target.getClass(semanticClass.getName());
+            ClassMetadata targetClass = physical.getClass(semanticClass.getName());
             if (targetClass == null) {
-                ClassMetadata copy = ModelMetadataCopier.copyClass(semanticClass);
-                target.addClass(copy);
-                for (RelationshipMetadata relationship : semanticClass.getRelationships()) {
-                    copy.addRelationship(ModelMetadataCopier.copyRelationship(relationship));
+                ClassMetadataBuilder copy = target.addClassFrom(semanticClass);
+                for (RelationshipMetadata relationship : semantic.relationshipsFrom(semanticClass.getName())) {
+                    target.appendRelationshipBuilder(RelationshipMetadataBuilder.from(relationship));
                 }
                 MergeSeverity severity = semanticClass.isAbstract()
                     ? MergeSeverity.INFO
@@ -141,15 +160,15 @@ public final class MetadataMerger {
                 ));
                 continue;
             }
-            enrichClass(targetClass, semanticClass);
-            mergeAttributes(targetClass, semanticClass, diagnostics);
+            enrichClass(target.requireClassBuilder(targetClass.getName()), semanticClass);
+            mergeAttributes(target, targetClass, semanticClass, diagnostics);
         }
 
         Set<String> semanticClassNames = new LinkedHashSet<>();
         for (ClassMetadata semanticClass : semantic.getAllClasses()) {
             semanticClassNames.add(semanticClass.getName());
         }
-        for (ClassMetadata targetClass : target.getAllClasses()) {
+        for (ClassMetadata targetClass : physical.getAllClasses()) {
             if (!semanticClassNames.contains(targetClass.getName())) {
                 diagnostics.add(new MergeDiagnostic(
                     MergeSeverity.INFO,
@@ -170,24 +189,25 @@ public final class MetadataMerger {
             .toList();
     }
 
-    private void enrichClass(ClassMetadata target, ClassMetadata semantic) {
+    private void enrichClass(ClassMetadataBuilder target, ClassMetadata semantic) {
         if (semantic.getDocumentation() != null) {
-            target.setDocumentation(semantic.getDocumentation());
+            target.documentation(semantic.getDocumentation());
         }
         if (semantic.getKind() != null) {
-            target.setKind(semantic.getKind());
+            target.kind(semantic.getKind());
         }
         if (semantic.getTopicName() != null) {
-            target.setTopicName(semantic.getTopicName());
+            target.topicName(semantic.getTopicName());
         }
-        target.setAbstract(semantic.isAbstract());
+        target.abstractClass(semantic.isAbstract());
         if (semantic.getBaseClass() != null) {
-            target.setBaseClass(semantic.getBaseClass());
+            target.baseClass(semantic.getBaseClass());
         }
-        target.getLabels().putAll(semantic.getLabels());
+        semantic.getLabels().forEach(target::label);
     }
 
-    private void mergeAttributes(ClassMetadata targetClass,
+    private void mergeAttributes(ModelMetadataBuilder targetBuilder,
+                                 ClassMetadata targetClass,
                                  ClassMetadata semanticClass,
                                  List<MergeDiagnostic> diagnostics) {
         List<MatchDecision<AttributeMetadata>> decisions =
@@ -195,7 +215,7 @@ public final class MetadataMerger {
 
         for (MatchDecision<AttributeMetadata> decision : decisions) {
             switch (decision.status()) {
-                case MATCHED -> mergeAttributeIntoClass(targetClass, decision);
+                case MATCHED -> mergeAttributeIntoClass(targetBuilder, targetClass, decision);
                 case AMBIGUOUS -> {
                     AttributeMetadata semanticAttribute = decision.semantic();
                     diagnostics.add(new MergeDiagnostic(
@@ -266,110 +286,107 @@ public final class MetadataMerger {
             || (classMetadata.getSqlName() != null && !classMetadata.getSqlName().isBlank());
     }
 
-    private void mergeAttributeIntoClass(ClassMetadata targetClass,
+    private void mergeAttributeIntoClass(ModelMetadataBuilder targetBuilder,
+                                         ClassMetadata targetClass,
                                          MatchDecision<AttributeMetadata> decision) {
-        AttributeMetadata merged = mergeAttribute(decision.physical(), decision.semantic());
-        AttributeMetadata existing = targetClass.getAttribute(merged.getName());
-        if (existing != null) {
-            existing.copyFrom(merged);
-        } else {
-            targetClass.addAttribute(merged);
-        }
+        AttributeMetadataBuilder merged = mergeAttribute(decision.physical(), decision.semantic());
+        ClassMetadataBuilder classBuilder = targetBuilder.requireClassBuilder(targetClass.getName());
+        classBuilder.replaceAttribute(merged);
     }
 
-    private AttributeMetadata mergeAttribute(AttributeMetadata physical,
-                                             AttributeMetadata semantic) {
-        AttributeMetadata merged = ModelMetadataCopier.copyAttribute(physical);
+    private AttributeMetadataBuilder mergeAttribute(AttributeMetadata physical,
+                                                    AttributeMetadata semantic) {
+        AttributeMetadataBuilder merged = AttributeMetadataBuilder.from(physical);
 
         if (semantic.getQualifiedName() != null) {
-            merged.setQualifiedName(semantic.getQualifiedName());
+            merged.qualifiedName(semantic.getQualifiedName());
         }
 
-        if (merged.getReferencedClass() == null && semantic.getReferencedClass() != null) {
-            merged.setReferencedClass(semantic.getReferencedClass());
+        if (merged.referencedClass() == null && semantic.getReferencedClass() != null) {
+            merged.referencedClass(semantic.getReferencedClass());
         }
 
-        merged.setMandatory(mergeMandatory(physical, semantic));
+        merged.mandatory(mergeMandatory(physical, semantic));
 
         if (semantic.getCoreType() != CoreType.UNKNOWN) {
-            merged.setCoreType(semantic.getCoreType());
+            merged.coreType(semantic.getCoreType());
         }
         if (semantic.getJavaType() != null) {
-            merged.setJavaType(semantic.getJavaType());
+            merged.javaType(semantic.getJavaType());
         }
         if (semantic.getIliType() != null) {
-            merged.setIliType(semantic.getIliType());
+            merged.iliType(semantic.getIliType());
         }
         if (semantic.getDomainName() != null) {
-            merged.setDomainName(semantic.getDomainName());
+            merged.domainName(semantic.getDomainName());
         }
         if (semantic.getEnumType() != null) {
-            merged.setEnumType(semantic.getEnumType());
+            merged.enumType(semantic.getEnumType());
         } else if (physical.getEnumType() != null) {
-            merged.setEnumType(physical.getEnumType());
+            merged.enumType(physical.getEnumType());
         }
         Integer narrowerMaxLength = narrowerMaxLength(physical.getMaxLength(), semantic.getMaxLength());
         if (narrowerMaxLength != null) {
-            merged.setMaxLength(narrowerMaxLength);
+            merged.maxLength(narrowerMaxLength);
         }
         if (semantic.getMinValue() != null) {
-            merged.setMinValue(semantic.getMinValue());
+            merged.minValue(semantic.getMinValue());
         }
         if (semantic.getMaxValue() != null) {
-            merged.setMaxValue(semantic.getMaxValue());
+            merged.maxValue(semantic.getMaxValue());
         }
         if (semantic.getPrecision() != null) {
-            merged.setPrecision(semantic.getPrecision());
+            merged.precision(semantic.getPrecision());
         } else if (physical.getPrecision() != null) {
-            merged.setPrecision(physical.getPrecision());
+            merged.precision(physical.getPrecision());
         }
         if (semantic.getScale() != null) {
-            merged.setScale(semantic.getScale());
+            merged.scale(semantic.getScale());
         } else if (physical.getScale() != null) {
-            merged.setScale(physical.getScale());
+            merged.scale(physical.getScale());
         }
         if (semantic.getCardinalityMin() != null) {
-            merged.setCardinalityMin(semantic.getCardinalityMin());
+            merged.cardinalityMin(semantic.getCardinalityMin());
         }
         if (semantic.getCardinalityMax() != null) {
-            merged.setCardinalityMax(semantic.getCardinalityMax());
+            merged.cardinalityMax(semantic.getCardinalityMax());
         }
         if (semantic.isOrdered() || physical.isOrdered()) {
-            merged.setOrdered(true);
+            merged.ordered(true);
         }
         if (semantic.getUnit() != null) {
-            merged.setUnit(semantic.getUnit());
+            merged.unit(semantic.getUnit());
         }
         if (semantic.getDocumentation() != null) {
-            merged.setDocumentation(semantic.getDocumentation());
+            merged.documentation(semantic.getDocumentation());
         }
         if (semantic.isGeometry() || physical.isGeometry()) {
-            merged.setGeometry(true);
+            merged.geometry(true);
         }
         if (physical.getGeometryKind() != null && !physical.getGeometryKind().isBlank()) {
-            merged.setGeometryKind(physical.getGeometryKind());
+            merged.geometryKind(physical.getGeometryKind());
         } else if (semantic.getGeometryKind() != null) {
-            merged.setGeometryKind(semantic.getGeometryKind());
+            merged.geometryKind(semantic.getGeometryKind());
         }
         if (physical.getGeometrySrid() != null) {
-            merged.setGeometrySrid(physical.getGeometrySrid());
+            merged.geometrySrid(physical.getGeometrySrid());
         }
         if (physical.getGeometryHasZ() != null) {
-            merged.setGeometryHasZ(physical.getGeometryHasZ());
+            merged.geometryHasZ(physical.getGeometryHasZ());
         } else if (semantic.getGeometryHasZ() != null) {
-            merged.setGeometryHasZ(semantic.getGeometryHasZ());
+            merged.geometryHasZ(semantic.getGeometryHasZ());
         }
         if (physical.getGeometryHasM() != null) {
-            merged.setGeometryHasM(physical.getGeometryHasM());
+            merged.geometryHasM(physical.getGeometryHasM());
         } else if (semantic.getGeometryHasM() != null) {
-            merged.setGeometryHasM(semantic.getGeometryHasM());
+            merged.geometryHasM(semantic.getGeometryHasM());
         }
         if (semantic.getAllowEmptyGeometry() != null) {
-            merged.setAllowEmptyGeometry(semantic.getAllowEmptyGeometry());
+            merged.allowEmptyGeometry(semantic.getAllowEmptyGeometry());
         } else if (physical.getAllowEmptyGeometry() != null) {
-            merged.setAllowEmptyGeometry(physical.getAllowEmptyGeometry());
+            merged.allowEmptyGeometry(physical.getAllowEmptyGeometry());
         }
-        mergeLabels(merged.getLabels(), semantic.getLabels());
+        semantic.getLabels().forEach(merged::label);
         return merged;
     }
 
@@ -387,31 +404,63 @@ public final class MetadataMerger {
         return Math.min(physical, semantic);
     }
 
-    private void mergeLabels(Map<String, String> target, Map<String, String> semantic) {
-        target.putAll(semantic);
-    }
-
-    private void mergeEnums(ModelMetadata target, ModelMetadata semantic) {
+    private void mergeEnums(ModelMetadataBuilder target, ModelMetadata semantic) {
         for (EnumMetadata enumMetadata : semantic.getAllEnums()) {
-            EnumMetadata existing = target.getEnums().get(enumMetadata.getName());
-            if (existing == null) {
-                target.addEnum(ModelMetadataCopier.copyEnum(enumMetadata));
+            if (target.findEnumBuilder(enumMetadata.getName()).isEmpty()) {
+                target.addEnumFrom(enumMetadata);
             }
         }
     }
 
-    private void mergeRelationships(ModelMetadata target,
+    private boolean hasRelationshipIdentity(ModelMetadataBuilder target,
+                                             RelationshipMetadata relationship) {
+        ch.interlis.generator.model.RelationshipIdentity identity =
+            ch.interlis.generator.model.RelationshipIdentity.of(relationship);
+        return target.relationshipBuilders().stream()
+            .anyMatch(existing -> ch.interlis.generator.model.RelationshipIdentity.of(
+                existing.buildUnchecked()).equals(identity));
+    }
+
+    private void appendIfAbsent(ModelMetadataBuilder target,
+                                RelationshipMetadata relationship,
+                                boolean duplicate, List<MergeDiagnostic> diagnostics) {
+        if (!hasRelationshipIdentity(target, relationship)) {
+            target.appendRelationshipBuilder(RelationshipMetadataBuilder.from(relationship));
+            return;
+        }
+        if (duplicate) {
+            diagnostics.add(new MergeDiagnostic(
+                MergeSeverity.WARNING,
+                MergeDiagnosticCode.DUPLICATE_CANONICAL_RELATIONSHIP,
+                "relationship identity already present; semantic copy skipped",
+                relationship.getName(),
+                null,
+                Map.of()));
+        }
+    }
+
+    private void mergeRelationships(ModelMetadataBuilder target,
+                                    ModelMetadata physical,
                                     ModelMetadata semantic,
                                     List<MergeDiagnostic> diagnostics) {
         List<MatchDecision<RelationshipMetadata>> decisions =
-            relationshipMatcher.match(target, semantic);
+            relationshipMatcher.match(physical, semantic);
+
+        List<RelationshipMetadata> physicalRelationships = physical.getAllRelationships();
 
         for (MatchDecision<RelationshipMetadata> decision : decisions) {
             RelationshipMetadata semanticRelationship = decision.semantic();
             switch (decision.status()) {
                 case MATCHED -> {
                     RelationshipMetadata physicalRelationship = decision.physical();
-                    mergeRelationship(physicalRelationship, semanticRelationship, decision);
+                    int index = physicalRelationships.indexOf(physicalRelationship);
+                    RelationshipMetadataBuilder merged = mergeRelationship(
+                        physicalRelationship, semanticRelationship, decision);
+                    if (index >= 0) {
+                        target.replaceRelationshipBuilder(index, merged);
+                    } else {
+                        target.appendRelationshipBuilder(merged);
+                    }
                 }
                 case AMBIGUOUS -> {
                     diagnostics.add(new MergeDiagnostic(
@@ -422,7 +471,7 @@ public final class MetadataMerger {
                         null,
                         relationshipCandidateDetails(decision.candidates())
                     ));
-                    target.addRelationship(ModelMetadataCopier.copyRelationship(semanticRelationship));
+                    appendIfAbsent(target, semanticRelationship, true, diagnostics);
                 }
                 case PHYSICAL_ALREADY_USED -> {
                     diagnostics.add(new MergeDiagnostic(
@@ -433,7 +482,7 @@ public final class MetadataMerger {
                         null,
                         relationshipCandidateDetails(decision.candidates())
                     ));
-                    target.addRelationship(ModelMetadataCopier.copyRelationship(semanticRelationship));
+                    appendIfAbsent(target, semanticRelationship, false, diagnostics);
                 }
                 case UNMATCHED -> {
                     diagnostics.add(new MergeDiagnostic(
@@ -444,7 +493,7 @@ public final class MetadataMerger {
                         null,
                         Map.of()
                     ));
-                    target.addRelationship(ModelMetadataCopier.copyRelationship(semanticRelationship));
+                    appendIfAbsent(target, semanticRelationship, false, diagnostics);
                 }
             }
         }
@@ -452,23 +501,23 @@ public final class MetadataMerger {
         validateAssociationRoles(target, semantic, diagnostics);
     }
 
-    private void validateAssociationRoles(ModelMetadata target,
+    private void validateAssociationRoles(ModelMetadataBuilder target,
                                           ModelMetadata semantic,
                                           List<MergeDiagnostic> diagnostics) {
-        Map<String, List<RelationshipMetadata>> rolesByAssociation = new LinkedHashMap<>();
-        for (RelationshipMetadata relationship : target.getAllRelationships()) {
-            if (relationship.getSemanticKind() != RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE
-                || !"ili2db+ili2c".equals(relationship.getSource())) {
+        Map<String, List<RelationshipMetadataBuilder>> rolesByAssociation = new LinkedHashMap<>();
+        for (RelationshipMetadataBuilder relationship : target.relationshipBuilders()) {
+            if (relationship.semanticKind() != RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE
+                || !"ili2db+ili2c".equals(relationship.source())) {
                 continue;
             }
             String associationName = postProcessor
-                .resolveAssociationName(target, relationship);
+                .resolveAssociationName(builderSnapshot(target), snapshotRelationship(relationship));
             rolesByAssociation.computeIfAbsent(associationName, key -> new ArrayList<>())
                 .add(relationship);
         }
-        for (Map.Entry<String, List<RelationshipMetadata>> entry : rolesByAssociation.entrySet()) {
+        for (Map.Entry<String, List<RelationshipMetadataBuilder>> entry : rolesByAssociation.entrySet()) {
             String associationName = entry.getKey();
-            if (target.getAssociation(associationName) == null) {
+            if (target.findAssociationBuilder(associationName).isEmpty()) {
                 diagnostics.add(new MergeDiagnostic(
                     MergeSeverity.WARNING,
                     MergeDiagnosticCode.ASSOCIATION_ROLE_UNRESOLVED,
@@ -479,8 +528,8 @@ public final class MetadataMerger {
                 ));
             }
             Set<String> roleNames = new LinkedHashSet<>();
-            for (RelationshipMetadata relationship : entry.getValue()) {
-                String roleName = relationship.getTargetRoleName();
+            for (RelationshipMetadataBuilder relationship : entry.getValue()) {
+                String roleName = relationship.targetRoleName();
                 if (roleName != null && !roleNames.add(roleName)) {
                     diagnostics.add(new MergeDiagnostic(
                         MergeSeverity.ERROR,
@@ -495,43 +544,53 @@ public final class MetadataMerger {
         }
     }
 
-    private void mergeRelationship(RelationshipMetadata physical,
-                                   RelationshipMetadata semantic,
-                                   MatchDecision<RelationshipMetadata> decision) {
+    private ModelMetadata builderSnapshot(ModelMetadataBuilder builder) {
+        return builder.buildUnchecked();
+    }
+
+    private RelationshipMetadata snapshotRelationship(RelationshipMetadataBuilder builder) {
+        return builder.buildUnchecked();
+    }
+
+    private RelationshipMetadataBuilder mergeRelationship(RelationshipMetadata physical,
+                                                          RelationshipMetadata semantic,
+                                                          MatchDecision<RelationshipMetadata> decision) {
+        RelationshipMetadataBuilder merged = RelationshipMetadataBuilder.from(physical);
         if (semantic.getType() != null) {
-            physical.setType(semantic.getType());
+            merged.type(semantic.getType());
         }
         if (semantic.getSemanticKind() != null) {
-            physical.setSemanticKind(semantic.getSemanticKind());
+            merged.semanticKind(semantic.getSemanticKind());
         }
         if (semantic.getAssociationName() != null) {
-            physical.setAssociationName(semantic.getAssociationName());
+            merged.associationName(semantic.getAssociationName());
         }
         if (semantic.getSourceRoleName() != null) {
-            physical.setSourceRoleName(semantic.getSourceRoleName());
+            merged.sourceRoleName(semantic.getSourceRoleName());
         }
         if (semantic.getTargetRoleName() != null) {
-            physical.setTargetRoleName(semantic.getTargetRoleName());
+            merged.targetRoleName(semantic.getTargetRoleName());
         }
         if (semantic.getOppositeRoleName() != null) {
-            physical.setOppositeRoleName(semantic.getOppositeRoleName());
+            merged.oppositeRoleName(semantic.getOppositeRoleName());
         }
         if (semantic.getCardinality() != null) {
-            physical.setCardinality(semantic.getCardinality());
+            merged.cardinality(semantic.getCardinality());
         }
-        physical.setMandatory(semantic.isMandatory());
-        physical.setOrdered(semantic.isOrdered());
-        physical.setExternal(semantic.isExternal());
-        physical.setComposition(semantic.isComposition());
-        physical.setSource("ili2db+ili2c");
+        merged.mandatory(semantic.isMandatory());
+        merged.ordered(semantic.isOrdered());
+        merged.external(semantic.isExternal());
+        merged.composition(semantic.isComposition());
+        merged.source("ili2db+ili2c");
         if (semantic.getSemanticName() != null) {
-            physical.setSemanticName(semantic.getSemanticName());
+            merged.semanticName(semantic.getSemanticName());
         } else if (semantic.getName() != null) {
-            physical.setSemanticName(semantic.getName());
+            merged.semanticName(semantic.getName());
         }
-        physical.setMergeReason(toMergeReason(decision.reason()));
-        physical.setMergeConfidence(toMergeConfidence(decision.reason()));
-        physical.setMergeToken(decision.token());
+        merged.mergeReason(toMergeReason(decision.reason()));
+        merged.mergeConfidence(toMergeConfidence(decision.reason()));
+        merged.mergeToken(decision.token());
+        return merged;
     }
 
     private RelationshipMetadata.MergeReason toMergeReason(MatchReason reason) {
@@ -565,11 +624,10 @@ public final class MetadataMerger {
         return details;
     }
 
-    private void mergeAssociations(ModelMetadata target, ModelMetadata semantic) {
+    private void mergeAssociations(ModelMetadataBuilder target, ModelMetadata semantic) {
         for (AssociationMetadata association : semantic.getAllAssociations()) {
-            AssociationMetadata existing = target.getAssociation(association.getName());
-            if (existing == null) {
-                target.addAssociation(ModelMetadataCopier.copyAssociation(association));
+            if (target.findAssociationBuilder(association.getName()).isEmpty()) {
+                target.addAssociationFrom(association);
             }
         }
     }

@@ -4,7 +4,12 @@ import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
+import ch.interlis.generator.model.builder.RelationshipMetadataBuilder;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.*;
@@ -14,41 +19,46 @@ class MetadataPostProcessorTest {
     private final MetadataPostProcessor processor = new MetadataPostProcessor();
 
     @Test
-    void infersMissingTypes() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata clazz = new ClassMetadata("TestModel.Topic.Class");
-        AttributeMetadata attribute = new AttributeMetadata("name");
-        attribute.setIliType("TEXT");
-        clazz.addAttribute(attribute);
-        metadata.addClass(clazz);
+    void factoryResolvesMissingTypesBeforeFreeze() {
+        ModelMetadataBuilder builder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder clazz = builder.classBuilder("TestModel.Topic.Class");
+        clazz.attribute(new AttributeMetadataBuilder("name").iliType("TEXT"));
 
-        processor.process(metadata);
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(builder);
 
+        AttributeMetadata attribute = metadata.getClass("TestModel.Topic.Class").getAttribute("name");
         assertThat(attribute.getCoreType()).isEqualTo(CoreType.TEXT);
         assertThat(attribute.getJavaType()).isEqualTo("String");
     }
 
     @Test
     void synchronizesAssociationRolesFromCanonicalRelationships() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata associationClass = new ClassMetadata("TestModel.Topic.PersonAddress");
-        associationClass.setKind(ClassMetadata.ClassKind.ASSOCIATION);
-        associationClass.setTableName("personaddress");
-        AttributeMetadata roleAttribute = new AttributeMetadata("person_id");
-        roleAttribute.setColumnName("person_id");
-        associationClass.addAttribute(roleAttribute);
-        metadata.addClass(associationClass);
+        ModelMetadataBuilder builder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder associationClass = builder.classBuilder("TestModel.Topic.PersonAddress");
+        associationClass.kind(ClassMetadata.ClassKind.ASSOCIATION);
+        associationClass.tableName("personaddress");
+        associationClass.attribute(new AttributeMetadataBuilder("person_id").columnName("person_id")
+            .foreignKey(true));
 
-        RelationshipMetadata first = canonicalAssociationRole(
-            "TestModel.Topic.PersonAddress.Person", "TestModel.Topic.PersonAddress",
-            "TestModel.Topic.Person", "person_id", "Person");
-        RelationshipMetadata second = canonicalAssociationRole(
-            "TestModel.Topic.PersonAddress.Address", "TestModel.Topic.PersonAddress",
-            "TestModel.Topic.Address", "address_id", "Address");
-        metadata.addRelationship(first);
-        metadata.addRelationship(second);
+        builder.relationshipBuilder("TestModel.Topic.PersonAddress.Person")
+            .sourceClass("TestModel.Topic.PersonAddress")
+            .targetClass("TestModel.Topic.Person")
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .associationName("TestModel.Topic.PersonAddress")
+            .targetRoleName("Person")
+            .sourceAttribute("person_id")
+            .source("ili2db+ili2c");
+        builder.relationshipBuilder("TestModel.Topic.PersonAddress.Address")
+            .sourceClass("TestModel.Topic.PersonAddress")
+            .targetClass("TestModel.Topic.Address")
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .associationName("TestModel.Topic.PersonAddress")
+            .targetRoleName("Address")
+            .sourceAttribute("address_id")
+            .source("ili2db+ili2c");
 
-        processor.process(metadata);
+        processor.process(builder);
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(builder);
 
         assertThat(metadata.getAssociation("TestModel.Topic.PersonAddress"))
             .satisfies(association -> {
@@ -64,21 +74,20 @@ class MetadataPostProcessorTest {
 
     @Test
     void ambiguousRelationshipsAreNotUsedForRoles() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata associationClass = new ClassMetadata("TestModel.Topic.PersonAddress");
-        associationClass.setKind(ClassMetadata.ClassKind.ASSOCIATION);
-        metadata.addClass(associationClass);
+        ModelMetadataBuilder builder = ModelMetadataBuilder.model("TestModel");
+        builder.classBuilder("TestModel.Topic.PersonAddress")
+            .kind(ClassMetadata.ClassKind.ASSOCIATION);
 
-        RelationshipMetadata role = new RelationshipMetadata("TestModel.Topic.PersonAddress.Person");
-        role.setSourceClass("TestModel.Topic.PersonAddress");
-        role.setTargetClass("TestModel.Topic.Person");
-        role.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
-        role.setAssociationName("TestModel.Topic.PersonAddress");
-        role.setTargetRoleName("Person");
-        role.setSource("ili2c");
-        metadata.addRelationship(role);
+        builder.relationshipBuilder("TestModel.Topic.PersonAddress.Person")
+            .sourceClass("TestModel.Topic.PersonAddress")
+            .targetClass("TestModel.Topic.Person")
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .associationName("TestModel.Topic.PersonAddress")
+            .targetRoleName("Person")
+            .source("ili2c");
 
-        processor.process(metadata);
+        processor.process(builder);
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(builder);
 
         assertThat(metadata.getAssociation("TestModel.Topic.PersonAddress").getRoles())
             .isEmpty();
@@ -86,40 +95,35 @@ class MetadataPostProcessorTest {
 
     @Test
     void roleOrderIsDeterministic() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata associationClass = new ClassMetadata("TestModel.Topic.PersonAddress");
-        associationClass.setKind(ClassMetadata.ClassKind.ASSOCIATION);
-        metadata.addClass(associationClass);
+        ModelMetadataBuilder builder = ModelMetadataBuilder.model("TestModel");
+        builder.classBuilder("TestModel.Topic.PersonAddress")
+            .kind(ClassMetadata.ClassKind.ASSOCIATION);
 
-        RelationshipMetadata zebra = canonicalAssociationRole(
-            "TestModel.Topic.PersonAddress.Zebra", "TestModel.Topic.PersonAddress",
-            "TestModel.Topic.Zebra", "zebra_id", "Zebra");
-        RelationshipMetadata alpha = canonicalAssociationRole(
-            "TestModel.Topic.PersonAddress.Alpha", "TestModel.Topic.PersonAddress",
-            "TestModel.Topic.Alpha", "alpha_id", "Alpha");
-        metadata.addRelationship(zebra);
-        metadata.addRelationship(alpha);
+        canonicalAssociationRole(builder,
+            "TestModel.Topic.PersonAddress.Zebra", "TestModel.Topic.Zebra", "zebra_id", "Zebra");
+        canonicalAssociationRole(builder,
+            "TestModel.Topic.PersonAddress.Alpha", "TestModel.Topic.Alpha", "alpha_id", "Alpha");
 
-        processor.process(metadata);
+        processor.process(builder);
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(builder);
 
         assertThat(metadata.getAssociation("TestModel.Topic.PersonAddress").getRoles())
             .extracting(role -> role.getName())
             .containsExactly("Alpha", "Zebra");
     }
 
-    private RelationshipMetadata canonicalAssociationRole(String name,
-                                                          String sourceClass,
-                                                          String targetClass,
-                                                          String sourceAttribute,
-                                                          String targetRoleName) {
-        RelationshipMetadata relationship = new RelationshipMetadata(name);
-        relationship.setSourceClass(sourceClass);
-        relationship.setTargetClass(targetClass);
-        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
-        relationship.setAssociationName(sourceClass);
-        relationship.setTargetRoleName(targetRoleName);
-        relationship.setSourceAttribute(sourceAttribute);
-        relationship.setSource("ili2db+ili2c");
-        return relationship;
+    private void canonicalAssociationRole(ModelMetadataBuilder builder,
+                                          String name,
+                                          String targetClass,
+                                          String sourceAttribute,
+                                          String targetRoleName) {
+        builder.relationshipBuilder(name)
+            .sourceClass("TestModel.Topic.PersonAddress")
+            .targetClass(targetClass)
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .associationName("TestModel.Topic.PersonAddress")
+            .targetRoleName(targetRoleName)
+            .sourceAttribute(sourceAttribute)
+            .source("ili2db+ili2c");
     }
 }

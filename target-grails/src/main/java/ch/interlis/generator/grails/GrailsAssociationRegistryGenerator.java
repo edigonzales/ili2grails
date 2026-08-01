@@ -1,6 +1,15 @@
 package ch.interlis.generator.grails;
 
-import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationAttributeDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationCreateMode;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationStorageKind;
+import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind;
+import ch.interlis.generator.grails.runtime.api.descriptor.EntityDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeCoreType;
+import ch.interlis.generator.grails.source.GroovySourceWriter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -15,14 +24,13 @@ import java.util.Objects;
 import java.util.TreeMap;
 
 /**
- * Generates the deterministic Groovy association registry for the generated
- * Grails application.
+ * Generates the deterministic typed Groovy association registry for the
+ * generated Grails application.
  *
- * <p>The registry is emitted into the fixed package
- * {@code ch.interlis.generator.grails.generated} so that the copied runtime can
- * reference it without dynamic imports. Output ordering is stable, values are
- * escaped for Groovy, {@code null} is emitted as {@code null} and unbounded
- * cardinalities keep their {@code -1} sentinel.
+ * <p>The registry implements {@link
+ * ch.interlis.generator.grails.runtime.api.registry.AssociationRegistry} and
+ * holds immutable descriptor instances. The legacy static map API is kept for
+ * the migration window only and delegates to the typed data.</p>
  */
 public final class GrailsAssociationRegistryGenerator {
 
@@ -32,327 +40,310 @@ public final class GrailsAssociationRegistryGenerator {
     private static final String RELATIVE_PATH =
         "src/main/groovy/ch/interlis/generator/grails/generated/" + REGISTRY_CLASS_NAME + ".groovy";
 
-    public void generate(ModelMetadata metadata,
-                         GenerationConfig config,
-                         TargetNameRegistry registry,
-                         GrailsAssociationPlanner planner) throws IOException {
-        Objects.requireNonNull(metadata, "metadata");
+    private final GroovySourceWriter source = new GroovySourceWriter();
+
+    public void generate(RuntimeDescriptorPlan plan, GenerationConfig config) throws IOException {
+        Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(config, "config");
-        Objects.requireNonNull(registry, "registry");
-        Objects.requireNonNull(planner, "planner");
 
         Path target = targetPath(config);
         Files.createDirectories(target.getParent());
-        Files.writeString(target, renderRegistry(planner.plans(), config), StandardCharsets.UTF_8);
+        Files.writeString(target, renderRegistry(plan), StandardCharsets.UTF_8);
     }
 
     Path targetPath(GenerationConfig config) {
         return config.getOutputDir().resolve(RELATIVE_PATH);
     }
 
-    String renderRegistry(List<GrailsAssociationPlan> plans, GenerationConfig config) {
-        List<GrailsAssociationPlan> sortedPlans = new ArrayList<>(plans == null ? List.of() : plans);
-        sortedPlans.sort(Comparator.comparing(
-            GrailsAssociationPlan::associationName, Comparator.nullsLast(String::compareTo)));
+    String renderRegistry(RuntimeDescriptorPlan plan) {
+        List<AssociationDescriptor> associations = new ArrayList<>(plan.associations());
+        associations.sort(Comparator.comparing(
+            AssociationDescriptor::associationName, Comparator.nullsLast(String::compareTo)));
+        List<AssociationContextDescriptor> contexts = new ArrayList<>(plan.contexts());
+        contexts.sort(Comparator.comparing(
+            AssociationContextDescriptor::id, Comparator.nullsLast(String::compareTo)));
 
-        boolean writeEnabled = config.isAssociationUiEditable();
-
-        Map<String, Map<String, Object>> associations = new LinkedHashMap<>();
-        Map<String, Map<String, Object>> contexts = new TreeMap<>();
         Map<String, List<String>> contextIdsByParticipant = new TreeMap<>();
-        Map<String, Map<String, Object>> entities = new TreeMap<>();
-
-        for (GrailsAssociationPlan plan : sortedPlans) {
-            associations.put(plan.associationName(), associationDescriptor(plan, writeEnabled));
-
-            for (GrailsAssociationContextPlan context : plan.contexts()) {
-                contexts.put(context.contextId(), contextDescriptor(plan, context, writeEnabled));
-                String participant = context.participantDomainQualifiedName();
-                if (participant != null) {
-                    contextIdsByParticipant
-                        .computeIfAbsent(participant, key -> new ArrayList<>())
-                        .add(context.contextId());
-                }
-            }
-
-            if (plan.associationDomainQualifiedName() != null) {
-                Map<String, Object> entity = new LinkedHashMap<>();
-                entity.put("iliName", plan.associationIliClassName());
-                entity.put("kind", "ASSOCIATION");
-                entity.put("showInNavigation", resolveShowInNavigation(plan, config));
-                entities.put(plan.associationDomainQualifiedName(), entity);
+        for (AssociationContextDescriptor context : contexts) {
+            String participant = context.participantDomainClassName();
+            if (participant != null && !participant.isBlank()) {
+                contextIdsByParticipant
+                    .computeIfAbsent(participant, key -> new ArrayList<>())
+                    .add(context.id());
             }
         }
         contextIdsByParticipant.values().forEach(java.util.Collections::sort);
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("package ").append(GENERATED_PACKAGE).append("\n\n");
-        sb.append("final class ").append(REGISTRY_CLASS_NAME).append(" {\n\n");
-
-        sb.append("    static final Map<String, Map<String, Object>> ASSOCIATIONS = ")
-            .append(renderMapOfMaps(associations, 1)).append("\n\n");
-        sb.append("    static final Map<String, Map<String, Object>> CONTEXTS = ")
-            .append(renderMapOfMaps(contexts, 1)).append("\n\n");
-        sb.append("    static final Map<String, List<String>> CONTEXT_IDS_BY_PARTICIPANT = ")
-            .append(renderMapOfStringLists(contextIdsByParticipant, 1)).append("\n\n");
-        sb.append("    static final Map<String, Map<String, Object>> ENTITIES = ")
-            .append(renderMapOfMaps(entities, 1)).append("\n\n");
-
-        sb.append("    static Map<String, Object> association(String associationName) {\n");
-        sb.append("        return ASSOCIATIONS[associationName]\n");
-        sb.append("    }\n\n");
-
-        sb.append("    static Map<String, Object> context(String contextId) {\n");
-        sb.append("        return CONTEXTS[contextId]\n");
-        sb.append("    }\n\n");
-
-        sb.append("    static List<Map<String, Object>> contextsForParticipant(String domainClassName) {\n");
-        sb.append("        return (CONTEXT_IDS_BY_PARTICIPANT[domainClassName] ?: [])\n");
-        sb.append("            .collect { String id -> CONTEXTS[id] }\n");
-        sb.append("            .findAll { it != null }\n");
-        sb.append("    }\n\n");
-
-        sb.append("    static boolean showInNavigation(String domainClassName) {\n");
-        sb.append("        Map entity = ENTITIES[domainClassName]\n");
-        sb.append("        return entity == null || entity.showInNavigation != false\n");
-        sb.append("    }\n\n");
-
-        sb.append("    private ").append(REGISTRY_CLASS_NAME).append("() {\n");
-        sb.append("    }\n");
-        sb.append("}\n");
-        return sb.toString();
-    }
-
-    private boolean resolveShowInNavigation(GrailsAssociationPlan plan, GenerationConfig config) {
-        String navigation = config.getAssociationNavigation();
-        if (GenerationConfig.ASSOCIATION_NAVIGATION_SHOW.equals(navigation)) {
-            return true;
+        Map<String, AssociationDescriptor> associationsByName = new LinkedHashMap<>();
+        for (AssociationDescriptor association : associations) {
+            associationsByName.put(association.associationName(), association);
         }
-        if (GenerationConfig.ASSOCIATION_NAVIGATION_HIDE.equals(navigation)) {
-            return false;
+        Map<String, AssociationContextDescriptor> contextsById = new LinkedHashMap<>();
+        for (AssociationContextDescriptor context : contexts) {
+            contextsById.put(context.id(), context);
         }
-        if (!config.isHideContextualAssociationControllers()) {
-            return true;
-        }
-        return plan.showInNavigation();
-    }
-
-    private Map<String, Object> associationDescriptor(GrailsAssociationPlan plan, boolean writeEnabled) {
-        Map<String, Object> descriptor = new LinkedHashMap<>();
-        descriptor.put("associationName", plan.associationName());
-        descriptor.put("iliClassName", plan.associationIliClassName());
-        descriptor.put("domainClassName", plan.associationDomainClassName());
-        descriptor.put("domainClassQualifiedName", plan.associationDomainQualifiedName());
-        descriptor.put("controllerName", plan.associationControllerName());
-        descriptor.put("viewPath", plan.associationViewPath());
-        descriptor.put("physicalTable", plan.physicalTable());
-        descriptor.put("physicalSqlName", plan.physicalSqlName());
-        descriptor.put("storageKind", plan.storageKind() != null ? plan.storageKind().name() : null);
-        descriptor.put("writable", plan.writable() && writeEnabled);
-        descriptor.put("showInNavigation", plan.showInNavigation());
-
-        List<Object> roles = new ArrayList<>();
-        for (GrailsAssociationRolePlan role : plan.roles()) {
-            roles.add(roleDescriptor(role));
-        }
-        descriptor.put("roles", roles);
-
-        List<Object> attributes = new ArrayList<>();
-        for (GrailsAssociationAttributePlan attribute : plan.attributes()) {
-            attributes.add(attributeDescriptor(attribute));
-        }
-        descriptor.put("attributes", attributes);
-        descriptor.put("diagnostics", new ArrayList<Object>(plan.diagnostics()));
-        return descriptor;
-    }
-
-    private Map<String, Object> roleDescriptor(GrailsAssociationRolePlan role) {
-        Map<String, Object> descriptor = new LinkedHashMap<>();
-        descriptor.put("name", role.roleName());
-        descriptor.put("label", role.roleLabel());
-        descriptor.put("property", role.domainPropertyName());
-        descriptor.put("targetIliClass", role.targetIliClassName());
-        descriptor.put("targetDomainClass", role.targetDomainQualifiedName());
-        descriptor.put("min", role.minCardinality());
-        descriptor.put("max", role.maxCardinality());
-        descriptor.put("mandatory", role.mandatory());
-        descriptor.put("ordered", role.ordered());
-        descriptor.put("external", role.external());
-        descriptor.put("composition", role.composition());
-        return descriptor;
-    }
-
-    private Map<String, Object> attributeDescriptor(GrailsAssociationAttributePlan attribute) {
-        Map<String, Object> descriptor = new LinkedHashMap<>();
-        descriptor.put("iliName", attribute.iliName());
-        descriptor.put("property", attribute.domainPropertyName());
-        descriptor.put("type", attribute.javaType());
-        descriptor.put("coreType", attribute.coreType());
-        descriptor.put("label", attribute.label());
-        descriptor.put("mandatory", attribute.mandatory());
-        descriptor.put("maxLength", attribute.maxLength());
-        descriptor.put("unit", attribute.unit());
-        descriptor.put("enumType", attribute.enumType());
-        descriptor.put("geometry", attribute.geometry());
-        return descriptor;
-    }
-
-    private Map<String, Object> contextDescriptor(GrailsAssociationPlan plan,
-                                                  GrailsAssociationContextPlan context,
-                                                  boolean writeEnabled) {
-        boolean writable = context.writable() && writeEnabled;
-        Map<String, Object> descriptor = new LinkedHashMap<>();
-        descriptor.put("id", context.contextId());
-        descriptor.put("associationName", plan.associationName());
-        descriptor.put("participantDomainClass", context.participantDomainQualifiedName());
-        descriptor.put("fixedRole", context.fixedRoleName());
-        descriptor.put("fixedProperty", context.fixedRolePropertyName());
-        descriptor.put("editableRoles", new ArrayList<Object>(context.editableRoleNames()));
-        descriptor.put("editableProperties", new ArrayList<Object>(context.editableRolePropertyNames()));
-        descriptor.put("defaultLabel", context.defaultLabel());
-        descriptor.put("messageCode", context.messageCode());
-        descriptor.put("presentation",
-            context.presentationKind() != null ? context.presentationKind().name() : null);
-        descriptor.put("createMode", resolveCreateMode(context, writable));
-        descriptor.put("writable", writable);
-        descriptor.put("removable", context.removable() && writable);
-        descriptor.put("showAssociationObjectLink", context.showAssociationObjectLink());
-        descriptor.put("perspectiveMin", context.perspectiveMinCardinality());
-        descriptor.put("perspectiveMax", context.perspectiveMaxCardinality());
-        descriptor.put("diagnostics", new ArrayList<Object>(context.diagnostics()));
-        return descriptor;
-    }
-
-    private String resolveCreateMode(GrailsAssociationContextPlan context, boolean writable) {
-        if (!writable) {
-            return AssociationCreateMode.NONE.name();
-        }
-        return context.createMode() != null ? context.createMode().name() : null;
-    }
-
-    // ------------------------------------------------------------------
-    // Rendering primitives
-    // ------------------------------------------------------------------
-
-    private String renderMapOfMaps(Map<String, Map<String, Object>> map, int indentLevel) {
-        if (map.isEmpty()) {
-            return "[:]";
-        }
-        String indent = indent(indentLevel);
-        String childIndent = indent(indentLevel + 1);
-        StringBuilder sb = new StringBuilder("[\n");
-        List<Map.Entry<String, Map<String, Object>>> entries = new ArrayList<>(map.entrySet());
-        for (int i = 0; i < entries.size(); i++) {
-            Map.Entry<String, Map<String, Object>> entry = entries.get(i);
-            sb.append(childIndent)
-                .append(quote(entry.getKey()))
-                .append(": ")
-                .append(renderMap(entry.getValue(), indentLevel + 1));
-            sb.append(i < entries.size() - 1 ? ",\n" : "\n");
-        }
-        sb.append(indent).append("]");
-        return sb.toString();
-    }
-
-    private String renderMapOfStringLists(Map<String, List<String>> map, int indentLevel) {
-        if (map.isEmpty()) {
-            return "[:]";
-        }
-        String indent = indent(indentLevel);
-        String childIndent = indent(indentLevel + 1);
-        StringBuilder sb = new StringBuilder("[\n");
-        List<Map.Entry<String, List<String>>> entries = new ArrayList<>(map.entrySet());
-        for (int i = 0; i < entries.size(); i++) {
-            Map.Entry<String, List<String>> entry = entries.get(i);
-            sb.append(childIndent)
-                .append(quote(entry.getKey()))
-                .append(": ")
-                .append(renderList(new ArrayList<>(entry.getValue()), indentLevel + 1));
-            sb.append(i < entries.size() - 1 ? ",\n" : "\n");
-        }
-        sb.append(indent).append("]");
-        return sb.toString();
-    }
-
-    @SuppressWarnings("unchecked")
-    private String renderMap(Map<String, Object> map, int indentLevel) {
-        if (map.isEmpty()) {
-            return "[:]";
-        }
-        String indent = indent(indentLevel);
-        String childIndent = indent(indentLevel + 1);
-        StringBuilder sb = new StringBuilder("[\n");
-        List<Map.Entry<String, Object>> entries = new ArrayList<>(map.entrySet());
-        for (int i = 0; i < entries.size(); i++) {
-            Map.Entry<String, Object> entry = entries.get(i);
-            sb.append(childIndent)
-                .append(entry.getKey())
-                .append(": ")
-                .append(renderValue(entry.getValue(), indentLevel + 1));
-            sb.append(i < entries.size() - 1 ? ",\n" : "\n");
-        }
-        sb.append(indent).append("]");
-        return sb.toString();
-    }
-
-    @SuppressWarnings("unchecked")
-    private String renderList(List<Object> list, int indentLevel) {
-        if (list.isEmpty()) {
-            return "[]";
-        }
-        String indent = indent(indentLevel);
-        String childIndent = indent(indentLevel + 1);
-        StringBuilder sb = new StringBuilder("[\n");
-        for (int i = 0; i < list.size(); i++) {
-            sb.append(childIndent).append(renderValue(list.get(i), indentLevel + 1));
-            sb.append(i < list.size() - 1 ? ",\n" : "\n");
-        }
-        sb.append(indent).append("]");
-        return sb.toString();
-    }
-
-    @SuppressWarnings("unchecked")
-    private String renderValue(Object value, int indentLevel) {
-        if (value == null) {
-            return "null";
-        }
-        if (value instanceof String string) {
-            return quote(string);
-        }
-        if (value instanceof Boolean || value instanceof Integer || value instanceof Long) {
-            return value.toString();
-        }
-        if (value instanceof Map<?, ?> map) {
-            return renderMap((Map<String, Object>) map, indentLevel);
-        }
-        if (value instanceof List<?> list) {
-            return renderList((List<Object>) list, indentLevel);
-        }
-        return quote(value.toString());
-    }
-
-    private String quote(String value) {
-        return "'" + escape(value) + "'";
-    }
-
-    private String escape(String value) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < value.length(); i++) {
-            char c = value.charAt(i);
-            switch (c) {
-                case '\\' -> sb.append("\\\\");
-                case '\'' -> sb.append("\\'");
-                case '\n' -> sb.append("\\n");
-                case '\r' -> sb.append("\\r");
-                case '\t' -> sb.append("\\t");
-                case '$' -> sb.append("\\$");
-                default -> sb.append(c);
+        Map<String, EntityDescriptor> entities = new TreeMap<>();
+        for (AssociationDescriptor association : associations) {
+            if (association.domainClassName() != null && !association.domainClassName().isBlank()) {
+                entities.put(association.domainClassName(), new EntityDescriptor(
+                    association.iliClassName(),
+                    DomainKind.ASSOCIATION,
+                    association.showInNavigation()
+                ));
             }
         }
-        return sb.toString();
+
+        StringBuilder source = new StringBuilder();
+        source.append("package ").append(GENERATED_PACKAGE).append("\n\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.compat.LegacyDescriptorMapAdapter\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationAttributeDescriptor\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationCreateMode\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationStorageKind\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.EntityDescriptor\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeCoreType\n");
+        source.append("import ch.interlis.generator.grails.runtime.api.registry.AssociationRegistry\n\n");
+
+        source.append("final class ").append(REGISTRY_CLASS_NAME)
+            .append(" implements AssociationRegistry {\n\n");
+
+        source.append("    static final Map<String, AssociationDescriptor> ASSOCIATIONS = ");
+        source.append(renderDescriptorMap(associationsByName, a -> renderAssociation((AssociationDescriptor) a, 2), 1)).append("\n\n");
+        source.append("    static final Map<String, AssociationContextDescriptor> CONTEXTS = ");
+        source.append(renderDescriptorMap(contextsById, c -> renderContext((AssociationContextDescriptor) c, 2), 1)).append("\n\n");
+        source.append("    static final Map<String, List<String>> CONTEXT_IDS_BY_PARTICIPANT = ");
+        source.append(renderStringListMap(contextIdsByParticipant, 1)).append("\n\n");
+        source.append("    static final Map<String, EntityDescriptor> ENTITIES = ");
+        source.append(renderDescriptorMap(entities, e -> renderEntity((EntityDescriptor) e, 2), 1)).append("\n\n");
+
+        source.append("    static final ").append(REGISTRY_CLASS_NAME)
+            .append(" INSTANCE = new ").append(REGISTRY_CLASS_NAME)
+            .append("(ASSOCIATIONS, CONTEXTS)\n\n");
+
+        source.append("    private final Map<String, AssociationDescriptor> associationsByName\n");
+        source.append("    private final Map<String, AssociationContextDescriptor> contextsById\n\n");
+
+        source.append("    private ").append(REGISTRY_CLASS_NAME)
+            .append("(Map<String, AssociationDescriptor> associations, Map<String, AssociationContextDescriptor> contexts) {\n");
+        source.append("        associationsByName = Collections.unmodifiableMap(new LinkedHashMap<>(associations))\n");
+        source.append("        contextsById = Collections.unmodifiableMap(new LinkedHashMap<>(contexts))\n");
+        source.append("    }\n\n");
+
+        source.append("    @Override\n");
+        source.append("    Collection<AssociationDescriptor> associations() { ASSOCIATIONS.values() }\n\n");
+        source.append("    @Override\n");
+        source.append("    Optional<AssociationDescriptor> association(String name) {\n");
+        source.append("        return Optional.ofNullable(associationsByName[name])\n");
+        source.append("    }\n\n");
+        source.append("    @Override\n");
+        source.append("    Collection<AssociationContextDescriptor> contexts() { CONTEXTS.values() }\n\n");
+        source.append("    @Override\n");
+        source.append("    Optional<AssociationContextDescriptor> context(String id) {\n");
+        source.append("        return Optional.ofNullable(contextsById[id])\n");
+        source.append("    }\n\n");
+        source.append("    @Override\n");
+        source.append("    List<AssociationContextDescriptor> contextsForParticipant(String domainClassName) {\n");
+        source.append("        return (CONTEXT_IDS_BY_PARTICIPANT[domainClassName] ?: [])\n");
+        source.append("            .collect { String id -> contextsById[id] }\n");
+        source.append("            .findAll { it != null }\n");
+        source.append("    }\n\n");
+
+        source.append("    // ------------------------------------------------------------------\n");
+        source.append("    // Legacy map API for the pre-plugin runtime (migration only).\n");
+        source.append("    // ------------------------------------------------------------------\n\n");
+
+        source.append("    @Deprecated(forRemoval = true)\n");
+        source.append("    static Map<String, Object> legacyAssociation(String associationName) {\n");
+        source.append("        AssociationDescriptor descriptor = INSTANCE.associationsByName[associationName]\n");
+        source.append("        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyAssociationMap(descriptor)\n");
+        source.append("    }\n\n");
+
+        source.append("    @Deprecated(forRemoval = true)\n");
+        source.append("    static Map<String, Object> legacyContext(String contextId) {\n");
+        source.append("        AssociationContextDescriptor descriptor = INSTANCE.contextsById[contextId]\n");
+        source.append("        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyContextMap(descriptor)\n");
+        source.append("    }\n\n");
+
+        source.append("    @Deprecated(forRemoval = true)\n");
+        source.append("    static List<Map<String, Object>> legacyContextsForParticipant(String domainClassName) {\n");
+        source.append("        return INSTANCE.contextsForParticipant(domainClassName).collect {\n");
+        source.append("            AssociationContextDescriptor descriptor ->\n");
+        source.append("                LegacyDescriptorMapAdapter.toLegacyContextMap(descriptor)\n");
+        source.append("        }\n");
+        source.append("    }\n\n");
+
+        source.append("    @Deprecated(forRemoval = true)\n");
+        source.append("    static List<Map<String, Object>> legacyEntities() {\n");
+        source.append("        return ENTITIES.values().collect { EntityDescriptor e ->\n");
+        source.append("            LegacyDescriptorMapAdapter.toLegacyEntityMap(e)\n");
+        source.append("        }\n");
+        source.append("    }\n\n");
+
+        source.append("    @Deprecated(forRemoval = true)\n");
+        source.append("    static Map<String, Object> legacyEntity(String domainClassName) {\n");
+        source.append("        EntityDescriptor descriptor = ENTITIES[domainClassName]\n");
+        source.append("        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyEntityMap(descriptor)\n");
+        source.append("    }\n\n");
+
+        source.append("    @Deprecated(forRemoval = true)\n");
+        source.append("    static boolean legacyShowInNavigation(String domainClassName) {\n");
+        source.append("        EntityDescriptor entity = ENTITIES[domainClassName]\n");
+        source.append("        return entity == null || entity.showInNavigation()\n");
+        source.append("    }\n");
+
+        source.append("}\n");
+        return source.toString();
     }
 
-    private String indent(int level) {
-        return "    ".repeat(level);
+    private String renderDescriptorMap(Map<String, ? extends Object> values,
+                                       java.util.function.Function<Object, String> renderer,
+                                       int indentLevel) {
+        if (values.isEmpty()) {
+            return "[:]";
+        }
+        String indent = "    ".repeat(indentLevel);
+        StringBuilder builder = new StringBuilder("[\n");
+        List<Map.Entry<String, ? extends Object>> entries = new ArrayList<>(values.entrySet());
+        for (int index = 0; index < entries.size(); index++) {
+            Map.Entry<String, ? extends Object> entry = entries.get(index);
+            builder.append(indent).append("    ").append(source.stringLiteral(entry.getKey()))
+                .append(": ").append(renderer.apply(entry.getValue()));
+            builder.append(index < entries.size() - 1 ? ",\n" : "\n");
+        }
+        builder.append(indent).append("]");
+        return builder.toString();
+    }
+
+    private String renderStringListMap(Map<String, List<String>> values, int indentLevel) {
+        if (values.isEmpty()) {
+            return "[:]";
+        }
+        String indent = "    ".repeat(indentLevel);
+        StringBuilder builder = new StringBuilder("[\n");
+        List<Map.Entry<String, List<String>>> entries = new ArrayList<>(values.entrySet());
+        for (int index = 0; index < entries.size(); index++) {
+            Map.Entry<String, List<String>> entry = entries.get(index);
+            builder.append(indent).append("    ").append(source.stringLiteral(entry.getKey()))
+                .append(": ").append(source.listOfStrings(entry.getValue()));
+            builder.append(index < entries.size() - 1 ? ",\n" : "\n");
+        }
+        builder.append(indent).append("]");
+        return builder.toString();
+    }
+
+    private String renderAssociation(AssociationDescriptor association, int indentLevel) {
+        String indent = "    ".repeat(indentLevel);
+        return "new AssociationDescriptor(\n"
+            + indent + "    " + source.stringLiteral(association.associationName()) + ",\n"
+            + indent + "    " + source.stringLiteral(association.iliClassName()) + ",\n"
+            + indent + "    " + source.stringLiteral(association.domainClassName()) + ",\n"
+            + indent + "    " + source.stringLiteral(association.controllerName()) + ",\n"
+            + indent + "    " + source.stringLiteral(association.viewPath()) + ",\n"
+            + indent + "    " + source.stringLiteral(association.physicalTable()) + ",\n"
+            + indent + "    " + source.stringLiteral(association.physicalSqlName()) + ",\n"
+            + indent + "    " + source.enumLiteral(AssociationStorageKind.class, association.storageKind()) + ",\n"
+            + indent + "    " + association.writable() + ",\n"
+            + indent + "    " + association.showInNavigation() + ",\n"
+            + indent + "    " + renderRoleList(association.roles(), indentLevel + 1) + ",\n"
+            + indent + "    " + renderAttributeList(association.attributes(), indentLevel + 1) + ",\n"
+            + indent + "    " + source.listOfStrings(association.diagnostics()) + "\n"
+            + indent + ")";
+    }
+
+    private String renderRoleList(List<AssociationRoleDescriptor> roles, int indentLevel) {
+        if (roles.isEmpty()) {
+            return "[]";
+        }
+        String indent = "    ".repeat(indentLevel);
+        StringBuilder builder = new StringBuilder("[\n");
+        for (int index = 0; index < roles.size(); index++) {
+            builder.append(indent).append("    ").append(renderRole(roles.get(index), indentLevel + 1));
+            builder.append(index < roles.size() - 1 ? ",\n" : "\n");
+        }
+        builder.append(indent).append("]");
+        return builder.toString();
+    }
+
+    private String renderRole(AssociationRoleDescriptor role, int indentLevel) {
+        String indent = "    ".repeat(indentLevel);
+        return "new AssociationRoleDescriptor(\n"
+            + indent + "    " + source.stringLiteral(role.name()) + ",\n"
+            + indent + "    " + source.stringLiteral(role.label()) + ",\n"
+            + indent + "    " + source.stringLiteral(role.propertyName()) + ",\n"
+            + indent + "    " + source.stringLiteral(role.targetIliClassName()) + ",\n"
+            + indent + "    " + source.stringLiteral(role.targetDomainClassName()) + ",\n"
+            + indent + "    " + role.minCardinality() + ",\n"
+            + indent + "    " + role.maxCardinality() + ",\n"
+            + indent + "    " + role.mandatory() + ",\n"
+            + indent + "    " + role.ordered() + ",\n"
+            + indent + "    " + role.external() + ",\n"
+            + indent + "    " + role.composition() + "\n"
+            + indent + ")";
+    }
+
+    private String renderAttributeList(List<AssociationAttributeDescriptor> attributes,
+                                       int indentLevel) {
+        if (attributes.isEmpty()) {
+            return "[]";
+        }
+        String indent = "    ".repeat(indentLevel);
+        StringBuilder builder = new StringBuilder("[\n");
+        for (int index = 0; index < attributes.size(); index++) {
+            builder.append(indent).append("    ").append(renderAttribute(attributes.get(index), indentLevel + 1));
+            builder.append(index < attributes.size() - 1 ? ",\n" : "\n");
+        }
+        builder.append(indent).append("]");
+        return builder.toString();
+    }
+
+    private String renderAttribute(AssociationAttributeDescriptor attribute, int indentLevel) {
+        String indent = "    ".repeat(indentLevel);
+        return "new AssociationAttributeDescriptor(\n"
+            + indent + "    " + source.stringLiteral(attribute.iliName()) + ",\n"
+            + indent + "    " + source.stringLiteral(attribute.propertyName()) + ",\n"
+            + indent + "    " + source.stringLiteral(attribute.javaType()) + ",\n"
+            + indent + "    " + source.enumLiteral(RuntimeCoreType.class, attribute.coreType()) + ",\n"
+            + indent + "    " + source.stringLiteral(attribute.label()) + ",\n"
+            + indent + "    " + attribute.mandatory() + ",\n"
+            + indent + "    " + source.nullableInteger(attribute.maxLength()) + ",\n"
+            + indent + "    " + source.stringLiteral(attribute.unit()) + ",\n"
+            + indent + "    " + source.stringLiteral(attribute.enumType()) + ",\n"
+            + indent + "    " + attribute.geometry() + "\n"
+            + indent + ")";
+    }
+
+    private String renderContext(AssociationContextDescriptor context, int indentLevel) {
+        String indent = "    ".repeat(indentLevel);
+        return "new AssociationContextDescriptor(\n"
+            + indent + "    " + source.stringLiteral(context.id()) + ",\n"
+            + indent + "    " + source.stringLiteral(context.associationName()) + ",\n"
+            + indent + "    " + source.stringLiteral(context.participantDomainClassName()) + ",\n"
+            + indent + "    " + source.stringLiteral(context.fixedRoleName()) + ",\n"
+            + indent + "    " + source.stringLiteral(context.fixedPropertyName()) + ",\n"
+            + indent + "    " + source.listOfStrings(context.editableRoleNames()) + ",\n"
+            + indent + "    " + source.listOfStrings(context.editablePropertyNames()) + ",\n"
+            + indent + "    " + source.stringLiteral(context.defaultLabel()) + ",\n"
+            + indent + "    " + source.stringLiteral(context.messageCode()) + ",\n"
+            + indent + "    " + source.stringLiteral(context.presentation()) + ",\n"
+            + indent + "    " + source.enumLiteral(AssociationCreateMode.class, context.createMode()) + ",\n"
+            + indent + "    " + context.writable() + ",\n"
+            + indent + "    " + context.removable() + ",\n"
+            + indent + "    " + context.showAssociationObjectLink() + ",\n"
+            + indent + "    " + context.perspectiveMin() + ",\n"
+            + indent + "    " + context.perspectiveMax() + ",\n"
+            + indent + "    " + source.listOfStrings(context.diagnostics()) + "\n"
+            + indent + ")";
+    }
+
+    private String renderEntity(EntityDescriptor entity, int indentLevel) {
+        String indent = "    ".repeat(indentLevel);
+        return "new EntityDescriptor(\n"
+            + indent + "    " + source.stringLiteral(entity.iliName()) + ",\n"
+            + indent + "    " + source.enumLiteral(DomainKind.class, entity.kind()) + ",\n"
+            + indent + "    " + entity.showInNavigation() + "\n"
+            + indent + ")";
     }
 }

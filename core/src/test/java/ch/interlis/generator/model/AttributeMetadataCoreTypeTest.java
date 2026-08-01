@@ -1,5 +1,6 @@
 package ch.interlis.generator.model;
 
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -8,97 +9,92 @@ class AttributeMetadataCoreTypeTest {
 
     @Test
     void infersCoreTypesFromIliTypes() {
-        assertThat(attributeWithIliType("TEXT").getCoreType()).isEqualTo(CoreType.TEXT);
-        assertThat(attributeWithIliType("MTEXT").getCoreType()).isEqualTo(CoreType.MTEXT);
-        assertThat(attributeWithIliType("NumericType").getCoreType()).isEqualTo(CoreType.NUMERIC);
-        assertThat(attributeWithIliType("BOOLEAN").getCoreType()).isEqualTo(CoreType.BOOLEAN);
-        assertThat(attributeWithIliType("INTERLIS.XMLDATE").getCoreType()).isEqualTo(CoreType.DATE);
-        assertThat(attributeWithIliType("INTERLIS.XMLDATETIME").getCoreType()).isEqualTo(CoreType.DATETIME);
-        assertThat(attributeWithIliType("INTERLIS.XMLTIME").getCoreType()).isEqualTo(CoreType.TIME);
-        assertThat(attributeWithIliType("EnumerationType").getCoreType()).isEqualTo(CoreType.ENUM);
-        assertThat(attributeWithIliType("CoordType").getCoreType()).isEqualTo(CoreType.COORD);
-        assertThat(attributeWithIliType("PolylineType").getCoreType()).isEqualTo(CoreType.POLYLINE);
-        assertThat(attributeWithIliType("SurfaceType").getCoreType()).isEqualTo(CoreType.SURFACE);
-        assertThat(attributeWithIliType("ReferenceType").getCoreType()).isEqualTo(CoreType.REFERENCE);
-        assertThat(attributeWithIliType("CompositionType").getCoreType()).isEqualTo(CoreType.COMPOSITION);
-        assertThat(attributeWithIliType("ObjectType").getCoreType()).isEqualTo(CoreType.OBJECT);
+        assertThat(coreTypeOf(attributeWithIliType("TEXT"))).isEqualTo(CoreType.TEXT);
+        assertThat(coreTypeOf(attributeWithIliType("MTEXT"))).isEqualTo(CoreType.MTEXT);
+        assertThat(coreTypeOf(attributeWithIliType("NumericType"))).isEqualTo(CoreType.NUMERIC);
+        assertThat(coreTypeOf(attributeWithIliType("BOOLEAN"))).isEqualTo(CoreType.BOOLEAN);
+        assertThat(coreTypeOf(attributeWithIliType("INTERLIS.XMLDATE"))).isEqualTo(CoreType.DATE);
+        assertThat(coreTypeOf(attributeWithIliType("INTERLIS.XMLDATETIME"))).isEqualTo(CoreType.DATETIME);
+        assertThat(coreTypeOf(attributeWithIliType("INTERLIS.XMLTIME"))).isEqualTo(CoreType.TIME);
+        assertThat(coreTypeOf(attributeWithIliType("EnumerationType"))).isEqualTo(CoreType.ENUM);
+        assertThat(coreTypeOf(attributeWithIliType("CoordType"))).isEqualTo(CoreType.COORD);
+        assertThat(coreTypeOf(attributeWithIliType("PolylineType"))).isEqualTo(CoreType.POLYLINE);
+        assertThat(coreTypeOf(attributeWithIliType("SurfaceType"))).isEqualTo(CoreType.SURFACE);
+        assertThat(coreTypeOf(attributeWithIliType("ReferenceType"))).isEqualTo(CoreType.REFERENCE);
+        assertThat(coreTypeOf(attributeWithIliType("CompositionType"))).isEqualTo(CoreType.COMPOSITION);
+        assertThat(coreTypeOf(attributeWithIliType("ObjectType"))).isEqualTo(CoreType.OBJECT);
     }
 
     @Test
     void infersCoreTypesFromSemanticFlagsBeforeDbType() {
-        AttributeMetadata enumAttribute = new AttributeMetadata("status");
-        enumAttribute.setEnumType("Model.Status");
-        enumAttribute.setDbType("VARCHAR");
+        AttributeMetadataBuilder enumAttribute = new AttributeMetadataBuilder("status");
+        enumAttribute.enumType("Model.Status");
+        enumAttribute.dbType("VARCHAR");
 
-        AttributeMetadata referenceAttribute = new AttributeMetadata("owner");
-        referenceAttribute.setReferencedClass("Model.Owner");
-        referenceAttribute.setDbType("INTEGER");
+        AttributeMetadataBuilder referenceAttribute = new AttributeMetadataBuilder("owner");
+        referenceAttribute.referencedClass("Model.Owner");
+        referenceAttribute.dbType("INTEGER");
 
-        assertThat(enumAttribute.getCoreType()).isEqualTo(CoreType.ENUM);
-        assertThat(referenceAttribute.getCoreType()).isEqualTo(CoreType.REFERENCE);
+        assertThat(coreTypeOf(enumAttribute)).isEqualTo(CoreType.ENUM);
+        assertThat(coreTypeOf(referenceAttribute)).isEqualTo(CoreType.REFERENCE);
     }
 
     @Test
     void infersGeometryKindsButKeepsGenericGeometryUnknown() {
-        AttributeMetadata point = geometryAttribute("POINT");
-        AttributeMetadata multiPoint = geometryAttribute("MULTIPOINT");
-        AttributeMetadata line = geometryAttribute("LINESTRING");
-        AttributeMetadata multiLine = geometryAttribute("MULTILINESTRING");
-        AttributeMetadata surface = geometryAttribute("POLYGON");
-        AttributeMetadata multiSurface = geometryAttribute("MULTIPOLYGON");
-        AttributeMetadata generic = geometryAttribute(null);
-
-        assertThat(point.getCoreType()).isEqualTo(CoreType.COORD);
-        assertThat(multiPoint.getCoreType()).isEqualTo(CoreType.COORD);
-        assertThat(line.getCoreType()).isEqualTo(CoreType.POLYLINE);
-        assertThat(multiLine.getCoreType()).isEqualTo(CoreType.POLYLINE);
-        assertThat(surface.getCoreType()).isEqualTo(CoreType.SURFACE);
-        assertThat(multiSurface.getCoreType()).isEqualTo(CoreType.SURFACE);
-        assertThat(generic.getCoreType()).isEqualTo(CoreType.UNKNOWN);
+        assertThat(coreTypeOf(geometryAttribute("POINT"))).isEqualTo(CoreType.COORD);
+        assertThat(coreTypeOf(geometryAttribute("MULTIPOINT"))).isEqualTo(CoreType.COORD);
+        assertThat(coreTypeOf(geometryAttribute("LINESTRING"))).isEqualTo(CoreType.POLYLINE);
+        assertThat(coreTypeOf(geometryAttribute("MULTILINESTRING"))).isEqualTo(CoreType.POLYLINE);
+        assertThat(coreTypeOf(geometryAttribute("POLYGON"))).isEqualTo(CoreType.SURFACE);
+        assertThat(coreTypeOf(geometryAttribute("MULTIPOLYGON"))).isEqualTo(CoreType.SURFACE);
+        assertThat(coreTypeOf(geometryAttribute(null))).isEqualTo(CoreType.UNKNOWN);
     }
 
     @Test
     void normalizesGeometryKindStrings() {
-        AttributeMetadata multiSurface = geometryAttribute("MultiSurface");
-        AttributeMetadata postgisLine = geometryAttribute("LINESTRING ZM");
+        AttributeMetadataBuilder multiSurface = geometryAttribute("MultiSurface");
+        AttributeMetadataBuilder postgisLine = geometryAttribute("LINESTRING ZM");
 
-        assertThat(multiSurface.getGeometryKindEnum()).isEqualTo(GeometryKind.MULTIPOLYGON);
-        assertThat(multiSurface.getGeometryKind()).isEqualTo("MULTIPOLYGON");
-        assertThat(postgisLine.getGeometryKindEnum()).isEqualTo(GeometryKind.LINESTRING);
+        assertThat(multiSurface.geometryKind()).isEqualTo(GeometryKind.MULTIPOLYGON);
+        assertThat(postgisLine.geometryKind()).isEqualTo(GeometryKind.LINESTRING);
     }
 
     @Test
     void fallsBackToKnownDbTypes() {
-        assertThat(attributeWithDbType("VARCHAR(255)").getCoreType()).isEqualTo(CoreType.TEXT);
-        assertThat(attributeWithDbType("INTEGER").getCoreType()).isEqualTo(CoreType.NUMERIC);
-        assertThat(attributeWithDbType("BOOLEAN").getCoreType()).isEqualTo(CoreType.BOOLEAN);
-        assertThat(attributeWithDbType("DATE").getCoreType()).isEqualTo(CoreType.DATE);
-        assertThat(attributeWithDbType("TIMESTAMP").getCoreType()).isEqualTo(CoreType.DATETIME);
-        assertThat(attributeWithDbType("TIME").getCoreType()).isEqualTo(CoreType.TIME);
-        assertThat(attributeWithDbType("GEOMETRY").getCoreType()).isEqualTo(CoreType.UNKNOWN);
+        assertThat(coreTypeOf(attributeWithDbType("VARCHAR(255)"))).isEqualTo(CoreType.TEXT);
+        assertThat(coreTypeOf(attributeWithDbType("INTEGER"))).isEqualTo(CoreType.NUMERIC);
+        assertThat(coreTypeOf(attributeWithDbType("BOOLEAN"))).isEqualTo(CoreType.BOOLEAN);
+        assertThat(coreTypeOf(attributeWithDbType("DATE"))).isEqualTo(CoreType.DATE);
+        assertThat(coreTypeOf(attributeWithDbType("TIMESTAMP"))).isEqualTo(CoreType.DATETIME);
+        assertThat(coreTypeOf(attributeWithDbType("TIME"))).isEqualTo(CoreType.TIME);
+        assertThat(coreTypeOf(attributeWithDbType("GEOMETRY"))).isEqualTo(CoreType.UNKNOWN);
     }
 
     @Test
     void unknownWhenNoTypeInformationExists() {
-        assertThat(new AttributeMetadata("unknown").getCoreType()).isEqualTo(CoreType.UNKNOWN);
+        assertThat(coreTypeOf(new AttributeMetadataBuilder("unknown"))).isEqualTo(CoreType.UNKNOWN);
     }
 
-    private AttributeMetadata attributeWithIliType(String iliType) {
-        AttributeMetadata attribute = new AttributeMetadata("attribute");
-        attribute.setIliType(iliType);
+    private static CoreType coreTypeOf(AttributeMetadataBuilder attribute) {
+        return AttributeTypeResolver.inferCoreType(attribute);
+    }
+
+    private AttributeMetadataBuilder attributeWithIliType(String iliType) {
+        AttributeMetadataBuilder attribute = new AttributeMetadataBuilder("attribute");
+        attribute.iliType(iliType);
         return attribute;
     }
 
-    private AttributeMetadata attributeWithDbType(String dbType) {
-        AttributeMetadata attribute = new AttributeMetadata("attribute");
-        attribute.setDbType(dbType);
+    private AttributeMetadataBuilder attributeWithDbType(String dbType) {
+        AttributeMetadataBuilder attribute = new AttributeMetadataBuilder("attribute");
+        attribute.dbType(dbType);
         return attribute;
     }
 
-    private AttributeMetadata geometryAttribute(String geometryKind) {
-        AttributeMetadata attribute = new AttributeMetadata("geometry");
-        attribute.setGeometry(true);
-        attribute.setGeometryKind(geometryKind);
+    private AttributeMetadataBuilder geometryAttribute(String geometryKind) {
+        AttributeMetadataBuilder attribute = new AttributeMetadataBuilder("geometry");
+        attribute.geometry(true);
+        attribute.geometryKind(geometryKind);
         return attribute;
     }
 }

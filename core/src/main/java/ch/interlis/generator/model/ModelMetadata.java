@@ -1,223 +1,155 @@
 package ch.interlis.generator.model;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Repräsentiert die vollständigen Metadaten eines INTERLIS-Modells.
- * Kombiniert Informationen aus ili2db-Metatabellen und dem ili2c-Modell.
+ * Kanonischer, nach dem Build unveränderlicher Metadaten-Snapshot.
+ *
+ * <p>Enthält genau eine kanonische Relationship-Sammlung; abgeleitete Indizes
+ * liegen in {@link ModelMetadataIndexes} und referenzieren dieselben Objekte.
+ * Es gibt keine Setter und keine Mutatoren.</p>
  */
-public class ModelMetadata {
-    
-    private String modelName;
-    private String schemaName;
-    private Map<String, ClassMetadata> classes = new LinkedHashMap<>();
-    private Map<String, EnumMetadata> enums = new LinkedHashMap<>();
-    private Map<String, AssociationMetadata> associations = new LinkedHashMap<>();
-    private List<RelationshipMetadata> relationships = new ArrayList<>();
-    private String iliVersion;
-    private String modelVersion;
-    private Date importDate;
-    
-    // ili2db spezifische Informationen
-    private String ili2dbVersion;
-    private Map<String, String> settings = new HashMap<>();
-    
-    public ModelMetadata(String modelName) {
-        this.modelName = modelName;
-    }
-    
-    public void addClass(ClassMetadata classMetadata) {
-        classes.put(classMetadata.getName(), classMetadata);
-    }
-    
-    public void addEnum(EnumMetadata enumMetadata) {
-        enums.put(enumMetadata.getName(), enumMetadata);
+public final class ModelMetadata {
+
+    private final String modelName;
+    private final String schemaName;
+    private final Map<String, ClassMetadata> classes;
+    private final Map<String, EnumMetadata> enums;
+    private final Map<String, AssociationMetadata> associations;
+    private final List<RelationshipMetadata> relationships;
+    private final String iliVersion;
+    private final String modelVersion;
+    private final java.time.Instant importDate;
+    private final String ili2dbVersion;
+    private final Map<String, String> settings;
+    private final ModelMetadataIndexes indexes;
+
+    public ModelMetadata(ch.interlis.generator.model.builder.ModelMetadataBuilder builder,
+                  ModelMetadataIndexes indexes) {
+        this.modelName = Objects.requireNonNull(builder.modelName(), "modelName");
+        this.schemaName = builder.schemaName();
+        this.classes = Collections.unmodifiableMap(new LinkedHashMap<>(builder.classes()));
+        this.enums = Collections.unmodifiableMap(new LinkedHashMap<>(builder.enums()));
+        this.associations = Collections.unmodifiableMap(new LinkedHashMap<>(builder.associations()));
+        this.relationships = List.copyOf(builder.relationships());
+        this.iliVersion = builder.iliVersion();
+        this.modelVersion = builder.modelVersion();
+        this.importDate = builder.importDate();
+        this.ili2dbVersion = builder.ili2dbVersion();
+        this.settings = Collections.unmodifiableMap(new LinkedHashMap<>(builder.settings()));
+        this.indexes = indexes;
     }
 
-    public void addAssociation(AssociationMetadata associationMetadata) {
-        Objects.requireNonNull(associationMetadata, "associationMetadata");
-        AssociationMetadata existing = associations.get(associationMetadata.getName());
-        if (existing == null) {
-            associations.put(associationMetadata.getName(), associationMetadata);
-            return;
-        }
-        if (existing == associationMetadata) {
-            return;
-        }
-        mergeAssociation(existing, associationMetadata);
+    public static ch.interlis.generator.model.builder.ModelMetadataBuilder builder(String modelName) {
+        return new ch.interlis.generator.model.builder.ModelMetadataBuilder(modelName);
     }
 
-    public void addRelationship(RelationshipMetadata relationship) {
-        Objects.requireNonNull(relationship, "relationship");
-        if (relationships.stream().noneMatch(existing -> sameRelationship(existing, relationship))) {
-            relationships.add(relationship);
-        }
-        ClassMetadata sourceClass = getClass(relationship.getSourceClass());
-        if (sourceClass != null) {
-            sourceClass.addRelationship(relationship);
-        }
-    }
-    
-    public ClassMetadata getClass(String name) {
-        return classes.get(name);
-    }
-    
-    public Collection<ClassMetadata> getAllClasses() {
-        return classes.values();
-    }
-    
-    public Collection<EnumMetadata> getAllEnums() {
-        return enums.values();
+    public ch.interlis.generator.model.builder.ModelMetadataBuilder toBuilder() {
+        return ch.interlis.generator.model.builder.ModelMetadataBuilder.from(this);
     }
 
-    public AssociationMetadata getAssociation(String name) {
-        return associations.get(name);
-    }
-
-    public Collection<AssociationMetadata> getAllAssociations() {
-        return associations.values();
-    }
-
-    public List<RelationshipMetadata> getAllRelationships() {
-        List<RelationshipMetadata> allRelationships = new ArrayList<>(relationships);
-        for (ClassMetadata classMetadata : classes.values()) {
-            for (RelationshipMetadata relationship : classMetadata.getRelationships()) {
-                if (allRelationships.stream().noneMatch(existing -> sameRelationship(existing, relationship))) {
-                    allRelationships.add(relationship);
-                }
-            }
-        }
-        return allRelationships;
-    }
-    
-    // Getters and Setters
-    
     public String getModelName() {
         return modelName;
     }
-    
-    public void setModelName(String modelName) {
-        this.modelName = modelName;
-    }
-    
+
     public String getSchemaName() {
         return schemaName;
     }
-    
-    public void setSchemaName(String schemaName) {
-        this.schemaName = schemaName;
+
+    public Optional<ClassMetadata> findClass(String name) {
+        return name == null ? Optional.empty() : Optional.ofNullable(classes.get(name));
     }
-    
+
+    public ClassMetadata getClass(String name) {
+        return classes.get(name);
+    }
+
+    public Collection<ClassMetadata> getAllClasses() {
+        return classes.values();
+    }
+
     public Map<String, ClassMetadata> getClasses() {
         return classes;
     }
-    
-    public void setClasses(Map<String, ClassMetadata> classes) {
-        this.classes = classes;
-    }
-    
-    public Map<String, EnumMetadata> getEnums() {
-        return enums;
-    }
-    
-    public void setEnums(Map<String, EnumMetadata> enums) {
-        this.enums = enums;
-    }
 
-    public Map<String, AssociationMetadata> getAssociations() {
-        return associations;
-    }
-
-    public void setAssociations(Map<String, AssociationMetadata> associations) {
-        this.associations = associations;
-    }
-    
-    public String getIliVersion() {
-        return iliVersion;
-    }
-    
-    public void setIliVersion(String iliVersion) {
-        this.iliVersion = iliVersion;
-    }
-
-    public String getModelVersion() {
-        return modelVersion;
-    }
-
-    public void setModelVersion(String modelVersion) {
-        this.modelVersion = modelVersion;
-    }
-    
-    public Date getImportDate() {
-        return importDate;
-    }
-    
-    public void setImportDate(Date importDate) {
-        this.importDate = importDate;
-    }
-    
-    public String getIli2dbVersion() {
-        return ili2dbVersion;
-    }
-    
-    public void setIli2dbVersion(String ili2dbVersion) {
-        this.ili2dbVersion = ili2dbVersion;
-    }
-    
-    public Map<String, String> getSettings() {
-        return settings;
-    }
-    
-    public void setSettings(Map<String, String> settings) {
-        this.settings = settings;
+    public List<RelationshipMetadata> getAllRelationships() {
+        return relationships;
     }
 
     public List<RelationshipMetadata> getRelationships() {
         return relationships;
     }
 
-    public void setRelationships(List<RelationshipMetadata> relationships) {
-        this.relationships = relationships;
+    public List<RelationshipMetadata> relationshipsFrom(String sourceClass) {
+        return indexes.bySource(sourceClass);
     }
-    
+
+    public List<RelationshipMetadata> relationshipsTo(String targetClass) {
+        return indexes.byTarget(targetClass);
+    }
+
+    public Optional<RelationshipMetadata> relationship(RelationshipIdentity id) {
+        return indexes.byIdentity(id);
+    }
+
+    public Collection<AssociationMetadata> getAllAssociations() {
+        return associations.values();
+    }
+
+    public AssociationMetadata getAssociation(String name) {
+        return associations.get(name);
+    }
+
+    public Map<String, AssociationMetadata> getAssociations() {
+        return associations;
+    }
+
+    public Collection<EnumMetadata> getAllEnums() {
+        return enums.values();
+    }
+
+    public Map<String, EnumMetadata> getEnums() {
+        return enums;
+    }
+
+    public String getIliVersion() {
+        return iliVersion;
+    }
+
+    public String getModelVersion() {
+        return modelVersion;
+    }
+
+    public java.time.Instant getImportDate() {
+        return importDate;
+    }
+
+    public String getIli2dbVersion() {
+        return ili2dbVersion;
+    }
+
+    public Map<String, String> getSettings() {
+        return settings;
+    }
+
     @Override
     public String toString() {
         return "ModelMetadata{" +
-                "modelName='" + modelName + '\'' +
-                ", schemaName='" + schemaName + '\'' +
-                ", classes=" + classes.size() +
-                ", enums=" + enums.size() +
-                ", associations=" + associations.size() +
-                ", relationships=" + getAllRelationships().size() +
-                ", iliVersion='" + iliVersion + '\'' +
-                ", modelVersion='" + modelVersion + '\'' +
-                '}';
-    }
-
-    private void mergeAssociation(AssociationMetadata existing, AssociationMetadata incoming) {
-        if (incoming.getAssociationClass() != null) {
-            existing.setAssociationClass(incoming.getAssociationClass());
-        }
-        if (incoming.getPhysicalTable() != null) {
-            existing.setPhysicalTable(incoming.getPhysicalTable());
-        }
-        if (incoming.getPhysicalSqlName() != null) {
-            existing.setPhysicalSqlName(incoming.getPhysicalSqlName());
-        }
-        for (AssociationRoleMetadata role : incoming.getRoles()) {
-            existing.addRole(role);
-        }
-        for (AttributeMetadata attribute : incoming.getAllAttributes()) {
-            existing.addAttribute(attribute);
-        }
-    }
-
-    private boolean sameRelationship(RelationshipMetadata left, RelationshipMetadata right) {
-        return Objects.equals(left.getName(), right.getName())
-            && Objects.equals(left.getSourceClass(), right.getSourceClass())
-            && Objects.equals(left.getTargetClass(), right.getTargetClass())
-            && Objects.equals(left.getSourceAttribute(), right.getSourceAttribute())
-            && Objects.equals(left.getTargetRoleName(), right.getTargetRoleName())
-            && Objects.equals(left.getSemanticKind(), right.getSemanticKind());
+            "modelName='" + modelName + '\'' +
+            ", schemaName='" + schemaName + '\'' +
+            ", classes=" + classes.size() +
+            ", enums=" + enums.size() +
+            ", associations=" + associations.size() +
+            ", relationships=" + relationships.size() +
+            ", iliVersion='" + iliVersion + '\'' +
+            ", modelVersion='" + modelVersion + '\'' +
+            '}';
     }
 }

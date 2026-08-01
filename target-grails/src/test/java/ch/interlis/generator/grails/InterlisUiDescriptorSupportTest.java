@@ -1,9 +1,9 @@
 package ch.interlis.generator.grails;
 
-import ch.interlis.generator.model.AttributeMetadata;
-import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
-import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import groovy.lang.GroovyClassLoader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -20,22 +20,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class InterlisUiDescriptorSupportTest {
 
-    private static final Path RUNTIME_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy"
-    );
-    private static final Path RELATIONSHIP_OPTIONS_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"
-    );
-    private static final Path TABLE_MODEL_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy"
-    );
-    private static final Path WORKSPACE_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy"
-    );
+    private static final Path RUNTIME_SOURCE = RuntimeSourcePaths.runtimeSource("InterlisUiDescriptorSupport");
+    private static final Path RELATIONSHIP_OPTIONS_SOURCE = RuntimeSourcePaths.runtimeSource("InterlisRelationshipOptions");
+    private static final Path TABLE_MODEL_SOURCE = RuntimeSourcePaths.runtimeSource("InterlisTableModel");
+    private static final Path WORKSPACE_SOURCE = RuntimeSourcePaths.runtimeSource("InterlisWorkspaceSupport");
 
     @TempDir
     Path tempDir;
@@ -462,40 +450,42 @@ class InterlisUiDescriptorSupportTest {
     }
 
     private GeneratedRuntime generatedRuntime() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("UiModel");
-        ClassMetadata municipality = new ClassMetadata("UiModel.Topic.Municipality");
-        municipality.addAttribute(attribute("name", "String"));
-        metadata.addClass(municipality);
-        ClassMetadata address = new ClassMetadata("UiModel.Topic.Address");
-        address.addAttribute(attribute("name", "String"));
-        address.addAttribute(attribute("description", "String"));
-        address.addAttribute(attribute("year", "Integer"));
-        address.addAttribute(attribute("active", "Boolean"));
-        address.addAttribute(attribute("longText", "String"));
-        metadata.addClass(address);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("UiModel");
+        modelBuilder.classBuilder("UiModel.Topic.Municipality")
+            .attribute(attribute("name", "String"));
+        modelBuilder.classBuilder("UiModel.Topic.Address")
+            .attribute(attribute("name", "String"))
+            .attribute(attribute("description", "String"))
+            .attribute(attribute("year", "Integer"))
+            .attribute(attribute("active", "Boolean"))
+            .attribute(attribute("longText", "String"));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example")
             .domainPackage("com.example.ui")
             .enumPackage("com.example.enums")
             .build();
-        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
-        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
-        GrailsAssociationPlanner planner =
-            GrailsAssociationPlanner.forMetadata(metadata, config, registry, mapper);
-        new GrailsUiRegistryGenerator().generate(metadata, config, registry, mapper, planner);
+        new GrailsUiRegistryGenerator().generate(
+            GrailsUiRegistryGeneratorTest.plan(metadata, config),
+            config,
+            TargetNameRegistry.forMetadata(metadata, config)
+        );
 
         GroovyClassLoader classLoader = new GroovyClassLoader(getClass().getClassLoader());
+        classLoader.parseClass(
+            Files.readString(RuntimeSourcePaths.generatedRegistryAccessorSource()),
+            "GeneratedRegistryAccessor.groovy");
         Path registrySource = tempDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy"
         );
         assertThat(Files.readString(registrySource))
-            .contains("domainClassName: 'com.example.ui.Address'");
+            .contains("'com.example.ui.Address'");
         classLoader.parseClass(registrySource.toFile());
         classLoader.parseClass(domainSource(), "Address.groovy");
         Class<?> domainType = classLoader.loadClass("com.example.ui.Address");
         Class<?> municipalityType = classLoader.loadClass("com.example.ui.Municipality");
         assertThat(Files.readString(registrySource))
-            .contains("domainClassName: 'com.example.ui.Municipality'");
+            .contains("'com.example.ui.Municipality'");
         classLoader.parseClass(Files.readString(TABLE_MODEL_SOURCE), "InterlisTableModel.groovy");
         Class<?> supportType = classLoader.parseClass(Files.readString(RUNTIME_SOURCE), "InterlisUiDescriptorSupport.groovy");
         classLoader.parseClass(Files.readString(RELATIONSHIP_OPTIONS_SOURCE), "InterlisRelationshipOptions.groovy");
@@ -503,10 +493,8 @@ class InterlisUiDescriptorSupportTest {
         return new GeneratedRuntime(supportType, domainType, municipalityType, workspaceType, classLoader);
     }
 
-    private AttributeMetadata attribute(String name, String javaType) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setJavaType(javaType);
-        return attribute;
+    private AttributeMetadataBuilder attribute(String name, String javaType) {
+        return new AttributeMetadataBuilder(name).javaType(javaType);
     }
 
     private String domainSource() {
