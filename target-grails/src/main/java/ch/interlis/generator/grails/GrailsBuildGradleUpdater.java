@@ -1,5 +1,6 @@
 package ch.interlis.generator.grails;
 
+import ch.interlis.generator.grails.project.plan.TextFileEdit;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -123,11 +124,25 @@ public class GrailsBuildGradleUpdater {
         if (!Files.exists(buildGradlePath)) {
             return;
         }
-        List<String> lines = Files.readAllLines(buildGradlePath, StandardCharsets.UTF_8);
-        List<String> updated = ensureDependencies(lines, geometryEnabled);
-        if (!updated.equals(lines)) {
-            Files.write(buildGradlePath, updated, StandardCharsets.UTF_8);
+        String content = Files.readString(buildGradlePath, StandardCharsets.UTF_8);
+        TextFileEdit edit = plan(Path.of("build.gradle"), content, geometryEnabled);
+        if (edit.changed()) {
+            Files.writeString(buildGradlePath, edit.updatedContent(), StandardCharsets.UTF_8);
         }
+    }
+
+    /**
+     * Reine Planungsfunktion (Spezifikation §41.5): kein Write.
+     */
+    public TextFileEdit plan(Path relativePath, String existingContent, boolean geometryEnabled) {
+        if (existingContent == null) {
+            return new TextFileEdit(relativePath, null, false, "build.gradle missing");
+        }
+        List<String> lines = new java.util.ArrayList<>(List.of(existingContent.split("\n", -1)));
+        List<String> updated = ensureDependencies(lines, geometryEnabled);
+        String updatedContent = String.join("\n", updated);
+        return new TextFileEdit(relativePath, updatedContent, !updatedContent.equals(existingContent),
+            "managed dependencies");
     }
 
     private List<String> ensureDependencies(List<String> lines, boolean geometryEnabled) {

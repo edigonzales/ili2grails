@@ -1,7 +1,12 @@
 package ch.interlis.generator.grails;
 
+import ch.interlis.generator.grails.project.GrailsProjectFileOwner;
+import ch.interlis.generator.grails.project.plan.PlannedProjectFile;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -18,22 +23,40 @@ public class GrailsEnumGenerator {
         generate(metadata, config, TargetNameRegistry.forMetadata(metadata, config));
     }
 
-    public void generate(ModelMetadata metadata,
-                         GenerationConfig config,
-                         TargetNameRegistry registry) throws IOException {
+    /**
+     * Reine Planungsfunktion (Spezifikation §41.2): kein Write.
+     */
+    public List<PlannedProjectFile> plan(ModelMetadata metadata,
+                                         GenerationConfig config,
+                                         TargetNameRegistry registry) {
+        List<PlannedProjectFile> planned = new ArrayList<>();
         if (metadata.getAllEnums().isEmpty()) {
-            return;
+            return planned;
         }
-        Path baseDir = config.getOutputDir()
-            .resolve("src/main/groovy")
+        Path baseDir = Path.of("src/main/groovy")
             .resolve(NameUtils.packageToPath(config.getEnumPackage()));
-        Files.createDirectories(baseDir);
-
         for (EnumMetadata enumMetadata : metadata.getAllEnums()) {
             String enumName = registry.enumName(enumMetadata);
             String content = renderEnum(enumMetadata, config.getEnumPackage(), enumName, registry);
-            Path target = baseDir.resolve(enumName + ".groovy");
-            Files.writeString(target, content, StandardCharsets.UTF_8);
+            planned.add(PlannedProjectFile.text(
+                baseDir.resolve(enumName + ".groovy"),
+                ch.interlis.generator.grails.project.GrailsProjectFileOwner.GENERATOR_MANAGED,
+                content,
+                "generated enum " + enumName));
+        }
+        return planned;
+    }
+
+    public void generate(ModelMetadata metadata,
+                         GenerationConfig config,
+                         TargetNameRegistry registry) throws IOException {
+        Path baseDir = config.getOutputDir()
+            .resolve("src/main/groovy")
+            .resolve(NameUtils.packageToPath(config.getEnumPackage()));
+        for (PlannedProjectFile planned : plan(metadata, config, registry)) {
+            Path target = baseDir.resolve(planned.relativePath().getFileName());
+            Files.createDirectories(target.getParent());
+            Files.write(target, planned.content());
         }
     }
 

@@ -5,6 +5,7 @@ import ch.interlis.generator.model.AttributeConstraints;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.EnumMetadata;
+import ch.interlis.generator.grails.project.plan.PlannedProjectFile;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.RelationshipMetadata;
 
@@ -58,16 +59,17 @@ public class GrailsDomainGenerator {
         );
     }
 
-    public void generate(ModelMetadata metadata,
-                         GenerationConfig config,
-                         TargetNameRegistry registry,
-                         GrailsRelationshipMapper mapper,
-                         GrailsInverseRelationshipPlanner inverseRelationshipPlanner) throws IOException {
-        Path baseDir = config.getOutputDir()
-            .resolve("grails-app/domain")
+    /**
+     * Reine Planungsfunktion (Spezifikation §41.1): kein Write.
+     */
+    public List<PlannedProjectFile> plan(ModelMetadata metadata,
+                                         GenerationConfig config,
+                                         TargetNameRegistry registry,
+                                         GrailsRelationshipMapper mapper,
+                                         GrailsInverseRelationshipPlanner inverseRelationshipPlanner) {
+        List<PlannedProjectFile> planned = new ArrayList<>();
+        Path baseDir = Path.of("grails-app/domain")
             .resolve(NameUtils.packageToPath(config.getDomainPackage()));
-        Files.createDirectories(baseDir);
-
         for (ClassMetadata classMetadata : mapper.generatedClasses()) {
             GrailsRelationshipMapper.DomainMapping mapping = mapper.map(classMetadata);
             String content = renderDomain(
@@ -78,8 +80,28 @@ public class GrailsDomainGenerator {
                 config,
                 registry
             );
-            Path target = baseDir.resolve(registry.className(classMetadata) + ".groovy");
-            Files.writeString(target, content, StandardCharsets.UTF_8);
+            planned.add(PlannedProjectFile.text(
+                baseDir.resolve(registry.className(classMetadata) + ".groovy"),
+                ch.interlis.generator.grails.project.GrailsProjectFileOwner.GENERATOR_MANAGED,
+                content,
+                "generated domain " + registry.className(classMetadata)));
+        }
+        return planned;
+    }
+
+    public void generate(ModelMetadata metadata,
+                         GenerationConfig config,
+                         TargetNameRegistry registry,
+                         GrailsRelationshipMapper mapper,
+                         GrailsInverseRelationshipPlanner inverseRelationshipPlanner) throws IOException {
+        Path baseDir = config.getOutputDir()
+            .resolve("grails-app/domain")
+            .resolve(NameUtils.packageToPath(config.getDomainPackage()));
+        for (PlannedProjectFile planned : plan(metadata, config, registry, mapper,
+            inverseRelationshipPlanner)) {
+            Path target = baseDir.resolve(planned.relativePath().getFileName());
+            Files.createDirectories(target.getParent());
+            Files.write(target, planned.content());
         }
     }
 

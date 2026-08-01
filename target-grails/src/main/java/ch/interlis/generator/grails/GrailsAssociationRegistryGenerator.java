@@ -8,6 +8,8 @@ import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescri
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationStorageKind;
 import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind;
 import ch.interlis.generator.grails.runtime.api.descriptor.EntityDescriptor;
+import ch.interlis.generator.grails.project.GrailsProjectFileOwner;
+import ch.interlis.generator.grails.project.plan.PlannedProjectFile;
 import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeCoreType;
 import ch.interlis.generator.grails.source.GroovySourceWriter;
 
@@ -42,13 +44,24 @@ public final class GrailsAssociationRegistryGenerator {
 
     private final GroovySourceWriter source = new GroovySourceWriter();
 
-    public void generate(RuntimeDescriptorPlan plan, GenerationConfig config) throws IOException {
+    /**
+     * Reine Planungsfunktion (Spezifikation §41.3): kein Write.
+     */
+    public PlannedProjectFile plan(RuntimeDescriptorPlan plan, GenerationConfig config) {
         Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(config, "config");
+        return PlannedProjectFile.text(
+            Path.of(RELATIVE_PATH),
+            ch.interlis.generator.grails.project.GrailsProjectFileOwner.GENERATOR_MANAGED,
+            renderRegistry(plan),
+            "generated typed association registry");
+    }
 
+    public void generate(RuntimeDescriptorPlan plan, GenerationConfig config) throws IOException {
+        PlannedProjectFile planned = plan(plan, config);
         Path target = targetPath(config);
         Files.createDirectories(target.getParent());
-        Files.writeString(target, renderRegistry(plan), StandardCharsets.UTF_8);
+        Files.write(target, planned.content());
     }
 
     Path targetPath(GenerationConfig config) {

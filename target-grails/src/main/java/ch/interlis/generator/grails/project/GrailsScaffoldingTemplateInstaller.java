@@ -1,5 +1,6 @@
 package ch.interlis.generator.grails.project;
 
+import ch.interlis.generator.grails.project.plan.PlannedProjectFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -43,18 +44,36 @@ public final class GrailsScaffoldingTemplateInstaller {
 
     public void install(Path grailsProjectDir) throws IOException {
         Objects.requireNonNull(grailsProjectDir, "grailsProjectDir");
+        for (PlannedProjectFile planned : plan()) {
+            Path target = grailsProjectDir.resolve(planned.relativePath());
+            Files.createDirectories(target.getParent());
+            Files.write(target, planned.content());
+        }
+    }
+
+    /**
+     * Reine Planungsfunktion (Spezifikation §41.6): alle Ressourcen werden
+     * vollständig gelesen, bevor geschrieben wird.
+     */
+    public List<PlannedProjectFile> plan() {
+        List<PlannedProjectFile> planned = new java.util.ArrayList<>();
         for (String template : TEMPLATE_FILES) {
             String relativePath = "src/main/templates/scaffolding/" + template;
             String resourcePath = OVERLAY_ROOT + relativePath;
             try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
                 if (inputStream == null) {
-                    throw new IOException("Missing overlay resource: " + resourcePath);
+                    throw new IllegalStateException("Missing overlay resource: " + resourcePath);
                 }
-                Path target = grailsProjectDir.resolve(relativePath);
-                Files.createDirectories(target.getParent());
-                Files.write(target, inputStream.readAllBytes());
+                planned.add(new PlannedProjectFile(
+                    java.nio.file.Path.of(relativePath),
+                    GrailsProjectFileOwner.GENERATOR_MANAGED,
+                    inputStream.readAllBytes(),
+                    "scaffolding template " + template));
+            } catch (IOException e) {
+                throw new IllegalStateException("Cannot read overlay resource " + resourcePath, e);
             }
         }
+        return planned;
     }
 
     public static List<String> templateFilesForTesting() {

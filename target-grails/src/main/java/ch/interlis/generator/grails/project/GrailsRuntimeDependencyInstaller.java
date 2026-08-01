@@ -1,7 +1,10 @@
 package ch.interlis.generator.grails.project;
 
+import ch.interlis.generator.grails.project.plan.TextFileEdit;
+
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -29,12 +32,50 @@ public final class GrailsRuntimeDependencyInstaller {
         String content = java.nio.file.Files.readString(buildFile);
         boolean wasPresent = content.contains(coordinates.artifact());
         boolean versionMatches = content.contains(coordinates.notation());
-        buildGradleUpdater.ensureManagedDependencyBlock(
-            buildFile,
-            DEPENDENCY_MARKER,
-            managedBlock(coordinates)
-        );
+        TextFileEdit edit = plan(Path.of("build.gradle"), content, coordinates);
+        if (edit.changed()) {
+            java.nio.file.Files.writeString(buildFile, edit.updatedContent());
+        }
         return new DependencyUpdateResult(wasPresent && versionMatches, coordinates.notation());
+    }
+
+    /**
+     * Reine Planungsfunktion (Spezifikation §41.5): kein Write.
+     */
+    public TextFileEdit plan(Path relativePath, String existingContent,
+                             RuntimeCoordinates coordinates) {
+        if (existingContent == null) {
+            return new TextFileEdit(relativePath, null, false, "build.gradle missing");
+        }
+        List<String> lines = new java.util.ArrayList<>(List.of(existingContent.split("\\n", -1)));
+        List<String> stripped = new java.util.ArrayList<>();
+        boolean inBlock = false;
+        for (String line : lines) {
+            if (line.contains("// <" + DEPENDENCY_MARKER + ">")) {
+                inBlock = true;
+                continue;
+            }
+            if (line.contains("// </" + DEPENDENCY_MARKER + ">")) {
+                inBlock = false;
+                continue;
+            }
+            if (inBlock) {
+                continue;
+            }
+            if (line.contains(coordinates.artifact())
+                && line.contains("implementation")) {
+                continue; // alte Version der Runtime-Dependency entfernen
+            }
+            stripped.add(line);
+        }
+        String content = String.join("\n", stripped);
+        boolean blockPresent = content.contains(managedBlock(coordinates));
+        if (!blockPresent) {
+            content = content.replaceFirst("dependencies \\{",
+                "dependencies {\n" + "    " + managedBlock(coordinates) + "\n");
+        }
+        return new TextFileEdit(relativePath, content, !content.equals(existingContent),
+            "runtime plugin dependency");
     }
 
     static String managedBlock(RuntimeCoordinates coordinates) {

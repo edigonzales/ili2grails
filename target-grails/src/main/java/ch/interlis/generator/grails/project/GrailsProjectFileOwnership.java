@@ -27,8 +27,6 @@ public final class GrailsProjectFileOwnership {
         rules.add(pluginOwned("grails-app/controllers/" + RUNTIME_PACKAGE + "InterlisUiController.groovy"));
         rules.add(pluginOwned("grails-app/taglib/" + RUNTIME_PACKAGE + "InterlisUiTagLib.groovy"));
         rules.add(pluginOwned("grails-app/views/interlisUi/"));
-        rules.add(new GrailsProjectFileRule("grails-app/views/layouts/main.gsp",
-            GrailsProjectFileOwner.RUNTIME_PLUGIN, false, true));
         rules.add(new GrailsProjectFileRule("grails-app/i18n/messages_de_CH.properties",
             GrailsProjectFileOwner.RUNTIME_PLUGIN, false, true));
         rules.add(new GrailsProjectFileRule("grails-app/i18n/messages_en.properties",
@@ -42,7 +40,11 @@ public final class GrailsProjectFileOwnership {
         rules.add(new GrailsProjectFileRule("src/main/templates/scaffolding/",
             GrailsProjectFileOwner.GENERATOR_MANAGED, true, false));
 
-        // Application-owned files (never overwritten).
+        // Application-owned files (never overwritten). Ein lokales
+        // grails-app/views/layouts/main.gsp ist immer APPLICATION_OWNED
+        // (P2-D003): das Plugin liefert sein Default-Layout aus dem Plugin-JAR.
+        // Nur ein per SHA-256 bekanntes pre-P1-Legacy-Exemplar darf über den
+        // Legacy-Migrationspfad entfernt werden.
         rules.add(new GrailsProjectFileRule("grails-app/views/layouts/main.gsp",
             GrailsProjectFileOwner.APPLICATION_OWNED, false, false));
 
