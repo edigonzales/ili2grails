@@ -29,13 +29,8 @@ Ein erneuter Lauf muss bewusst mit `--reset` angefordert werden:
 Dabei werden nur das gewaehlte `gs_*`-Schema und die zugehoerigen Artefakte
 unter `build/getting-started/` geloescht.
 
-Der erwartete ili2pg-Pfad ist standardmaessig:
-
-```text
-/Users/stefan/apps/ili2pg-5.5.1
-```
-
-Eine andere Installation kann ueber `ILI2PG_HOME` verwendet werden:
+Der ili2pg-Installationspfad ist ueber `ILI2PG_HOME` zu setzen (kein lokaler
+Default):
 
 ```bash
 ILI2PG_HOME=/opt/ili2pg-5.5.1 ./scripts/getting-started.sh simple

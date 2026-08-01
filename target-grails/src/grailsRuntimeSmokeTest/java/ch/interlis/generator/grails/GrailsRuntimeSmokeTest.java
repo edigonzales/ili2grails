@@ -1,5 +1,9 @@
 package ch.interlis.generator.grails;
 
+import ch.interlis.generator.grails.verification.contract.CommandRunner;
+import ch.interlis.generator.grails.verification.environment.ExternalToolStatus;
+import ch.interlis.generator.grails.verification.environment.InfrastructureSupport;
+import ch.interlis.generator.grails.verification.environment.VerificationEnvironmentDetector;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.ModelMetadataFactory;
@@ -9,7 +13,6 @@ import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.opentest4j.TestAbortedException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -34,9 +37,9 @@ class GrailsRuntimeSmokeTest {
 
     @BeforeAll
     static void requireGrailsCli() throws Exception {
-        if (!isGrailsAvailable()) {
-            throw new TestAbortedException("grails CLI not available in PATH; skipping runtime smoke test");
-        }
+        boolean required = InfrastructureSupport.required("grailsRuntimeSmokeRequired");
+        ExternalToolStatus status = new VerificationEnvironmentDetector().detectGrails(new CommandRunner());
+        InfrastructureSupport.requireTool(status, required, "grails runtime smoke test");
         RuntimeApiTestSupport.publishRuntimeToMavenLocal(Path.of("."));
     }
 
@@ -777,15 +780,6 @@ class GrailsRuntimeSmokeTest {
             .mapEditor(geometryEnabled ? GenerationConfig.MAP_EDITOR_OPENLAYERS : GenerationConfig.MAP_EDITOR_NONE)
             .geometryEnabled(geometryEnabled)
             .build();
-    }
-
-    private static boolean isGrailsAvailable() throws IOException, InterruptedException {
-        try {
-            runCommand(Path.of(".").toAbsolutePath().normalize(), List.of("grails", "--version"), Duration.ofSeconds(30));
-            return true;
-        } catch (IOException e) {
-            return false;
-        }
     }
 
     private static void runCommand(Path workingDir, List<String> command)

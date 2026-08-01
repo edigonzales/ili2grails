@@ -16,6 +16,11 @@ import com.microsoft.playwright.options.RequestOptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import ch.interlis.generator.grails.verification.contract.CommandResult;
+import ch.interlis.generator.grails.verification.contract.CommandRunner;
+import ch.interlis.generator.grails.verification.environment.ExternalToolStatus;
+import ch.interlis.generator.grails.verification.environment.InfrastructureSupport;
+import ch.interlis.generator.grails.verification.environment.VerificationEnvironmentDetector;
 import org.opentest4j.TestAbortedException;
 
 import java.io.File;
@@ -68,17 +73,12 @@ class GrailsBrowserE2eTest {
 
     @BeforeAll
     static void requireTools() throws Exception {
-        if (!isCommandAvailable(List.of("grails", "--version"))) {
-            throw new TestAbortedException("grails CLI not available in PATH; skipping browser E2E test");
-        }
-        if (!isCommandAvailable(List.of("docker", "compose", "version"))) {
-            throw new TestAbortedException("docker compose not available; skipping browser E2E test");
-        }
-        Path ili2pgHome = ili2pgHome();
-        if (!Files.exists(ili2pgHome.resolve("ili2pg-5.5.1.jar"))
-            || !Files.isDirectory(ili2pgHome.resolve("libs"))) {
-            throw new TestAbortedException("ili2pg home not available: " + ili2pgHome);
-        }
+        boolean required = InfrastructureSupport.required("browserE2eRequired");
+        VerificationEnvironmentDetector detector = new VerificationEnvironmentDetector();
+        CommandRunner runner = new CommandRunner();
+        InfrastructureSupport.requireTool(detector.detectGrails(runner), required, "browser E2E test");
+        InfrastructureSupport.requireTool(detector.detectDockerCompose(runner), required, "browser E2E test");
+        InfrastructureSupport.requireTool(detector.detectIli2pg(ili2pgHome()), required, "browser E2E test");
     }
 
     @Test
@@ -2187,20 +2187,7 @@ class GrailsBrowserE2eTest {
 
     private static CommandResult runCommandResult(Path workingDir, List<String> command, Duration timeout)
         throws IOException, InterruptedException {
-        ProcessBuilder builder = new ProcessBuilder(command);
-        builder.directory(workingDir.toFile());
-        builder.redirectErrorStream(true);
-        Path outputFile = Files.createTempFile("ili2grails-command-", ".log");
-        builder.redirectOutput(outputFile.toFile());
-        Process process = builder.start();
-        boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        if (!finished) {
-            process.destroyForcibly();
-            process.waitFor();
-        }
-        String output = Files.readString(outputFile, StandardCharsets.UTF_8);
-        Files.deleteIfExists(outputFile);
-        return new CommandResult(finished ? process.exitValue() : -1, output);
+        return new CommandRunner().run(workingDir, command, timeout);
     }
 
     private static void runCommand(Path workingDir, List<String> command, Duration timeout)
@@ -2212,12 +2199,12 @@ class GrailsBrowserE2eTest {
         }
     }
 
-    private static boolean isCommandAvailable(List<String> command) throws IOException, InterruptedException {
-        return runCommandResult(Path.of("."), command, Duration.ofSeconds(30)).exitCode() == 0;
-    }
-
     private static Path ili2pgHome() {
-        return Path.of(System.getProperty("ili2pgHome", "/Users/stefan/apps/ili2pg-5.5.1"));
+        String configured = System.getProperty("ili2pgHome");
+        if (configured == null || configured.isBlank()) {
+            return null;
+        }
+        return Path.of(configured);
     }
 
     private static String baseJdbcUrl() {
@@ -2261,6 +2248,4 @@ class GrailsBrowserE2eTest {
         }
     }
 
-    private record CommandResult(int exitCode, String output) {
-    }
 }

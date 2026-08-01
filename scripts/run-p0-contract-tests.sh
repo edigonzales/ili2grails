@@ -14,7 +14,11 @@ command -v docker >/dev/null 2>&1 || {
     echo "ERROR: docker not found in PATH (required for the mandatory contract test)" >&2
     exit 1
 }
-ILI2PG_HOME="${ILI2PG_HOME:-/Users/stefan/apps/ili2pg-5.5.1}"
+ILI2PG_HOME="${ILI2PG_HOME:-}"
+if [ -z "${ILI2PG_HOME}" ]; then
+    echo "ERROR: ILI2PG_HOME is not set (required for the mandatory contract test)" >&2
+    exit 1
+fi
 if [ ! -f "${ILI2PG_HOME}/ili2pg-5.5.1.jar" ]; then
     echo "ERROR: ili2pg not found at ${ILI2PG_HOME}/ili2pg-5.5.1.jar (set ILI2PG_HOME)" >&2
     exit 1

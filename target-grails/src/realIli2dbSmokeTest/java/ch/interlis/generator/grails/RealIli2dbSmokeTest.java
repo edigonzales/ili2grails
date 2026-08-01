@@ -6,6 +6,11 @@ import ch.interlis.generator.model.AssociationMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.grails.verification.contract.CommandResult;
+import ch.interlis.generator.grails.verification.contract.CommandRunner;
+import ch.interlis.generator.grails.verification.environment.ExternalToolStatus;
+import ch.interlis.generator.grails.verification.environment.InfrastructureSupport;
+import ch.interlis.generator.grails.verification.environment.VerificationEnvironmentDetector;
 import ch.interlis.generator.model.RelationshipMetadata;
 import ch.interlis.generator.testsupport.MetadataTestFixtures;
 import org.junit.jupiter.api.Test;
@@ -739,21 +744,21 @@ class RealIli2dbSmokeTest {
         }
     }
 
+    private boolean requiredInfrastructure() {
+        return InfrastructureSupport.required("realIli2dbRequired");
+    }
+
     private Path requireIli2pgHome() {
-        String configuredHome = System.getProperty("ili2pgHome", "/Users/stefan/apps/ili2pg-5.5.1");
-        Path ili2pgHome = Path.of(configuredHome);
-        if (!Files.exists(ili2pgHome.resolve("ili2pg-5.5.1.jar"))
-            || !Files.isDirectory(ili2pgHome.resolve("libs"))) {
-            throw new TestAbortedException("ili2pg home not available: " + ili2pgHome);
-        }
-        return ili2pgHome;
+        String configured = System.getProperty("ili2pgHome");
+        Path configuredHome = configured == null || configured.isBlank() ? null : Path.of(configured);
+        ExternalToolStatus status = new VerificationEnvironmentDetector().detectIli2pg(configuredHome);
+        InfrastructureSupport.requireTool(status, requiredInfrastructure(), "real ili2db smoke test");
+        return Path.of(status.resolvedPath());
     }
 
     private void requireDockerCompose() throws IOException, InterruptedException {
-        CommandResult result = runCommand(List.of("docker", "compose", "version"), Path.of("."), Duration.ofSeconds(30));
-        if (result.exitCode() != 0) {
-            throw new TestAbortedException("docker compose not available: " + result.output());
-        }
+        ExternalToolStatus status = new VerificationEnvironmentDetector().detectDockerCompose(commandRunner);
+        InfrastructureSupport.requireTool(status, requiredInfrastructure(), "real ili2db smoke test");
     }
 
     private void startComposeDb() throws IOException, InterruptedException {
@@ -821,22 +826,11 @@ class RealIli2dbSmokeTest {
             + " (exit " + result.exitCode() + "):\n" + result.output());
     }
 
+    private final CommandRunner commandRunner = new CommandRunner();
+
     private CommandResult runCommand(List<String> command, Path workingDir, Duration timeout)
         throws IOException, InterruptedException {
-        ProcessBuilder builder = new ProcessBuilder(command);
-        builder.directory(workingDir.toFile());
-        builder.redirectErrorStream(true);
-        Process process = builder.start();
-        boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        if (!finished) {
-            process.destroyForcibly();
-            process.waitFor();
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            return new CommandResult(124, "Command timed out after " + timeout + ": "
-                + String.join(" ", command) + "\n" + output);
-        }
-        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        return new CommandResult(process.exitValue(), output);
+        return commandRunner.run(workingDir, command, timeout);
     }
 
     private boolean looksLikeRepositoryProblem(String output) {
@@ -1020,8 +1014,6 @@ class RealIli2dbSmokeTest {
     private record RealSchemaMetadata(String modelName, String schemaName, ModelMetadata metadata) {
     }
 
-    private record CommandResult(int exitCode, String output) {
-    }
 
     private record StructureSummary(
         String modelName,

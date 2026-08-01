@@ -14,6 +14,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import ch.interlis.generator.grails.verification.contract.CommandResult;
+import ch.interlis.generator.grails.verification.contract.CommandRunner;
+import ch.interlis.generator.grails.verification.environment.ExternalToolStatus;
+import ch.interlis.generator.grails.verification.environment.InfrastructureSupport;
+import ch.interlis.generator.grails.verification.environment.VerificationEnvironmentDetector;
 import org.opentest4j.TestAbortedException;
 
 import java.io.File;
@@ -102,13 +107,14 @@ public class GrailsPostgresContractTest {
     }
 
     private Path ili2pgHome() {
-        String home = System.getProperty("ili2pgHome", "/Users/stefan/apps/ili2pg-5.5.1");
-        Path path = Path.of(home);
-        if (!Files.isDirectory(path) || !Files.isRegularFile(path.resolve("ili2pg-5.5.1.jar"))) {
-            failInfrastructure("ili2pg home not found at " + home
-                + " (expected ili2pg-5.5.1.jar; override with -Pili2pgHome=...)");
+        String configured = System.getProperty("ili2pgHome");
+        Path configuredHome = configured == null || configured.isBlank() ? null : Path.of(configured);
+        ExternalToolStatus status = new VerificationEnvironmentDetector().detectIli2pg(configuredHome);
+        if (!status.available()) {
+            failInfrastructure("ili2pg home not available: " + status.diagnostic()
+                + " (override with -Pili2pgHome=... or ILI2PG_HOME)");
         }
-        return path;
+        return Path.of(status.resolvedPath());
     }
 
     @Test
@@ -212,21 +218,17 @@ public class GrailsPostgresContractTest {
     // Infrastruktur
     // ------------------------------------------------------------------
 
-    private void requireGrailsCli(boolean required) throws IOException, InterruptedException {
-        CommandResult result = runCommand(Path.of(".").toAbsolutePath().normalize(),
-            List.of("grails", "--version"), Duration.ofSeconds(60));
-        if (result.exitCode() != 0) {
-            failInfrastructure("grails CLI not available in PATH (grails --version failed)"
-                + (required ? "" : "; install Grails or set contractTestRequired=false to skip"));
+    private void requireGrailsCli(boolean required) {
+        ExternalToolStatus status = new VerificationEnvironmentDetector().detectGrails(new CommandRunner());
+        if (!status.available()) {
+            failInfrastructure("grails CLI not available in PATH: " + status.diagnostic());
         }
     }
 
-    private void requireDockerCompose(boolean required) throws IOException, InterruptedException {
-        CommandResult result = runCommand(Path.of(".").toAbsolutePath().normalize(),
-            List.of("docker", "compose", "version"), Duration.ofSeconds(60));
-        if (result.exitCode() != 0) {
-            failInfrastructure("docker compose not available (docker compose version failed)"
-                + (required ? "" : "; start Docker or set contractTestRequired=false to skip"));
+    private void requireDockerCompose(boolean required) {
+        ExternalToolStatus status = new VerificationEnvironmentDetector().detectDockerCompose(new CommandRunner());
+        if (!status.available()) {
+            failInfrastructure("docker compose not available: " + status.diagnostic());
         }
     }
 
@@ -259,10 +261,10 @@ public class GrailsPostgresContractTest {
 
     private void failInfrastructure(String message) {
         if (contractTestRequired()) {
-            throw new IllegalStateException("Contract test required but infrastructure missing: "
+            throw new AssertionError("FAILED_INFRASTRUCTURE Contract test required but infrastructure missing: "
                 + message);
         }
-        throw new TestAbortedException("Contract test skipped: " + message);
+        throw new TestAbortedException("SKIPPED_INFRASTRUCTURE Contract test skipped: " + message);
     }
 
     // ------------------------------------------------------------------
@@ -427,24 +429,11 @@ public class GrailsPostgresContractTest {
         return result.output();
     }
 
+    private final CommandRunner commandRunner = new CommandRunner();
+
     private CommandResult runCommand(Path workingDir, List<String> command, Duration timeout)
         throws IOException, InterruptedException {
-        ProcessBuilder builder = new ProcessBuilder(command);
-        builder.directory(workingDir.toFile());
-        builder.redirectErrorStream(true);
-        Process process = builder.start();
-        boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        if (!finished) {
-            process.destroyForcibly();
-            process.waitFor();
-            String output = new String(process.getInputStream().readAllBytes(),
-                StandardCharsets.UTF_8);
-            return new CommandResult(124, "Command timed out after " + timeout + ": "
-                + String.join(" ", command) + "\n" + output);
-        }
-        String output = new String(process.getInputStream().readAllBytes(),
-            StandardCharsets.UTF_8);
-        return new CommandResult(process.exitValue(), output);
+        return commandRunner.run(workingDir, command, timeout);
     }
 
     // ------------------------------------------------------------------
@@ -479,7 +468,7 @@ public class GrailsPostgresContractTest {
             System.getProperty("os.name"),
             System.getProperty("java.version"),
             System.getProperty("grails.version", "7.0.6 (CLI)"),
-            System.getProperty("ili2pgHome", "/Users/stefan/apps/ili2pg-5.5.1"),
+            System.getProperty("ili2pgHome", "unset"),
             redactJdbc(contractJdbcUrl()),
             contractTestRequired()
         ));
@@ -1082,6 +1071,4 @@ public class GrailsPostgresContractTest {
             .collect(Collectors.joining(", ", "[", "]"));
     }
 
-    private record CommandResult(int exitCode, String output) {
-    }
 }
