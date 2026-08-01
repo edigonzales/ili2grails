@@ -1,11 +1,18 @@
 package ch.interlis.generator.grails;
 
 /**
- * Codes of typed runtime descriptor diagnostics.
+ * Codes of typed runtime descriptor diagnostics. Keine freien String-Codes
+ * (Spezifikation §18.2).
  */
 public enum RuntimeDescriptorDiagnosticCode {
     UNRESOLVED_TARGET_CLASS,
     UNRESOLVED_RELATED_CLASS,
     UNRESOLVED_PARTICIPANT_CLASS,
-    UNRESOLVED_ROLE_TARGET
+    UNRESOLVED_ROLE_TARGET,
+    DUPLICATE_DOMAIN_DESCRIPTOR,
+    DUPLICATE_ASSOCIATION_DESCRIPTOR,
+    DUPLICATE_CONTEXT_DESCRIPTOR,
+    INCONSISTENT_FIELD_DESCRIPTOR,
+    INCONSISTENT_RELATIONSHIP_DESCRIPTOR,
+    LEGACY_METADATA_DIVERGENCE
 }

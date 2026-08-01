@@ -16,6 +16,7 @@ import ch.interlis.generator.grails.runtime.api.descriptor.InverseRelationshipDe
 import ch.interlis.generator.grails.runtime.api.descriptor.InverseRelationshipMode;
 import ch.interlis.generator.grails.runtime.api.descriptor.RelationshipDescriptor;
 import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeCoreType;
+import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeDescriptorSeverity;
 import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.CoreType;
@@ -24,12 +25,15 @@ import ch.interlis.generator.model.RelationshipMetadata;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Single place deriving the typed runtime descriptors from the immutable core
@@ -49,6 +53,14 @@ public final class RuntimeDescriptorPlanner {
     private final GrailsAssociationPlanner associations;
     private final GrailsInverseRelationshipPlanner inverses;
     private final Map<String, ClassMetadata> classesByName;
+    private ModelMetadata metadata;
+
+    private ModelMetadata metadata() {
+        if (metadata == null) {
+            throw new IllegalStateException("plan(metadata, config) must be called first");
+        }
+        return metadata;
+    }
 
     public RuntimeDescriptorPlanner(TargetNameRegistry names,
                                     GrailsRelationshipMapper relationships,
@@ -67,6 +79,7 @@ public final class RuntimeDescriptorPlanner {
     public RuntimeDescriptorPlan plan(ModelMetadata metadata, GenerationConfig config) {
         Objects.requireNonNull(metadata, "metadata");
         Objects.requireNonNull(config, "config");
+        this.metadata = metadata;
 
         List<DomainDescriptor> domains = new ArrayList<>();
         List<AssociationDescriptor> associationDescriptors = new ArrayList<>();
@@ -76,7 +89,7 @@ public final class RuntimeDescriptorPlanner {
         List<ClassMetadata> classes = new ArrayList<>(relationships.generatedClasses());
         classes.sort(Comparator.comparing(ClassMetadata::getName, Comparator.nullsLast(String::compareTo)));
         for (ClassMetadata classMetadata : classes) {
-            domains.add(planDomain(classMetadata, metadata, config));
+            domains.add(planDomain(classMetadata, metadata, config, diagnostics));
         }
 
         boolean writeEnabled = config.isAssociationUiEditable();
@@ -84,11 +97,19 @@ public final class RuntimeDescriptorPlanner {
         plans.sort(Comparator.comparing(
             GrailsAssociationPlan::associationName, Comparator.nullsLast(String::compareTo)));
         for (GrailsAssociationPlan plan : plans) {
-            associationDescriptors.add(planAssociation(plan, config, writeEnabled));
+            associationDescriptors.add(planAssociation(plan, config, writeEnabled, diagnostics));
             for (GrailsAssociationContextPlan context : plan.contexts()) {
                 contextDescriptors.add(planContext(plan, context, writeEnabled));
             }
         }
+
+        detectDuplicateDomains(domains, diagnostics);
+        detectDuplicateAssociations(associationDescriptors, diagnostics);
+        detectDuplicateContexts(contextDescriptors, diagnostics);
+        diagnostics.sort(Comparator
+            .comparing((RuntimeDescriptorDiagnostic diagnostic) ->
+                diagnostic.code() == null ? "" : diagnostic.code().name())
+            .thenComparing(diagnostic -> diagnostic.subject() == null ? "" : diagnostic.subject()));
 
         return new RuntimeDescriptorPlan(
             domains,
@@ -98,9 +119,59 @@ public final class RuntimeDescriptorPlanner {
         );
     }
 
+    static void detectDuplicateDomains(List<DomainDescriptor> domains,
+                                        List<RuntimeDescriptorDiagnostic> diagnostics) {
+        Set<String> seen = new HashSet<>();
+        for (DomainDescriptor domain : domains) {
+            String key = domain.domainClassName();
+            if (key != null && !seen.add(key)) {
+                diagnostics.add(new RuntimeDescriptorDiagnostic(
+                    RuntimeDescriptorSeverity.ERROR,
+                    RuntimeDescriptorDiagnosticCode.DUPLICATE_DOMAIN_DESCRIPTOR,
+                    key,
+                    "Duplicate generated domain class name " + key
+                        + "; the generated registries would be ambiguous",
+                    Map.of("domainClassName", key)));
+            }
+        }
+    }
+
+    static void detectDuplicateAssociations(List<AssociationDescriptor> associations,
+                                             List<RuntimeDescriptorDiagnostic> diagnostics) {
+        Set<String> seen = new HashSet<>();
+        for (AssociationDescriptor association : associations) {
+            String key = association.associationName();
+            if (key != null && !seen.add(key)) {
+                diagnostics.add(new RuntimeDescriptorDiagnostic(
+                    RuntimeDescriptorSeverity.ERROR,
+                    RuntimeDescriptorDiagnosticCode.DUPLICATE_ASSOCIATION_DESCRIPTOR,
+                    key,
+                    "Duplicate association name " + key,
+                    Map.of("associationName", key)));
+            }
+        }
+    }
+
+    static void detectDuplicateContexts(List<AssociationContextDescriptor> contexts,
+                                         List<RuntimeDescriptorDiagnostic> diagnostics) {
+        Set<String> seen = new HashSet<>();
+        for (AssociationContextDescriptor context : contexts) {
+            String key = context.id();
+            if (key != null && !seen.add(key)) {
+                diagnostics.add(new RuntimeDescriptorDiagnostic(
+                    RuntimeDescriptorSeverity.ERROR,
+                    RuntimeDescriptorDiagnosticCode.DUPLICATE_CONTEXT_DESCRIPTOR,
+                    key,
+                    "Duplicate association context id " + key,
+                    Map.of("contextId", key)));
+            }
+        }
+    }
+
     private DomainDescriptor planDomain(ClassMetadata classMetadata,
                                         ModelMetadata metadata,
-                                        GenerationConfig config) {
+                                        GenerationConfig config,
+                                        List<RuntimeDescriptorDiagnostic> diagnostics) {
         String iliName = classMetadata.getName();
         String modelName = metadata.getModelName();
         boolean associationDomain = associations.isAssociationDomain(iliName);
@@ -134,7 +205,25 @@ public final class RuntimeDescriptorPlanner {
                 fields.put(property.name(), planField(property, attribute));
             }
             if (property.relationship() != null) {
-                relationshipDescriptors.put(property.name(), planRelationship(property));
+                relationshipDescriptors.put(property.name(), planRelationship(property, diagnostics));
+            } else if (attribute != null && attribute.isForeignKey()) {
+                boolean hasReferencedClass = attribute.getReferencedClass() != null
+                    && !attribute.getReferencedClass().isBlank();
+                diagnostics.add(new RuntimeDescriptorDiagnostic(
+                    hasReferencedClass
+                        ? RuntimeDescriptorSeverity.WARNING
+                        : RuntimeDescriptorSeverity.ERROR,
+                    RuntimeDescriptorDiagnosticCode.INCONSISTENT_FIELD_DESCRIPTOR,
+                    property.name(),
+                    hasReferencedClass
+                        ? "Foreign key attribute has no mapped relationship; the field "
+                            + "continues as a degraded scalar reference: " + property.name()
+                        : "Foreign key attribute has no mapped relationship and no referenced "
+                            + "class: " + property.name(),
+                    Map.of(
+                        "ownerIliClass", classMetadata.getName(),
+                        "columnName", property.columnName() == null ? "" : property.columnName(),
+                        "referencedClass", attribute.getReferencedClass() == null ? "" : attribute.getReferencedClass())));
             }
         }
 
@@ -149,7 +238,8 @@ public final class RuntimeDescriptorPlanner {
             Comparator.nullsLast(String::compareTo)));
         for (GrailsInverseRelationshipPlan plan : inversePlans) {
             if (plan.visible()) {
-                inverseDescriptors.put(plan.collectionPropertyName(), planInverse(plan));
+                inverseDescriptors.put(plan.collectionPropertyName(),
+                    planInverse(plan, diagnostics));
             }
         }
 
@@ -206,10 +296,45 @@ public final class RuntimeDescriptorPlanner {
         );
     }
 
-    private RelationshipDescriptor planRelationship(GrailsRelationshipMapper.DomainProperty property) {
+    private RelationshipDescriptor planRelationship(GrailsRelationshipMapper.DomainProperty property,
+                                                   List<RuntimeDescriptorDiagnostic> diagnostics) {
         RelationshipMetadata relationship = property.relationship();
         String targetClass = relationshipTargetQualifiedName(relationship);
         String label = relationshipLabel(property, relationship);
+        if (relationship.getTargetClass() != null && targetClass == null) {
+            ClassMetadata targetMetadata = metadata.getClass(relationship.getTargetClass());
+            boolean abstractTarget = targetMetadata != null && targetMetadata.isAbstract();
+            boolean external = relationship.isExternal();
+            boolean writable = !external && !abstractTarget
+                && relationship.getType() == RelationshipMetadata.RelationType.MANY_TO_ONE;
+            diagnostics.add(new RuntimeDescriptorDiagnostic(
+                writable ? RuntimeDescriptorSeverity.ERROR : RuntimeDescriptorSeverity.WARNING,
+                RuntimeDescriptorDiagnosticCode.UNRESOLVED_TARGET_CLASS,
+                property.name(),
+                "Relationship target class is not generated: " + relationship.getTargetClass()
+                    + (writable
+                        ? "; a writable relationship cannot be mapped without its target"
+                        : "; read-only presentation continues without navigation"),
+                Map.of(
+                    "ownerIliClass", relationship.getSourceClass() == null ? "" : relationship.getSourceClass(),
+                    "relationshipName", relationship.getName() == null ? "" : relationship.getName(),
+                    "targetIliClass", relationship.getTargetClass(),
+                    "semanticKind", relationship.getSemanticKind() == null ? "" : relationship.getSemanticKind().name(),
+                    "abstractTarget", String.valueOf(abstractTarget),
+                    "external", String.valueOf(external),
+                    "writable", String.valueOf(writable))));
+        }
+        if (property.relationship() != null && property.attribute() == null
+            && relationship.getType() == RelationshipMetadata.RelationType.MANY_TO_ONE) {
+            diagnostics.add(new RuntimeDescriptorDiagnostic(
+                RuntimeDescriptorSeverity.ERROR,
+                RuntimeDescriptorDiagnosticCode.INCONSISTENT_RELATIONSHIP_DESCRIPTOR,
+                property.name(),
+                "Many-to-one relationship property has no attribute metadata; "
+                    + "the field cannot be persisted",
+                Map.of("ownerIliClass",
+                    relationship.getSourceClass() == null ? "" : relationship.getSourceClass())));
+        }
         return new RelationshipDescriptor(
             property.name(),
             property.name(),
@@ -246,11 +371,26 @@ public final class RuntimeDescriptorPlanner {
         return property.name();
     }
 
-    private InverseRelationshipDescriptor planInverse(GrailsInverseRelationshipPlan plan) {
+    InverseRelationshipDescriptor planInverse(GrailsInverseRelationshipPlan plan,
+                                               List<RuntimeDescriptorDiagnostic> diagnostics) {
         String relatedController = null;
         ClassMetadata related = classesByName.get(plan.relatedIliClassName());
         if (related != null) {
             relatedController = names.viewPath(related);
+        } else {
+            diagnostics.add(new RuntimeDescriptorDiagnostic(
+                plan.writable() ? RuntimeDescriptorSeverity.ERROR : RuntimeDescriptorSeverity.WARNING,
+                RuntimeDescriptorDiagnosticCode.UNRESOLVED_RELATED_CLASS,
+                plan.collectionPropertyName(),
+                "Inverse relationship related class is not generated: " + plan.relatedIliClassName()
+                    + (plan.writable()
+                        ? "; a writable inverse relationship cannot be mapped without its related class"
+                        : "; read-only inverse presentation continues without navigation"),
+                Map.of(
+                    "ownerIliClass", plan.ownerIliClassName(),
+                    "relatedIliClass", plan.relatedIliClassName(),
+                    "writable", String.valueOf(plan.writable()),
+                    "visible", String.valueOf(plan.visible()))));
         }
         return new InverseRelationshipDescriptor(
             plan.collectionPropertyName(),
@@ -269,15 +409,59 @@ public final class RuntimeDescriptorPlanner {
 
     private AssociationDescriptor planAssociation(GrailsAssociationPlan plan,
                                                   GenerationConfig config,
-                                                  boolean writeEnabled) {
+                                                  boolean writeEnabled,
+                                                  List<RuntimeDescriptorDiagnostic> diagnostics) {
         List<AssociationRoleDescriptor> roles = new ArrayList<>();
         for (GrailsAssociationRolePlan role : plan.roles()) {
+            boolean external = Boolean.TRUE.equals(role.external());
+            ClassMetadata targetClass = classesByName.get(role.targetIliClassName());
+            if (role.targetIliClassName() != null && targetClass == null) {
+                ClassMetadata targetMetadata =
+                    metadata().getClass(role.targetIliClassName());
+                boolean abstractTarget = targetMetadata != null && targetMetadata.isAbstract();
+                diagnostics.add(new RuntimeDescriptorDiagnostic(
+                    (external || abstractTarget)
+                        ? RuntimeDescriptorSeverity.WARNING
+                        : RuntimeDescriptorSeverity.ERROR,
+                    RuntimeDescriptorDiagnosticCode.UNRESOLVED_PARTICIPANT_CLASS,
+                    plan.associationName() + "." + role.roleName(),
+                    "Association role target class is not generated: " + role.targetIliClassName()
+                        + ((external || abstractTarget)
+                            ? "; read-only presentation continues without navigation"
+                            : "; a writable role cannot be mapped without its target"),
+                    Map.of(
+                        "associationName", plan.associationName(),
+                        "roleName", role.roleName(),
+                        "targetIliClass", role.targetIliClassName(),
+                        "external", String.valueOf(external),
+                        "abstractTarget", String.valueOf(abstractTarget))));
+            }
+            String targetDomainQualifiedName = role.targetDomainQualifiedName();
+            if (targetDomainQualifiedName == null && !external) {
+                ClassMetadata targetMetadata =
+                    metadata().getClass(role.targetIliClassName());
+                boolean abstractTarget = targetMetadata != null && targetMetadata.isAbstract();
+                diagnostics.add(new RuntimeDescriptorDiagnostic(
+                    abstractTarget
+                        ? RuntimeDescriptorSeverity.WARNING
+                        : RuntimeDescriptorSeverity.ERROR,
+                    RuntimeDescriptorDiagnosticCode.UNRESOLVED_ROLE_TARGET,
+                    plan.associationName() + "." + role.roleName(),
+                    "Association role has no target domain class: " + role.roleName()
+                        + (abstractTarget
+                            ? "; abstract target classes carry no generated domain"
+                            : ""),
+                    Map.of(
+                        "associationName", plan.associationName(),
+                        "roleName", role.roleName(),
+                        "abstractTarget", String.valueOf(abstractTarget))));
+            }
             roles.add(new AssociationRoleDescriptor(
                 role.roleName(),
                 role.roleLabel(),
                 role.domainPropertyName(),
                 role.targetIliClassName(),
-                role.targetDomainQualifiedName(),
+                targetDomainQualifiedName,
                 role.minCardinality() != null ? role.minCardinality() : 0,
                 role.maxCardinality() != null ? role.maxCardinality() : -1,
                 role.mandatory(),

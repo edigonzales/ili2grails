@@ -34,6 +34,9 @@ public class GrailsCrudGenerator {
         RuntimeDescriptorPlanner descriptorPlanner = new RuntimeDescriptorPlanner(
             registry, relationshipMapper, associationPlanner, inverseRelationshipPlanner);
         RuntimeDescriptorPlan descriptorPlan = descriptorPlanner.plan(metadata, config);
+        // Gate (Spezifikation §19.5): blockierende Diagnostics verhindern jede
+        // Dateiplanung und jeden Write.
+        descriptorPlan.throwIfBlocking();
 
         enumGenerator.generate(metadata, config, registry);
         domainGenerator.generate(
