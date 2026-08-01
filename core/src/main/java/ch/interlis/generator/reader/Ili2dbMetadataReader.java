@@ -1,6 +1,10 @@
 package ch.interlis.generator.reader;
 
 import ch.interlis.generator.model.*;
+import ch.interlis.generator.reader.sql.QualifiedSqlName;
+import ch.interlis.generator.reader.sql.SqlIdentifier;
+import ch.interlis.generator.reader.sql.SqlIdentifierKind;
+import ch.interlis.generator.reader.sql.SqlIdentifierRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +25,11 @@ import java.util.regex.Pattern;
  * - t_ili2db_model: Importierte Modelle
  * - t_ili2db_table_prop: Tabellen-Properties
  * - t_ili2db_column_prop: Spalten-Properties (u.a. Constraints)
+ *
+ * <p>Alle dynamischen Schema-, Tabellen- und Spaltennamen werden als
+ * {@link SqlIdentifier} modelliert und beim SQL-Aufbau über den
+ * {@link SqlIdentifierRenderer} gequotet. Es gibt keine {@code {schema}}-Ersetzung
+ * und keine ungeprüfte String-Konkatenation dynamischer Identifier.</p>
  */
 public class Ili2dbMetadataReader {
     
@@ -35,12 +44,80 @@ public class Ili2dbMetadataReader {
     private static final String PRIMARY_KEY_COLUMN = "t_id";
     
     private final Connection connection;
-    private String schemaName;
+    private final SqlIdentifier schema;
+    private final SqlIdentifierRenderer identifierRenderer;
     private final Map<String, List<EnumMetadata.EnumValue>> enumValueCache = new HashMap<>();
     
+    /**
+     * Kompatibilitäts-Konstruktor ohne SQLException. Die Renderer-Initialisierung
+     * läuft über die JDBC-Metadaten; bei nicht lesbaren Metadaten wird ein
+     * warnender Fallback auf PostgreSQL-Quoting verwendet.
+     *
+     * <p>Bevorzugt ist die Factory {@link #create(Connection, String)}, die Fehler
+     * strikt weiterreicht.</p>
+     */
     public Ili2dbMetadataReader(Connection connection, String schemaName) {
         this.connection = Objects.requireNonNull(connection, "connection");
-        this.schemaName = normalizeSchemaName(schemaName);
+        this.schema = toSchemaIdentifier(schemaName);
+        this.identifierRenderer = defaultRenderer(connection);
+    }
+
+    private Ili2dbMetadataReader(Connection connection,
+                                 SqlIdentifier schema,
+                                 SqlIdentifierRenderer identifierRenderer) {
+        this.connection = Objects.requireNonNull(connection, "connection");
+        this.schema = schema;
+        this.identifierRenderer = Objects.requireNonNull(identifierRenderer, "identifierRenderer");
+    }
+
+    /**
+     * Factory mit strikter Renderer-Initialisierung über JDBC-Metadaten.
+     */
+    public static Ili2dbMetadataReader create(Connection connection, String schemaName)
+            throws SQLException {
+        return new Ili2dbMetadataReader(
+            Objects.requireNonNull(connection, "connection"),
+            toSchemaIdentifier(schemaName),
+            SqlIdentifierRenderer.from(connection.getMetaData())
+        );
+    }
+
+    private static SqlIdentifier toSchemaIdentifier(String schemaName) {
+        if (schemaName == null || schemaName.isBlank()) {
+            return null;
+        }
+        return SqlIdentifier.userSupplied(schemaName);
+    }
+
+    private static SqlIdentifierRenderer defaultRenderer(Connection connection) {
+        try {
+            return SqlIdentifierRenderer.from(connection.getMetaData());
+        } catch (SQLException e) {
+            logger.warn("Could not read identifier quote string from JDBC metadata; "
+                + "falling back to PostgreSQL quoting ('\"')", e);
+            return SqlIdentifierRenderer.fromQuoteString("\"");
+        }
+    }
+
+    /**
+     * Qualifizierte, gequotete Meta-Tabelle (interner konstanter Name).
+     */
+    private String metaTable(String tableName) {
+        return identifierRenderer.qualify(schema, SqlIdentifier.internal(tableName));
+    }
+
+    /**
+     * Qualifizierte, gequotete dynamisch entdeckte Tabelle (z.&nbsp;B. Enum-Tabellen).
+     */
+    private String qualifiedDiscoveredTable(String tableName) {
+        return identifierRenderer.qualify(schema, SqlIdentifier.discovered(tableName));
+    }
+
+    /**
+     * Quotet eine dynamisch entdeckte Spalte.
+     */
+    private String quotedDiscoveredColumn(String columnName) {
+        return identifierRenderer.quote(SqlIdentifier.discovered(columnName));
     }
     
     /**
@@ -51,7 +128,7 @@ public class Ili2dbMetadataReader {
         
         ModelMetadata metadata = new ModelMetadata(modelName);
         
-        metadata.setSchemaName(schemaName);
+        metadata.setSchemaName(schema != null ? schema.value() : null);
         
         // Settings lesen
         readSettings(metadata);
@@ -86,7 +163,7 @@ public class Ili2dbMetadataReader {
      * Liest die ili2db Settings.
      */
     private void readSettings(ModelMetadata metadata) throws SQLException {
-        String sql = buildQuery("SELECT tag, setting FROM {schema}.t_ili2db_settings");
+        String sql = "SELECT tag, setting FROM " + metaTable("t_ili2db_settings");
         
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -109,14 +186,14 @@ public class Ili2dbMetadataReader {
      */
     private void readClasses(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
         List<String> prefixes = buildModelPrefixes(metadata, modelNames);
-        String sql = buildQuery(
+        String sql =
             "SELECT tp.tablename, tp.setting, c.iliname " +
-            "FROM {schema}.t_ili2db_table_prop tp " +
-            "LEFT JOIN {schema}.t_ili2db_classname c " +
+            "FROM " + metaTable("t_ili2db_table_prop") + " tp " +
+            "LEFT JOIN " + metaTable("t_ili2db_classname") + " c " +
             "  ON upper(tp.tablename) = upper(c.sqlname) " +
             "WHERE " + buildLikeClause("c.iliname", prefixes.size()) + " " +
             "ORDER BY c.iliname"
-        );
+        ;
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             bindLikePrefixes(pstmt, prefixes);
@@ -164,15 +241,13 @@ public class Ili2dbMetadataReader {
             .toList();
         Map<EnumColumnKey, EnumDomainInfo> enumDomains = loadEnumDomains();
         String whereClause = buildAttributeWhereClause(prefixes.size(), tableNames.size());
-        String sql = buildQuery(String.format(
-            "SELECT " + ATTR_ILINAME_REF + ", a.sqlname, a.%s AS owner, a.%s AS target " +
-            "FROM {schema}.t_ili2db_attrname a " +
+        String sql =
+            "SELECT " + ATTR_ILINAME_REF + ", a.sqlname, a." + ATTR_OWNER_COLUMN + " AS owner, a."
+                + ATTR_TARGET_COLUMN + " AS target " +
+            "FROM " + metaTable("t_ili2db_attrname") + " a " +
             "WHERE " + whereClause + " " +
-            "ORDER BY a.%s, a.sqlname",
-            ATTR_OWNER_COLUMN,
-            ATTR_TARGET_COLUMN,
-            ATTR_OWNER_COLUMN
-        ));
+            "ORDER BY a." + ATTR_OWNER_COLUMN + ", a.sqlname"
+        ;
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             bindAttributeFilters(pstmt, prefixes, tableNames);
@@ -247,14 +322,14 @@ public class Ili2dbMetadataReader {
         if (columns == null) {
             return Collections.emptyMap();
         }
-        String sql = buildQuery(String.format(
-            "SELECT cp.%s AS owner, cp.%s AS columnname, cp.setting AS enumIliName, cn.sqlname AS enumTable " +
-                "FROM {schema}.t_ili2db_column_prop cp " +
-                "LEFT JOIN {schema}.t_ili2db_classname cn ON cp.setting = cn.iliname " +
-                "WHERE cp.tag = ?",
-            columns.ownerColumn(),
-            columns.columnColumn()
-        ));
+        String sql =
+            "SELECT cp." + quotedDiscoveredColumn(columns.ownerColumn()) + " AS owner, "
+                + "cp." + quotedDiscoveredColumn(columns.columnColumn()) + " AS columnname, "
+                + "cp.setting AS enumIliName, cn.sqlname AS enumTable " +
+            "FROM " + metaTable("t_ili2db_column_prop") + " cp " +
+            "LEFT JOIN " + metaTable("t_ili2db_classname") + " cn ON cp.setting = cn.iliname " +
+            "WHERE cp.tag = ?"
+        ;
         Map<EnumColumnKey, EnumDomainInfo> enumDomains = new HashMap<>();
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, ENUM_DOMAIN_TAG);
@@ -278,7 +353,7 @@ public class Ili2dbMetadataReader {
     }
 
     private ColumnPropColumns resolveColumnPropColumns() throws SQLException {
-        String sql = buildQuery("SELECT * FROM {schema}.t_ili2db_column_prop WHERE 1=0");
+        String sql = "SELECT * FROM " + metaTable("t_ili2db_column_prop") + " WHERE 1=0";
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             ResultSetMetaData meta = rs.getMetaData();
@@ -301,7 +376,7 @@ public class Ili2dbMetadataReader {
 
     private List<EnumMetadata.EnumValue> readEnumTableValues(String enumTableName) {
         List<EnumMetadata.EnumValue> values = new ArrayList<>();
-        String sql = buildQuery("SELECT * FROM {schema}." + enumTableName);
+        String sql = "SELECT * FROM " + qualifiedDiscoveredTable(enumTableName);
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             ResultSetMetaData meta = rs.getMetaData();
@@ -375,7 +450,7 @@ public class Ili2dbMetadataReader {
             if (!isPostgreSql(connection)) {
                 return null;
             }
-            String resolvedSchema = schemaName;
+            String resolvedSchema = schema != null ? schema.value() : null;
             if (resolvedSchema == null || resolvedSchema.isBlank()) {
                 resolvedSchema = "public";
             }
@@ -394,7 +469,7 @@ public class Ili2dbMetadataReader {
                 }
             }
         } catch (SQLException e) {
-            logger.debug("Could not resolve SRID for {}.{} ({})", tableName, columnName, schemaName, e);
+            logger.debug("Could not resolve SRID for {}.{} ({})", tableName, columnName, schema, e);
         }
         return null;
     }
@@ -404,7 +479,7 @@ public class Ili2dbMetadataReader {
             if (!isPostgreSql(connection)) {
                 return null;
             }
-            String resolvedSchema = schemaName;
+            String resolvedSchema = schema != null ? schema.value() : null;
             if (resolvedSchema == null || resolvedSchema.isBlank()) {
                 resolvedSchema = "public";
             }
@@ -439,7 +514,7 @@ public class Ili2dbMetadataReader {
                 }
             }
         } catch (SQLException e) {
-            logger.debug("Could not resolve geometry kind for {}.{} ({})", tableName, columnName, schemaName, e);
+            logger.debug("Could not resolve geometry kind for {}.{} ({})", tableName, columnName, schema, e);
         }
         return null;
     }
@@ -469,11 +544,15 @@ public class Ili2dbMetadataReader {
             }
         }
         DatabaseMetaData meta = connection.getMetaData();
-        ColumnInfo direct = findColumnInfo(meta, tableName, columnName, schemaName);
+        ColumnInfo direct = findColumnInfo(meta, tableName, columnName, schemaNameValue());
         if (direct != null) {
             return direct;
         }
         return findColumnInfo(meta, tableName, columnName, null);
+    }
+
+    private String schemaNameValue() {
+        return schema != null ? schema.value() : null;
     }
 
     private ColumnInfo findColumnInfo(DatabaseMetaData meta, String tableName, String columnName, String schema)
@@ -675,10 +754,10 @@ public class Ili2dbMetadataReader {
      */
     private void readInheritance(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
         List<String> prefixes = buildModelPrefixes(metadata, modelNames);
-        String sql = buildQuery(
-            "SELECT thisclass, baseclass FROM {schema}.t_ili2db_inheritance " +
+        String sql =
+            "SELECT thisclass, baseclass FROM " + metaTable("t_ili2db_inheritance") + " " +
             "WHERE " + buildLikeClause("thisclass", prefixes.size())
-        );
+        ;
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             bindLikePrefixes(pstmt, prefixes);
@@ -704,11 +783,11 @@ public class Ili2dbMetadataReader {
      * Liest Spalten-Properties (Constraints, etc.).
      */
     private void readColumnProperties(ModelMetadata metadata) throws SQLException {
-        String sql = buildQuery(
+        String sql =
             "SELECT tablename, columnname, tag, setting " +
-            "FROM {schema}.t_ili2db_column_prop " +
+            "FROM " + metaTable("t_ili2db_column_prop") + " " +
             "ORDER BY tablename, columnname"
-        );
+        ;
         
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -886,13 +965,6 @@ public class Ili2dbMetadataReader {
         }
         return false;
     }
-    
-    private String buildQuery(String template) {
-        if (schemaName == null || schemaName.isBlank()) {
-            return template.replace("{schema}.", "").replace("{schema}", "");
-        }
-        return template.replace("{schema}", schemaName);
-    }
 
     private String buildLikeClause(String columnName, int paramCount) {
         StringBuilder builder = new StringBuilder("(");
@@ -997,7 +1069,7 @@ public class Ili2dbMetadataReader {
             modelNames.add(requestedModel);
         }
 
-        String sql = buildQuery("SELECT * FROM {schema}.t_ili2db_model");
+        String sql = "SELECT * FROM " + metaTable("t_ili2db_model");
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             ResultSetMetaData meta = rs.getMetaData();
@@ -1052,13 +1124,6 @@ public class Ili2dbMetadataReader {
             return false;
         }
         return content.matches("(?s).*TYPE\\s+MODEL.*");
-    }
-
-    private String normalizeSchemaName(String schema) {
-        if (schema == null || schema.isBlank()) {
-            return null;
-        }
-        return schema;
     }
 
     private Optional<ClassMetadata.ClassKind> mapClassKind(String setting) {
@@ -1125,11 +1190,15 @@ public class Ili2dbMetadataReader {
         return left.equalsIgnoreCase(right);
     }
 
+    /**
+     * Raw SQL-Name für die Core-IR (Schema + Tabelle, ungequotet).
+     * Quoting ist eine reine SQL-Rendering-Aufgabe und findet hier bewusst nicht statt.
+     */
     private String qualifyTableName(String tableName) {
-        if (schemaName == null || schemaName.isBlank()) {
+        if (schema == null) {
             return tableName;
         }
-        return schemaName + "." + tableName;
+        return schema.value() + "." + tableName;
     }
 
     private boolean isSqlite(Connection connection) throws SQLException {
