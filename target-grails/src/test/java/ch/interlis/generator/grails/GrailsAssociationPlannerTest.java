@@ -2,6 +2,10 @@ package ch.interlis.generator.grails;
 
 import ch.interlis.generator.model.AssociationMetadata;
 import ch.interlis.generator.model.AssociationRoleMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
+import ch.interlis.generator.model.builder.AssociationMetadataBuilder;
+import ch.interlis.generator.model.builder.AssociationRoleMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
@@ -222,24 +226,25 @@ class GrailsAssociationPlannerTest {
 
     @Test
     void naryAssociationUsesNaryContextualForm() {
-        ModelMetadata metadata = new ModelMetadata("Ternary");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("Ternary");
         ClassMetadata person = persistentClass("Ternary.Person", "person");
         ClassMetadata parcel = persistentClass("Ternary.Parcel", "parcel");
         ClassMetadata document = persistentClass("Ternary.Document", "document");
         ClassMetadata link = associationClass("Ternary.TernaryAssociation", "ternaryassociation");
-        metadata.addClass(person);
-        metadata.addClass(parcel);
-        metadata.addClass(document);
-        metadata.addClass(link);
+        modelBuilder.addClassFrom(person);
+        modelBuilder.addClassFrom(parcel);
+        modelBuilder.addClassFrom(document);
+        modelBuilder.addClassFrom(link);
 
-        AssociationMetadata association = new AssociationMetadata("Ternary.TernaryAssociation");
-        association.setAssociationClass(link.getName());
-        association.setPhysicalTable("ternaryassociation");
-        association.addRole(role("PersonRole", person.getName(), 1, 1));
-        association.addRole(role("ParcelRole", parcel.getName(), 1, 1));
-        association.addRole(role("DocumentRole", document.getName(), 0, 1));
-        metadata.addAssociation(association);
+        AssociationMetadataBuilder association = modelBuilder.associationBuilder("Ternary.TernaryAssociation");
+        association.associationClass(link.getName());
+        association.physicalTable("ternaryassociation");
+        association.role(AssociationRoleMetadataBuilder.from(role("PersonRole", person.getName(), 1, 1)));
+        association.role(AssociationRoleMetadataBuilder.from(role("ParcelRole", parcel.getName(), 1, 1)));
+        association.role(AssociationRoleMetadataBuilder.from(role("DocumentRole", document.getName(), 0, 1)));
+        ;
 
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
         GrailsAssociationPlanner planner = planner(metadata);
         GrailsAssociationPlan plan = plan(planner, "Ternary.TernaryAssociation");
 
@@ -256,23 +261,24 @@ class GrailsAssociationPlannerTest {
 
     @Test
     void orderedAssociationIsNotQuickLinkWithoutOrderMapping() {
-        ModelMetadata metadata = new ModelMetadata("Ordered");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("Ordered");
         ClassMetadata person = persistentClass("Ordered.Person", "person");
         ClassMetadata document = persistentClass("Ordered.Document", "document");
         ClassMetadata link = associationClass("Ordered.OrderedAssociation", "orderedassociation");
-        metadata.addClass(person);
-        metadata.addClass(document);
-        metadata.addClass(link);
+        modelBuilder.addClassFrom(person);
+        modelBuilder.addClassFrom(document);
+        modelBuilder.addClassFrom(link);
 
-        AssociationMetadata association = new AssociationMetadata("Ordered.OrderedAssociation");
-        association.setAssociationClass(link.getName());
-        association.setPhysicalTable("orderedassociation");
-        association.addRole(role("Owner", person.getName(), 1, 1));
-        AssociationRoleMetadata documents = role("Documents", document.getName(), 0, -1);
-        documents.setOrdered(true);
-        association.addRole(documents);
-        metadata.addAssociation(association);
+        AssociationMetadataBuilder association = modelBuilder.associationBuilder("Ordered.OrderedAssociation");
+        association.associationClass(link.getName());
+        association.physicalTable("orderedassociation");
+        association.role(AssociationRoleMetadataBuilder.from(role("Owner", person.getName(), 1, 1)));
+        AssociationRoleMetadataBuilder documents = AssociationRoleMetadataBuilder.from(role("Documents", document.getName(), 0, -1));
+        documents.ordered(true);
+        association.role(documents);
+        ;
 
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
         GrailsAssociationPlanner planner = planner(metadata);
         GrailsAssociationPlan plan = plan(planner, "Ordered.OrderedAssociation");
 
@@ -285,22 +291,22 @@ class GrailsAssociationPlannerTest {
 
     @Test
     void associationWithoutPhysicalClassIsReadOnly() {
-        ModelMetadata metadata = new ModelMetadata("Unmapped");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("Unmapped");
         ClassMetadata person = persistentClass("Unmapped.Person", "person");
         ClassMetadata parcel = persistentClass("Unmapped.Parcel", "parcel");
         // Association class without a physical table -> embedded FK.
-        ClassMetadata link = new ClassMetadata("Unmapped.UnmappedAssociation");
-        link.setKind(ClassMetadata.ClassKind.ASSOCIATION);
-        metadata.addClass(person);
-        metadata.addClass(parcel);
-        metadata.addClass(link);
+        ClassMetadata link = associationClass("Unmapped.UnmappedAssociation", null);
+        modelBuilder.addClassFrom(person);
+        modelBuilder.addClassFrom(parcel);
+        modelBuilder.addClassFrom(link);
 
-        AssociationMetadata association = new AssociationMetadata("Unmapped.UnmappedAssociation");
-        association.setAssociationClass(link.getName());
-        association.addRole(role("PersonRole", person.getName(), 0, -1));
-        association.addRole(role("ParcelRole", parcel.getName(), 0, 1));
-        metadata.addAssociation(association);
+        AssociationMetadataBuilder association = modelBuilder.associationBuilder("Unmapped.UnmappedAssociation");
+        association.associationClass(link.getName());
+        association.role(AssociationRoleMetadataBuilder.from(role("PersonRole", person.getName(), 0, -1)));
+        association.role(AssociationRoleMetadataBuilder.from(role("ParcelRole", parcel.getName(), 0, 1)));
+        ;
 
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
         GrailsAssociationPlanner planner = planner(metadata);
         GrailsAssociationPlan plan = plan(planner, "Unmapped.UnmappedAssociation");
 
@@ -319,23 +325,24 @@ class GrailsAssociationPlannerTest {
 
     @Test
     void standaloneExternalAssociationIsNotQuickLink() {
-        ModelMetadata metadata = new ModelMetadata("ExternalOnly");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("ExternalOnly");
         ClassMetadata person = persistentClass("ExternalOnly.Person", "person");
         ClassMetadata building = persistentClass("ExternalOnly.Building", "building");
         ClassMetadata link = associationClass("ExternalOnly.ExternalOnlyAssociation", "externalonlyassociation");
-        metadata.addClass(person);
-        metadata.addClass(building);
-        metadata.addClass(link);
+        modelBuilder.addClassFrom(person);
+        modelBuilder.addClassFrom(building);
+        modelBuilder.addClassFrom(link);
 
-        AssociationMetadata association = new AssociationMetadata("ExternalOnly.ExternalOnlyAssociation");
-        association.setAssociationClass(link.getName());
-        association.setPhysicalTable("externalonlyassociation");
-        association.addRole(role("PersonRole", person.getName(), 1, 1));
-        AssociationRoleMetadata externalRole = role("ExternalRole", building.getName(), 0, -1);
-        externalRole.setExternal(true);
-        association.addRole(externalRole);
-        metadata.addAssociation(association);
+        AssociationMetadataBuilder association = modelBuilder.associationBuilder("ExternalOnly.ExternalOnlyAssociation");
+        association.associationClass(link.getName());
+        association.physicalTable("externalonlyassociation");
+        association.role(AssociationRoleMetadataBuilder.from(role("PersonRole", person.getName(), 1, 1)));
+        AssociationRoleMetadataBuilder externalRole = AssociationRoleMetadataBuilder.from(role("ExternalRole", building.getName(), 0, -1));
+        externalRole.external(true);
+        association.role(externalRole);
+        ;
 
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
         GrailsAssociationPlanner planner = planner(metadata);
         GrailsAssociationPlan plan = plan(planner, "ExternalOnly.ExternalOnlyAssociation");
 
@@ -351,23 +358,24 @@ class GrailsAssociationPlannerTest {
 
     @Test
     void externalOnlyContextIsClassifiedAsContextualForm() {
-        ModelMetadata metadata = new ModelMetadata("ExternalOnly2");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("ExternalOnly2");
         ClassMetadata person = persistentClass("ExternalOnly2.Person", "person");
         ClassMetadata building = persistentClass("ExternalOnly2.Building", "building");
         ClassMetadata link = associationClass("ExternalOnly2.ExternalOnly2Assoc", "externalonly2_assoc");
-        metadata.addClass(person);
-        metadata.addClass(building);
-        metadata.addClass(link);
+        modelBuilder.addClassFrom(person);
+        modelBuilder.addClassFrom(building);
+        modelBuilder.addClassFrom(link);
 
-        AssociationMetadata association = new AssociationMetadata("ExternalOnly2.ExternalOnly2Assoc");
-        association.setAssociationClass(link.getName());
-        association.setPhysicalTable("externalonly2_assoc");
-        association.addRole(role("PersonRole", person.getName(), 1, 1));
-        AssociationRoleMetadata externalRole = role("ExternalRole", building.getName(), 0, -1);
-        externalRole.setExternal(true);
-        association.addRole(externalRole);
-        metadata.addAssociation(association);
+        AssociationMetadataBuilder association = modelBuilder.associationBuilder("ExternalOnly2.ExternalOnly2Assoc");
+        association.associationClass(link.getName());
+        association.physicalTable("externalonly2_assoc");
+        association.role(AssociationRoleMetadataBuilder.from(role("PersonRole", person.getName(), 1, 1)));
+        AssociationRoleMetadataBuilder externalRole = AssociationRoleMetadataBuilder.from(role("ExternalRole", building.getName(), 0, -1));
+        externalRole.external(true);
+        association.role(externalRole);
+        ;
 
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
         GrailsAssociationPlanner planner = planner(metadata);
         GrailsAssociationPlan plan = plan(planner, "ExternalOnly2.ExternalOnly2Assoc");
 
@@ -380,24 +388,24 @@ class GrailsAssociationPlannerTest {
 
     @Test
     void ambiguousRolePropertyCreatesDiagnosticAndReadOnlyContext() {
-        ModelMetadata metadata = new ModelMetadata("Ambiguous");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("Ambiguous");
         ClassMetadata person = persistentClass("Ambiguous.Person", "person");
         ClassMetadata link = associationClass("Ambiguous.AmbiguousAssociation", "ambiguousassociation");
-        metadata.addClass(person);
-        metadata.addClass(link);
+        modelBuilder.addClassFrom(person);
+        modelBuilder.addClassFrom(link);
 
-        AssociationMetadata association = new AssociationMetadata("Ambiguous.AmbiguousAssociation");
-        association.setAssociationClass(link.getName());
-        association.setPhysicalTable("ambiguousassociation");
+        AssociationMetadataBuilder association = modelBuilder.associationBuilder("Ambiguous.AmbiguousAssociation");
+        association.associationClass(link.getName());
+        association.physicalTable("ambiguousassociation");
         // Two distinct roles that share the same role name -> resolution is ambiguous.
-        AssociationRoleMetadata first = role("PersonRole", person.getName(), 0, 1);
-        first.setSourceAttribute("a_fk");
-        AssociationRoleMetadata second = role("PersonRole", person.getName(), 0, 1);
-        second.setSourceAttribute("b_fk");
-        association.addRole(first);
-        association.addRole(second);
-        metadata.addAssociation(association);
+        AssociationRoleMetadataBuilder first = AssociationRoleMetadataBuilder.from(role("PersonRole", person.getName(), 0, 1));
+        first.sourceAttribute("a_fk");
+        AssociationRoleMetadataBuilder second = AssociationRoleMetadataBuilder.from(role("PersonRole", person.getName(), 0, 1));
+        second.sourceAttribute("b_fk");
+        association.replaceRoles(List.of(first, second));
+        ;
 
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
         GrailsAssociationPlanner planner = planner(metadata);
         GrailsAssociationPlan plan = plan(planner, "Ambiguous.AmbiguousAssociation");
 
@@ -447,24 +455,24 @@ class GrailsAssociationPlannerTest {
     }
 
     private ClassMetadata persistentClass(String name, String tableName) {
-        ClassMetadata classMetadata = new ClassMetadata(name);
-        classMetadata.setKind(ClassMetadata.ClassKind.CLASS);
-        classMetadata.setTableName(tableName);
-        return classMetadata;
+        return ClassMetadata.builder(name)
+            .kind(ClassMetadata.ClassKind.CLASS)
+            .tableName(tableName)
+            .buildUnchecked();
     }
 
     private ClassMetadata associationClass(String name, String tableName) {
-        ClassMetadata classMetadata = new ClassMetadata(name);
-        classMetadata.setKind(ClassMetadata.ClassKind.ASSOCIATION);
-        classMetadata.setTableName(tableName);
-        return classMetadata;
+        return ClassMetadata.builder(name)
+            .kind(ClassMetadata.ClassKind.ASSOCIATION)
+            .tableName(tableName)
+            .buildUnchecked();
     }
 
     private AssociationRoleMetadata role(String name, String targetClass, int min, int max) {
-        AssociationRoleMetadata role = new AssociationRoleMetadata(name);
-        role.setTargetClass(targetClass);
-        role.setCardinality(new RelationshipMetadata.Cardinality(1, 1, min, max));
-        role.setMandatory(min > 0);
-        return role;
+        return AssociationRoleMetadata.builder(name)
+            .targetClass(targetClass)
+            .cardinality(ch.interlis.generator.model.Cardinality.of(1, 1, min, max))
+            .mandatory(min > 0)
+            .buildUnchecked();
     }
 }

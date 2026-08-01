@@ -1,9 +1,9 @@
 package ch.interlis.generator.grails;
 
-import ch.interlis.generator.model.AttributeMetadata;
-import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
-import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import groovy.lang.GroovyClassLoader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -450,17 +450,16 @@ class InterlisUiDescriptorSupportTest {
     }
 
     private GeneratedRuntime generatedRuntime() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("UiModel");
-        ClassMetadata municipality = new ClassMetadata("UiModel.Topic.Municipality");
-        municipality.addAttribute(attribute("name", "String"));
-        metadata.addClass(municipality);
-        ClassMetadata address = new ClassMetadata("UiModel.Topic.Address");
-        address.addAttribute(attribute("name", "String"));
-        address.addAttribute(attribute("description", "String"));
-        address.addAttribute(attribute("year", "Integer"));
-        address.addAttribute(attribute("active", "Boolean"));
-        address.addAttribute(attribute("longText", "String"));
-        metadata.addClass(address);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("UiModel");
+        modelBuilder.classBuilder("UiModel.Topic.Municipality")
+            .attribute(attribute("name", "String"));
+        modelBuilder.classBuilder("UiModel.Topic.Address")
+            .attribute(attribute("name", "String"))
+            .attribute(attribute("description", "String"))
+            .attribute(attribute("year", "Integer"))
+            .attribute(attribute("active", "Boolean"))
+            .attribute(attribute("longText", "String"));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example")
             .domainPackage("com.example.ui")
@@ -494,10 +493,8 @@ class InterlisUiDescriptorSupportTest {
         return new GeneratedRuntime(supportType, domainType, municipalityType, workspaceType, classLoader);
     }
 
-    private AttributeMetadata attribute(String name, String javaType) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setJavaType(javaType);
-        return attribute;
+    private AttributeMetadataBuilder attribute(String name, String javaType) {
+        return new AttributeMetadataBuilder(name).javaType(javaType);
     }
 
     private String domainSource() {

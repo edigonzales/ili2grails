@@ -1,39 +1,18 @@
 package ch.interlis.generator.model;
 
+import java.util.Objects;
+
 /**
- * Repräsentiert eine Beziehung zwischen zwei INTERLIS-Klassen.
+ * Immutable Metadaten einer Beziehung.
  */
-public class RelationshipMetadata {
-    
-    private String name;
-    private String sourceClass;
-    private String targetClass;
-    private RelationType type;
-    private SemanticKind semanticKind;
-    private String sourceAttribute;         // FK-Spalte in source
-    private String targetAttribute;         // Referenzierte Spalte in target (meist PK)
-    private String associationName;
-    private String sourceRoleName;
-    private String targetRoleName;
-    private String oppositeRoleName;
-    private Cardinality cardinality;
-    private boolean mandatory;
-    private boolean ordered;
-    private boolean external;
-    private boolean composition;
-    private String source;
-    private String physicalName;
-    private String semanticName;
-    private MergeReason mergeReason;
-    private MergeConfidence mergeConfidence;
-    private String mergeToken;
-    
+public final class RelationshipMetadata {
+
     public enum RelationType {
         ONE_TO_ONE,
         ONE_TO_MANY,
         MANY_TO_ONE,
         MANY_TO_MANY,
-        ASSOCIATION                         // INTERLIS Association Class
+        ASSOCIATION
     }
 
     public enum SemanticKind {
@@ -57,257 +36,186 @@ public class RelationshipMetadata {
         EXACT,
         MEDIUM
     }
-    
-    public static class Cardinality {
-        private int minSource;
-        private int maxSource;
-        private int minTarget;
-        private int maxTarget;
-        
-        public Cardinality(int minSource, int maxSource, int minTarget, int maxTarget) {
-            this.minSource = minSource;
-            this.maxSource = maxSource;
-            this.minTarget = minTarget;
-            this.maxTarget = maxTarget;
-        }
-        
-        public int getMinSource() {
-            return minSource;
-        }
-        
-        public int getMaxSource() {
-            return maxSource;
-        }
-        
-        public int getMinTarget() {
-            return minTarget;
-        }
-        
-        public int getMaxTarget() {
-            return maxTarget;
-        }
 
-        public void setMinSource(int minSource) {
-            this.minSource = minSource;
-        }
+    private final String name;
+    private final String sourceClass;
+    private final String targetClass;
+    private final RelationType type;
+    private final SemanticKind semanticKind;
+    private final String sourceAttribute;
+    private final String targetAttribute;
+    private final String associationName;
+    private final String sourceRoleName;
+    private final String targetRoleName;
+    private final String oppositeRoleName;
+    private final Cardinality cardinality;
+    private final boolean mandatory;
+    private final boolean ordered;
+    private final boolean external;
+    private final boolean composition;
+    private final String source;
+    private final String physicalName;
+    private final String semanticName;
+    private final MergeReason mergeReason;
+    private final MergeConfidence mergeConfidence;
+    private final String mergeToken;
 
-        public void setMaxSource(int maxSource) {
-            this.maxSource = maxSource;
-        }
-
-        public void setMinTarget(int minTarget) {
-            this.minTarget = minTarget;
-        }
-
-        public void setMaxTarget(int maxTarget) {
-            this.maxTarget = maxTarget;
-        }
-        
-        @Override
-        public String toString() {
-            return "{" + minSource + ".." + (maxSource == -1 ? "*" : maxSource) +
-                    " -> " + minTarget + ".." + (maxTarget == -1 ? "*" : maxTarget) + "}";
-        }
+    public RelationshipMetadata(String name,
+                         String sourceClass,
+                         String targetClass,
+                         RelationType type,
+                         SemanticKind semanticKind,
+                         String sourceAttribute,
+                         String targetAttribute,
+                         String associationName,
+                         String sourceRoleName,
+                         String targetRoleName,
+                         String oppositeRoleName,
+                         Cardinality cardinality,
+                         boolean mandatory,
+                         boolean ordered,
+                         boolean external,
+                         boolean composition,
+                         String source,
+                         String physicalName,
+                         String semanticName,
+                         MergeReason mergeReason,
+                         MergeConfidence mergeConfidence,
+                         String mergeToken) {
+        this.name = Objects.requireNonNull(name, "name");
+        this.sourceClass = Objects.requireNonNull(sourceClass, "sourceClass");
+        this.targetClass = Objects.requireNonNull(targetClass, "targetClass");
+        this.type = type;
+        this.semanticKind = semanticKind;
+        this.sourceAttribute = sourceAttribute;
+        this.targetAttribute = targetAttribute;
+        this.associationName = associationName;
+        this.sourceRoleName = sourceRoleName;
+        this.targetRoleName = targetRoleName;
+        this.oppositeRoleName = oppositeRoleName;
+        this.cardinality = cardinality;
+        this.mandatory = mandatory;
+        this.ordered = ordered;
+        this.external = external;
+        this.composition = composition;
+        this.source = source;
+        this.physicalName = physicalName;
+        this.semanticName = semanticName;
+        this.mergeReason = mergeReason;
+        this.mergeConfidence = mergeConfidence;
+        this.mergeToken = mergeToken;
     }
-    
-    public RelationshipMetadata(String name) {
-        this.name = name;
+
+    public static ch.interlis.generator.model.builder.RelationshipMetadataBuilder builder(String name) {
+        return new ch.interlis.generator.model.builder.RelationshipMetadataBuilder(name);
     }
-    
-    // Getters and Setters
-    
+
+    public ch.interlis.generator.model.builder.RelationshipMetadataBuilder toBuilder() {
+        return ch.interlis.generator.model.builder.RelationshipMetadataBuilder.from(this);
+    }
+
+    public RelationshipIdentity identity() {
+        return RelationshipIdentity.of(this);
+    }
+
     public String getName() {
         return name;
     }
-    
-    public void setName(String name) {
-        this.name = name;
-    }
-    
+
     public String getSourceClass() {
         return sourceClass;
     }
-    
-    public void setSourceClass(String sourceClass) {
-        this.sourceClass = sourceClass;
-    }
-    
+
     public String getTargetClass() {
         return targetClass;
     }
-    
-    public void setTargetClass(String targetClass) {
-        this.targetClass = targetClass;
-    }
-    
+
     public RelationType getType() {
         return type;
-    }
-    
-    public void setType(RelationType type) {
-        this.type = type;
     }
 
     public SemanticKind getSemanticKind() {
         return semanticKind;
     }
 
-    public void setSemanticKind(SemanticKind semanticKind) {
-        this.semanticKind = semanticKind;
-    }
-    
     public String getSourceAttribute() {
         return sourceAttribute;
     }
-    
-    public void setSourceAttribute(String sourceAttribute) {
-        this.sourceAttribute = sourceAttribute;
-    }
-    
+
     public String getTargetAttribute() {
         return targetAttribute;
-    }
-    
-    public void setTargetAttribute(String targetAttribute) {
-        this.targetAttribute = targetAttribute;
     }
 
     public String getAssociationName() {
         return associationName;
     }
 
-    public void setAssociationName(String associationName) {
-        this.associationName = associationName;
-    }
-
     public String getSourceRoleName() {
         return sourceRoleName;
-    }
-
-    public void setSourceRoleName(String sourceRoleName) {
-        this.sourceRoleName = sourceRoleName;
     }
 
     public String getTargetRoleName() {
         return targetRoleName;
     }
 
-    public void setTargetRoleName(String targetRoleName) {
-        this.targetRoleName = targetRoleName;
-    }
-
     public String getOppositeRoleName() {
         return oppositeRoleName;
     }
 
-    public void setOppositeRoleName(String oppositeRoleName) {
-        this.oppositeRoleName = oppositeRoleName;
-    }
-    
     public Cardinality getCardinality() {
         return cardinality;
     }
-    
-    public void setCardinality(Cardinality cardinality) {
-        this.cardinality = cardinality;
-    }
-    
+
     public boolean isMandatory() {
         return mandatory;
-    }
-    
-    public void setMandatory(boolean mandatory) {
-        this.mandatory = mandatory;
     }
 
     public boolean isOrdered() {
         return ordered;
     }
 
-    public void setOrdered(boolean ordered) {
-        this.ordered = ordered;
-    }
-
     public boolean isExternal() {
         return external;
-    }
-
-    public void setExternal(boolean external) {
-        this.external = external;
     }
 
     public boolean isComposition() {
         return composition;
     }
 
-    public void setComposition(boolean composition) {
-        this.composition = composition;
-    }
-
     public String getSource() {
         return source;
-    }
-
-    public void setSource(String source) {
-        this.source = source;
     }
 
     public String getPhysicalName() {
         return physicalName;
     }
 
-    public void setPhysicalName(String physicalName) {
-        this.physicalName = physicalName;
-    }
-
     public String getSemanticName() {
         return semanticName;
-    }
-
-    public void setSemanticName(String semanticName) {
-        this.semanticName = semanticName;
     }
 
     public MergeReason getMergeReason() {
         return mergeReason;
     }
 
-    public void setMergeReason(MergeReason mergeReason) {
-        this.mergeReason = mergeReason;
-    }
-
     public MergeConfidence getMergeConfidence() {
         return mergeConfidence;
-    }
-
-    public void setMergeConfidence(MergeConfidence mergeConfidence) {
-        this.mergeConfidence = mergeConfidence;
     }
 
     public String getMergeToken() {
         return mergeToken;
     }
 
-    public void setMergeToken(String mergeToken) {
-        this.mergeToken = mergeToken;
-    }
-    
     @Override
     public String toString() {
         return "RelationshipMetadata{" +
-                "name='" + name + '\'' +
-                ", type=" + type +
-                ", semanticKind=" + semanticKind +
-                ", sourceClass='" + sourceClass + '\'' +
-                ", targetClass='" + targetClass + '\'' +
-                ", sourceRoleName='" + sourceRoleName + '\'' +
-                ", targetRoleName='" + targetRoleName + '\'' +
-                ", cardinality=" + cardinality +
-                ", ordered=" + ordered +
-                ", external=" + external +
-                ", composition=" + composition +
-                ", mergeReason=" + mergeReason +
-                ", mergeConfidence=" + mergeConfidence +
-                '}';
+            "name='" + name + '\'' +
+            ", sourceClass='" + sourceClass + '\'' +
+            ", targetClass='" + targetClass + '\'' +
+            ", type=" + type +
+            ", semanticKind=" + semanticKind +
+            '}';
     }
+
 }
+

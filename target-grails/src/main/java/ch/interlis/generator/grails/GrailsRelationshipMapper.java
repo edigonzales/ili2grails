@@ -310,7 +310,7 @@ public final class GrailsRelationshipMapper {
     }
 
     private AttributeConstraints constraintsForRelationship(RelationshipMetadata relationship) {
-        RelationshipMetadata.Cardinality cardinality = relationship.getCardinality();
+        ch.interlis.generator.model.Cardinality cardinality = relationship.getCardinality();
         return new AttributeConstraints(
             relationship.isMandatory(),
             null,
@@ -318,8 +318,8 @@ public final class GrailsRelationshipMapper {
             null,
             null,
             null,
-            cardinality != null ? cardinality.getMinTarget() : null,
-            cardinality != null ? cardinality.getMaxTarget() : null,
+            cardinality != null ? cardinality.minTarget() : null,
+            cardinality != null ? cardinality.maxTarget() : null,
             relationship.isOrdered()
         );
     }
@@ -384,12 +384,12 @@ public final class GrailsRelationshipMapper {
             || relationship.getSemanticKind() != RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE) {
             return false;
         }
-        RelationshipMetadata.Cardinality cardinality = relationship.getCardinality();
+        ch.interlis.generator.model.Cardinality cardinality = relationship.getCardinality();
         if (cardinality == null) {
             return relationship.getType() == RelationshipMetadata.RelationType.ONE_TO_MANY
                 || relationship.getType() == RelationshipMetadata.RelationType.MANY_TO_MANY;
         }
-        int maxTarget = cardinality.getMaxTarget();
+        int maxTarget = cardinality.maxTarget();
         return maxTarget == -1 || maxTarget > 1;
     }
 
@@ -481,32 +481,33 @@ public final class GrailsRelationshipMapper {
 
     private RelationshipMetadata relationshipFromAssociationRole(AssociationMetadata association,
                                                                  AssociationRoleMetadata role) {
-        RelationshipMetadata relationship = new RelationshipMetadata(
+        RelationshipMetadata relationship = RelationshipMetadata.builder(
             association.getName() + "." + role.getName()
-        );
-        relationship.setSourceClass(association.getAssociationClass() != null
-            ? association.getAssociationClass()
-            : association.getName());
-        relationship.setTargetClass(role.getTargetClass());
-        relationship.setType(RelationshipMetadata.RelationType.ASSOCIATION);
-        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
-        relationship.setAssociationName(association.getName());
-        relationship.setSourceRoleName(role.getOppositeRoleName());
-        relationship.setTargetRoleName(role.getName());
-        relationship.setOppositeRoleName(role.getOppositeRoleName());
-        relationship.setCardinality(role.getCardinality());
-        relationship.setMandatory(role.isMandatory());
-        relationship.setOrdered(role.isOrdered());
-        relationship.setExternal(role.isExternal());
-        relationship.setComposition(role.isComposition());
-        relationship.setSourceAttribute(role.getSourceAttribute());
-        relationship.setTargetAttribute(role.getTargetAttribute());
-        relationship.setSource(role.getSource());
-        relationship.setPhysicalName(role.getPhysicalName());
-        relationship.setSemanticName(role.getSemanticName());
-        relationship.setMergeReason(role.getMergeReason());
-        relationship.setMergeConfidence(role.getMergeConfidence());
-        relationship.setMergeToken(role.getMergeToken());
+        )
+            .sourceClass(association.getAssociationClass() != null
+                ? association.getAssociationClass()
+                : association.getName())
+            .targetClass(role.getTargetClass())
+            .type(RelationshipMetadata.RelationType.ASSOCIATION)
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .associationName(association.getName())
+            .sourceRoleName(role.getOppositeRoleName())
+            .targetRoleName(role.getName())
+            .oppositeRoleName(role.getOppositeRoleName())
+            .cardinality(role.getCardinality())
+            .mandatory(role.isMandatory())
+            .ordered(role.isOrdered())
+            .external(role.isExternal())
+            .composition(role.isComposition())
+            .sourceAttribute(role.getSourceAttribute())
+            .targetAttribute(role.getTargetAttribute())
+            .source(role.getSource())
+            .physicalName(role.getPhysicalName())
+            .semanticName(role.getSemanticName())
+            .mergeReason(role.getMergeReason())
+            .mergeConfidence(role.getMergeConfidence())
+            .mergeToken(role.getMergeToken())
+            .buildUnchecked();
         return relationship;
     }
 

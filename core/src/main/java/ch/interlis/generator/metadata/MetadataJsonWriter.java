@@ -243,12 +243,12 @@ public class MetadataJsonWriter {
         return dto;
     }
 
-    private Map<String, Object> cardinalityDto(RelationshipMetadata.Cardinality cardinality) {
+    private Map<String, Object> cardinalityDto(ch.interlis.generator.model.Cardinality cardinality) {
         Map<String, Object> dto = new LinkedHashMap<>();
-        dto.put("minSource", cardinality.getMinSource());
-        dto.put("maxSource", cardinality.getMaxSource());
-        dto.put("minTarget", cardinality.getMinTarget());
-        dto.put("maxTarget", cardinality.getMaxTarget());
+        dto.put("minSource", cardinality.minSource());
+        dto.put("maxSource", cardinality.maxSource());
+        dto.put("minTarget", cardinality.minTarget());
+        dto.put("maxTarget", cardinality.maxTarget());
         return dto;
     }
 

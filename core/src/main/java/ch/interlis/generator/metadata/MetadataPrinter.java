@@ -3,6 +3,7 @@ package ch.interlis.generator.metadata;
 import ch.interlis.generator.model.*;
 
 import java.io.PrintStream;
+import java.util.List;
 
 /**
  * Utility-Klasse zum Ausgeben von Metadaten in lesbarer Form.
@@ -54,6 +55,15 @@ public class MetadataPrinter {
         }
     }
     
+    private ModelMetadata currentMetadata;
+
+    private List<RelationshipMetadata> relationshipsFrom(String className) {
+        if (currentMetadata == null) {
+            return List.of();
+        }
+        return currentMetadata.relationshipsFrom(className);
+    }
+
     private void printClass(ClassMetadata clazz) {
         out.println();
         out.printf("■ %s%n", clazz.getName());
@@ -79,10 +89,11 @@ public class MetadataPrinter {
             }
         }
         
-        // Beziehungen
-        if (!clazz.getRelationships().isEmpty()) {
+        // Beziehungen (kanonische Liste aus dem Modell)
+        List<RelationshipMetadata> relationships = relationshipsFrom(clazz.getName());
+        if (!relationships.isEmpty()) {
             out.println("  Relationships:");
-            for (RelationshipMetadata rel : clazz.getRelationships()) {
+            for (RelationshipMetadata rel : relationships) {
                 printRelationship(rel, "    ");
             }
         }

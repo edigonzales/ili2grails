@@ -2,6 +2,8 @@ package ch.interlis.generator.metadata.merge;
 
 import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,41 +16,43 @@ class AttributeMatcherTest {
         new AttributeMatcher(new MergeTokenNormalizer());
 
     private static ClassMetadata physicalClass(AttributeMetadata... attributes) {
-        ClassMetadata clazz = new ClassMetadata("Model.Topic.Physical");
+        ClassMetadataBuilder builder = new ClassMetadataBuilder("Model.Topic.Physical");
         for (AttributeMetadata attribute : attributes) {
-            clazz.addAttribute(attribute);
+            builder.attribute(AttributeMetadataBuilder.from(attribute));
         }
-        return clazz;
+        return builder.buildUnchecked();
     }
 
     private static ClassMetadata semanticClass(AttributeMetadata... attributes) {
-        ClassMetadata clazz = new ClassMetadata("Model.Topic.Semantic");
+        ClassMetadataBuilder builder = new ClassMetadataBuilder("Model.Topic.Semantic");
         for (AttributeMetadata attribute : attributes) {
-            clazz.addAttribute(attribute);
+            builder.attribute(AttributeMetadataBuilder.from(attribute));
         }
-        return clazz;
+        return builder.buildUnchecked();
     }
 
     private static AttributeMetadata physical(String name, String columnName) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setQualifiedName("Model.Topic.Physical." + name);
-        attribute.setColumnName(columnName);
-        attribute.setSqlName(columnName);
-        return attribute;
+        return AttributeMetadata.builder(name)
+            .qualifiedName("Model.Topic.Physical." + name)
+            .columnName(columnName)
+            .sqlName(columnName)
+            .buildUnchecked();
     }
 
     private static AttributeMetadata semantic(String name) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setQualifiedName("Model.Topic.Semantic." + name);
-        return attribute;
+        return AttributeMetadata.builder(name)
+            .qualifiedName("Model.Topic.Semantic." + name)
+            .buildUnchecked();
     }
 
     @Test
     void exactQualifiedNameMatches() {
-        AttributeMetadata physical = new AttributeMetadata("street");
-        physical.setQualifiedName("Model.Topic.Physical.street");
-        AttributeMetadata semantic = new AttributeMetadata("street");
-        semantic.setQualifiedName("Model.Topic.Physical.street");
+        AttributeMetadata physical = AttributeMetadata.builder("street")
+            .qualifiedName("Model.Topic.Physical.street")
+            .buildUnchecked();
+        AttributeMetadata semantic = AttributeMetadata.builder("street")
+            .qualifiedName("Model.Topic.Physical.street")
+            .buildUnchecked();
 
         List<MatchDecision<AttributeMetadata>> decisions =
             matcher.match(physicalClass(physical), semanticClass(semantic));
@@ -56,7 +60,8 @@ class AttributeMatcherTest {
         assertThat(decisions).singleElement().satisfies(decision -> {
             assertThat(decision.status()).isEqualTo(MatchDecision.Status.MATCHED);
             assertThat(decision.reason()).isEqualTo(MatchReason.EXACT_QUALIFIED_NAME);
-            assertThat(decision.physical()).isSameAs(physical);
+            assertThat(decision.physical().getName()).isEqualTo(physical.getName());
+            assertThat(decision.physical().getQualifiedName()).isEqualTo(physical.getQualifiedName());
         });
     }
 
@@ -125,8 +130,8 @@ class AttributeMatcherTest {
             .allSatisfy(decision -> {
                 assertThat(decision.status()).isEqualTo(MatchDecision.Status.AMBIGUOUS);
                 assertThat(decision.candidates()).singleElement()
-                    .extracting(candidate -> candidate.physical())
-                    .isEqualTo(physical);
+                    .extracting(candidate -> candidate.physical().getName())
+                    .isEqualTo(physical.getName());
             });
     }
 
@@ -160,7 +165,7 @@ class AttributeMatcherTest {
         assertThat(decisions).singleElement().satisfies(decision -> {
             assertThat(decision.status()).isEqualTo(MatchDecision.Status.MATCHED);
             assertThat(decision.reason()).isEqualTo(MatchReason.EXACT_NAME);
-            assertThat(decision.physical()).isSameAs(exact);
+            assertThat(decision.physical().getName()).isEqualTo(exact.getName());
         });
     }
 
@@ -188,9 +193,9 @@ class AttributeMatcherTest {
         assertThat(decisions).hasSize(2);
         assertThat(decisions).filteredOn(decision -> decision.status()
                 == MatchDecision.Status.MATCHED).singleElement()
-            .satisfies(decision -> assertThat(decision.semantic()).isSameAs(semanticOne));
+            .satisfies(decision -> assertThat(decision.semantic().getName()).isEqualTo(semanticOne.getName()));
         assertThat(decisions).filteredOn(decision -> decision.status()
                 == MatchDecision.Status.PHYSICAL_ALREADY_USED).singleElement()
-            .satisfies(decision -> assertThat(decision.semantic()).isSameAs(semanticTwo));
+            .satisfies(decision -> assertThat(decision.semantic().getName()).isEqualTo(semanticTwo.getName()));
     }
 }

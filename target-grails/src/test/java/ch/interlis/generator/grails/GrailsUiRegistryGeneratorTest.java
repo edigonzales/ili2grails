@@ -2,7 +2,6 @@ package ch.interlis.generator.grails;
 
 import ch.interlis.generator.grails.runtime.api.descriptor.DomainDescriptor;
 import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind;
-import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.testsupport.MetadataTestFixtures;
 import org.codehaus.groovy.control.CompilationUnit;
@@ -23,19 +22,15 @@ class GrailsUiRegistryGeneratorTest {
 
     @Test
     void rendersDeterministicTypedDomainEntries() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("UiModel");
-        ClassMetadata second = new ClassMetadata("UiModel.Second.Topic");
-        second.addLabel("en", "Topic");
-        metadata.addClass(second);
-
-        ClassMetadata first = new ClassMetadata("UiModel.First.Topic");
-        first.addLabel("de", "Thema");
-        first.addLabel("de-CH", "Thema CH");
-        metadata.addClass(first);
-
-        ClassMetadata fallback = new ClassMetadata("UiModel.Fallback.Topic");
-        fallback.addLabel("fr", "Sujet");
-        metadata.addClass(fallback);
+        ch.interlis.generator.model.builder.ModelMetadataBuilder modelBuilder =
+            ch.interlis.generator.model.builder.ModelMetadataBuilder.model("UiModel");
+        modelBuilder.classBuilder("UiModel.Second.Topic").label("en", "Topic");
+        modelBuilder.classBuilder("UiModel.First.Topic")
+            .label("de", "Thema")
+            .label("de-CH", "Thema CH");
+        modelBuilder.classBuilder("UiModel.Fallback.Topic").label("fr", "Sujet");
+        ModelMetadata metadata = new ch.interlis.generator.model.ModelMetadataFactory()
+            .buildValidated(modelBuilder);
 
         GenerationConfig config = config();
         RuntimeDescriptorPlan plan = plan(metadata, config);
@@ -63,10 +58,11 @@ class GrailsUiRegistryGeneratorTest {
 
     @Test
     void plansCarryDeterministicMetadata() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("UiModel");
-        ClassMetadata topic = new ClassMetadata("UiModel.Topic.Address");
-        topic.addLabel("de-CH", "Adresse");
-        metadata.addClass(topic);
+        ch.interlis.generator.model.builder.ModelMetadataBuilder modelBuilder =
+            ch.interlis.generator.model.builder.ModelMetadataBuilder.model("UiModel");
+        modelBuilder.classBuilder("UiModel.Topic.Address").label("de-CH", "Adresse");
+        ModelMetadata metadata = new ch.interlis.generator.model.ModelMetadataFactory()
+            .buildValidated(modelBuilder);
 
         RuntimeDescriptorPlan plan = plan(metadata, config());
         assertThat(plan.domains()).hasSize(1);
@@ -105,7 +101,8 @@ class GrailsUiRegistryGeneratorTest {
 
     @Test
     void generatesAndCompilesRegistryForEmptyModel() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("Empty");
+        ModelMetadata metadata = new ch.interlis.generator.model.ModelMetadataFactory()
+            .buildValidated(ch.interlis.generator.model.builder.ModelMetadataBuilder.model("Empty"));
         GenerationConfig config = config();
         RuntimeDescriptorPlan plan = plan(metadata, config);
 

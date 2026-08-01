@@ -1,624 +1,265 @@
 package ch.interlis.generator.model;
 
-import java.util.HashMap;
-import java.util.Locale;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
- * Repräsentiert ein Attribut einer INTERLIS-Klasse (wird zu einer Datenbankspalte).
+ * Immutable Metadaten eines Attributes.
+ *
+ * <p>Typ-Informationen (coreType/javaType) werden vor dem Freeze durch den
+ * {@code AttributeTypeResolver} aufgelöst; Getter mutieren niemals Zustand.</p>
  */
-public class AttributeMetadata {
-    
-    private String name;                    // INTERLIS Attributname
-    private String qualifiedName;           // Vollqualifizierter INTERLIS-Name
-    private String columnName;              // Datenbank-Spaltenname
-    private String sqlName;                 // SQL-Name (falls abweichend)
-    private String iliType;                 // INTERLIS-Typ (TEXT, COORD, etc.)
-    private String domainName;              // Benannter INTERLIS-Domain, falls vorhanden
-    private CoreType coreType;              // Framework-agnostischer Core-Typ
-    private String javaType;                // Gemappter Java-Typ
-    private String dbType;                  // Datenbank-Typ
-    private boolean mandatory;
-    private boolean isPrimaryKey;
-    private boolean isForeignKey;
-    private boolean isGeometry;
-    private Integer geometrySrid;
-    private GeometryKind geometryKind;
-    private Boolean geometryHasZ;
-    private Boolean geometryHasM;
-    private Boolean allowEmptyGeometry;
-    private String documentation;
-    
-    // Constraints
-    private Integer maxLength;
-    private String minValue;
-    private String maxValue;
-    private Integer precision;
-    private Integer scale;
-    private Integer cardinalityMin;
-    private Integer cardinalityMax;
-    private boolean ordered;
-    private String enumType;                // Falls Enumeration
-    private final java.util.List<EnumMetadata.EnumValue> enumValues = new java.util.ArrayList<>();
-    private String unit;                    // Masseinheit
-    
-    // Beziehungen
-    private String referencedClass;         // Falls FK
-    private String referencedAttribute;
-    
-    private Map<String, String> labels = new HashMap<>();
-    
-    public AttributeMetadata(String name) {
-        this.name = name;
-    }
-    
-    public void addLabel(String language, String label) {
-        labels.put(language, label);
-    }
-    
-    /**
-     * Bestimmt den Java-Typ basierend auf INTERLIS- und Datenbanktyp
-     */
-    public void inferJavaType() {
-        if (javaType != null) return; // Bereits gesetzt
-        
-        if (isGeometry) {
-            javaType = "org.locationtech.jts.geom.Geometry";
-            return;
-        }
-        
-        if (enumType != null) {
-            javaType = "String"; // Oder spezifische Enum-Klasse
-            return;
-        }
-        
-        if (iliType != null) {
-            javaType = switch (iliType.toUpperCase()) {
-                case "TEXT", "MTEXT" -> "String";
-                case "BOOLEAN" -> "Boolean";
-                case "DATE" -> "java.time.LocalDate";
-                case "DATETIME" -> "java.time.LocalDateTime";
-                case "TIME" -> "java.time.LocalTime";
-                case "INTERLIS.XMLDATE" -> "java.time.LocalDate";
-                case "INTERLIS.XMLDATETIME" -> "java.time.LocalDateTime";
-                case "INTERLIS.XMLTIME" -> "java.time.LocalTime";
-                default -> {
-                    // Numerische Typen
-                    String upperIliType = iliType.toUpperCase(Locale.ROOT);
-                    if (upperIliType.contains("COORD")
-                        || upperIliType.contains("MULTICOORD")
-                        || upperIliType.contains("POLYLINE")
-                        || upperIliType.contains("LINE")
-                        || upperIliType.contains("SURFACE")
-                        || upperIliType.contains("AREA")) {
-                        yield "org.locationtech.jts.geom.Geometry";
-                    } else if (dbType != null) {
-                        yield inferJavaTypeFromDbType(dbType);
-                    } else {
-                        yield "Object";
-                    }
-                }
-            };
-        } else if (dbType != null) {
-            javaType = inferJavaTypeFromDbType(dbType);
-        } else {
-            javaType = "Object";
-        }
-    }
-    
-    private String inferJavaTypeFromDbType(String dbType) {
-        String upperDbType = dbType.toUpperCase();
-        if (upperDbType.contains("VARCHAR") || upperDbType.contains("TEXT")
-            || upperDbType.contains("CHAR")) {
-            return "String";
-        } else if (upperDbType.contains("INT")) {
-            if (upperDbType.contains("BIGINT")) {
-                return "Long";
-            }
-            return "Integer";
-        } else if (upperDbType.contains("DECIMAL") || upperDbType.contains("NUMERIC")) {
-            return "java.math.BigDecimal";
-        } else if (upperDbType.contains("DOUBLE") || upperDbType.contains("FLOAT")) {
-            return "Double";
-        } else if (upperDbType.contains("BOOL")) {
-            return "Boolean";
-        } else if (upperDbType.contains("DATE")) {
-            if (upperDbType.contains("TIME")) {
-                return "java.time.LocalDateTime";
-            }
-            return "java.time.LocalDate";
-        } else if (upperDbType.contains("GEOMETRY")) {
-            return "org.locationtech.jts.geom.Geometry";
-        }
-        return "Object";
+public final class AttributeMetadata {
+
+    private final String name;
+    private final String qualifiedName;
+    private final String columnName;
+    private final String sqlName;
+    private final String iliType;
+    private final String domainName;
+    private final CoreType coreType;
+    private final String javaType;
+    private final String dbType;
+    private final boolean mandatory;
+    private final boolean primaryKey;
+    private final boolean foreignKey;
+    private final boolean geometry;
+    private final Integer geometrySrid;
+    private final GeometryKind geometryKind;
+    private final Boolean geometryHasZ;
+    private final Boolean geometryHasM;
+    private final Boolean allowEmptyGeometry;
+    private final String documentation;
+    private final AttributeConstraints constraints;
+    private final String enumType;
+    private final List<EnumMetadata.EnumValue> enumValues;
+    private final String unit;
+    private final String referencedClass;
+    private final String referencedAttribute;
+    private final Map<String, String> labels;
+
+    public AttributeMetadata(String name,
+                      String qualifiedName,
+                      String columnName,
+                      String sqlName,
+                      String iliType,
+                      String domainName,
+                      CoreType coreType,
+                      String javaType,
+                      String dbType,
+                      boolean mandatory,
+                      boolean primaryKey,
+                      boolean foreignKey,
+                      boolean geometry,
+                      Integer geometrySrid,
+                      GeometryKind geometryKind,
+                      Boolean geometryHasZ,
+                      Boolean geometryHasM,
+                      Boolean allowEmptyGeometry,
+                      String documentation,
+                      AttributeConstraints constraints,
+                      String enumType,
+                      List<EnumMetadata.EnumValue> enumValues,
+                      String unit,
+                      String referencedClass,
+                      String referencedAttribute,
+                      Map<String, String> labels) {
+        this.name = Objects.requireNonNull(name, "name");
+        this.qualifiedName = qualifiedName;
+        this.columnName = columnName;
+        this.sqlName = sqlName;
+        this.iliType = iliType;
+        this.domainName = domainName;
+        this.coreType = coreType;
+        this.javaType = javaType;
+        this.dbType = dbType;
+        this.mandatory = mandatory;
+        this.primaryKey = primaryKey;
+        this.foreignKey = foreignKey;
+        this.geometry = geometry;
+        this.geometrySrid = geometrySrid;
+        this.geometryKind = geometryKind;
+        this.geometryHasZ = geometryHasZ;
+        this.geometryHasM = geometryHasM;
+        this.allowEmptyGeometry = allowEmptyGeometry;
+        this.documentation = documentation;
+        this.constraints = constraints;
+        this.enumType = enumType;
+        this.enumValues = enumValues == null ? List.of() : List.copyOf(enumValues);
+        this.unit = unit;
+        this.referencedClass = referencedClass;
+        this.referencedAttribute = referencedAttribute;
+        this.labels = labels == null
+            ? Map.of()
+            : Collections.unmodifiableMap(new LinkedHashMap<>(labels));
     }
 
-    /**
-     * Bestimmt den framework-agnostischen Core-Typ aus semantischen Metadaten
-     * und, falls nötig, aus Datenbank-/Java-Fallbacks.
-     */
-    public void inferCoreType() {
-        coreType = inferCoreTypeValue();
+    public static ch.interlis.generator.model.builder.AttributeMetadataBuilder builder(String name) {
+        return new ch.interlis.generator.model.builder.AttributeMetadataBuilder(name);
     }
 
-    private CoreType inferCoreTypeValue() {
-        if (enumType != null) {
-            return CoreType.ENUM;
-        }
-
-        CoreType typeFromIli = inferCoreTypeFromIliType(iliType);
-        if (typeFromIli != null) {
-            return typeFromIli;
-        }
-
-        if (referencedClass != null) {
-            return CoreType.REFERENCE;
-        }
-
-        if (isGeometry) {
-            return inferGeometryCoreType();
-        }
-
-        CoreType typeFromDb = inferCoreTypeFromDbType(dbType);
-        if (typeFromDb != null) {
-            return typeFromDb;
-        }
-
-        CoreType typeFromJava = inferCoreTypeFromJavaType(javaType);
-        if (typeFromJava != null) {
-            return typeFromJava;
-        }
-
-        return CoreType.UNKNOWN;
+    public ch.interlis.generator.model.builder.AttributeMetadataBuilder toBuilder() {
+        return ch.interlis.generator.model.builder.AttributeMetadataBuilder.from(this);
     }
 
-    private CoreType inferCoreTypeFromIliType(String iliType) {
-        if (iliType == null || iliType.isBlank()) {
-            return null;
-        }
-        String upperIliType = iliType.trim().toUpperCase(Locale.ROOT);
-        return switch (upperIliType) {
-            case "TEXT", "TEXTTYPE", "TEXTOIDTYPE" -> CoreType.TEXT;
-            case "MTEXT" -> CoreType.MTEXT;
-            case "NUMERIC", "NUMERICTYPE", "NUMERICALTYPE" -> CoreType.NUMERIC;
-            case "BOOLEAN" -> CoreType.BOOLEAN;
-            case "DATE", "XMLDATE", "INTERLIS.XMLDATE" -> CoreType.DATE;
-            case "DATETIME", "XMLDATETIME", "INTERLIS.XMLDATETIME" -> CoreType.DATETIME;
-            case "TIME", "XMLTIME", "INTERLIS.XMLTIME" -> CoreType.TIME;
-            case "ENUM", "ENUMERATIONTYPE" -> CoreType.ENUM;
-            case "COORD", "COORDTYPE", "MULTICOORDTYPE" -> CoreType.COORD;
-            case "POLYLINE", "POLYLINETYPE", "LINETYPE", "MULTIPOLYLINETYPE" -> CoreType.POLYLINE;
-            case "SURFACE", "SURFACETYPE", "AREATYPE", "MULTISURFACETYPE", "MULTIAREATYPE" -> CoreType.SURFACE;
-            case "REFERENCE", "REFERENCETYPE" -> CoreType.REFERENCE;
-            case "COMPOSITION", "COMPOSITIONTYPE" -> CoreType.COMPOSITION;
-            case "OBJECT", "OBJECTTYPE" -> CoreType.OBJECT;
-            default -> null;
-        };
-    }
-
-    private CoreType inferGeometryCoreType() {
-        if (geometryKind == null) {
-            return CoreType.UNKNOWN;
-        }
-        if (geometryKind == GeometryKind.POINT || geometryKind == GeometryKind.MULTIPOINT) {
-            return CoreType.COORD;
-        }
-        if (geometryKind == GeometryKind.LINESTRING || geometryKind == GeometryKind.MULTILINESTRING) {
-            return CoreType.POLYLINE;
-        }
-        if (geometryKind == GeometryKind.POLYGON || geometryKind == GeometryKind.MULTIPOLYGON) {
-            return CoreType.SURFACE;
-        }
-        return CoreType.UNKNOWN;
-    }
-
-    private CoreType inferCoreTypeFromDbType(String dbType) {
-        if (dbType == null || dbType.isBlank()) {
-            return null;
-        }
-        String upperDbType = dbType.toUpperCase(Locale.ROOT);
-        if (upperDbType.contains("GEOMETRY")) {
-            return CoreType.UNKNOWN;
-        }
-        if (upperDbType.contains("VARCHAR") || upperDbType.contains("TEXT")
-            || upperDbType.contains("CHAR")) {
-            return CoreType.TEXT;
-        }
-        if (upperDbType.contains("DECIMAL") || upperDbType.contains("NUMERIC")
-            || upperDbType.contains("DOUBLE") || upperDbType.contains("FLOAT")
-            || upperDbType.contains("REAL") || upperDbType.contains("INT")) {
-            return CoreType.NUMERIC;
-        }
-        if (upperDbType.contains("BOOL") || upperDbType.contains("BIT")) {
-            return CoreType.BOOLEAN;
-        }
-        if (upperDbType.contains("TIMESTAMP") || upperDbType.contains("DATETIME")) {
-            return CoreType.DATETIME;
-        }
-        if (upperDbType.contains("TIME")) {
-            return CoreType.TIME;
-        }
-        if (upperDbType.contains("DATE")) {
-            return CoreType.DATE;
-        }
-        return null;
-    }
-
-    private CoreType inferCoreTypeFromJavaType(String javaType) {
-        if (javaType == null || javaType.isBlank()) {
-            return null;
-        }
-        String simpleType = javaType;
-        int lastDot = simpleType.lastIndexOf('.');
-        if (lastDot >= 0) {
-            simpleType = simpleType.substring(lastDot + 1);
-        }
-        return switch (simpleType) {
-            case "String" -> CoreType.TEXT;
-            case "Boolean" -> CoreType.BOOLEAN;
-            case "LocalDate" -> CoreType.DATE;
-            case "LocalDateTime" -> CoreType.DATETIME;
-            case "LocalTime" -> CoreType.TIME;
-            case "Integer", "Long", "BigDecimal", "Double", "Float" -> CoreType.NUMERIC;
-            default -> null;
-        };
-    }
-    
-    // Getters and Setters
-    
     public String getName() {
         return name;
-    }
-    
-    public void setName(String name) {
-        this.name = name;
     }
 
     public String getQualifiedName() {
         return qualifiedName;
     }
 
-    public void setQualifiedName(String qualifiedName) {
-        this.qualifiedName = qualifiedName;
-    }
-    
     public String getColumnName() {
         return columnName;
     }
-    
-    public void setColumnName(String columnName) {
-        this.columnName = columnName;
-    }
-    
+
     public String getSqlName() {
         return sqlName;
     }
-    
-    public void setSqlName(String sqlName) {
-        this.sqlName = sqlName;
-    }
-    
+
     public String getIliType() {
         return iliType;
-    }
-    
-    public void setIliType(String iliType) {
-        this.iliType = iliType;
     }
 
     public String getDomainName() {
         return domainName;
     }
 
-    public void setDomainName(String domainName) {
-        this.domainName = domainName;
-    }
-
     public CoreType getCoreType() {
-        return coreType != null ? coreType : inferCoreTypeValue();
+        return coreType;
     }
 
-    public void setCoreType(CoreType coreType) {
-        this.coreType = coreType;
-    }
-
-    public AttributeConstraints getConstraints() {
-        return new AttributeConstraints(
-            mandatory,
-            maxLength,
-            minValue,
-            maxValue,
-            precision,
-            scale,
-            cardinalityMin,
-            cardinalityMax,
-            ordered
-        );
-    }
-    
     public String getJavaType() {
-        if (javaType == null) {
-            inferJavaType();
-        }
         return javaType;
     }
-    
-    public void setJavaType(String javaType) {
-        this.javaType = javaType;
-    }
-    
+
     public String getDbType() {
         return dbType;
     }
-    
-    public void setDbType(String dbType) {
-        this.dbType = dbType;
-    }
-    
+
     public boolean isMandatory() {
         return mandatory;
     }
-    
-    public void setMandatory(boolean mandatory) {
-        this.mandatory = mandatory;
-    }
-    
+
     public boolean isPrimaryKey() {
-        return isPrimaryKey;
+        return primaryKey;
     }
-    
-    public void setPrimaryKey(boolean primaryKey) {
-        isPrimaryKey = primaryKey;
-    }
-    
+
     public boolean isForeignKey() {
-        return isForeignKey;
+        return foreignKey;
     }
-    
-    public void setForeignKey(boolean foreignKey) {
-        isForeignKey = foreignKey;
-    }
-    
+
     public boolean isGeometry() {
-        return isGeometry;
-    }
-    
-    public void setGeometry(boolean geometry) {
-        isGeometry = geometry;
+        return geometry;
     }
 
     public Integer getGeometrySrid() {
         return geometrySrid;
     }
 
-    public void setGeometrySrid(Integer geometrySrid) {
-        this.geometrySrid = geometrySrid;
-    }
-
     public String getGeometryKind() {
         return geometryKind != null ? geometryKind.name() : null;
-    }
-
-    public void setGeometryKind(String geometryKind) {
-        this.geometryKind = GeometryKind.from(geometryKind);
     }
 
     public GeometryKind getGeometryKindEnum() {
         return geometryKind;
     }
 
-    public void setGeometryKind(GeometryKind geometryKind) {
-        this.geometryKind = geometryKind;
-    }
-
     public Boolean getGeometryHasZ() {
         return geometryHasZ;
-    }
-
-    public void setGeometryHasZ(Boolean geometryHasZ) {
-        this.geometryHasZ = geometryHasZ;
     }
 
     public Boolean getGeometryHasM() {
         return geometryHasM;
     }
 
-    public void setGeometryHasM(Boolean geometryHasM) {
-        this.geometryHasM = geometryHasM;
-    }
-
     public Boolean getAllowEmptyGeometry() {
         return allowEmptyGeometry;
     }
 
-    public void setAllowEmptyGeometry(Boolean allowEmptyGeometry) {
-        this.allowEmptyGeometry = allowEmptyGeometry;
-    }
-    
     public String getDocumentation() {
         return documentation;
     }
-    
-    public void setDocumentation(String documentation) {
-        this.documentation = documentation;
+
+    public AttributeConstraints getConstraints() {
+        return constraints;
     }
-    
+
     public Integer getMaxLength() {
-        return maxLength;
+        return constraints != null ? constraints.maxLength() : null;
     }
-    
-    public void setMaxLength(Integer maxLength) {
-        this.maxLength = maxLength;
-    }
-    
+
     public String getMinValue() {
-        return minValue;
+        return constraints != null ? constraints.minInclusive() : null;
     }
-    
-    public void setMinValue(String minValue) {
-        this.minValue = minValue;
-    }
-    
+
     public String getMaxValue() {
-        return maxValue;
-    }
-    
-    public void setMaxValue(String maxValue) {
-        this.maxValue = maxValue;
+        return constraints != null ? constraints.maxInclusive() : null;
     }
 
     public Integer getPrecision() {
-        return precision;
-    }
-
-    public void setPrecision(Integer precision) {
-        this.precision = precision;
+        return constraints != null ? constraints.precision() : null;
     }
 
     public Integer getScale() {
-        return scale;
-    }
-
-    public void setScale(Integer scale) {
-        this.scale = scale;
+        return constraints != null ? constraints.scale() : null;
     }
 
     public Integer getCardinalityMin() {
-        return cardinalityMin;
-    }
-
-    public void setCardinalityMin(Integer cardinalityMin) {
-        this.cardinalityMin = cardinalityMin;
+        return constraints != null ? constraints.cardinalityMin() : null;
     }
 
     public Integer getCardinalityMax() {
-        return cardinalityMax;
-    }
-
-    public void setCardinalityMax(Integer cardinalityMax) {
-        this.cardinalityMax = cardinalityMax;
+        return constraints != null ? constraints.cardinalityMax() : null;
     }
 
     public boolean isOrdered() {
-        return ordered;
+        return constraints != null && constraints.ordered();
     }
 
-    public void setOrdered(boolean ordered) {
-        this.ordered = ordered;
-    }
-    
     public String getEnumType() {
         return enumType;
     }
-    
-    public void setEnumType(String enumType) {
-        this.enumType = enumType;
-    }
 
-    public java.util.List<EnumMetadata.EnumValue> getEnumValues() {
+    public List<EnumMetadata.EnumValue> getEnumValues() {
         return enumValues;
     }
 
-    public void addEnumValue(EnumMetadata.EnumValue value) {
-        enumValues.add(value);
-    }
-    
     public String getUnit() {
         return unit;
     }
-    
-    public void setUnit(String unit) {
-        this.unit = unit;
-    }
-    
+
     public String getReferencedClass() {
         return referencedClass;
     }
-    
-    public void setReferencedClass(String referencedClass) {
-        this.referencedClass = referencedClass;
-    }
-    
+
     public String getReferencedAttribute() {
         return referencedAttribute;
     }
-    
-    public void setReferencedAttribute(String referencedAttribute) {
-        this.referencedAttribute = referencedAttribute;
-    }
-    
+
     public Map<String, String> getLabels() {
         return labels;
     }
-    
-    public void setLabels(Map<String, String> labels) {
-        this.labels = labels;
+
+    public List<EnumMetadata.EnumValue> getEnumValueList() {
+        return enumValues;
     }
 
-    /**
-     * Kopiert alle Werte aus einer Quell-Attributmetadaten in diese Instanz.
-     * Wird vom Merge verwendet, um gemergte Werte an der Position der
-     * physischen Instanz zu aktualisieren.
-     */
-    public void copyFrom(AttributeMetadata source) {
-        if (source == null) {
-            return;
-        }
-        this.name = source.name;
-        this.qualifiedName = source.qualifiedName;
-        this.columnName = source.columnName;
-        this.sqlName = source.sqlName;
-        this.iliType = source.iliType;
-        this.domainName = source.domainName;
-        this.coreType = source.coreType;
-        this.javaType = source.javaType;
-        this.dbType = source.dbType;
-        this.mandatory = source.mandatory;
-        this.isPrimaryKey = source.isPrimaryKey;
-        this.isForeignKey = source.isForeignKey;
-        this.isGeometry = source.isGeometry;
-        this.geometrySrid = source.geometrySrid;
-        this.geometryKind = source.geometryKind;
-        this.geometryHasZ = source.geometryHasZ;
-        this.geometryHasM = source.geometryHasM;
-        this.allowEmptyGeometry = source.allowEmptyGeometry;
-        this.documentation = source.documentation;
-        this.maxLength = source.maxLength;
-        this.minValue = source.minValue;
-        this.maxValue = source.maxValue;
-        this.precision = source.precision;
-        this.scale = source.scale;
-        this.cardinalityMin = source.cardinalityMin;
-        this.cardinalityMax = source.cardinalityMax;
-        this.ordered = source.ordered;
-        this.enumType = source.enumType;
-        this.unit = source.unit;
-        this.referencedClass = source.referencedClass;
-        this.referencedAttribute = source.referencedAttribute;
-        this.labels = source.labels == null ? new HashMap<>() : new HashMap<>(source.labels);
-        this.enumValues.clear();
-        this.enumValues.addAll(source.enumValues);
-    }
-    
     @Override
     public String toString() {
         return "AttributeMetadata{" +
-                "name='" + name + '\'' +
-                ", columnName='" + columnName + '\'' +
-                ", iliType='" + iliType + '\'' +
-                ", domainName='" + domainName + '\'' +
-                ", coreType=" + getCoreType() +
-                ", javaType='" + getJavaType() + '\'' +
-                ", mandatory=" + mandatory +
-                ", cardinality=" + cardinalityMin + ".." + cardinalityMax +
-                ", ordered=" + ordered +
-                ", isPrimaryKey=" + isPrimaryKey +
-                ", isForeignKey=" + isForeignKey +
-                ", geometrySrid=" + geometrySrid +
-                ", geometryKind=" + geometryKind +
-                ", geometryHasZ=" + geometryHasZ +
-                ", geometryHasM=" + geometryHasM +
-                ", allowEmptyGeometry=" + allowEmptyGeometry +
-                '}';
+            "name='" + name + '\'' +
+            ", coreType=" + coreType +
+            ", javaType='" + javaType + '\'' +
+            ", mandatory=" + mandatory +
+            ", primaryKey=" + primaryKey +
+            '}';
     }
+
 }
+

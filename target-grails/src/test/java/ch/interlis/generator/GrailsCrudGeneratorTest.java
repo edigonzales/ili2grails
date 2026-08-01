@@ -2,11 +2,12 @@ package ch.interlis.generator;
 
 import ch.interlis.generator.grails.GenerationConfig;
 import ch.interlis.generator.grails.GrailsCrudGenerator;
-import ch.interlis.generator.model.AttributeMetadata;
-import ch.interlis.generator.model.ClassMetadata;
-import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -61,20 +62,18 @@ class GrailsCrudGeneratorTest {
 
     @Test
     void rendersGeometryMetaWhenGeometryFieldIsPresent(@TempDir Path tempDir) throws Exception {
-        ModelMetadata metadata = new ModelMetadata("SampleModel");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("SampleModel");
 
-        ClassMetadata address = new ClassMetadata("SampleModel.Address");
-        address.setTableName("address_tbl");
-        address.addAttribute(primaryKeyAttribute("id", "t_id"));
-
-        AttributeMetadata geometry = new AttributeMetadata("position");
-        geometry.setColumnName("position");
-        geometry.setGeometry(true);
-        geometry.setGeometryKind("POINT");
-        geometry.setGeometrySrid(2056);
-        geometry.setJavaType("org.locationtech.jts.geom.Geometry");
-        address.addAttribute(geometry);
-        metadata.addClass(address);
+        modelBuilder.classBuilder("SampleModel.Address")
+            .tableName("address_tbl")
+            .attribute(primaryKeyAttribute("id", "t_id"))
+            .attribute(new AttributeMetadataBuilder("position")
+                .columnName("position")
+                .geometry(true)
+                .geometryKind("POINT")
+                .geometrySrid(2056)
+                .javaType("org.locationtech.jts.geom.Geometry"));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         Path outputDir = tempDir.resolve("generated-grails-app");
         GenerationConfig config = GenerationConfig.builder(outputDir, "com.example")
@@ -95,16 +94,14 @@ class GrailsCrudGeneratorTest {
 
     @Test
     void setsExplicitTIdMappingWhenNoIdAttributeExists(@TempDir Path tempDir) throws Exception {
-        ModelMetadata metadata = new ModelMetadata("SampleModel");
-        ClassMetadata log = new ClassMetadata("SampleModel.LogEntry");
-        log.setTableName("log_entry");
-
-        AttributeMetadata tId = new AttributeMetadata("tId");
-        tId.setColumnName("t_id");
-        tId.setJavaType("Long");
-        log.addAttribute(tId);
-        log.addAttribute(textAttribute("message", "message", 255, true));
-        metadata.addClass(log);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("SampleModel");
+        modelBuilder.classBuilder("SampleModel.LogEntry")
+            .tableName("log_entry")
+            .attribute(new AttributeMetadataBuilder("tId")
+                .columnName("t_id")
+                .javaType("Long"))
+            .attribute(textAttribute("message", "message", 255, true));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         Path outputDir = tempDir.resolve("generated-grails-app");
         GenerationConfig config = GenerationConfig.builder(outputDir, "com.example")
@@ -121,71 +118,62 @@ class GrailsCrudGeneratorTest {
     }
 
     private ModelMetadata buildSampleMetadata() {
-        ModelMetadata metadata = new ModelMetadata("SampleModel");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("SampleModel");
 
-        EnumMetadata statusEnum = new EnumMetadata("SampleModel.Status");
-        statusEnum.addValue(new EnumMetadata.EnumValue("active", 0));
-        statusEnum.addValue(new EnumMetadata.EnumValue("inactive", 1));
-        metadata.addEnum(statusEnum);
+        modelBuilder.enumBuilder("SampleModel.Status")
+            .value("active", 0)
+            .value("inactive", 1);
 
-        ClassMetadata person = new ClassMetadata("SampleModel.Person");
-        person.setTableName("person_tbl");
-        person.addAttribute(primaryKeyAttribute("id", "t_id"));
-        person.addAttribute(textAttribute("firstName", "first_name", 40, true));
-        person.addAttribute(enumAttribute("status", statusEnum.getName(), false));
-        person.addAttribute(dateAttribute("birthDate"));
-        metadata.addClass(person);
+        ClassMetadataBuilder person = modelBuilder.classBuilder("SampleModel.Person")
+            .tableName("person_tbl")
+            .attribute(primaryKeyAttribute("id", "t_id"))
+            .attribute(textAttribute("firstName", "first_name", 40, true))
+            .attribute(enumAttribute("status", "SampleModel.Status", false))
+            .attribute(dateAttribute("birthDate"));
 
-        ClassMetadata personAddress = new ClassMetadata("SampleModel.PersonAddress");
-        personAddress.setTableName("person_address");
-        personAddress.addAttribute(primaryKeyAttribute("id", "t_id"));
-        AttributeMetadata personFk = new AttributeMetadata("person");
-        personFk.setColumnName("person_id");
-        personFk.setForeignKey(true);
-        personFk.setReferencedClass(person.getName());
-        personFk.setMandatory(true);
-        personAddress.addAttribute(personFk);
+        modelBuilder.classBuilder("SampleModel.PersonAddress")
+            .tableName("person_address")
+            .attribute(primaryKeyAttribute("id", "t_id"))
+            .attribute(new AttributeMetadataBuilder("person")
+                .columnName("person_id")
+                .foreignKey(true)
+                .referencedClass(person.name())
+                .mandatory(true));
 
-        RelationshipMetadata rel = new RelationshipMetadata("PersonAddressToPerson");
-        rel.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        rel.setSourceClass(personAddress.getName());
-        rel.setTargetClass(person.getName());
-        rel.setSourceAttribute("person_id");
-        rel.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        personAddress.addRelationship(rel);
-        metadata.addClass(personAddress);
+        modelBuilder.relationship(RelationshipMetadata.builder("PersonAddressToPerson")
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .sourceClass("SampleModel.PersonAddress")
+            .targetClass(person.name())
+            .sourceAttribute("person_id")
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK));
 
-        return metadata;
+        return new ModelMetadataFactory().buildValidated(modelBuilder);
     }
 
-    private AttributeMetadata primaryKeyAttribute(String name, String columnName) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setPrimaryKey(true);
-        attribute.setColumnName(columnName);
-        attribute.setJavaType("Long");
-        return attribute;
+    private AttributeMetadataBuilder primaryKeyAttribute(String name, String columnName) {
+        return new AttributeMetadataBuilder(name)
+            .primaryKey(true)
+            .columnName(columnName)
+            .javaType("Long");
     }
 
-    private AttributeMetadata textAttribute(String name, String columnName, int maxLength, boolean mandatory) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setColumnName(columnName);
-        attribute.setJavaType("String");
-        attribute.setMaxLength(maxLength);
-        attribute.setMandatory(mandatory);
-        return attribute;
+    private AttributeMetadataBuilder textAttribute(String name, String columnName, int maxLength, boolean mandatory) {
+        return new AttributeMetadataBuilder(name)
+            .columnName(columnName)
+            .javaType("String")
+            .maxLength(maxLength)
+            .mandatory(mandatory);
     }
 
-    private AttributeMetadata enumAttribute(String name, String enumType, boolean mandatory) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setEnumType(enumType);
-        attribute.setJavaType("String");
-        attribute.setMandatory(mandatory);
-        return attribute;
+    private AttributeMetadataBuilder enumAttribute(String name, String enumType, boolean mandatory) {
+        return new AttributeMetadataBuilder(name)
+            .enumType(enumType)
+            .javaType("String")
+            .mandatory(mandatory);
     }
 
-    private AttributeMetadata dateAttribute(String name) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setIliType("INTERLIS.XMLDate");
-        return attribute;
+    private AttributeMetadataBuilder dateAttribute(String name) {
+        return new AttributeMetadataBuilder(name)
+            .iliType("INTERLIS.XMLDate");
     }
 }

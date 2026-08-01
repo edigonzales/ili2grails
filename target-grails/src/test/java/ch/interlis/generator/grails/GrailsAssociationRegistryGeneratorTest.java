@@ -154,7 +154,8 @@ class GrailsAssociationRegistryGeneratorTest {
 
     @Test
     void emptyAssociationSetProducesValidRegistry() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("Empty");
+        ModelMetadata metadata = new ch.interlis.generator.model.ModelMetadataFactory()
+            .buildValidated(ch.interlis.generator.model.builder.ModelMetadataBuilder.model("Empty"));
         GenerationConfig config = config();
         RuntimeDescriptorPlan plan = GrailsUiRegistryGeneratorTest.plan(metadata, config);
 

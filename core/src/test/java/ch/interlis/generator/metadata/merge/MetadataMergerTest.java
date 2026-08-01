@@ -8,6 +8,7 @@ import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.model.RelationshipMetadata;
 import ch.interlis.generator.testsupport.MetadataTestFixtures;
 import org.junit.jupiter.api.Test;
@@ -218,15 +219,15 @@ class MetadataMergerTest {
                 .filteredOn(relationship -> "Person".equals(relationship.getTargetRoleName()))
                 .singleElement()
                 .satisfies(relationship -> {
-                    assertThat(relationship.getCardinality().getMinTarget()).isZero();
-                    assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(-1);
+                    assertThat(relationship.getCardinality().minTarget()).isZero();
+                    assertThat(relationship.getCardinality().maxTarget()).isEqualTo(-1);
                 });
             assertThat(roles)
                 .filteredOn(relationship -> "Address".equals(relationship.getTargetRoleName()))
                 .singleElement()
                 .satisfies(relationship -> {
-                    assertThat(relationship.getCardinality().getMinTarget()).isZero();
-                    assertThat(relationship.getCardinality().getMaxTarget()).isEqualTo(1);
+                    assertThat(relationship.getCardinality().minTarget()).isZero();
+                    assertThat(relationship.getCardinality().maxTarget()).isEqualTo(1);
                 });
         }
     }
@@ -325,8 +326,10 @@ class MetadataMergerTest {
 
     @Test
     void modelNameMismatchIsDiagnosed() {
-        ModelMetadata physical = new ModelMetadata("PhysicalModel");
-        ModelMetadata semantic = new ModelMetadata("SemanticModel");
+        ModelMetadata physical = new ch.interlis.generator.model.ModelMetadataFactory()
+            .buildValidated(ch.interlis.generator.model.builder.ModelMetadataBuilder.model("PhysicalModel"));
+        ModelMetadata semantic = new ch.interlis.generator.model.ModelMetadataFactory()
+            .buildValidated(ch.interlis.generator.model.builder.ModelMetadataBuilder.model("SemanticModel"));
 
         MetadataMergeResult result = merger.merge(physical, semantic);
 
@@ -339,25 +342,24 @@ class MetadataMergerTest {
 
     @Test
     void strictModeThrowsOnBlockingDiagnostics() {
-        ModelMetadata physical = new ModelMetadata("StrictModel");
-        ClassMetadata physicalClass = new ClassMetadata("StrictModel.Topic.Child");
-        physicalClass.setTableName("child");
-        AttributeMetadata column = new AttributeMetadata("OwnerRef");
-        column.setColumnName("owner_id");
-        column.setSqlName("owner_id");
-        column.setQualifiedName("StrictModel.Topic.Child.OwnerRef");
-        physicalClass.addAttribute(column);
-        physical.addClass(physicalClass);
+        ModelMetadataFactory factory = new ModelMetadataFactory();
+        ch.interlis.generator.model.builder.ModelMetadataBuilder physicalBuilder =
+            ch.interlis.generator.model.builder.ModelMetadataBuilder.model("StrictModel");
+        physicalBuilder.classBuilder("StrictModel.Topic.Child")
+            .tableName("child")
+            .attribute(new ch.interlis.generator.model.builder.AttributeMetadataBuilder("OwnerRef")
+                .columnName("owner_id").sqlName("owner_id")
+                .qualifiedName("StrictModel.Topic.Child.OwnerRef"));
+        ModelMetadata physical = factory.buildValidated(physicalBuilder);
 
-        ModelMetadata semantic = new ModelMetadata("StrictModel");
-        ClassMetadata semanticClass = new ClassMetadata("StrictModel.Topic.Child");
-        AttributeMetadata first = new AttributeMetadata("Owner");
-        first.setCoreType(CoreType.REFERENCE);
-        AttributeMetadata second = new AttributeMetadata("The_Owner");
-        second.setCoreType(CoreType.REFERENCE);
-        semanticClass.addAttribute(first);
-        semanticClass.addAttribute(second);
-        semantic.addClass(semanticClass);
+        ch.interlis.generator.model.builder.ModelMetadataBuilder semanticBuilder =
+            ch.interlis.generator.model.builder.ModelMetadataBuilder.model("StrictModel");
+        semanticBuilder.classBuilder("StrictModel.Topic.Child")
+            .attribute(new ch.interlis.generator.model.builder.AttributeMetadataBuilder("Owner")
+                .coreType(CoreType.REFERENCE))
+            .attribute(new ch.interlis.generator.model.builder.AttributeMetadataBuilder("The_Owner")
+                .coreType(CoreType.REFERENCE));
+        ModelMetadata semantic = factory.buildValidated(semanticBuilder);
 
         assertThatThrownBy(() -> merger.mergeStrict(physical, semantic))
             .isInstanceOf(MetadataMergeException.class)
@@ -374,25 +376,24 @@ class MetadataMergerTest {
 
     @Test
     void diagnosticModeReturnsInspectableResult() {
-        ModelMetadata physical = new ModelMetadata("DiagnosticModel");
-        ClassMetadata physicalClass = new ClassMetadata("DiagnosticModel.Topic.Child");
-        physicalClass.setTableName("child");
-        AttributeMetadata column = new AttributeMetadata("OwnerRef");
-        column.setColumnName("owner_id");
-        column.setSqlName("owner_id");
-        column.setQualifiedName("DiagnosticModel.Topic.Child.OwnerRef");
-        physicalClass.addAttribute(column);
-        physical.addClass(physicalClass);
+        ModelMetadataFactory factory = new ModelMetadataFactory();
+        ch.interlis.generator.model.builder.ModelMetadataBuilder physicalBuilder =
+            ch.interlis.generator.model.builder.ModelMetadataBuilder.model("DiagnosticModel");
+        physicalBuilder.classBuilder("DiagnosticModel.Topic.Child")
+            .tableName("child")
+            .attribute(new ch.interlis.generator.model.builder.AttributeMetadataBuilder("OwnerRef")
+                .columnName("owner_id").sqlName("owner_id")
+                .qualifiedName("DiagnosticModel.Topic.Child.OwnerRef"));
+        ModelMetadata physical = factory.buildValidated(physicalBuilder);
 
-        ModelMetadata semantic = new ModelMetadata("DiagnosticModel");
-        ClassMetadata semanticClass = new ClassMetadata("DiagnosticModel.Topic.Child");
-        AttributeMetadata first = new AttributeMetadata("Owner");
-        first.setCoreType(CoreType.REFERENCE);
-        AttributeMetadata second = new AttributeMetadata("The_Owner");
-        second.setCoreType(CoreType.REFERENCE);
-        semanticClass.addAttribute(first);
-        semanticClass.addAttribute(second);
-        semantic.addClass(semanticClass);
+        ch.interlis.generator.model.builder.ModelMetadataBuilder semanticBuilder =
+            ch.interlis.generator.model.builder.ModelMetadataBuilder.model("DiagnosticModel");
+        semanticBuilder.classBuilder("DiagnosticModel.Topic.Child")
+            .attribute(new ch.interlis.generator.model.builder.AttributeMetadataBuilder("Owner")
+                .coreType(CoreType.REFERENCE))
+            .attribute(new ch.interlis.generator.model.builder.AttributeMetadataBuilder("The_Owner")
+                .coreType(CoreType.REFERENCE));
+        ModelMetadata semantic = factory.buildValidated(semanticBuilder);
 
         MetadataMergeResult result = merger.merge(physical, semantic);
 

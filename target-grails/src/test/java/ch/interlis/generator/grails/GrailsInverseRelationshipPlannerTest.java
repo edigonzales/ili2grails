@@ -1,9 +1,13 @@
 package ch.interlis.generator.grails;
 
-import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
+import ch.interlis.generator.model.builder.RelationshipMetadataBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -21,8 +25,8 @@ class GrailsInverseRelationshipPlannerTest {
     @Test
     void mapsGeneratedCollectionBackToExactRelatedProperty() throws Exception {
         Fixture fixture = fixture("departmentReference", "department");
-        fixture.relatedAttribute().setMandatory(true);
-        fixture.relationship().setMandatory(true);
+        fixture.relatedAttribute().mandatory(true);
+        fixture.relationship().mandatory(true);
 
         GrailsInverseRelationshipPlanner planner = planner(
             fixture.metadata(),
@@ -31,7 +35,7 @@ class GrailsInverseRelationshipPlannerTest {
                 .build()
         );
 
-        assertThat(planner.plansForOwner(fixture.owner().getName()))
+        assertThat(planner.plansForOwner(fixture.owner().name()))
             .singleElement()
             .satisfies(plan -> {
                 assertThat(plan.collectionPropertyName()).isEqualTo("employees");
@@ -46,36 +50,36 @@ class GrailsInverseRelationshipPlannerTest {
     @Test
     void excludesUnsafeInverseRelationships() {
         Fixture composition = fixture("department", "department");
-        composition.relationship().setComposition(true);
+        composition.relationship().composition(true);
         assertThat(planner(composition.metadata(), defaultConfig()).plans()).isEmpty();
 
         Fixture external = fixture("department", "department");
-        external.relationship().setExternal(true);
+        external.relationship().external(true);
         assertThat(planner(external.metadata(), defaultConfig()).plans()).isEmpty();
 
         Fixture ordered = fixture("department", "department");
-        ordered.relationship().setOrdered(true);
+        ordered.relationship().ordered(true);
         assertThat(planner(ordered.metadata(), defaultConfig()).plans()).isEmpty();
 
         Fixture nonPhysical = fixture("department", null);
         assertThat(planner(nonPhysical.metadata(), defaultConfig()).plans()).isEmpty();
 
         Fixture incompleteSource = fixture("department", "department");
-        incompleteSource.related().setAbstract(true);
+        incompleteSource.related().abstractClass(true);
         assertThat(planner(incompleteSource.metadata(), defaultConfig()).plans()).isEmpty();
 
         Fixture incompleteOwner = fixture("department", "department");
-        incompleteOwner.owner().setAbstract(true);
+        incompleteOwner.owner().abstractClass(true);
         assertThat(planner(incompleteOwner.metadata(), defaultConfig()).plans()).isEmpty();
 
         Fixture ambiguous = fixture("department", "department");
-        AttributeMetadata duplicateReference = new AttributeMetadata("departmentAlias");
-        duplicateReference.setJavaType("Long");
-        duplicateReference.setForeignKey(true);
-        duplicateReference.setReferencedClass(ambiguous.owner().getName());
-        duplicateReference.setSqlName("department");
-        duplicateReference.setColumnName("department");
-        ambiguous.related().addAttribute(duplicateReference);
+        AttributeMetadataBuilder duplicateReference = new AttributeMetadataBuilder("departmentAlias")
+            .javaType("Long")
+            .foreignKey(true)
+            .referencedClass(ambiguous.owner().name())
+            .sqlName("department")
+            .columnName("department");
+        ambiguous.related().attribute(duplicateReference);
         assertThat(planner(ambiguous.metadata(), defaultConfig()).plans()).isEmpty();
     }
 
@@ -107,7 +111,7 @@ class GrailsInverseRelationshipPlannerTest {
     @Test
     void domainGeneratorEmitsInverseMetadataWithoutChangingForeignKeyMapping() throws Exception {
         Fixture fixture = fixture("departmentReference", "department");
-        fixture.relatedAttribute().setMandatory(true);
+        fixture.relatedAttribute().mandatory(true);
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example")
             .domainPackage("com.example.domain")
             .build();
@@ -133,49 +137,42 @@ class GrailsInverseRelationshipPlannerTest {
 
     @Test
     void twoFksToSameTargetProduceSeparatePlans() {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata station = persistentClass("TestModel.Transport.Station", "station");
-        ClassMetadata journey = persistentClass("TestModel.Transport.Journey", "journey");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder station = persistentClass(modelBuilder, "TestModel.Transport.Station", "station");
+        ClassMetadataBuilder journey = persistentClass(modelBuilder, "TestModel.Transport.Journey", "journey");
 
-        AttributeMetadata departure = new AttributeMetadata("departureStation");
-        departure.setJavaType("Long");
-        departure.setForeignKey(true);
-        departure.setReferencedClass(station.getName());
-        departure.setSqlName("departure_station_id");
-        departure.setColumnName("departure_station_id");
-        journey.addAttribute(departure);
-        AttributeMetadata arrival = new AttributeMetadata("arrivalStation");
-        arrival.setJavaType("Long");
-        arrival.setForeignKey(true);
-        arrival.setReferencedClass(station.getName());
-        arrival.setSqlName("arrival_station_id");
-        arrival.setColumnName("arrival_station_id");
-        journey.addAttribute(arrival);
-        metadata.addClass(station);
-        metadata.addClass(journey);
+        journey.attribute(new AttributeMetadataBuilder("departureStation")
+            .javaType("Long")
+            .foreignKey(true)
+            .referencedClass(station.name())
+            .sqlName("departure_station_id")
+            .columnName("departure_station_id"));
+        journey.attribute(new AttributeMetadataBuilder("arrivalStation")
+            .javaType("Long")
+            .foreignKey(true)
+            .referencedClass(station.name())
+            .sqlName("arrival_station_id")
+            .columnName("arrival_station_id"));
 
-        RelationshipMetadata departureRelationship = new RelationshipMetadata(
-            "TestModel.Transport.Journey_Departure");
-        departureRelationship.setSourceClass(journey.getName());
-        departureRelationship.setTargetClass(station.getName());
-        departureRelationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        departureRelationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        departureRelationship.setSourceAttribute("departure_station_id");
-        departureRelationship.setTargetRoleName("DepartureStation");
-        metadata.addRelationship(departureRelationship);
+        modelBuilder.relationship(RelationshipMetadata.builder("TestModel.Transport.Journey_Departure")
+            .sourceClass(journey.name())
+            .targetClass(station.name())
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK)
+            .sourceAttribute("departure_station_id")
+            .targetRoleName("DepartureStation"));
+        modelBuilder.relationship(RelationshipMetadata.builder("TestModel.Transport.Journey_Arrival")
+            .sourceClass(journey.name())
+            .targetClass(station.name())
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK)
+            .sourceAttribute("arrival_station_id")
+            .targetRoleName("ArrivalStation"));
 
-        RelationshipMetadata arrivalRelationship = new RelationshipMetadata(
-            "TestModel.Transport.Journey_Arrival");
-        arrivalRelationship.setSourceClass(journey.getName());
-        arrivalRelationship.setTargetClass(station.getName());
-        arrivalRelationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        arrivalRelationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        arrivalRelationship.setSourceAttribute("arrival_station_id");
-        arrivalRelationship.setTargetRoleName("ArrivalStation");
-        metadata.addRelationship(arrivalRelationship);
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         List<GrailsInverseRelationshipPlan> plans =
-            planner(metadata, defaultConfig()).plansForOwner(station.getName());
+            planner(metadata, defaultConfig()).plansForOwner(station.name());
 
         assertThat(plans).hasSize(2);
         assertThat(plans)
@@ -212,48 +209,48 @@ class GrailsInverseRelationshipPlannerTest {
     }
 
     private Fixture fixture(String propertyName, String columnName) {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata department = persistentClass("TestModel.Organization.Department", "department");
-        department.addLabel("en", "Department");
-        ClassMetadata employee = persistentClass("TestModel.Organization.Employee", "employee");
-        employee.addLabel("en", "Employee");
-        AttributeMetadata departmentReference = new AttributeMetadata(propertyName);
-        departmentReference.setJavaType("Long");
-        departmentReference.setForeignKey(true);
-        departmentReference.setReferencedClass(department.getName());
-        departmentReference.setSqlName(columnName);
-        departmentReference.setColumnName(columnName);
-        employee.addAttribute(departmentReference);
-        metadata.addClass(department);
-        metadata.addClass(employee);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder department = persistentClass(modelBuilder, "TestModel.Organization.Department", "department");
+        department.label("en", "Department");
+        ClassMetadataBuilder employee = persistentClass(modelBuilder, "TestModel.Organization.Employee", "employee");
+        employee.label("en", "Employee");
+        AttributeMetadataBuilder departmentReference = new AttributeMetadataBuilder(propertyName)
+            .javaType("Long")
+            .foreignKey(true)
+            .referencedClass(department.name())
+            .sqlName(columnName)
+            .columnName(columnName);
+        employee.attribute(departmentReference);
 
-        RelationshipMetadata relationship = new RelationshipMetadata(
+        RelationshipMetadataBuilder relationship = RelationshipMetadata.builder(
             "TestModel.Organization.Employee_Department"
-        );
-        relationship.setSourceClass(employee.getName());
-        relationship.setTargetClass(department.getName());
-        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        relationship.setSourceAttribute(propertyName);
-        relationship.setTargetRoleName("Department");
-        relationship.setPhysicalName(columnName);
-        metadata.addRelationship(relationship);
-        return new Fixture(metadata, department, employee, departmentReference, relationship);
+        )
+            .sourceClass(employee.name())
+            .targetClass(department.name())
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK)
+            .sourceAttribute(propertyName)
+            .targetRoleName("Department")
+            .physicalName(columnName);
+        modelBuilder.relationship(relationship);
+        return new Fixture(modelBuilder, department, employee, departmentReference, relationship);
     }
 
-    private ClassMetadata persistentClass(String name, String tableName) {
-        ClassMetadata classMetadata = new ClassMetadata(name);
-        classMetadata.setKind(ClassMetadata.ClassKind.CLASS);
-        classMetadata.setTableName(tableName);
-        return classMetadata;
+    private ClassMetadataBuilder persistentClass(ModelMetadataBuilder modelBuilder, String name, String tableName) {
+        return modelBuilder.classBuilder(name)
+            .kind(ClassMetadata.ClassKind.CLASS)
+            .tableName(tableName);
     }
 
     private record Fixture(
-        ModelMetadata metadata,
-        ClassMetadata owner,
-        ClassMetadata related,
-        AttributeMetadata relatedAttribute,
-        RelationshipMetadata relationship
+        ModelMetadataBuilder modelBuilder,
+        ClassMetadataBuilder owner,
+        ClassMetadataBuilder related,
+        AttributeMetadataBuilder relatedAttribute,
+        RelationshipMetadataBuilder relationship
     ) {
+        ModelMetadata metadata() {
+            return new ModelMetadataFactory().buildValidated(modelBuilder);
+        }
     }
 }

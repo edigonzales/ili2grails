@@ -162,6 +162,12 @@ Authorization: `index`/`show`/`edit` prüfen `canView`, `create`/`save` `canCrea
 
 **Dokumentierte Restposition:** `InterlisUiDescriptorSupport` bleibt bis auf Weiteres der View-Model-Builder (GSP-Grenze). Der vollständig typisierte `UiDescriptor`-Service (Spec 8.11) ist als Restposition notiert; die Registry-Deskriptoren werden bereits typisiert konsumiert, und die GSP-Model-Konvertierung ist die erlaubte View-Grenze.
 
+### M-10 Immutable Core-IR (Phasen 7+8)
+
+Alle Core-IR-Klassen sind finale immutable Value Objects mit identischen Gettern: `ModelMetadata` (kanonische Relationship-Liste + `ModelMetadataIndexes`), `ClassMetadata` (ohne Relationship-Feld), `AttributeMetadata` (reine Getter, keine Lazy-Inferenz), `RelationshipMetadata`, `AssociationMetadata`, `AssociationRoleMetadata`, `EnumMetadata`/`EnumValue`. Neue Builder unter `model.builder`, Freeze über `ModelMetadataFactory.buildValidated` (Typ-Auflösung via `AttributeTypeResolver` + `ModelMetadataValidator` mit den neuen Invarianten; unresolved Source/Target-Klassen sind bewusst nicht blockierend, da Root-only-Reads und Dependency-Klassen legitim sind). `Cardinality` ist ein top-level Record; `RelationshipIdentity` ist die kanonische Identität. `MetadataMerger` arbeitet auf Buildern (Inputs nie mutiert, Ergebnis via Factory); `ModelMetadataCopier` wurde entfernt. JSON: `model/json/ModelMetadataJsonWriter`/`ModelMetadataJsonView` (Format-Marker `metadataFormatVersion: 2`) und `LegacyModelMetadataJsonView` (ohne Marker); die CLI nutzt weiterhin den Legacy-Writer (kein Formatbruch, dokumentiert).
+
+Wichtige Verhaltens-Kompatibilität: der ili2db-Reader führt doppelte Attributnamen (mehrere FK-Spalten mit gleichem einfachen Namen) wie P0 zusammen statt zu duplizieren.
+
 ---
 
 ## 6. Ausgeführte Befehle
@@ -217,5 +223,7 @@ Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unv
 | `46ae8fa` | feat(runtime): add ili2grails Grails runtime plugin (Phase 3) |
 | `857b90f` | refactor(grails): replace runtime overlay with plugin dependency (Phase 4) |
 | `70ba4f1` | refactor(runtime): replace map contracts with typed descriptors (Phase 5) |
-| (folgt) | refactor(runtime): add injectable policies and split controller flows (Phase 6) |
+| `3231f5f` | refactor(runtime): add injectable policies and split controller flows (Phase 6) |
+| (folgt) | refactor(core): introduce immutable metadata builders and indexes (Phase 7) |
+| (folgt) | refactor(core): make metadata pipeline immutable after validation (Phase 8) |
 | (folgt) | ... |

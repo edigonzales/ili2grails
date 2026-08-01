@@ -4,7 +4,12 @@ import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
+import ch.interlis.generator.model.builder.RelationshipMetadataBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -17,35 +22,22 @@ class GrailsDomainGeneratorTest {
 
     @Test
     void rendersForeignKeyColumnWithoutBelongsToForNormalReference(@TempDir Path tempDir) throws Exception {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata address = new ClassMetadata("TestModel.Address");
-        address.setTableName("address");
-        address.addAttribute(primaryKeyAttribute());
-        AttributeMetadata addressName = new AttributeMetadata("name");
-        addressName.setCoreType(CoreType.TEXT);
-        addressName.setJavaType("String");
-        address.addAttribute(addressName);
-        metadata.addClass(address);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder address = modelBuilder.classBuilder("TestModel.Address")            .tableName("address");        address.attribute(primaryKeyAttribute());
+        AttributeMetadataBuilder addressName = new AttributeMetadataBuilder("name");        addressName.coreType(CoreType.TEXT);        addressName.javaType("String");        address.attribute(addressName);
 
-        ClassMetadata person = new ClassMetadata("TestModel.Person");
-        person.setTableName("person");
-        person.addAttribute(primaryKeyAttribute());
-        AttributeMetadata addressAttribute = new AttributeMetadata("address");
-        addressAttribute.setSqlName("address");
-        addressAttribute.setColumnName("address");
-        addressAttribute.setForeignKey(true);
-        addressAttribute.setReferencedClass(address.getName());
-        person.addAttribute(addressAttribute);
-        metadata.addClass(person);
+        ClassMetadataBuilder person = modelBuilder.classBuilder("TestModel.Person")            .tableName("person");        person.attribute(primaryKeyAttribute());
+        AttributeMetadataBuilder addressAttribute = new AttributeMetadataBuilder("address");        addressAttribute.sqlName("address");        addressAttribute.columnName("address");        addressAttribute.foreignKey(true);        addressAttribute.referencedClass(address.name());        person.attribute(addressAttribute);
 
-        RelationshipMetadata relationship = new RelationshipMetadata("person_address");
-        relationship.setSourceClass(person.getName());
-        relationship.setTargetClass(address.getName());
-        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE);
-        relationship.setSourceAttribute("address");
-        relationship.setTargetRoleName("address");
-        person.addRelationship(relationship);
+        modelBuilder.relationship(RelationshipMetadata.builder("person_address")
+            .sourceClass(person.name())
+            .targetClass(address.name())
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.REFERENCE_ATTRIBUTE)
+            .sourceAttribute("address")
+            .targetRoleName("address"));
+
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
         new GrailsDomainGenerator().generate(metadata, config);
@@ -69,21 +61,11 @@ class GrailsDomainGeneratorTest {
 
     @Test
     void rendersNumericConstraintsFromCoreContract(@TempDir Path tempDir) throws Exception {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata invoice = new ClassMetadata("TestModel.Invoice");
-        invoice.setTableName("invoice");
-        invoice.addAttribute(primaryKeyAttribute());
-        AttributeMetadata amount = new AttributeMetadata("amount");
-        amount.setCoreType(CoreType.NUMERIC);
-        amount.setJavaType("java.math.BigDecimal");
-        amount.setDocumentation("Invoice amount");
-        amount.setUnit("CHF");
-        amount.setMinValue("0.0");
-        amount.setMaxValue("9999.999");
-        amount.setPrecision(7);
-        amount.setScale(3);
-        invoice.addAttribute(amount);
-        metadata.addClass(invoice);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder invoice = modelBuilder.classBuilder("TestModel.Invoice")            .tableName("invoice");        invoice.attribute(primaryKeyAttribute());
+        AttributeMetadataBuilder amount = new AttributeMetadataBuilder("amount");        amount.coreType(CoreType.NUMERIC);        amount.javaType("java.math.BigDecimal");        amount.documentation("Invoice amount");        amount.unit("CHF");        amount.minValue("0.0");        amount.maxValue("9999.999");        amount.precision(7);        amount.scale(3);        invoice.attribute(amount);
+
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
         new GrailsDomainGenerator().generate(metadata, config);
@@ -100,25 +82,21 @@ class GrailsDomainGeneratorTest {
     @Test
     void twoFksToSameTargetProduceNoHasManyAndTwoInverseMetaEntries(@TempDir Path tempDir)
         throws Exception {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata station = new ClassMetadata("TestModel.Station");
-        station.setTableName("station");
-        station.addAttribute(primaryKeyAttribute());
-        metadata.addClass(station);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder station = modelBuilder.classBuilder("TestModel.Station")            .tableName("station");        station.attribute(primaryKeyAttribute());
 
-        ClassMetadata journey = new ClassMetadata("TestModel.Journey");
-        journey.setTableName("journey");
-        journey.addAttribute(primaryKeyAttribute());
-        journey.addAttribute(foreignKeyAttribute(
-            "departureStation", "departure_station_id", station.getName()));
-        journey.addAttribute(foreignKeyAttribute(
-            "arrivalStation", "arrival_station_id", station.getName()));
-        metadata.addClass(journey);
+        ClassMetadataBuilder journey = modelBuilder.classBuilder("TestModel.Journey")            .tableName("journey");        journey.attribute(primaryKeyAttribute());
+        journey.attribute(foreignKeyAttribute(
+            "departureStation", "departure_station_id", station.name()));
+        journey.attribute(foreignKeyAttribute(
+            "arrivalStation", "arrival_station_id", station.name()));
 
-        metadata.addRelationship(manYToOne("journey_departure", journey, station,
-            "departure_station_id", "DepartureStation"));
-        metadata.addRelationship(manYToOne("journey_arrival", journey, station,
-            "arrival_station_id", "ArrivalStation"));
+        modelBuilder.relationship(RelationshipMetadataBuilder.from(manYToOne("journey_departure", journey, station,
+            "departure_station_id", "DepartureStation")));
+        modelBuilder.relationship(RelationshipMetadataBuilder.from(manYToOne("journey_arrival", journey, station,
+            "arrival_station_id", "ArrivalStation")));
+
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
         new GrailsDomainGenerator().generate(metadata, config);
@@ -139,36 +117,17 @@ class GrailsDomainGeneratorTest {
     @Test
     void compositionWithUniqueMappedByRendersHasManyAndMappedBy(@TempDir Path tempDir)
         throws Exception {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata owner = new ClassMetadata("TestModel.Owner");
-        owner.setTableName("owner");
-        owner.addAttribute(primaryKeyAttribute());
-        metadata.addClass(owner);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder owner = modelBuilder.classBuilder("TestModel.Owner")            .tableName("owner");        owner.attribute(primaryKeyAttribute());
 
-        ClassMetadata part = new ClassMetadata("TestModel.Part");
-        part.setTableName("part");
-        part.addAttribute(primaryKeyAttribute());
-        part.addAttribute(foreignKeyAttribute("owner", "owner_id", owner.getName()));
-        metadata.addClass(part);
+        ClassMetadataBuilder part = modelBuilder.classBuilder("TestModel.Part")            .tableName("part");        part.attribute(primaryKeyAttribute());
+        part.attribute(foreignKeyAttribute("owner", "owner_id", owner.name()));
 
-        RelationshipMetadata composition = new RelationshipMetadata("owner_parts");
-        composition.setSourceClass(owner.getName());
-        composition.setTargetClass(part.getName());
-        composition.setType(RelationshipMetadata.RelationType.ONE_TO_MANY);
-        composition.setSemanticKind(RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE);
-        composition.setSourceAttribute("parts");
-        composition.setComposition(true);
-        composition.setCardinality(new RelationshipMetadata.Cardinality(1, 1, 0, -1));
-        metadata.addRelationship(composition);
+        RelationshipMetadataBuilder composition = RelationshipMetadataBuilder.from(RelationshipMetadata.builder("owner_parts")        .sourceClass(owner.name())        .targetClass(part.name())        .type(RelationshipMetadata.RelationType.ONE_TO_MANY)        .semanticKind(RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE)        .sourceAttribute("parts")        .composition(true)        .cardinality(ch.interlis.generator.model.Cardinality.of(1, 1, 0, -1))        .buildUnchecked());        modelBuilder.relationship(composition);
 
-        RelationshipMetadata ownerFk = new RelationshipMetadata("part_owner");
-        ownerFk.setSourceClass(part.getName());
-        ownerFk.setTargetClass(owner.getName());
-        ownerFk.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        ownerFk.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        ownerFk.setSourceAttribute("owner_id");
-        ownerFk.setComposition(true);
-        metadata.addRelationship(ownerFk);
+        RelationshipMetadataBuilder ownerFk = RelationshipMetadataBuilder.from(RelationshipMetadata.builder("part_owner")        .sourceClass(part.name())        .targetClass(owner.name())        .type(RelationshipMetadata.RelationType.MANY_TO_ONE)        .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK)        .sourceAttribute("owner_id")        .composition(true)        .buildUnchecked());        modelBuilder.relationship(ownerFk);
+
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
         new GrailsDomainGenerator().generate(metadata, config);
@@ -186,46 +145,36 @@ class GrailsDomainGeneratorTest {
     }
 
     private RelationshipMetadata manYToOne(String name,
-                                           ClassMetadata source,
-                                           ClassMetadata target,
+                                           ClassMetadataBuilder source,
+                                           ClassMetadataBuilder target,
                                            String sourceAttribute,
                                            String targetRoleName) {
-        RelationshipMetadata relationship = new RelationshipMetadata(name);
-        relationship.setSourceClass(source.getName());
-        relationship.setTargetClass(target.getName());
-        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        relationship.setSourceAttribute(sourceAttribute);
-        relationship.setTargetRoleName(targetRoleName);
-        relationship.setPhysicalName(sourceAttribute);
-        return relationship;
+        return RelationshipMetadata.builder(name)
+            .sourceClass(source.name())
+            .targetClass(target.name())
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK)
+            .sourceAttribute(sourceAttribute)
+            .targetRoleName(targetRoleName)
+            .physicalName(sourceAttribute)
+            .buildUnchecked();
     }
 
-    private AttributeMetadata foreignKeyAttribute(String name, String columnName, String referencedClass) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setSqlName(columnName);
-        attribute.setColumnName(columnName);
-        attribute.setForeignKey(true);
-        attribute.setReferencedClass(referencedClass);
-        return attribute;
+    private AttributeMetadataBuilder foreignKeyAttribute(String name, String columnName, String referencedClass) {
+        return new AttributeMetadataBuilder(name)
+            .sqlName(columnName)
+            .columnName(columnName)
+            .foreignKey(true)
+            .referencedClass(referencedClass);
     }
 
     @Test
     void rendersGeometryMetaWithTypedKindAndValidationFlags(@TempDir Path tempDir) throws Exception {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata parcel = new ClassMetadata("TestModel.Parcel");
-        parcel.setTableName("parcel");
-        parcel.addAttribute(primaryKeyAttribute());
-        AttributeMetadata footprint = new AttributeMetadata("footprint");
-        footprint.setGeometry(true);
-        footprint.setGeometryKind("MULTIPOLYGON");
-        footprint.setGeometrySrid(2056);
-        footprint.setGeometryHasZ(false);
-        footprint.setGeometryHasM(false);
-        footprint.setAllowEmptyGeometry(false);
-        footprint.setJavaType("org.locationtech.jts.geom.Geometry");
-        parcel.addAttribute(footprint);
-        metadata.addClass(parcel);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder parcel = modelBuilder.classBuilder("TestModel.Parcel")            .tableName("parcel");        parcel.attribute(primaryKeyAttribute());
+        AttributeMetadataBuilder footprint = new AttributeMetadataBuilder("footprint");        footprint.geometry(true);        footprint.geometryKind("MULTIPOLYGON");        footprint.geometrySrid(2056);        footprint.geometryHasZ(false);        footprint.geometryHasM(false);        footprint.allowEmptyGeometry(false);        footprint.javaType("org.locationtech.jts.geom.Geometry");        parcel.attribute(footprint);
+
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
         new GrailsDomainGenerator().generate(metadata, config);
@@ -237,11 +186,10 @@ class GrailsDomainGeneratorTest {
         assertThat(content).contains("footprint: [srid: 2056, kind: 'MULTIPOLYGON', hasZ: false, hasM: false, allowEmpty: false]");
     }
 
-    private AttributeMetadata primaryKeyAttribute() {
-        AttributeMetadata attribute = new AttributeMetadata("t_id");
-        attribute.setSqlName("t_id");
-        attribute.setColumnName("t_id");
-        attribute.setPrimaryKey(true);
-        return attribute;
+    private AttributeMetadataBuilder primaryKeyAttribute() {
+        return new AttributeMetadataBuilder("t_id")
+            .sqlName("t_id")
+            .columnName("t_id")
+            .primaryKey(true);
     }
 }

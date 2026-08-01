@@ -1,11 +1,13 @@
 package ch.interlis.generator.django;
 
-import ch.interlis.generator.model.AttributeMetadata;
-import ch.interlis.generator.model.AssociationMetadata;
 import ch.interlis.generator.model.AssociationRoleMetadata;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.CoreType;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import ch.interlis.generator.reader.Ili2cModelReader;
 import ch.interlis.generator.testsupport.MetadataTestFixtures;
 import org.junit.jupiter.api.Test;
@@ -72,13 +74,12 @@ class DjangoModelsGeneratorTest {
 
     @Test
     void scalarFieldMappingPrefersCoreTypeOverJavaTargetHint() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata classMetadata = new ClassMetadata("TestModel.Topic.Event");
-        AttributeMetadata recordedAt = new AttributeMetadata("RecordedAt");
-        recordedAt.setCoreType(CoreType.DATE);
-        recordedAt.setJavaType("String");
-        classMetadata.addAttribute(recordedAt);
-        metadata.addClass(classMetadata);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        modelBuilder.classBuilder("TestModel.Topic.Event")
+            .attribute(new AttributeMetadataBuilder("RecordedAt")
+                .coreType(CoreType.DATE)
+                .javaType("String"));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
         Path outputDir = tempDir.resolve("core-type-precedence");
         DjangoGenerationConfig config = DjangoGenerationConfig.builder(outputDir, "event_app").build();
 
@@ -90,15 +91,14 @@ class DjangoModelsGeneratorTest {
 
     @Test
     void decimalFieldMappingUsesCoreConstraints() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata classMetadata = new ClassMetadata("TestModel.Topic.Invoice");
-        AttributeMetadata amount = new AttributeMetadata("Amount");
-        amount.setCoreType(CoreType.NUMERIC);
-        amount.setJavaType("BigDecimal");
-        amount.setPrecision(8);
-        amount.setScale(3);
-        classMetadata.addAttribute(amount);
-        metadata.addClass(classMetadata);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        modelBuilder.classBuilder("TestModel.Topic.Invoice")
+            .attribute(new AttributeMetadataBuilder("Amount")
+                .coreType(CoreType.NUMERIC)
+                .javaType("BigDecimal")
+                .precision(8)
+                .scale(3));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
         Path outputDir = tempDir.resolve("core-decimal-constraints");
         DjangoGenerationConfig config = DjangoGenerationConfig.builder(outputDir, "invoice_app").build();
 
@@ -110,25 +110,20 @@ class DjangoModelsGeneratorTest {
 
     @Test
     void associationMetadataCanDriveAssociationRoleFieldsWithoutRelationships() throws Exception {
-        ModelMetadata metadata = new ModelMetadata("TestModel");
-        ClassMetadata person = persistentClass("TestModel.Topic.Person");
-        ClassMetadata address = persistentClass("TestModel.Topic.Address");
-        ClassMetadata personAddress = persistentClass("TestModel.Topic.PersonAddress");
-        personAddress.setKind(ClassMetadata.ClassKind.ASSOCIATION);
-        metadata.addClass(person);
-        metadata.addClass(address);
-        metadata.addClass(personAddress);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("TestModel");
+        ClassMetadataBuilder person = persistentClass(modelBuilder, "TestModel.Topic.Person");
+        ClassMetadataBuilder address = persistentClass(modelBuilder, "TestModel.Topic.Address");
+        ClassMetadataBuilder personAddress = persistentClass(modelBuilder, "TestModel.Topic.PersonAddress")
+            .kind(ClassMetadata.ClassKind.ASSOCIATION);
 
-        AssociationMetadata association = new AssociationMetadata(personAddress.getName());
-        association.setAssociationClass(personAddress.getName());
-        AssociationRoleMetadata personRole = new AssociationRoleMetadata("Person");
-        personRole.setTargetClass(person.getName());
-        personRole.setMandatory(true);
-        association.addRole(personRole);
-        AssociationRoleMetadata addressRole = new AssociationRoleMetadata("Address");
-        addressRole.setTargetClass(address.getName());
-        association.addRole(addressRole);
-        metadata.addAssociation(association);
+        modelBuilder.associationBuilder(personAddress.name())
+            .associationClass(personAddress.name())
+            .role(AssociationRoleMetadata.builder("Person")
+                .targetClass(person.name())
+                .mandatory(true))
+            .role(AssociationRoleMetadata.builder("Address")
+                .targetClass(address.name()));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         Path outputDir = tempDir.resolve("association-metadata");
         DjangoGenerationConfig config = DjangoGenerationConfig.builder(outputDir, "assoc_app").build();
@@ -163,10 +158,10 @@ class DjangoModelsGeneratorTest {
         return content.replace("\r\n", "\n").replace('\r', '\n');
     }
 
-    private ClassMetadata persistentClass(String name) {
-        ClassMetadata classMetadata = new ClassMetadata(name);
-        classMetadata.setKind(ClassMetadata.ClassKind.CLASS);
-        classMetadata.setTableName(classMetadata.getSimpleName().toLowerCase());
+    private ClassMetadataBuilder persistentClass(ModelMetadataBuilder modelBuilder, String name) {
+        ClassMetadataBuilder classMetadata = modelBuilder.classBuilder(name)
+            .kind(ClassMetadata.ClassKind.CLASS);
+        classMetadata.tableName(name.substring(name.lastIndexOf('.') + 1).toLowerCase());
         return classMetadata;
     }
 }

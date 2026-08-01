@@ -143,66 +143,70 @@ public class Ili2dbMetadataReader {
         logger.info("Reading ili2db metadata for selection: {} -> {}", modelName,
             selection.includedModelNames());
 
-        ModelMetadata metadata = new ModelMetadata(modelName);
-
-        metadata.setSchemaName(schema != null ? schema.value() : null);
+        ch.interlis.generator.model.builder.ModelMetadataBuilder builder =
+            ch.interlis.generator.model.builder.ModelMetadataBuilder.model(modelName);
+        builder.schemaName(schema != null ? schema.value() : null);
 
         // Settings lesen
-        readSettings(metadata);
+        readSettings(builder);
 
         Set<String> modelNames = effectiveModelNames(selection, availableDatabaseModels());
 
         // Klassen lesen
-        readClasses(metadata, modelNames);
+        readClasses(builder, modelNames);
 
         // Attribute lesen
-        readAttributes(metadata, modelNames);
+        readAttributes(builder, modelNames);
 
         // Vererbung auflösen
-        readInheritance(metadata, modelNames);
+        readInheritance(builder, modelNames);
 
         // Spalten-Properties lesen (Constraints, etc.)
-        readColumnProperties(metadata);
+        readColumnProperties(builder);
 
         // Beziehungen ableiten
-        deriveRelationships(metadata);
+        deriveRelationships(builder);
 
         // Association-Klassen als eigene Core-IR vorbereiten
-        deriveAssociations(metadata);
+        deriveAssociations(builder);
 
+        ModelMetadata metadata = new ch.interlis.generator.model.ModelMetadataFactory()
+            .buildValidated(builder);
         logger.info("Metadata reading complete: {} classes, {} enums",
             metadata.getClasses().size(), metadata.getEnums().size());
 
         return metadata;
     }
-    
+
     /**
      * Liest die ili2db Settings.
      */
-    private void readSettings(ModelMetadata metadata) throws SQLException {
+    private void readSettings(ch.interlis.generator.model.builder.ModelMetadataBuilder builder)
+        throws SQLException {
         String sql = "SELECT tag, setting FROM " + metaTable("t_ili2db_settings");
-        
+
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 String tag = rs.getString("tag");
                 String setting = rs.getString("setting");
-                metadata.getSettings().put(tag, setting);
-                
+                builder.setting(tag, setting);
+
                 if ("ch.ehi.ili2db.sender".equals(tag)) {
-                    metadata.setIli2dbVersion(setting);
+                    builder.ili2dbVersion(setting);
                 }
             }
         } catch (SQLException e) {
             logger.warn("Could not read settings", e);
         }
     }
-    
+
     /**
      * Liest alle Klassen (Tables) für das gegebene Modell.
      */
-    private void readClasses(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
-        List<String> prefixes = buildModelPrefixes(metadata, modelNames);
+    private void readClasses(ch.interlis.generator.model.builder.ModelMetadataBuilder builder,
+                             Collection<String> modelNames) throws SQLException {
+        List<String> prefixes = buildModelPrefixes(builder, modelNames);
         String sql =
             "SELECT tp.tablename, tp.setting, c.iliname " +
             "FROM " + metaTable("t_ili2db_table_prop") + " tp " +
@@ -211,10 +215,10 @@ public class Ili2dbMetadataReader {
             "WHERE " + buildLikeClause("c.iliname", prefixes.size()) + " " +
             "ORDER BY c.iliname"
         ;
-        
+
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             bindLikePrefixes(pstmt, prefixes);
-            
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     String tableName = rs.getString("tablename");
@@ -232,26 +236,26 @@ public class Ili2dbMetadataReader {
                         continue;
                     }
 
-                    ClassMetadata classMetadata = new ClassMetadata(iliName);
-                    classMetadata.setTableName(tableName);
-                    classMetadata.setSqlName(qualifyTableName(tableName));
-                    classMetadata.setKind(kind.get());
-
-                    metadata.addClass(classMetadata);
+                    ch.interlis.generator.model.builder.ClassMetadataBuilder classMetadata =
+                        builder.classBuilder(iliName);
+                    classMetadata.tableName(tableName);
+                    classMetadata.sqlName(qualifyTableName(tableName));
+                    classMetadata.kind(kind.get());
 
                     logger.debug("Found class: {} -> {} ({})", iliName, tableName, setting);
                 }
             }
         }
     }
-    
+
     /**
      * Liest alle Attribute (Columns) für die Klassen.
      */
-    private void readAttributes(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
-        List<String> prefixes = buildModelPrefixes(metadata, modelNames);
-        List<String> tableNames = metadata.getAllClasses().stream()
-            .map(ClassMetadata::getTableName)
+    private void readAttributes(ch.interlis.generator.model.builder.ModelMetadataBuilder builder,
+                                Collection<String> modelNames) throws SQLException {
+        List<String> prefixes = buildModelPrefixes(builder, modelNames);
+        List<String> tableNames = builder.classBuilders().values().stream()
+            .map(ch.interlis.generator.model.builder.ClassMetadataBuilder::tableName)
             .filter(Objects::nonNull)
             .filter(name -> !name.isBlank())
             .distinct()
@@ -265,10 +269,10 @@ public class Ili2dbMetadataReader {
             "WHERE " + whereClause + " " +
             "ORDER BY a." + ATTR_OWNER_COLUMN + ", a.sqlname"
         ;
-        
+
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             bindAttributeFilters(pstmt, prefixes, tableNames);
-            
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     String iliName = rs.getString("iliname");
@@ -277,51 +281,59 @@ public class Ili2dbMetadataReader {
                     String target = rs.getString("target");
 
                     String ownerClassName = extractOwnerClassName(iliName);
-                    ClassMetadata classMetadata = resolveAttributeOwner(metadata, ownerClassName, owner);
+                    ch.interlis.generator.model.builder.ClassMetadataBuilder classMetadata =
+                        resolveAttributeOwner(builder, ownerClassName, owner);
                     if (classMetadata == null) {
                         logger.warn("Attribute {} belongs to unknown class {} (owner table: {})",
                             iliName, ownerClassName, owner);
                         continue;
                     }
-                    ownerClassName = classMetadata.getName();
-                    
+                    ownerClassName = classMetadata.name();
+
                     String simpleName = extractSimpleName(iliName);
-                    AttributeMetadata attrMetadata = new AttributeMetadata(simpleName);
+                    // Mehrere FK-Spalten können denselben einfachen Namen tragen;
+                    // bestehende Attribute werden angereichert statt dupliziert.
+                    ch.interlis.generator.model.builder.AttributeMetadataBuilder attrMetadata =
+                        classMetadata.findAttributeBuilder(simpleName)
+                            .orElseGet(() -> {
+                                ch.interlis.generator.model.builder.AttributeMetadataBuilder created =
+                                    new ch.interlis.generator.model.builder.AttributeMetadataBuilder(simpleName);
+                                classMetadata.attribute(created);
+                                return created;
+                            });
                     String qualifiedName = iliName;
                     if ((qualifiedName == null || !qualifiedName.contains(".")) && ownerClassName != null) {
                         qualifiedName = ownerClassName + "." + simpleName;
                     }
-                    attrMetadata.setQualifiedName(qualifiedName);
-                    attrMetadata.setColumnName(sqlName);
-                    attrMetadata.setSqlName(sqlName);
-                                        
+                    attrMetadata.qualifiedName(qualifiedName);
+                    attrMetadata.columnName(sqlName);
+                    attrMetadata.sqlName(sqlName);
+
                     // Ist es eine Beziehung (FK)?
                     if (target != null && !target.isEmpty()) {
-                        attrMetadata.setForeignKey(true);
-                        String resolvedTarget = resolveTargetClass(metadata, target);
-                        attrMetadata.setReferencedClass(resolvedTarget);
+                        attrMetadata.foreignKey(true);
+                        String resolvedTarget = resolveTargetClass(builder, target);
+                        attrMetadata.referencedClass(resolvedTarget);
                     }
-                    
+
                     // Datenbank-Typ und weitere Infos aus DB-Schema holen
-                    enrichAttributeFromDbSchema(attrMetadata, classMetadata.getTableName(), sqlName);
+                    enrichAttributeFromDbSchema(attrMetadata, classMetadata.tableName(), sqlName);
 
                     EnumDomainInfo enumDomain = enumDomains.get(
-                        EnumColumnKey.normalized(classMetadata.getTableName(), sqlName)
+                        EnumColumnKey.normalized(classMetadata.tableName(), sqlName)
                     );
                     if (enumDomain != null) {
-                        attrMetadata.setEnumType(enumDomain.enumIliName());
+                        attrMetadata.enumType(enumDomain.enumIliName());
                         List<EnumMetadata.EnumValue> values = loadEnumValues(enumDomain.enumTableName());
-                        values.forEach(attrMetadata::addEnumValue);
+                        values.forEach(attrMetadata::enumValue);
                     }
-                    
-                    classMetadata.addAttribute(attrMetadata);
-                    
-                    logger.debug("  Attribute: {}.{} -> {}", 
-                        classMetadata.getSimpleName(), iliName, sqlName);
+
+                    logger.debug("  Attribute: {}.{} -> {}",
+                        classMetadata.name(), iliName, sqlName);
                 }
             }
         }
-        ensurePrimaryKeyAttributes(metadata);
+        ensurePrimaryKeyAttributes(builder);
     }
 
     private Map<EnumColumnKey, EnumDomainInfo> loadEnumDomains() throws SQLException {
@@ -396,60 +408,60 @@ public class Ili2dbMetadataReader {
                     continue;
                 }
                 int seq = seqColumn != null ? rs.getInt(seqColumn) : values.size();
-                EnumMetadata.EnumValue value = new EnumMetadata.EnumValue(iliCode, seq);
                 String dispName = dispNameColumn != null ? rs.getString(dispNameColumn) : null;
                 if (dispName == null || dispName.isBlank()) {
                     dispName = iliCode;
                 }
-                value.setDispName(dispName);
-                values.add(value);
+                values.add(new EnumMetadata.EnumValue(iliCode, dispName, seq, Map.of()));
             }
         } catch (SQLException e) {
             logger.warn("Could not read enum table values from {}", enumTableName, e);
         }
         return values;
     }
-    
+
     /**
      * Holt zusätzliche Informationen über ein Attribut aus dem DB-Schema.
      */
-    private void enrichAttributeFromDbSchema(AttributeMetadata attr, String tableName, String columnName)
-        throws SQLException {
+    private void enrichAttributeFromDbSchema(
+        ch.interlis.generator.model.builder.AttributeMetadataBuilder attr,
+        String tableName,
+        String columnName) throws SQLException {
         ColumnInfo columnInfo = resolveColumnInfo(tableName, columnName);
         if (columnInfo == null) {
             return;
         }
 
         String resolvedType = resolveDbType(columnInfo.dataType(), columnInfo.typeName());
-        attr.setDbType(resolvedType);
+        attr.dbType(resolvedType);
         if (columnInfo.nullable() != null) {
-            attr.setMandatory(ResultSetMetaData.columnNoNulls == columnInfo.nullable());
+            attr.mandatory(ResultSetMetaData.columnNoNulls == columnInfo.nullable());
         }
         Integer maxLength = columnInfo.columnSize();
         if (maxLength != null && maxLength == 0) {
             maxLength = null;
         }
-        attr.setMaxLength(maxLength);
+        attr.maxLength(maxLength);
         if (isNumericColumn(columnInfo)) {
-            attr.setPrecision(maxLength);
-            attr.setScale(columnInfo.decimalDigits());
+            attr.precision(maxLength);
+            attr.scale(columnInfo.decimalDigits());
         }
 
         if (columnInfo.typeName() != null && "GEOMETRY".equalsIgnoreCase(columnInfo.typeName())) {
-            attr.setGeometry(true);
+            attr.geometry(true);
             String resolvedGeometryKind = resolveGeometryKind(tableName, columnName);
             if (resolvedGeometryKind != null && !resolvedGeometryKind.isBlank()) {
-                attr.setGeometryKind(resolvedGeometryKind);
-                attr.setGeometryHasZ(geometryTypeHasZ(resolvedGeometryKind));
-                attr.setGeometryHasM(geometryTypeHasM(resolvedGeometryKind));
-            } else if (attr.getGeometryKind() == null || attr.getGeometryKind().isBlank()) {
-                attr.setGeometryKind(GeometryKind.GEOMETRY);
+                attr.geometryKind(resolvedGeometryKind);
+                attr.geometryHasZ(geometryTypeHasZ(resolvedGeometryKind));
+                attr.geometryHasM(geometryTypeHasM(resolvedGeometryKind));
+            } else if (attr.geometryKind() == null) {
+                attr.geometryKind(GeometryKind.GEOMETRY);
             }
-            attr.setAllowEmptyGeometry(false);
-            attr.setGeometrySrid(resolveGeometrySrid(tableName, columnName));
+            attr.allowEmptyGeometry(false);
+            attr.geometrySrid(resolveGeometrySrid(tableName, columnName));
         }
 
-        attr.setPrimaryKey(isPrimaryKey(tableName, columnName));
+        attr.primaryKey(isPrimaryKey(tableName, columnName));
     }
 
     private Integer resolveGeometrySrid(String tableName, String columnName) {
@@ -705,7 +717,7 @@ public class Ili2dbMetadataReader {
                 return typeName;
         }
     }
-    
+
     /**
      * Prüft ob eine Spalte ein Primary Key ist.
      */
@@ -713,70 +725,77 @@ public class Ili2dbMetadataReader {
         return equalsIgnoreCase(PRIMARY_KEY_COLUMN, columnName);
     }
 
-    private void ensurePrimaryKeyAttributes(ModelMetadata metadata) throws SQLException {
-        for (ClassMetadata classMetadata : metadata.getAllClasses()) {
-            String tableName = classMetadata.getTableName();
+    private void ensurePrimaryKeyAttributes(ch.interlis.generator.model.builder.ModelMetadataBuilder builder)
+        throws SQLException {
+        for (ch.interlis.generator.model.builder.ClassMetadataBuilder classMetadata
+            : builder.classBuilders().values()) {
+            String tableName = classMetadata.tableName();
             if (tableName == null || tableName.isBlank()) {
                 continue;
             }
-            AttributeMetadata attribute = findAttributeByColumnName(classMetadata, PRIMARY_KEY_COLUMN);
+            ch.interlis.generator.model.builder.AttributeMetadataBuilder attribute =
+                findAttributeByColumnName(classMetadata, PRIMARY_KEY_COLUMN);
             if (attribute == null) {
                 attribute = findAttributeByName(classMetadata, PRIMARY_KEY_COLUMN);
             }
             if (attribute == null) {
-                attribute = new AttributeMetadata(PRIMARY_KEY_COLUMN);
-                attribute.setQualifiedName(classMetadata.getName() + "." + PRIMARY_KEY_COLUMN);
-                attribute.setColumnName(PRIMARY_KEY_COLUMN);
-                attribute.setSqlName(PRIMARY_KEY_COLUMN);
-                classMetadata.addAttribute(attribute);
+                attribute = new ch.interlis.generator.model.builder.AttributeMetadataBuilder(PRIMARY_KEY_COLUMN);
+                attribute.qualifiedName(classMetadata.name() + "." + PRIMARY_KEY_COLUMN);
+                attribute.columnName(PRIMARY_KEY_COLUMN);
+                attribute.sqlName(PRIMARY_KEY_COLUMN);
+                classMetadata.attribute(attribute);
             } else {
-                if (attribute.getColumnName() == null) {
-                    attribute.setColumnName(PRIMARY_KEY_COLUMN);
+                if (attribute.columnName() == null) {
+                    attribute.columnName(PRIMARY_KEY_COLUMN);
                 }
-                if (attribute.getSqlName() == null && attribute.getColumnName() != null) {
-                    attribute.setSqlName(attribute.getColumnName());
+                if (attribute.sqlName() == null && attribute.columnName() != null) {
+                    attribute.sqlName(attribute.columnName());
                 }
-                if (attribute.getQualifiedName() == null && classMetadata.getName() != null) {
-                    attribute.setQualifiedName(classMetadata.getName() + "." + attribute.getName());
+                if (attribute.qualifiedName() == null && classMetadata.name() != null) {
+                    attribute.qualifiedName(classMetadata.name() + "." + attribute.name());
                 }
             }
-            attribute.setPrimaryKey(true);
-            if (attribute.getColumnName() != null) {
-                enrichAttributeFromDbSchema(attribute, tableName, attribute.getColumnName());
+            attribute.primaryKey(true);
+            if (attribute.columnName() != null) {
+                enrichAttributeFromDbSchema(attribute, tableName, attribute.columnName());
             }
         }
     }
 
-    private AttributeMetadata findAttributeByName(ClassMetadata classMetadata, String attributeName) {
-        for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
-            if (equalsIgnoreCase(attributeName, attr.getName())) {
+    private ch.interlis.generator.model.builder.AttributeMetadataBuilder findAttributeByName(
+        ch.interlis.generator.model.builder.ClassMetadataBuilder classMetadata, String attributeName) {
+        for (ch.interlis.generator.model.builder.AttributeMetadataBuilder attr
+            : classMetadata.attributeBuilders().values()) {
+            if (equalsIgnoreCase(attributeName, attr.name())) {
                 return attr;
             }
         }
         return null;
     }
-    
+
     /**
      * Liest die Vererbungshierarchie.
      */
-    private void readInheritance(ModelMetadata metadata, Collection<String> modelNames) throws SQLException {
-        List<String> prefixes = buildModelPrefixes(metadata, modelNames);
+    private void readInheritance(ch.interlis.generator.model.builder.ModelMetadataBuilder builder,
+                                 Collection<String> modelNames) throws SQLException {
+        List<String> prefixes = buildModelPrefixes(builder, modelNames);
         String sql =
             "SELECT thisclass, baseclass FROM " + metaTable("t_ili2db_inheritance") + " " +
             "WHERE " + buildLikeClause("thisclass", prefixes.size())
         ;
-        
+
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             bindLikePrefixes(pstmt, prefixes);
-            
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     String thisClass = rs.getString("thisclass");
                     String baseClass = rs.getString("baseclass");
-                    
-                    ClassMetadata classMetadata = metadata.getClass(thisClass);
+
+                    ch.interlis.generator.model.builder.ClassMetadataBuilder classMetadata =
+                        builder.findClassBuilder(thisClass).orElse(null);
                     if (classMetadata != null) {
-                        classMetadata.setBaseClass(baseClass);
+                        classMetadata.baseClass(baseClass);
                         logger.debug("Inheritance: {} extends {}", thisClass, baseClass);
                     }
                 }
@@ -785,36 +804,41 @@ public class Ili2dbMetadataReader {
             logger.warn("Could not read inheritance information", e);
         }
     }
-    
+
     /**
      * Liest Spalten-Properties (Constraints, etc.).
      */
-    private void readColumnProperties(ModelMetadata metadata) throws SQLException {
+    private void readColumnProperties(ch.interlis.generator.model.builder.ModelMetadataBuilder builder)
+        throws SQLException {
         String sql =
             "SELECT tablename, columnname, tag, setting " +
             "FROM " + metaTable("t_ili2db_column_prop") + " " +
             "ORDER BY tablename, columnname"
         ;
-        
+
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
-            
+
             while (rs.next()) {
                 String tableName = rs.getString("tablename");
                 String columnName = rs.getString("columnname");
                 String tag = rs.getString("tag");
                 String setting = rs.getString("setting");
-                
+
                 // Finde die entsprechende Klasse
-                ClassMetadata classMetadata = findClassByTableName(metadata, tableName);
-                if (classMetadata == null) continue;
-                
-                AttributeMetadata attr = classMetadata.getAttribute(columnName);
+                ch.interlis.generator.model.builder.ClassMetadataBuilder classMetadata =
+                    findClassByTableName(builder, tableName);
+                if (classMetadata == null) {
+                    continue;
+                }
+
+                ch.interlis.generator.model.builder.AttributeMetadataBuilder attr =
+                    classMetadata.findAttributeBuilder(columnName).orElse(null);
                 if (attr == null) {
                     // Suche nach Spaltenname statt INTERLIS-Name
                     attr = findAttributeByColumnName(classMetadata, columnName);
                 }
-                
+
                 if (attr != null) {
                     applyColumnProperty(attr, tag, setting);
                 }
@@ -823,32 +847,38 @@ public class Ili2dbMetadataReader {
             logger.warn("Could not read column properties", e);
         }
     }
-    
-    private ClassMetadata findClassByTableName(ModelMetadata metadata, String tableName) {
-        for (ClassMetadata clazz : metadata.getAllClasses()) {
-            if (equalsIgnoreCase(tableName, clazz.getTableName())) {
+
+    private ch.interlis.generator.model.builder.ClassMetadataBuilder findClassByTableName(
+        ch.interlis.generator.model.builder.ModelMetadataBuilder builder, String tableName) {
+        for (ch.interlis.generator.model.builder.ClassMetadataBuilder clazz
+            : builder.classBuilders().values()) {
+            if (equalsIgnoreCase(tableName, clazz.tableName())) {
                 return clazz;
             }
         }
         return null;
     }
-    
-    private AttributeMetadata findAttributeByColumnName(ClassMetadata classMetadata, String columnName) {
-        for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
-            if (equalsIgnoreCase(columnName, attr.getColumnName())) {
+
+    private ch.interlis.generator.model.builder.AttributeMetadataBuilder findAttributeByColumnName(
+        ch.interlis.generator.model.builder.ClassMetadataBuilder classMetadata, String columnName) {
+        for (ch.interlis.generator.model.builder.AttributeMetadataBuilder attr
+            : classMetadata.attributeBuilders().values()) {
+            if (equalsIgnoreCase(columnName, attr.columnName())) {
                 return attr;
             }
         }
         return null;
     }
-    
-    private void applyColumnProperty(AttributeMetadata attr, String tag, String setting) {
+
+    private void applyColumnProperty(ch.interlis.generator.model.builder.AttributeMetadataBuilder attr,
+                                     String tag,
+                                     String setting) {
         switch (tag) {
             case "ch.ehi.ili2db.unit":
-                attr.setUnit(setting);
+                attr.unit(setting);
                 break;
             case ENUM_DOMAIN_TAG:
-                attr.setEnumType(setting);
+                attr.enumType(setting);
                 break;
             case "ch.ehi.ili2db.dispName":
                 // Display name könnte für Labels verwendet werden
@@ -856,105 +886,110 @@ public class Ili2dbMetadataReader {
             // Weitere Properties können hier ergänzt werden
         }
     }
-    
+
     /**
      * Leitet Beziehungen aus Foreign Keys ab.
      */
-    private void deriveRelationships(ModelMetadata metadata) {
-        for (ClassMetadata classMetadata : metadata.getAllClasses()) {
-            for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
-                if (attr.isForeignKey() && attr.getReferencedClass() != null) {
-                    RelationshipMetadata rel = new RelationshipMetadata(
-                        classMetadata.getName() + "_" + attr.getName()
-                    );
-                    rel.setSourceClass(classMetadata.getName());
-                    rel.setTargetClass(attr.getReferencedClass());
-                    String sourceAttribute = attr.getSqlName() != null ? attr.getSqlName() : attr.getName();
-                    rel.setSourceAttribute(sourceAttribute);
-                    rel.setTargetAttribute("T_Id"); // ili2db Standard
-                    rel.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-                    rel.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-                    rel.setSource("ili2db");
-                    rel.setPhysicalName(sourceAttribute);
-                    rel.setMergeReason(RelationshipMetadata.MergeReason.ILI2DB_ONLY);
-                    rel.setMergeConfidence(RelationshipMetadata.MergeConfidence.NONE);
-                    rel.setTargetRoleName(attr.getName());
-                    rel.setCardinality(new RelationshipMetadata.Cardinality(
+    private void deriveRelationships(ch.interlis.generator.model.builder.ModelMetadataBuilder builder) {
+        for (ch.interlis.generator.model.builder.ClassMetadataBuilder classMetadata
+            : builder.classBuilders().values()) {
+            for (ch.interlis.generator.model.builder.AttributeMetadataBuilder attr
+                : classMetadata.attributeBuilders().values()) {
+                if (attr.foreignKey() && attr.referencedClass() != null) {
+                    ch.interlis.generator.model.builder.RelationshipMetadataBuilder rel =
+                        builder.relationshipBuilder(classMetadata.name() + "_" + attr.name());
+                    rel.sourceClass(classMetadata.name());
+                    rel.targetClass(attr.referencedClass());
+                    String sourceAttribute = attr.sqlName() != null ? attr.sqlName() : attr.name();
+                    rel.sourceAttribute(sourceAttribute);
+                    rel.targetAttribute("T_Id"); // ili2db Standard
+                    rel.type(RelationshipMetadata.RelationType.MANY_TO_ONE);
+                    rel.semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
+                    rel.source("ili2db");
+                    rel.physicalName(sourceAttribute);
+                    rel.mergeReason(RelationshipMetadata.MergeReason.ILI2DB_ONLY);
+                    rel.mergeConfidence(RelationshipMetadata.MergeConfidence.NONE);
+                    rel.targetRoleName(attr.name());
+                    rel.cardinality(ch.interlis.generator.model.Cardinality.of(
                         1,
                         1,
-                        attr.isMandatory() ? 1 : 0,
+                        attr.mandatory() ? 1 : 0,
                         1
                     ));
-                    rel.setMandatory(attr.isMandatory());
-
-                    metadata.addRelationship(rel);
+                    rel.mandatory(attr.mandatory());
                 }
             }
         }
     }
 
-    private void deriveAssociations(ModelMetadata metadata) {
-        for (ClassMetadata classMetadata : metadata.getAllClasses()) {
-            if (classMetadata.getKind() != ClassMetadata.ClassKind.ASSOCIATION) {
+    private void deriveAssociations(ch.interlis.generator.model.builder.ModelMetadataBuilder builder) {
+        for (ch.interlis.generator.model.builder.ClassMetadataBuilder classMetadata
+            : builder.classBuilders().values()) {
+            if (classMetadata.kind() != ClassMetadata.ClassKind.ASSOCIATION) {
                 continue;
             }
 
-            AssociationMetadata association = new AssociationMetadata(classMetadata.getName());
-            association.setAssociationClass(classMetadata.getName());
-            association.setPhysicalTable(classMetadata.getTableName());
-            association.setPhysicalSqlName(classMetadata.getSqlName());
+            ch.interlis.generator.model.builder.AssociationMetadataBuilder association =
+                builder.associationBuilder(classMetadata.name());
+            association.associationClass(classMetadata.name());
+            association.physicalTable(classMetadata.tableName());
+            association.physicalSqlName(classMetadata.sqlName());
 
-            List<RelationshipMetadata> associationRelationships = metadata.getAllRelationships().stream()
-                .filter(relationship -> Objects.equals(relationship.getSourceClass(), classMetadata.getName()))
-                .toList();
-            for (RelationshipMetadata relationship : associationRelationships) {
-                association.addRole(toAssociationRole(relationship));
+            List<ch.interlis.generator.model.builder.RelationshipMetadataBuilder> associationRelationships =
+                builder.relationshipBuilders().stream()
+                    .filter(relationship -> Objects.equals(relationship.sourceClass(), classMetadata.name()))
+                    .toList();
+            for (ch.interlis.generator.model.builder.RelationshipMetadataBuilder relationship
+                : associationRelationships) {
+                association.role(toAssociationRole(relationship));
             }
-            for (AttributeMetadata attribute : classMetadata.getAllAttributes()) {
+            for (ch.interlis.generator.model.builder.AttributeMetadataBuilder attribute
+                : classMetadata.attributeBuilders().values()) {
                 if (!isAssociationRoleAttribute(attribute, associationRelationships)) {
-                    association.addAttribute(attribute);
+                    association.attribute(attribute);
                 }
             }
-
-            metadata.addAssociation(association);
         }
     }
 
-    private AssociationRoleMetadata toAssociationRole(RelationshipMetadata relationship) {
-        String roleName = relationship.getTargetRoleName() != null
-            ? relationship.getTargetRoleName()
-            : relationship.getSourceAttribute();
+    private ch.interlis.generator.model.builder.AssociationRoleMetadataBuilder toAssociationRole(
+        ch.interlis.generator.model.builder.RelationshipMetadataBuilder relationship) {
+        String roleName = relationship.targetRoleName() != null
+            ? relationship.targetRoleName()
+            : relationship.sourceAttribute();
         if (roleName == null || roleName.isBlank()) {
-            roleName = relationship.getName();
+            roleName = relationship.name();
         }
-        AssociationRoleMetadata role = new AssociationRoleMetadata(roleName);
-        role.setTargetClass(relationship.getTargetClass());
-        role.setOppositeRoleName(relationship.getOppositeRoleName());
-        role.setCardinality(relationship.getCardinality());
-        role.setMandatory(relationship.isMandatory());
-        role.setOrdered(relationship.isOrdered());
-        role.setExternal(relationship.isExternal());
-        role.setComposition(relationship.isComposition());
-        role.setSourceAttribute(relationship.getSourceAttribute());
-        role.setTargetAttribute(relationship.getTargetAttribute());
-        role.setPhysicalName(relationship.getPhysicalName());
-        role.setSemanticName(relationship.getSemanticName());
-        role.setSource(relationship.getSource());
-        role.setMergeReason(relationship.getMergeReason());
-        role.setMergeConfidence(relationship.getMergeConfidence());
-        role.setMergeToken(relationship.getMergeToken());
+        ch.interlis.generator.model.builder.AssociationRoleMetadataBuilder role =
+            new ch.interlis.generator.model.builder.AssociationRoleMetadataBuilder(roleName);
+        role.targetClass(relationship.targetClass());
+        role.oppositeRoleName(relationship.oppositeRoleName());
+        role.cardinality(relationship.cardinality());
+        role.mandatory(relationship.mandatory());
+        role.ordered(relationship.ordered());
+        role.external(relationship.external());
+        role.composition(relationship.composition());
+        role.sourceAttribute(relationship.sourceAttribute());
+        role.targetAttribute(relationship.targetAttribute());
+        role.physicalName(relationship.physicalName());
+        role.semanticName(relationship.semanticName());
+        role.source(relationship.source());
+        role.mergeReason(relationship.mergeReason());
+        role.mergeConfidence(relationship.mergeConfidence());
+        role.mergeToken(relationship.mergeToken());
         return role;
     }
 
-    private boolean isAssociationRoleAttribute(AttributeMetadata attribute,
-                                               List<RelationshipMetadata> relationships) {
-        if (attribute.isPrimaryKey() || attribute.isForeignKey()) {
+    private boolean isAssociationRoleAttribute(
+        ch.interlis.generator.model.builder.AttributeMetadataBuilder attribute,
+        List<ch.interlis.generator.model.builder.RelationshipMetadataBuilder> relationships) {
+        if (attribute.primaryKey() || attribute.foreignKey()) {
             return true;
         }
-        for (RelationshipMetadata relationship : relationships) {
-            if (equalsAny(attribute.getName(), relationship.getSourceAttribute(), relationship.getPhysicalName())
-                || equalsAny(attribute.getColumnName(), relationship.getSourceAttribute(), relationship.getPhysicalName())
-                || equalsAny(attribute.getSqlName(), relationship.getSourceAttribute(), relationship.getPhysicalName())) {
+        for (ch.interlis.generator.model.builder.RelationshipMetadataBuilder relationship : relationships) {
+            if (equalsAny(attribute.name(), relationship.sourceAttribute(), relationship.physicalName())
+                || equalsAny(attribute.columnName(), relationship.sourceAttribute(), relationship.physicalName())
+                || equalsAny(attribute.sqlName(), relationship.sourceAttribute(), relationship.physicalName())) {
                 return true;
             }
         }
@@ -1037,23 +1072,27 @@ public class Ili2dbMetadataReader {
      * vom iliname-Präfix ab), (2) der iliname-Präfix als Klassenname, (3) der
      * COLOWNER als Klassenname.</p>
      */
-    private ClassMetadata resolveAttributeOwner(ModelMetadata metadata,
-                                                String ownerClassName,
-                                                String ownerTableName) {
+    private ch.interlis.generator.model.builder.ClassMetadataBuilder resolveAttributeOwner(
+        ch.interlis.generator.model.builder.ModelMetadataBuilder builder,
+        String ownerClassName,
+        String ownerTableName) {
         if (ownerTableName != null && !ownerTableName.isBlank()) {
-            ClassMetadata byTable = findClassByTableName(metadata, ownerTableName);
+            ch.interlis.generator.model.builder.ClassMetadataBuilder byTable =
+                findClassByTableName(builder, ownerTableName);
             if (byTable != null) {
                 return byTable;
             }
         }
         if (ownerClassName != null) {
-            ClassMetadata byIliName = metadata.getClass(ownerClassName);
+            ch.interlis.generator.model.builder.ClassMetadataBuilder byIliName =
+                builder.findClassBuilder(ownerClassName).orElse(null);
             if (byIliName != null) {
                 return byIliName;
             }
         }
         if (ownerTableName != null && !ownerTableName.isBlank()) {
-            ClassMetadata byClassName = metadata.getClass(ownerTableName);
+            ch.interlis.generator.model.builder.ClassMetadataBuilder byClassName =
+                builder.findClassBuilder(ownerTableName).orElse(null);
             if (byClassName != null) {
                 return byClassName;
             }
@@ -1077,7 +1116,8 @@ public class Ili2dbMetadataReader {
         return lastDot >= 0 ? attributeQualifiedName.substring(0, lastDot) : attributeQualifiedName;
     }
 
-    private List<String> buildModelPrefixes(ModelMetadata metadata, Collection<String> modelNames) {
+    private List<String> buildModelPrefixes(ch.interlis.generator.model.builder.ModelMetadataBuilder builder,
+                                            Collection<String> modelNames) {
         Set<String> uniqueNames = new LinkedHashSet<>();
         if (modelNames != null) {
             for (String name : modelNames) {
@@ -1087,8 +1127,8 @@ public class Ili2dbMetadataReader {
             }
         }
         if (uniqueNames.isEmpty()) {
-            if (metadata.getModelName() != null && !metadata.getModelName().isBlank()) {
-                uniqueNames.add(metadata.getModelName());
+            if (builder.modelName() != null && !builder.modelName().isBlank()) {
+                uniqueNames.add(builder.modelName());
             }
         }
         List<String> prefixes = new ArrayList<>();
@@ -1102,10 +1142,6 @@ public class Ili2dbMetadataReader {
         return prefixes;
     }
 
-    /**
-     * Ermittelt die in {@code t_ili2db_model} verfügbaren Modelle.
-     * Nicht lesbare oder fehlende Metatabelle liefert eine leere Menge mit Warnung.
-     */
     private Set<String> availableDatabaseModels() throws SQLException {
         Set<String> modelNames = new LinkedHashSet<>();
         String sql = "SELECT * FROM " + metaTable("t_ili2db_model");
@@ -1230,16 +1266,18 @@ public class Ili2dbMetadataReader {
         }
     }
 
-    private String resolveTargetClass(ModelMetadata metadata, String target) {
+    private String resolveTargetClass(ch.interlis.generator.model.builder.ModelMetadataBuilder builder,
+                                      String target) {
         if (target == null || target.isBlank()) {
             return target;
         }
-        if (metadata.getClass(target) != null) {
+        if (builder.findClassBuilder(target).isPresent()) {
             return target;
         }
-        ClassMetadata classMetadata = findClassByTableName(metadata, target);
+        ch.interlis.generator.model.builder.ClassMetadataBuilder classMetadata =
+            findClassByTableName(builder, target);
         if (classMetadata != null) {
-            return classMetadata.getName();
+            return classMetadata.name();
         }
         return target;
     }

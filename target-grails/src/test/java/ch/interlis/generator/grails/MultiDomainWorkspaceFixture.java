@@ -1,9 +1,12 @@
 package ch.interlis.generator.grails;
 
-import ch.interlis.generator.model.AttributeMetadata;
-import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ClassMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
+import ch.interlis.generator.model.builder.RelationshipMetadataBuilder;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -691,57 +694,51 @@ public final class MultiDomainWorkspaceFixture {
     }
 
     public static ModelMetadata referenceMetadata() {
-        ModelMetadata metadata = new ModelMetadata(MODEL_NAME);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model(MODEL_NAME);
 
-        ClassMetadata parcel = new ClassMetadata(PARCEL_ILI_NAME);
-        parcel.setTableName("workspace_parcel");
-        parcel.addAttribute(textAttribute("anumber", 50));
+        modelBuilder.classBuilder(PARCEL_ILI_NAME)
+            .tableName("workspace_parcel")
+            .attribute(textAttribute("anumber", 50));
 
-        ClassMetadata building = new ClassMetadata(BUILDING_ILI_NAME);
-        building.setTableName("workspace_building");
-        building.addAttribute(textAttribute("aname", 80));
-        building.addAttribute(referenceAttribute("parcel", PARCEL_ILI_NAME));
+        modelBuilder.classBuilder(BUILDING_ILI_NAME)
+            .tableName("workspace_building")
+            .attribute(textAttribute("aname", 80))
+            .attribute(referenceAttribute("parcel", PARCEL_ILI_NAME));
 
-        ClassMetadata owner = new ClassMetadata(OWNER_ILI_NAME);
-        owner.setTableName("workspace_owner");
-        owner.addAttribute(textAttribute("aname", 80));
-        owner.addAttribute(referenceAttribute("parcel", PARCEL_ILI_NAME));
+        modelBuilder.classBuilder(OWNER_ILI_NAME)
+            .tableName("workspace_owner")
+            .attribute(textAttribute("aname", 80))
+            .attribute(referenceAttribute("parcel", PARCEL_ILI_NAME));
 
-        metadata.addClass(parcel);
-        metadata.addClass(building);
-        metadata.addClass(owner);
-        metadata.addRelationship(reference("Building_Parcel", BUILDING_ILI_NAME, PARCEL_ILI_NAME));
-        metadata.addRelationship(reference("Owner_Parcel", OWNER_ILI_NAME, PARCEL_ILI_NAME));
-        return metadata;
+        modelBuilder.relationship(reference("Building_Parcel", BUILDING_ILI_NAME, PARCEL_ILI_NAME));
+        modelBuilder.relationship(reference("Owner_Parcel", OWNER_ILI_NAME, PARCEL_ILI_NAME));
+        return new ModelMetadataFactory().buildValidated(modelBuilder);
     }
 
-    private static AttributeMetadata textAttribute(String name, int maxLength) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setJavaType("String");
-        attribute.setColumnName(name);
-        attribute.setMaxLength(maxLength);
-        attribute.setMandatory(true);
-        return attribute;
+    private static AttributeMetadataBuilder textAttribute(String name, int maxLength) {
+        return new AttributeMetadataBuilder(name)
+            .javaType("String")
+            .columnName(name)
+            .maxLength(maxLength)
+            .mandatory(true);
     }
 
-    private static AttributeMetadata referenceAttribute(String name, String targetClass) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setJavaType("Long");
-        attribute.setColumnName(name + "_id");
-        attribute.setForeignKey(true);
-        attribute.setReferencedClass(targetClass);
-        attribute.setMandatory(false);
-        return attribute;
+    private static AttributeMetadataBuilder referenceAttribute(String name, String targetClass) {
+        return new AttributeMetadataBuilder(name)
+            .javaType("Long")
+            .columnName(name + "_id")
+            .foreignKey(true)
+            .referencedClass(targetClass)
+            .mandatory(false);
     }
 
-    private static RelationshipMetadata reference(String name, String sourceClass, String targetClass) {
-        RelationshipMetadata relationship = new RelationshipMetadata(name);
-        relationship.setSourceClass(sourceClass);
-        relationship.setTargetClass(targetClass);
-        relationship.setSourceAttribute("parcel");
-        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        return relationship;
+    private static RelationshipMetadataBuilder reference(String name, String sourceClass, String targetClass) {
+        return RelationshipMetadata.builder(name)
+            .sourceClass(sourceClass)
+            .targetClass(targetClass)
+            .sourceAttribute("parcel")
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
     }
 
     private static void write(Path appDir, String relativePath, String content) throws IOException {

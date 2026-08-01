@@ -422,19 +422,13 @@ class GrailsTemplateOverlayInstallerTest {
         String controllerSupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisCrudControllerSupport.groovy".replace(".groovy","")));
         assertThat(controllerSupport).contains("def index(Integer max, Integer offset)");
         assertThat(controllerSupport).contains("relationshipOptions");
-        assertThat(controllerSupport).contains("InterlisGeometryBinder.bindGeometryFromParams");
+        assertThat(controllerSupport).contains("FORM_FLOW");
         assertThat(controllerSupport).contains("fieldMeta()");
-        assertThat(controllerSupport).contains("InterlisFormSupport.submitMode");
         assertThat(controllerSupport).contains("saveAndContinue");
         assertThat(controllerSupport).contains("prepareEditContext");
         assertThat(controllerSupport).contains("Set<String> allowedFields");
         assertThat(controllerSupport).doesNotContain("new java.util.LinkedHashMap(params)");
-        assertThat(controllerSupport).contains("Content-Security-Policy");
         assertThat(controllerSupport).contains("DataIntegrityViolationException");
-        assertThat(controllerSupport)
-            .contains("flashNotification(\"success\"", "flashNotification(\"danger\"", "flash.notification",
-                "ili2grails.runtime.deleteIntegrity");
-        assertThat(controllerSupport).contains("X-Content-Type-Options");
         assertThat(controllerSupport).contains("associationQueryService()");
         assertThat(controllerSupport).contains("associationModel(T instance)");
         assertThat(controllerSupport).contains("associationPage(Long id)");
@@ -442,21 +436,37 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("associationCommandService()");
         assertThat(controllerSupport).contains("associationCreate(Long id)");
         assertThat(controllerSupport).contains("associationDelete(Long id)");
-        assertThat(controllerSupport).contains("InterlisWorkspaceSupport.showModel");
-        assertThat(controllerSupport)
-            .contains("anderen Datensätzen verwendet wird")
-            .doesNotContain("Datenbank-Integritätsbedingung");
-        assertThat(controllerSupport).contains(
-            "respondAssociationCommand(T instance,\n" +
-            "                                             ch.interlis.generator.grails.runtime.api.command.AssociationCommandResult result)");
-        assertThat(controllerSupport).contains("respondAssociationError(int status, String code, String message)");
         assertThat(controllerSupport).contains("inverseRelationshipModel(T instance)");
         assertThat(controllerSupport).contains("relationshipCollectionPage(Long id)");
-        assertThat(controllerSupport).contains("normalizedQuery(params.q)");
         assertThat(controllerSupport).contains("relationshipCollectionOptions(Long id)");
         assertThat(controllerSupport).contains("relationshipAssign(Long id)");
-        assertThat(controllerSupport).contains("inverseRelationshipJsonRequested()");
-        assertThat(controllerSupport).contains("CONFIGURATION_INVALID");
+
+        String formControllerFlow = Files.readString(PluginSourcePaths.runtimeSource("InterlisFormControllerFlow.groovy".replace(".groovy","")));
+        assertThat(formControllerFlow).contains("InterlisGeometryBinder.bindGeometryFromParams");
+        assertThat(formControllerFlow).contains("InterlisFormSupport.submitMode");
+        assertThat(formControllerFlow).contains("ili2grails.runtime.deleteIntegrity");
+        assertThat(formControllerFlow)
+            .contains("anderen Datensätzen verwendet wird")
+            .doesNotContain("Datenbank-Integritätsbedingung");
+        assertThat(formControllerFlow).contains("InterlisControllerResponseSupport.respondAssociationError(");
+
+        String listControllerFlow = Files.readString(PluginSourcePaths.runtimeSource("InterlisListControllerFlow.groovy".replace(".groovy","")));
+        assertThat(listControllerFlow).contains("InterlisWorkspaceSupport.showModel");
+
+        String associationControllerFlow = Files.readString(PluginSourcePaths.runtimeSource("InterlisAssociationControllerFlow.groovy".replace(".groovy","")));
+        assertThat(associationControllerFlow)
+            .contains("InterlisControllerResponseSupport.respondAssociationCommand(controller, instance, result)");
+
+        String inverseControllerFlow = Files.readString(PluginSourcePaths.runtimeSource("InterlisInverseRelationshipControllerFlow.groovy".replace(".groovy","")));
+        assertThat(inverseControllerFlow).contains("CONFIGURATION_INVALID");
+
+        String controllerResponseSupport = Files.readString(PluginSourcePaths.runtimeSource("controller/InterlisControllerResponseSupport.groovy".replace(".groovy","")));
+        assertThat(controllerResponseSupport)
+            .contains("flashNotification(controller, \"success\"", "flashNotification(controller, \"danger\"",
+                "flash.notification", "inverseRelationshipJsonRequested(");
+
+        String securityHeaderSupport = Files.readString(PluginSourcePaths.runtimeSource("controller/InterlisSecurityHeaderSupport.groovy".replace(".groovy","")));
+        assertThat(securityHeaderSupport).contains("Content-Security-Policy", "X-Content-Type-Options");
         String inverseCommandService = Files.readString(PluginSourcePaths.service("InterlisInverseRelationshipCommandService.groovy".replace(".groovy","")));
         assertThat(inverseCommandService)
             .contains("reassignmentRequired(")

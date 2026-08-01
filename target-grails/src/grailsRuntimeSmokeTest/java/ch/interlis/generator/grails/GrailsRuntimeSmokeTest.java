@@ -1,10 +1,11 @@
 package ch.interlis.generator.grails;
 
-import ch.interlis.generator.model.AttributeMetadata;
 import ch.interlis.generator.model.ClassMetadata;
-import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.model.RelationshipMetadata;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -303,64 +304,52 @@ class GrailsRuntimeSmokeTest {
     }
 
     private ModelMetadata listQueryMetadata() {
-        ModelMetadata metadata = new ModelMetadata("ListQueryModel");
-        EnumMetadata status = new EnumMetadata("ListQueryModel.RecordStatus");
-        status.setValues(List.of(
-            new EnumMetadata.EnumValue("ACTIVE", 0),
-            new EnumMetadata.EnumValue("ARCHIVED", 1),
-            new EnumMetadata.EnumValue("DRAFT", 2)
-        ));
-        metadata.addEnum(status);
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("ListQueryModel");
 
-        ClassMetadata municipality = new ClassMetadata("ListQueryModel.Municipality");
-        municipality.setTableName("list_municipality");
-        AttributeMetadata municipalityName = new AttributeMetadata("name");
-        municipalityName.setJavaType("String");
-        municipalityName.setColumnName("list_name");
-        municipalityName.setMandatory(true);
-        municipality.addAttribute(municipalityName);
+        modelBuilder.enumBuilder("ListQueryModel.RecordStatus")
+            .value("ACTIVE", 0)
+            .value("ARCHIVED", 1)
+            .value("DRAFT", 2);
 
-        ClassMetadata record = new ClassMetadata("ListQueryModel.Record");
-        record.setTableName("list_record");
-        AttributeMetadata name = new AttributeMetadata("name");
-        name.setJavaType("String");
-        name.setColumnName("list_name");
-        name.setMandatory(true);
-        record.addAttribute(name);
-        AttributeMetadata recordStatus = new AttributeMetadata("status");
-        recordStatus.setJavaType("String");
-        recordStatus.setEnumType(status.getName());
-        record.addAttribute(recordStatus);
-        AttributeMetadata active = new AttributeMetadata("active");
-        active.setJavaType("Boolean");
-        active.setColumnName("is_active");
-        record.addAttribute(active);
-        AttributeMetadata year = new AttributeMetadata("year");
-        year.setJavaType("Integer");
-        year.setColumnName("list_year");
-        year.setMinValue("1900");
-        year.setMaxValue("2200");
-        record.addAttribute(year);
-        AttributeMetadata validFrom = new AttributeMetadata("validFrom");
-        validFrom.setJavaType("java.time.LocalDate");
-        validFrom.setColumnName("valid_from");
-        record.addAttribute(validFrom);
-        AttributeMetadata municipalityRef = new AttributeMetadata("municipality");
-        municipalityRef.setJavaType("Long");
-        municipalityRef.setForeignKey(true);
-        municipalityRef.setReferencedClass(municipality.getName());
-        record.addAttribute(municipalityRef);
+        modelBuilder.classBuilder("ListQueryModel.Municipality")
+            .tableName("list_municipality")
+            .attribute(new AttributeMetadataBuilder("name")
+                .javaType("String")
+                .columnName("list_name")
+                .mandatory(true));
 
-        RelationshipMetadata relation = new RelationshipMetadata("Record_Municipality");
-        relation.setSourceClass(record.getName());
-        relation.setTargetClass(municipality.getName());
-        relation.setSourceAttribute("municipality");
-        relation.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        record.addRelationship(relation);
-        metadata.addRelationship(relation);
-        metadata.addClass(municipality);
-        metadata.addClass(record);
-        return metadata;
+        modelBuilder.classBuilder("ListQueryModel.Record")
+            .tableName("list_record")
+            .attribute(new AttributeMetadataBuilder("name")
+                .javaType("String")
+                .columnName("list_name")
+                .mandatory(true))
+            .attribute(new AttributeMetadataBuilder("status")
+                .javaType("String")
+                .enumType("ListQueryModel.RecordStatus"))
+            .attribute(new AttributeMetadataBuilder("active")
+                .javaType("Boolean")
+                .columnName("is_active"))
+            .attribute(new AttributeMetadataBuilder("year")
+                .javaType("Integer")
+                .columnName("list_year")
+                .minValue("1900")
+                .maxValue("2200"))
+            .attribute(new AttributeMetadataBuilder("validFrom")
+                .javaType("java.time.LocalDate")
+                .columnName("valid_from"))
+            .attribute(new AttributeMetadataBuilder("municipality")
+                .javaType("Long")
+                .foreignKey(true)
+                .referencedClass("ListQueryModel.Municipality"));
+
+        modelBuilder.relationship(RelationshipMetadata.builder("Record_Municipality")
+            .sourceClass("ListQueryModel.Record")
+            .targetClass("ListQueryModel.Municipality")
+            .sourceAttribute("municipality")
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE));
+
+        return new ModelMetadataFactory().buildValidated(modelBuilder);
     }
 
     private void generateScaffolding(Path appDir, ModelMetadata metadata, GenerationConfig config)
@@ -856,203 +845,167 @@ class GrailsRuntimeSmokeTest {
     }
 
     private ModelMetadata collisionMetadata() {
-        ModelMetadata metadata = new ModelMetadata("SmokeModel");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("SmokeModel");
 
-        EnumMetadata topicAStatus = new EnumMetadata("SmokeModel.TopicA.Status");
-        topicAStatus.setValues(List.of(
-            new EnumMetadata.EnumValue("ACTIVE", 0),
-            new EnumMetadata.EnumValue("in.Betrieb", 1),
-            new EnumMetadata.EnumValue("class", 2),
-            new EnumMetadata.EnumValue("a.b", 3),
-            new EnumMetadata.EnumValue("a_b", 4)
-        ));
-        metadata.addEnum(topicAStatus);
+        modelBuilder.enumBuilder("SmokeModel.TopicA.Status")
+            .value("ACTIVE", 0)
+            .value("in.Betrieb", 1)
+            .value("class", 2)
+            .value("a.b", 3)
+            .value("a_b", 4);
 
-        EnumMetadata topicBStatus = new EnumMetadata("SmokeModel.TopicB.Status");
-        topicBStatus.setValues(List.of(new EnumMetadata.EnumValue("ACTIVE", 0)));
-        metadata.addEnum(topicBStatus);
+        modelBuilder.enumBuilder("SmokeModel.TopicB.Status")
+            .value("ACTIVE", 0);
 
-        ClassMetadata topicAGebaeude = new ClassMetadata("SmokeModel.TopicA.Gebaeude");
-        topicAGebaeude.setTableName("gebaeude_a");
-        topicAGebaeude.addAttribute(enumAttribute("status", topicAStatus.getName(), true));
-        topicAGebaeude.addAttribute(geometryAttribute("position"));
-        topicAGebaeude.addAttribute(textAttribute("display-name", "name"));
-        topicAGebaeude.addAttribute(textAttribute("primary_name", "name"));
-        metadata.addClass(topicAGebaeude);
+        modelBuilder.classBuilder("SmokeModel.TopicA.Gebaeude")
+            .tableName("gebaeude_a")
+            .attribute(enumAttribute("status", "SmokeModel.TopicA.Status", true))
+            .attribute(geometryAttribute("position"))
+            .attribute(textAttribute("display-name", "name"))
+            .attribute(textAttribute("primary_name", "name"));
 
-        ClassMetadata topicBGebaeude = new ClassMetadata("SmokeModel.TopicB.Gebaeude");
-        topicBGebaeude.setTableName("gebaeude_b");
-        topicBGebaeude.addAttribute(enumAttribute("status", topicBStatus.getName(), true));
-        AttributeMetadata owner = new AttributeMetadata("owner");
-        owner.setForeignKey(true);
-        owner.setReferencedClass(topicAGebaeude.getName());
-        owner.setJavaType("Long");
-        owner.setMandatory(false);
-        topicBGebaeude.addAttribute(owner);
-        metadata.addClass(topicBGebaeude);
+        modelBuilder.classBuilder("SmokeModel.TopicB.Gebaeude")
+            .tableName("gebaeude_b")
+            .attribute(enumAttribute("status", "SmokeModel.TopicB.Status", true))
+            .attribute(new AttributeMetadataBuilder("owner")
+                .foreignKey(true)
+                .referencedClass("SmokeModel.TopicA.Gebaeude")
+                .javaType("Long")
+                .mandatory(false));
 
-        RelationshipMetadata relationship = new RelationshipMetadata("TopicB_Gebaeude_owner");
-        relationship.setSourceClass(topicBGebaeude.getName());
-        relationship.setTargetClass(topicAGebaeude.getName());
-        relationship.setSourceAttribute("owner");
-        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        metadata.addRelationship(relationship);
+        modelBuilder.relationship(RelationshipMetadata.builder("TopicB_Gebaeude_owner")
+            .sourceClass("SmokeModel.TopicB.Gebaeude")
+            .targetClass("SmokeModel.TopicA.Gebaeude")
+            .sourceAttribute("owner")
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK));
 
-        ClassMetadata component = new ClassMetadata("SmokeModel.TopicA.Component");
-        component.setKind(ClassMetadata.ClassKind.STRUCTURE);
-        component.addAttribute(textAttribute("label", "label"));
-        metadata.addClass(component);
+        modelBuilder.classBuilder("SmokeModel.TopicA.Component")
+            .kind(ClassMetadata.ClassKind.STRUCTURE)
+            .attribute(textAttribute("label", "label"));
 
-        RelationshipMetadata composition = new RelationshipMetadata("TopicA_Gebaeude_components");
-        composition.setSourceClass(topicAGebaeude.getName());
-        composition.setTargetClass(component.getName());
-        composition.setSourceAttribute("Components");
-        composition.setType(RelationshipMetadata.RelationType.ONE_TO_MANY);
-        composition.setSemanticKind(RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE);
-        composition.setComposition(true);
-        composition.setCardinality(new RelationshipMetadata.Cardinality(1, 1, 0, -1));
-        metadata.addRelationship(composition);
+        modelBuilder.relationship(RelationshipMetadata.builder("TopicA_Gebaeude_components")
+            .sourceClass("SmokeModel.TopicA.Gebaeude")
+            .targetClass("SmokeModel.TopicA.Component")
+            .sourceAttribute("Components")
+            .type(RelationshipMetadata.RelationType.ONE_TO_MANY)
+            .semanticKind(RelationshipMetadata.SemanticKind.COMPOSITION_ATTRIBUTE)
+            .composition(true)
+            .cardinality(1, 1, 0, -1));
 
-        ClassMetadata gebaeudeLink = new ClassMetadata("SmokeModel.TopicA.GebaeudeLink");
-        gebaeudeLink.setKind(ClassMetadata.ClassKind.ASSOCIATION);
-        gebaeudeLink.setTableName("gebaeude_link");
-        metadata.addClass(gebaeudeLink);
+        modelBuilder.classBuilder("SmokeModel.TopicA.GebaeudeLink")
+            .kind(ClassMetadata.ClassKind.ASSOCIATION)
+            .tableName("gebaeude_link");
 
-        RelationshipMetadata sourceRole = new RelationshipMetadata("GebaeudeLink_Source");
-        sourceRole.setSourceClass(gebaeudeLink.getName());
-        sourceRole.setTargetClass(topicAGebaeude.getName());
-        sourceRole.setTargetRoleName("Source");
-        sourceRole.setType(RelationshipMetadata.RelationType.ASSOCIATION);
-        sourceRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
-        sourceRole.setMandatory(true);
-        metadata.addRelationship(sourceRole);
+        modelBuilder.relationship(RelationshipMetadata.builder("GebaeudeLink_Source")
+            .sourceClass("SmokeModel.TopicA.GebaeudeLink")
+            .targetClass("SmokeModel.TopicA.Gebaeude")
+            .targetRoleName("Source")
+            .type(RelationshipMetadata.RelationType.ASSOCIATION)
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .mandatory(true));
 
-        RelationshipMetadata targetRole = new RelationshipMetadata("GebaeudeLink_Target");
-        targetRole.setSourceClass(gebaeudeLink.getName());
-        targetRole.setTargetClass(topicBGebaeude.getName());
-        targetRole.setTargetRoleName("Target");
-        targetRole.setType(RelationshipMetadata.RelationType.ASSOCIATION);
-        targetRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
-        targetRole.setMandatory(true);
-        metadata.addRelationship(targetRole);
+        modelBuilder.relationship(RelationshipMetadata.builder("GebaeudeLink_Target")
+            .sourceClass("SmokeModel.TopicA.GebaeudeLink")
+            .targetClass("SmokeModel.TopicB.Gebaeude")
+            .targetRoleName("Target")
+            .type(RelationshipMetadata.RelationType.ASSOCIATION)
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .mandatory(true));
 
-        return metadata;
+        return new ModelMetadataFactory().buildValidated(modelBuilder);
     }
 
     private ModelMetadata simpleMetadata() {
-        ModelMetadata metadata = new ModelMetadata("SmokeModel");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("SmokeModel");
 
-        ClassMetadata person = new ClassMetadata("SmokeModel.People.Person");
-        person.setTableName("person");
-        person.addAttribute(textAttribute("firstName", "first_name"));
-        metadata.addClass(person);
+        modelBuilder.classBuilder("SmokeModel.People.Person")
+            .tableName("person")
+            .attribute(textAttribute("firstName", "first_name"));
 
-        ClassMetadata address = new ClassMetadata("SmokeModel.Addresses.Address");
-        address.setTableName("address");
-        address.addAttribute(textAttribute("street", "street"));
-        metadata.addClass(address);
+        modelBuilder.classBuilder("SmokeModel.Addresses.Address")
+            .tableName("address")
+            .attribute(textAttribute("street", "street"));
 
-        ClassMetadata personAddress = new ClassMetadata("SmokeModel.People.PersonAddress");
-        personAddress.setKind(ClassMetadata.ClassKind.ASSOCIATION);
-        personAddress.setTableName("person_address");
-        metadata.addClass(personAddress);
+        modelBuilder.classBuilder("SmokeModel.People.PersonAddress")
+            .kind(ClassMetadata.ClassKind.ASSOCIATION)
+            .tableName("person_address");
 
-        RelationshipMetadata personRole = new RelationshipMetadata("PersonAddress_Person");
-        personRole.setSourceClass(personAddress.getName());
-        personRole.setTargetClass(person.getName());
-        personRole.setTargetRoleName("Person");
-        personRole.setType(RelationshipMetadata.RelationType.ASSOCIATION);
-        personRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
-        personRole.setMandatory(true);
-        metadata.addRelationship(personRole);
+        modelBuilder.relationship(RelationshipMetadata.builder("PersonAddress_Person")
+            .sourceClass("SmokeModel.People.PersonAddress")
+            .targetClass("SmokeModel.People.Person")
+            .targetRoleName("Person")
+            .type(RelationshipMetadata.RelationType.ASSOCIATION)
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .mandatory(true));
 
-        RelationshipMetadata addressRole = new RelationshipMetadata("PersonAddress_Address");
-        addressRole.setSourceClass(personAddress.getName());
-        addressRole.setTargetClass(address.getName());
-        addressRole.setTargetRoleName("Address");
-        addressRole.setType(RelationshipMetadata.RelationType.ASSOCIATION);
-        addressRole.setSemanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE);
-        addressRole.setMandatory(true);
-        metadata.addRelationship(addressRole);
+        modelBuilder.relationship(RelationshipMetadata.builder("PersonAddress_Address")
+            .sourceClass("SmokeModel.People.PersonAddress")
+            .targetClass("SmokeModel.Addresses.Address")
+            .targetRoleName("Address")
+            .type(RelationshipMetadata.RelationType.ASSOCIATION)
+            .semanticKind(RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
+            .mandatory(true));
 
-        return metadata;
+        return new ModelMetadataFactory().buildValidated(modelBuilder);
     }
 
     private ModelMetadata inverseRelationshipMetadata() {
-        ModelMetadata metadata = new ModelMetadata("InverseRelationshipModel");
+        ModelMetadataBuilder modelBuilder = ModelMetadataBuilder.model("InverseRelationshipModel");
 
-        ClassMetadata department = new ClassMetadata(
-            "InverseRelationshipModel.Organization.Department"
-        );
-        department.setKind(ClassMetadata.ClassKind.CLASS);
-        department.setTableName("department");
-        AttributeMetadata departmentName = textAttribute("name", "name");
-        departmentName.setMandatory(true);
-        department.addAttribute(departmentName);
-        metadata.addClass(department);
+        modelBuilder.classBuilder("InverseRelationshipModel.Organization.Department")
+            .kind(ClassMetadata.ClassKind.CLASS)
+            .tableName("department")
+            .attribute(textAttribute("name", "name").mandatory(true));
 
-        ClassMetadata employee = new ClassMetadata(
-            "InverseRelationshipModel.Organization.Employee"
-        );
-        employee.setKind(ClassMetadata.ClassKind.CLASS);
-        employee.setTableName("employee");
-        AttributeMetadata firstName = textAttribute("firstName", "first_name");
-        firstName.setMandatory(true);
-        employee.addAttribute(firstName);
-        AttributeMetadata lastName = textAttribute("lastName", "last_name");
-        lastName.setMandatory(true);
-        employee.addAttribute(lastName);
-        AttributeMetadata departmentReference = new AttributeMetadata("department");
-        departmentReference.setJavaType("Long");
-        departmentReference.setForeignKey(true);
-        departmentReference.setReferencedClass(department.getName());
-        departmentReference.setColumnName("department");
-        departmentReference.setSqlName("department");
-        departmentReference.setMandatory(false);
-        employee.addAttribute(departmentReference);
-        metadata.addClass(employee);
+        modelBuilder.classBuilder("InverseRelationshipModel.Organization.Employee")
+            .kind(ClassMetadata.ClassKind.CLASS)
+            .tableName("employee")
+            .attribute(textAttribute("firstName", "first_name").mandatory(true))
+            .attribute(textAttribute("lastName", "last_name").mandatory(true))
+            .attribute(new AttributeMetadataBuilder("department")
+                .javaType("Long")
+                .foreignKey(true)
+                .referencedClass("InverseRelationshipModel.Organization.Department")
+                .columnName("department")
+                .sqlName("department")
+                .mandatory(false));
 
-        RelationshipMetadata relationship = new RelationshipMetadata(
-            "InverseRelationshipModel.Organization.Employee_Department"
-        );
-        relationship.setSourceClass(employee.getName());
-        relationship.setTargetClass(department.getName());
-        relationship.setSourceAttribute("department");
-        relationship.setTargetRoleName("Department");
-        relationship.setPhysicalName("department");
-        relationship.setType(RelationshipMetadata.RelationType.MANY_TO_ONE);
-        relationship.setSemanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK);
-        relationship.setMandatory(false);
-        metadata.addRelationship(relationship);
+        modelBuilder.relationship(RelationshipMetadata.builder(
+                "InverseRelationshipModel.Organization.Employee_Department")
+            .sourceClass("InverseRelationshipModel.Organization.Employee")
+            .targetClass("InverseRelationshipModel.Organization.Department")
+            .sourceAttribute("department")
+            .targetRoleName("Department")
+            .physicalName("department")
+            .type(RelationshipMetadata.RelationType.MANY_TO_ONE)
+            .semanticKind(RelationshipMetadata.SemanticKind.ILI2DB_FK)
+            .mandatory(false));
 
-        return metadata;
+        return new ModelMetadataFactory().buildValidated(modelBuilder);
     }
 
-    private AttributeMetadata enumAttribute(String name, String enumType, boolean mandatory) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setEnumType(enumType);
-        attribute.setMandatory(mandatory);
-        return attribute;
+    private AttributeMetadataBuilder enumAttribute(String name, String enumType, boolean mandatory) {
+        return new AttributeMetadataBuilder(name)
+            .enumType(enumType)
+            .mandatory(mandatory);
     }
 
-    private AttributeMetadata geometryAttribute(String name) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setGeometry(true);
-        attribute.setGeometryKind("POINT");
-        attribute.setGeometrySrid(2056);
-        attribute.setJavaType("org.locationtech.jts.geom.Geometry");
-        attribute.setMandatory(false);
-        return attribute;
+    private AttributeMetadataBuilder geometryAttribute(String name) {
+        return new AttributeMetadataBuilder(name)
+            .geometry(true)
+            .geometryKind("POINT")
+            .geometrySrid(2056)
+            .javaType("org.locationtech.jts.geom.Geometry")
+            .mandatory(false);
     }
 
-    private AttributeMetadata textAttribute(String name, String sqlName) {
-        AttributeMetadata attribute = new AttributeMetadata(name);
-        attribute.setSqlName(sqlName);
-        attribute.setColumnName(sqlName);
-        attribute.setJavaType("String");
-        attribute.setMaxLength(100);
-        attribute.setMandatory(false);
-        return attribute;
+    private AttributeMetadataBuilder textAttribute(String name, String sqlName) {
+        return new AttributeMetadataBuilder(name)
+            .sqlName(sqlName)
+            .columnName(sqlName)
+            .javaType("String")
+            .maxLength(100)
+            .mandatory(false);
     }
 }
