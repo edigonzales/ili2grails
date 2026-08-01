@@ -168,6 +168,18 @@ Alle Core-IR-Klassen sind finale immutable Value Objects mit identischen Gettern
 
 Wichtige Verhaltens-Kompatibilität: der ili2db-Reader führt doppelte Attributnamen (mehrere FK-Spalten mit gleichem einfachen Namen) wie P0 zusammen statt zu duplizieren.
 
+### M-11 ili2db-Reader-Zerlegung (Phase 9)
+
+`Ili2dbMetadataReader` ist jetzt eine dünne Fassade (gleiche Kompatibilitäts-API: `create(Connection, String)`, `readMetadata(String)`/`readMetadata(ModelSelection)`), die an `Ili2dbReadCoordinator` delegiert. Der Monolith (1370 Zeilen) wurde in getrennte Schichten zerlegt:
+
+- **catalog** (`reader.ili2db.catalog`): `Ili2dbCatalogReader` erzeugt ausschliesslich typed Rows/Snapshots (`Ili2dbCatalogSnapshot`, `ClassMappingRow`, `AttributeMappingRow`, `EnumDomainRow`, …), keine IR. Capability-Detection liest Tabellen/Spalten case-insensitiv über `getTables`/`getColumns` mit `%`-Pattern (H2/PostgreSQL/li2pg-sicher). `Ili2dbTableRequirementResolver` klassifiziert die Metatabellen REQUIRED/OPTIONAL (klassennamen/attrname REQUIRED, Rest OPTIONAL).
+- **schema** (`reader.ili2db.schema`): `JdbcSchemaIntrospector`/`DefaultJdbcSchemaIntrospector` (ein Snapshot pro Tabelle, keine N+1-Spaltenintrospektion pro Attribut), `SqliteSchemaIntrospector` (PRAGMA), `PostgisGeometryIntrospector` (eine Batch-Query gegen `geometry_columns` statt `Find_SRID`/Typ-Query pro Spalte; ersetzt die per-Attribut-Roundtrips aus P0), `DatabaseDialectDetector`, immutable `JdbcSchemaSnapshot`/`GeometrySchemaSnapshot`.
+- **Enum**: `Ili2dbEnumReader` liest Enum-Tabellenwerte einmal pro Tabelle/Lauf (Cache); unlesbare Tabellen → WARN `ENUM_TABLE_UNREADABLE` (non-blocking, statt Warnlog).
+- **assemble** (`reader.ili2db.assemble`): `Ili2dbMetadataAssembler` ist die einzige Stelle, die IR-Builder erzeugt (Klassen, Attribute mit Snapshot-Anreicherung, Vererbung, Column Properties, PK-Attribute, Enum-Anwendung, Geometry aus Snapshot). `Ili2dbRelationshipDeriver` (FK → MANY_TO_ONE/ILI2DB_FK) und `Ili2dbAssociationDeriver` (Association-Klassen → Association-IR mit Rollen) sind reine Builder-Transformationen.
+- **Fassade/Coordinator**: `Ili2dbReadCoordinator` orchestriert Katalog → effektive Modellauswahl (Auswahl ∩ `t_ili2db_model`, Root-Pflicht wie P0) → Klassen/Attribute/Vererbung → Schema/Geometry-Introspektion → Assembly → Deriver → `ModelMetadataFactory.buildValidated`. Blockierende Diagnostics (z. B. fehlende REQUIRED-Metatabelle) führen über `Ili2dbReadResult.throwIfBlocking()` zu `Ili2dbReadException` (extends SQLException).
+
+Verhaltensgleichheit: Modell-Präfix-Filter und Tabellenname-OR-Filter der Attributquery, Reihenfolge Owner-Auflösung (colowner→iliname-Präfix→colowner als Klassenname), `t_id`-PK-Annahme (mit WARN `PRIMARY_KEY_ASSUMED`), Settings/ili2dbVersion aus `ch.ehi.ili2db.sender`, Root-only-Fallback bei nicht lesbarer `t_ili2db_model` bleiben identisch. Geometry-SRID wird aus dem Batch-Snapshot gesetzt; `GEOMETRY_METADATA_UNAVAILABLE` ist WARN.
+
 ---
 
 ## 6. Ausgeführte Befehle
@@ -224,6 +236,5 @@ Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unv
 | `857b90f` | refactor(grails): replace runtime overlay with plugin dependency (Phase 4) |
 | `70ba4f1` | refactor(runtime): replace map contracts with typed descriptors (Phase 5) |
 | `3231f5f` | refactor(runtime): add injectable policies and split controller flows (Phase 6) |
-| (folgt) | refactor(core): introduce immutable metadata builders and indexes (Phase 7) |
-| (folgt) | refactor(core): make metadata pipeline immutable after validation (Phase 8) |
-| (folgt) | ... |
+| `b6305e3` | refactor(core): introduce immutable metadata builders and indexes (Phase 7+8; Phasen 7 und 8 in einem Commit, da der Baum nach Phase 7 bereits clean war) |
+| (folgt) | refactor(core): split ili2db catalog schema and assembly layers (Phase 9) |
