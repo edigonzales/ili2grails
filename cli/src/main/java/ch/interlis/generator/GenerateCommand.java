@@ -1,5 +1,7 @@
 package ch.interlis.generator;
 
+import ch.interlis.generator.metadata.merge.MergeDiagnostic;
+import ch.interlis.generator.metadata.merge.MetadataMergeException;
 import ch.interlis.generator.model.ModelMetadata;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ExitCode;
@@ -60,6 +62,8 @@ final class GenerateCommand implements Callable<Integer> {
             return ExitCode.OK;
         } catch (ParameterException e) {
             return usageError(e);
+        } catch (MetadataMergeException e) {
+            return mergeConflictError(e);
         } catch (Exception e) {
             return runtimeError(e);
         }
@@ -88,6 +92,28 @@ final class GenerateCommand implements Callable<Integer> {
         e.printStackTrace(spec.commandLine().getErr());
         return ExitCode.SOFTWARE;
     }
+
+    /**
+     * Erwartete Merge-Konflikte werden kompakt auf stderr ausgegeben (kein
+     * voller Stacktrace). Exit-Code 65 = sysexits EX_DATAERR (Picocli bietet
+     * keinen DATAERR-Konstanten).
+     */
+    private int mergeConflictError(MetadataMergeException e) {
+        spec.commandLine().getErr().println(
+            "Metadata merge failed with " + e.diagnostics().size()
+                + " blocking diagnostic(s):");
+        for (MergeDiagnostic diagnostic : e.diagnostics()) {
+            spec.commandLine().getErr().println(
+                "  " + diagnostic.severity() + " " + diagnostic.code()
+                    + (diagnostic.semanticElement() != null
+                    ? " " + diagnostic.semanticElement() : "")
+                    + " - " + diagnostic.message());
+        }
+        return DATAERR;
+    }
+
+    /** sysexits: EX_DATAERR */
+    private static final int DATAERR = 65;
 
     private void printFooter() {
         spec.commandLine().getOut().println();
