@@ -64,7 +64,8 @@ public final class SqliteSchemaIntrospector implements JdbcSchemaIntrospector {
         if (typeName == null) {
             return null;
         }
-        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\((\\d+)\\)").matcher(typeName);
+        java.util.regex.Matcher matcher =
+            java.util.regex.Pattern.compile("\\((\\d+)(?:\\s*,\\s*\\d+)?\\)").matcher(typeName);
         if (matcher.find()) {
             return Integer.parseInt(matcher.group(1));
         }
