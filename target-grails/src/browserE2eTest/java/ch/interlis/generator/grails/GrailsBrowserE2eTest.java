@@ -829,8 +829,9 @@ class GrailsBrowserE2eTest {
                 }
                 """);
             page.waitForTimeout(1000);
+            // Flash-Meldung der Delete-Integritätsprüfung (ili2grails.runtime.deleteIntegrity)
             assertThat(page.locator("body").textContent())
-                .contains("Datenbank-Integritätsbedingung", "verhindert");
+                .contains("Aktion nicht möglich", "konnte nicht gelöscht werden", "verwendet");
             screenshot(page, "workspace-delete-conflict", true);
         } catch (PlaywrightException e) {
             if (e.getMessage() != null && e.getMessage().contains("Executable doesn't exist")) {
