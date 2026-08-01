@@ -121,6 +121,18 @@ Die generierten Apps der Smoke-/Contract-Tests kompilieren die typed Registry un
 
 Generischer, idempotenter Insert einer markierten Dependency-Zeile in den Top-Level-`dependencies`-Block der Ziel-App (keine Regex-Volltext-Ersetzung). Grundlage für den `GrailsRuntimeDependencyInstaller` (Phase 4).
 
+### M-4 Layout-Vertrag des Plugins
+
+Das Plugin liefert `grails-app/views/layouts/ili2grails.gsp` (das bisherige Overlay-`main.gsp`, unverändert) als kanonisches Default-Layout sowie `grails-app/views/layouts/main.gsp` als dünne Delegation (`<meta name="layout" content="ili2grails"/>`). Damit bleibt die gerenderte Ausgabe byte-identisch (bisher wurde das App-`main.gsp` durch den Overlay-Installer überschrieben), und die App kann per eigenem `main.gsp` das Layout überschreiben. Es gibt in Grails 7 keinen `g:applyLayout`-Tag; die Meta-Delegation ist der einzig robuste Mechanismus.
+
+### M-5 Runtime-Klassen im Plugin
+
+Die verschobenen Runtime-Klassen dürfen die generierten Registries der Host-App nicht zur Compilezeit importieren. `GeneratedRegistryAccessor` löst die Registry-Typen einmalig per Reflection; der fachliche Vertrag sind die API-Interfaces. Zusätzlich erhielten die Services/Controller/Plugin-Descriptor `@Slf4j`, weil `log` im Plugin-Kontext nicht per Artefakt-Konvention injiziert wird.
+
+### M-6 Maven-Consumer-Pfad
+
+`grails-runtime` (artifactId `ili2grails-runtime`) und `grails-runtime-api` publizieren nach `mavenLocal()`. Der Smoke-/Contract-Harness injiziert die Plugin-Coordinates plus `mavenLocal()`-Repository und `cacheChangingModulesFor 0` (nur Test-Harness). Das App-Gradle bricht die SNAPSHOT-Auflösung sonst 24h.
+
 ---
 
 ## 6. Ausgeführte Befehle
@@ -172,5 +184,6 @@ Domain-Snapshots und Enum-Snapshots sind unverändert (GrailsDomainGenerator unv
 |---|---|
 | `1a50e32` | docs: record P1 architecture baseline |
 | `04278da` | feat(runtime-api): add typed descriptors and operation results (Phase 1) |
-| (folgt) | refactor(grails): generate typed runtime registries (Phase 2) |
+| `c450bdd` | refactor(grails): generate typed runtime registries (Phase 2) |
+| (folgt) | feat(runtime): add ili2grails Grails runtime plugin (Phase 3) |
 | (folgt) | ... |

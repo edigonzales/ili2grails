@@ -11,7 +11,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Installiert managed Template-Overlays in ein Grails-Projekt.
+ * Installiert die verbleibenden managed Template-Overlays in ein
+ * Grails-Projekt.
+ *
+ * <p>Seit der Runtime-Plugin-Migration verwaltet dieser Installer nur noch
+ * Generation-Time-Templates (Scaffolding) und die Locale-Konfiguration.
+ * Runtime-Klassen, Views, Assets und I18n kommen aus dem
+ * {@code ili2grails-runtime}-Plugin.</p>
  */
 public class GrailsTemplateOverlayInstaller {
 
@@ -33,62 +39,13 @@ public class GrailsTemplateOverlayInstaller {
         "src/main/templates/scaffolding/_geometry-panel.gsp",
         "src/main/templates/scaffolding/_relationship-fields.gsp",
         "src/main/templates/scaffolding/_show-details.gsp",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisFormSupport.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisListQuerySupport.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisMessageSupport.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipSupport.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy",
-        "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy",
-        "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy",
-        "grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipQueryService.groovy",
-        "grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipCommandService.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipContextSupport.groovy",
-        "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy",
-        "grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy",
-        "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy",
-        "grails-app/views/interlisUi/index.gsp",
-        "grails-app/views/interlisUi/_explorer-results.gsp",
-        "grails-app/views/interlisUi/_sidebar.gsp",
-        "grails-app/views/interlisUi/_navigation-groups.gsp",
-        "grails-app/views/interlisUi/_domain-link.gsp",
-        "grails-app/views/interlisUi/_workspace-link.gsp",
-        "grails-app/views/interlisUi/_workspace-header.gsp",
-        "grails-app/views/interlisUi/_workspace-details.gsp",
-        "grails-app/views/interlisUi/_workspace-relationships.gsp",
-        "grails-app/views/interlisUi/_workspace-danger-zone.gsp",
-        "grails-app/views/interlisUi/_workspace-table.gsp",
-        "grails-app/views/interlisUi/_workspace-empty.gsp",
         "src/main/templates/scaffolding/_association-sections.gsp",
         "src/main/templates/scaffolding/_association-row-actions.gsp",
         "src/main/templates/scaffolding/_association-quick-add.gsp",
         "src/main/templates/scaffolding/_association-context-summary.gsp",
         "src/main/templates/scaffolding/_inverse-relationship-sections.gsp",
         "src/main/templates/scaffolding/_inverse-relationship-picker.gsp",
-        "grails-app/views/layouts/main.gsp",
-        "grails-app/i18n/messages_de_CH.properties",
-        "grails-app/i18n/messages_en.properties",
-        "grails-app/conf/spring/resources.groovy",
-        "grails-app/assets/javascripts/ili-geometry-editor.js",
-        "grails-app/assets/javascripts/ili-form-ux.js",
-        "grails-app/assets/javascripts/ili-notifications.js",
-        "grails-app/assets/javascripts/ili-navigation.js",
-        "grails-app/assets/stylesheets/ili-modern.css",
-        "grails-app/assets/fonts/noto-sans/NotoSans-Regular.woff2",
-        "grails-app/assets/fonts/noto-sans/NotoSans-Medium.woff2",
-        "grails-app/assets/fonts/noto-sans/NotoSans-SemiBold.woff2",
-        "grails-app/assets/fonts/noto-sans/NotoSans-Bold.woff2",
-        "grails-app/assets/fonts/noto-sans/NotoSans-Italic.woff2",
-        "src/main/resources/fonts/noto-sans/OFL.txt",
-        "grails-app/assets/fonts/fira-sans/FiraSans-Regular.woff2",
-        "grails-app/assets/fonts/fira-sans/FiraSans-SemiBold.woff2",
-        "src/main/resources/fonts/fira-sans/OFL.txt"
+        "grails-app/conf/spring/resources.groovy"
     );
     private static final List<String> APPLICATION_JS_REQUIRES = List.of(
         "//= require webjars/proj4/2.11.0/dist/proj4.js",
@@ -132,15 +89,12 @@ public class GrailsTemplateOverlayInstaller {
         }
         cleanupLegacyCarbonArtifacts(grailsProjectDir);
         for (String relativePath : MANAGED_FILES) {
-            if (isLanguageBundle(relativePath)) {
-                copyLanguageBundle(grailsProjectDir, relativePath, config);
-            } else if (relativePath.equals("grails-app/conf/spring/resources.groovy")) {
+            if (relativePath.equals("grails-app/conf/spring/resources.groovy")) {
                 copyLocaleConfiguration(grailsProjectDir, config);
             } else {
                 copyManagedResource(grailsProjectDir, relativePath);
             }
         }
-        mergeSelectedLanguageIntoBaseBundle(grailsProjectDir, config);
         ensureJavascriptRequires(grailsProjectDir.resolve("grails-app/assets/javascripts/application.js"));
         ensureStylesheetRequires(grailsProjectDir.resolve("grails-app/assets/stylesheets/application.css"));
     }
@@ -161,28 +115,6 @@ public class GrailsTemplateOverlayInstaller {
             Files.createDirectories(target.getParent());
             Files.write(target, inputStream.readAllBytes());
         }
-    }
-
-    private boolean isLanguageBundle(String relativePath) {
-        return relativePath.equals("grails-app/i18n/messages_de_CH.properties")
-            || relativePath.equals("grails-app/i18n/messages_en.properties");
-    }
-
-    private void copyLanguageBundle(Path grailsProjectDir,
-                                    String relativePath,
-                                    GenerationConfig config) throws IOException {
-        if (!relativePath.equals(languageBundlePath(config))) {
-            return;
-        }
-        mergePropertiesResource(grailsProjectDir.resolve(relativePath), OVERLAY_ROOT + relativePath);
-    }
-
-    private void mergeSelectedLanguageIntoBaseBundle(Path grailsProjectDir,
-                                                     GenerationConfig config) throws IOException {
-        mergePropertiesResource(
-            grailsProjectDir.resolve("grails-app/i18n/messages.properties"),
-            OVERLAY_ROOT + languageBundlePath(config)
-        );
     }
 
     private void copyLocaleConfiguration(Path grailsProjectDir, GenerationConfig config) throws IOException {
@@ -219,49 +151,6 @@ public class GrailsTemplateOverlayInstaller {
                 + "java.util.Locale.forLanguageTag(\"" + config.getLanguage() + "\"))\n";
             String updated = existing.substring(0, closingBrace) + insertion + existing.substring(closingBrace);
             Files.writeString(target, updated, StandardCharsets.UTF_8);
-        }
-    }
-
-    private String languageBundlePath(GenerationConfig config) {
-        return GenerationConfig.LANGUAGE_EN.equals(config.getLanguage())
-            ? "grails-app/i18n/messages_en.properties"
-            : "grails-app/i18n/messages_de_CH.properties";
-    }
-
-    private void mergePropertiesResource(Path target, String resourcePath) throws IOException {
-        String resource;
-        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-            if (inputStream == null) {
-                throw new IOException("Missing overlay resource: " + resourcePath);
-            }
-            resource = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        Files.createDirectories(target.getParent());
-        String existing = Files.exists(target)
-            ? Files.readString(target, StandardCharsets.UTF_8)
-            : "";
-        String merged = existing;
-        for (String line : resource.split("\\R")) {
-            if (line.isBlank() || line.trim().startsWith("#")) {
-                continue;
-            }
-            int separator = line.indexOf('=');
-            if (separator <= 0 || !line.substring(0, separator).startsWith("ili2grails.")) {
-                continue;
-            }
-            String key = line.substring(0, separator);
-            Pattern keyPattern = Pattern.compile("(?m)^" + Pattern.quote(key) + "[=:].*$");
-            if (keyPattern.matcher(merged).find()) {
-                merged = keyPattern.matcher(merged).replaceFirst(Matcher.quoteReplacement(line));
-            } else {
-                if (!merged.isEmpty() && !merged.endsWith("\\n")) {
-                    merged += "\\n";
-                }
-                merged += line + "\\n";
-            }
-        }
-        if (!merged.equals(existing)) {
-            Files.writeString(target, merged, StandardCharsets.UTF_8);
         }
     }
 

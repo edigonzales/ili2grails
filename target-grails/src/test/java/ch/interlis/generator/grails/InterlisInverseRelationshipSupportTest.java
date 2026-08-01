@@ -16,10 +16,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InterlisInverseRelationshipSupportTest {
 
-    private static final Path SUPPORT_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/"
-            + "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipSupport.groovy"
-    );
+    private static final Path SUPPORT_SOURCE =
+        RuntimeSourcePaths.runtimeSource("InterlisInverseRelationshipSupport");
 
     @Test
     void appliesLabelAndModeOverridesWithoutUpgradingUnsafeMetadata() throws Exception {
@@ -76,6 +74,9 @@ class InterlisInverseRelationshipSupportTest {
 
     private RuntimeFixture runtimeFixture(boolean generatedWritable) throws Exception {
         GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader());
+        loader.parseClass(
+            Files.readString(RuntimeSourcePaths.generatedRegistryAccessorSource()),
+            "GeneratedRegistryAccessor.groovy");
         loader.parseClass("""
             package ch.interlis.generator.grails.generated
             class InterlisUiRegistry {

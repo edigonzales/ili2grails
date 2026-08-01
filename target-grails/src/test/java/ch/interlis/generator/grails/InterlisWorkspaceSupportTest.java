@@ -13,10 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class InterlisWorkspaceSupportTest {
 
-    private static final Path RUNTIME_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy"
-    );
+    private static final Path RUNTIME_SOURCE = RuntimeSourcePaths.runtimeSource("InterlisWorkspaceSupport");
 
     @Test
     void tableFactoriesCreateStableDisplayOnlyModels() throws Exception {
@@ -63,6 +60,9 @@ class InterlisWorkspaceSupportTest {
 
     private Class<?> runtimeType() throws Exception {
         GroovyClassLoader classLoader = new GroovyClassLoader(getClass().getClassLoader());
+        classLoader.parseClass(
+            Files.readString(RuntimeSourcePaths.generatedRegistryAccessorSource()),
+            "GeneratedRegistryAccessor.groovy");
         classLoader.parseClass("""
             package ch.interlis.generator.grails.generated
             class InterlisUiRegistry {

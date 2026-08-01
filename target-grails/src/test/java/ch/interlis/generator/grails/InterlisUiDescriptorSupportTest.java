@@ -20,22 +20,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class InterlisUiDescriptorSupportTest {
 
-    private static final Path RUNTIME_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy"
-    );
-    private static final Path RELATIONSHIP_OPTIONS_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"
-    );
-    private static final Path TABLE_MODEL_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy"
-    );
-    private static final Path WORKSPACE_SOURCE = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy"
-    );
+    private static final Path RUNTIME_SOURCE = RuntimeSourcePaths.runtimeSource("InterlisUiDescriptorSupport");
+    private static final Path RELATIONSHIP_OPTIONS_SOURCE = RuntimeSourcePaths.runtimeSource("InterlisRelationshipOptions");
+    private static final Path TABLE_MODEL_SOURCE = RuntimeSourcePaths.runtimeSource("InterlisTableModel");
+    private static final Path WORKSPACE_SOURCE = RuntimeSourcePaths.runtimeSource("InterlisWorkspaceSupport");
 
     @TempDir
     Path tempDir;
@@ -485,6 +473,9 @@ class InterlisUiDescriptorSupportTest {
         );
 
         GroovyClassLoader classLoader = new GroovyClassLoader(getClass().getClassLoader());
+        classLoader.parseClass(
+            Files.readString(RuntimeSourcePaths.generatedRegistryAccessorSource()),
+            "GeneratedRegistryAccessor.groovy");
         Path registrySource = tempDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy"
         );

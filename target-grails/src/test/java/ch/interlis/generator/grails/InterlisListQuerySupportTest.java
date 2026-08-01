@@ -15,10 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class InterlisListQuerySupportTest {
 
-    private static final Path OVERLAY = Path.of(
-        "target-grails/src/main/resources/grails/overlays/bootstrap-openlayers/" +
-            "src/main/groovy/ch/interlis/generator/grails/runtime/"
-    );
+    private static final Path OVERLAY = RuntimeSourcePaths.runtimeRoot();
 
     @Test
     void parsesTypedFiltersRangesAndSafeSorts() throws Exception {

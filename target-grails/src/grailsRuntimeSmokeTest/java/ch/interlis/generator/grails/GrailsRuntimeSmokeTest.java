@@ -36,6 +36,7 @@ class GrailsRuntimeSmokeTest {
         if (!isGrailsAvailable()) {
             throw new TestAbortedException("grails CLI not available in PATH; skipping runtime smoke test");
         }
+        RuntimeApiTestSupport.publishRuntimeToMavenLocal(Path.of("."));
     }
 
     @Test
@@ -103,61 +104,23 @@ class GrailsRuntimeSmokeTest {
             "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy");
         assertThat(uiRegistryFile).exists();
 
-        Path descriptorSupportFile = appDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy");
-        assertThat(descriptorSupportFile).exists();
-        Path workspaceSupportFile = appDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy");
-        assertThat(workspaceSupportFile).exists();
-        Path listQuerySupportFile = appDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisListQuerySupport.groovy");
-        assertThat(listQuerySupportFile).exists();
-
-        Path navigationSupportFile = appDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy");
-        assertThat(navigationSupportFile).exists();
-
-        Path uiControllerFile = appDir.resolve(
-            "grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy");
-        assertThat(uiControllerFile).exists();
-
-        Path uiTagLibFile = appDir.resolve(
-            "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy");
-        assertThat(uiTagLibFile).exists();
-
-        Path explorerViewFile = appDir.resolve("grails-app/views/interlisUi/index.gsp");
-        assertThat(explorerViewFile).exists();
-
-        Path explorerResultsFile = appDir.resolve("grails-app/views/interlisUi/_explorer-results.gsp");
-        assertThat(explorerResultsFile).exists();
-        assertThat(appDir.resolve("grails-app/views/interlisUi/_workspace-header.gsp")).exists();
-        assertThat(appDir.resolve("grails-app/views/interlisUi/_workspace-details.gsp")).exists();
-        assertThat(appDir.resolve("grails-app/views/interlisUi/_workspace-relationships.gsp")).exists();
-        assertThat(appDir.resolve("grails-app/views/interlisUi/_workspace-danger-zone.gsp")).exists();
-
-        Path navigationJsFile = appDir.resolve("grails-app/assets/javascripts/ili-navigation.js");
-        assertThat(navigationJsFile).exists();
-
-        Path supportFile = appDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy");
-        assertThat(supportFile).exists();
-
-        Path queryServiceFile = appDir.resolve(
-            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy");
-        assertThat(queryServiceFile).exists();
-
-        Path commandServiceFile = appDir.resolve(
-            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy");
-        assertThat(commandServiceFile).exists();
+        // Runtime artefacts must NOT be copied into the app anymore; they come
+        // from the ili2grails-runtime plugin.
+        Path runtimeSourceDir = appDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime");
+        assertThat(runtimeSourceDir).doesNotExist();
         assertThat(appDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipSupport.groovy"
-        )).exists();
+            "grails-app/services/ch/interlis/generator/grails/runtime"
+        )).doesNotExist();
         assertThat(appDir.resolve(
-            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipQueryService.groovy"
-        )).exists();
+            "grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy"
+        )).doesNotExist();
         assertThat(appDir.resolve(
-            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipCommandService.groovy"
-        )).exists();
+            "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy"
+        )).doesNotExist();
+        assertThat(appDir.resolve("grails-app/views/interlisUi/index.gsp")).doesNotExist();
+        assertThat(appDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).doesNotExist();
+        assertThat(appDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).doesNotExist();
 
         Path associationSectionsGsp = appDir.resolve(
             "src/main/templates/scaffolding/_association-sections.gsp");
@@ -335,7 +298,7 @@ class GrailsRuntimeSmokeTest {
         appDir.resolve("grailsw").toFile().setExecutable(true);
         assertThat(appDir.resolve("build.gradle")).exists();
         assertThat(appDir.resolve("grailsw")).exists();
-        RuntimeApiTestSupport.installRuntimeApiJar(appDir);
+        RuntimeApiTestSupport.installRuntimePluginDependency(appDir);
         return appDir;
     }
 

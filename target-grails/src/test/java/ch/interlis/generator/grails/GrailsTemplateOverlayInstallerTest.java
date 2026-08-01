@@ -82,83 +82,35 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_geometry-panel.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_relationship-fields.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_show-details.gsp")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisFormSupport.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisTableModel.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisListQuerySupport.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationRegistrySupport.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipSupport.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy")).exists();
-        assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy")).exists();
-        assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationCommandService.groovy")).exists();
-        assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipQueryService.groovy")).exists();
-        assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipCommandService.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy")).exists();
-        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisNavigationSupport.groovy")).exists();
-        assertThat(projectDir.resolve("grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy")).exists();
-        assertThat(projectDir.resolve("grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/index.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_explorer-results.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_sidebar.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_navigation-groups.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_domain-link.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_workspace-link.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_workspace-header.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_workspace-details.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_workspace-relationships.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_workspace-danger-zone.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_workspace-table.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi/_workspace-empty.gsp")).exists();
+        // Runtime artefacts come from the ili2grails-runtime plugin and must
+        // never be copied into the application by the overlay installer.
+        assertThat(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/controllers/ch/interlis/generator/grails/runtime")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/taglib/ch/interlis/generator/grails/runtime")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/views/interlisUi")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/assets/fonts/noto-sans")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/i18n/messages_de_CH.properties")).doesNotExist();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-sections.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-row-actions.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-quick-add.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-context-summary.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_inverse-relationship-sections.gsp")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_inverse-relationship-picker.gsp")).exists();
-        assertThat(projectDir.resolve("grails-app/views/layouts/main.gsp")).exists();
+        assertThat(PluginSourcePaths.view("layouts/ili2grails.gsp")).exists();
         assertThat(Files.readString(projectDir.resolve("grails-app/conf/spring/resources.groovy")))
             .contains("FixedLocaleResolver", "Locale.forLanguageTag(\"de-CH\")");
-        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js")).exists();
-        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js")).exists();
-        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-notifications.js")).exists();
-        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).exists();
-        assertThat(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).exists();
-        NOTO_SANS_FONT_FILES.forEach(fileName -> assertThat(projectDir.resolve(
-            "grails-app/assets/fonts/noto-sans/" + fileName)).exists());
-        assertThat(projectDir.resolve("src/main/resources/fonts/noto-sans/OFL.txt")).exists();
-        assertThat(projectDir.resolve("src/main/resources/fonts/fira-sans/OFL.txt")).exists();
-        FIRA_SANS_FONT_FILES.forEach(fileName -> assertThat(projectDir.resolve(
-            "grails-app/assets/fonts/fira-sans/" + fileName)).exists());
+        // Plugin asset checks: the files exist as plugin artefacts and are
+        // not copied into the application.
+        NOTO_SANS_FONT_FILES.forEach(fileName -> assertThat(PluginSourcePaths.asset(
+            "fonts/noto-sans/" + fileName)).exists());
+        FIRA_SANS_FONT_FILES.forEach(fileName -> assertThat(PluginSourcePaths.asset(
+            "fonts/fira-sans/" + fileName)).exists());
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-wc-bundle.js")).doesNotExist();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js")).doesNotExist();
         assertThat(legacyBoldFont).doesNotExist();
-
-        NOTO_SANS_FONT_FILES.forEach(fileName -> {
-            try {
-                byte[] content = Files.readAllBytes(projectDir.resolve(
-                    "grails-app/assets/fonts/noto-sans/" + fileName));
-                assertThat(content.length).as(fileName).isGreaterThan(4);
-                assertThat(new String(content, 0, 4, StandardCharsets.US_ASCII))
-                    .as(fileName).isEqualTo("wOF2");
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
-
-        FIRA_SANS_FONT_FILES.forEach(fileName -> {
-            try {
-                byte[] content = Files.readAllBytes(projectDir.resolve(
-                    "grails-app/assets/fonts/fira-sans/" + fileName));
-                assertThat(content.length).as(fileName).isGreaterThan(4);
-                assertThat(new String(content, 0, 4, StandardCharsets.US_ASCII))
-                    .as(fileName).isEqualTo("wOF2");
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
 
         String updatedApplicationJs = Files.readString(applicationJs);
         assertThat(updatedApplicationJs).contains("//= require webjars/proj4/2.11.0/dist/proj4.js");
@@ -233,7 +185,7 @@ class GrailsTemplateOverlayInstallerTest {
                 "<ili:icon name=\"plus-lg\" cssClass=\"me-1\"/>", "ili2grails.action.new",
                 "ili2grails.list.noResults", "ili2grails.list.noResultsDescription")
             .doesNotContain("domainHasRecords", "ili2grails.list.reset", "default.new.label");
-        String overlayCss = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
+        String overlayCss = Files.readString(PluginSourcePaths.asset("stylesheets/ili-modern.css"));
         assertThat(overlayCss)
             .contains(".ili-notification-region", "position: fixed", ".ili-notification-dismiss",
                 ".ili-list-result-summary", "font-size: 1rem;", "color: var(--bs-body-color);",
@@ -263,12 +215,11 @@ class GrailsTemplateOverlayInstallerTest {
                 ".ili-active-filter-badge:focus-visible", ".ili-workspace-danger-zone",
                 ".ili-danger-zone", ".ili-danger-zone-head");
 
-        String sidebarTemplate = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_sidebar.gsp"));
+        String sidebarTemplate = Files.readString(PluginSourcePaths.view("interlisUi/_sidebar.gsp"));
         assertThat(sidebarTemplate).doesNotContain("ili2grails.shell.navigation\" default=\"Navigation")
             .contains("class=\"ili-sidebar-close\"", "name=\"x-circle\"")
             .doesNotContain("btn btn-outline-secondary btn-sm ili-sidebar-close");
-        String sidebarTagLib = Files.readString(projectDir.resolve(
-            "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy"));
+        String sidebarTagLib = Files.readString(PluginSourcePaths.tagLib("InterlisUiTagLib"));
         assertThat(sidebarTagLib).contains("\"x-circle\"");
 
         String formTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_form.gsp"));
@@ -291,7 +242,7 @@ class GrailsTemplateOverlayInstallerTest {
             .contains("ili2grails.form.createTitle", "pageTitleCode: 'ili2grails.form.createTitle'",
                 "submitCode: 'ili2grails.action.save'", "submitDefault: 'Speichern'", "pageSubtitle: message(")
             .doesNotContain("default.create.label", "default.button.create.label", "pageSubtitle: \\${message");
-        String deMessages = Files.readString(projectDir.resolve("grails-app/i18n/messages_de_CH.properties"));
+        String deMessages = Files.readString(PluginSourcePaths.i18n("messages_de_CH.properties"));
         assertThat(deMessages)
             .contains("ili2grails.action.save=Speichern", "ili2grails.form.createTitle={0} erfassen",
                 "ili2grails.list.removeFilter=Filter entfernen", "ili2grails.action.create=Erfassen",
@@ -342,21 +293,21 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(showTemplate).doesNotContain("_show-details");
         assertThat(showTemplate).doesNotContain("Audit", "Verlauf", "Protokoll", "Timeline", "Restore", "flash.message");
 
-        String workspaceHeader = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-header.gsp"));
+        String workspaceHeader = Files.readString(PluginSourcePaths.view("interlisUi/_workspace-header.gsp"));
         assertThat(workspaceHeader)
             .contains("data-domain-workspace-header", "data-workspace-display-label", "class=\"ili-page-subtitle\"",
                 "${domainLabel ?: message(code: 'ili2grails.workspace.record', default: 'Datensatz')}",
                 "class=\"btn btn-outline-danger\"", "data-delete-open=\"${deleteModalId}\"",
                 "data-bs-target=\"#${deleteModalId}\"", "name=\"trash\"")
             .doesNotContain("ili-eyebrow", "data-workspace-domain-label");
-        String workspaceDetails = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-details.gsp"));
+        String workspaceDetails = Files.readString(PluginSourcePaths.view("interlisUi/_workspace-details.gsp"));
         assertThat(workspaceDetails).contains("detailSections", "<g:message", ".label").doesNotContain("audit");
-        String workspaceRelationships = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-relationships.gsp"));
+        String workspaceRelationships = Files.readString(PluginSourcePaths.view("interlisUi/_workspace-relationships.gsp"));
         assertThat(workspaceRelationships)
             .contains("relationshipLinks", "action=\"show\"", "Keine Zuordnung",
                 "ili2grails.ui.linkedRecords", "Verknüpfte Datensätze")
             .doesNotContain("Direkte Beziehungen", "Keine direkten Beziehungen");
-        String workspaceDangerZone = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-danger-zone.gsp"));
+        String workspaceDangerZone = Files.readString(PluginSourcePaths.view("interlisUi/_workspace-danger-zone.gsp"));
         assertThat(workspaceDangerZone)
             .contains("ili-hidden-delete-form", "modal fade")
             .contains("class=\"ili-modal-close ms-auto\"", "name=\"x-circle\"")
@@ -367,13 +318,13 @@ class GrailsTemplateOverlayInstallerTest {
             .doesNotContain("btn btn-outline-secondary btn-sm ili-modal-close", "name=\"x-lg\"")
             .doesNotContain("Danger Zone", "Destruktiv", "data-workspace-danger-zone",
                 "data-delete-open", "ili-danger-zone", "abhängige Daten werden", "garantiert", "bx-modal");
-        String workspaceLink = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-link.gsp"));
+        String workspaceLink = Files.readString(PluginSourcePaths.view("interlisUi/_workspace-link.gsp"));
         assertThat(workspaceLink).contains("data-ili-workspace-link", "controller", "action")
             .doesNotContain("iliName", "domainClassName");
-        String workspaceTable = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-table.gsp"));
+        String workspaceTable = Files.readString(PluginSourcePaths.view("interlisUi/_workspace-table.gsp"));
         assertThat(workspaceTable).contains("workspaceSection.columns", "row.values", "row.links",
             "template=\"/interlisUi/workspace-empty\"", "action=\"${cellLink.action ?: 'show'}\"");
-        String workspaceEmpty = Files.readString(projectDir.resolve("grails-app/views/interlisUi/_workspace-empty.gsp"));
+        String workspaceEmpty = Files.readString(PluginSourcePaths.view("interlisUi/_workspace-empty.gsp"));
         assertThat(workspaceEmpty).contains("data-workspace-empty", "emptyMessage", "Keine Einträge");
 
         String associationSectionsTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/_association-sections.gsp"));
@@ -420,7 +371,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(associationRowActionsTemplate).contains("associationController");
         assertThat(associationRowActionsTemplate).contains("associationId");
 
-        String layoutTemplate = Files.readString(projectDir.resolve("grails-app/views/layouts/main.gsp"));
+        String layoutTemplate = Files.readString(PluginSourcePaths.view("layouts/ili2grails.gsp"));
         assertThat(layoutTemplate).contains("<asset:stylesheet src=\"application.css\"/>");
         assertThat(layoutTemplate).contains("data-ili-neutral-palette=\"balanced\"");
         assertThat(layoutTemplate).contains("<asset:javascript src=\"application.js\"/>");
@@ -468,7 +419,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerTemplate).contains("relationshipCollectionOptions: \"GET\"");
         assertThat(controllerTemplate).contains("relationshipAssign: \"POST\"");
 
-        String controllerSupport = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy"));
+        String controllerSupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisCrudControllerSupport.groovy".replace(".groovy","")));
         assertThat(controllerSupport).contains("def index(Integer max, Integer offset)");
         assertThat(controllerSupport).contains("relationshipOptions");
         assertThat(controllerSupport).contains("InterlisGeometryBinder.bindGeometryFromParams");
@@ -504,22 +455,18 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(controllerSupport).contains("relationshipAssign(Long id)");
         assertThat(controllerSupport).contains("inverseRelationshipJsonRequested()");
         assertThat(controllerSupport).contains("CONFIGURATION_INVALID");
-        String inverseCommandService = Files.readString(projectDir.resolve(
-            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisInverseRelationshipCommandService.groovy"
-        ));
+        String inverseCommandService = Files.readString(PluginSourcePaths.service("InterlisInverseRelationshipCommandService.groovy".replace(".groovy","")));
         assertThat(inverseCommandService)
             .contains("REASSIGNMENT_CONFIRMATION_REQUIRED")
             .contains("CONFIGURATION_INVALID")
             .contains("related.\"${relatedProperty}\" = owner");
 
-        String uiDescriptorSupport = Files.readString(projectDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisUiDescriptorSupport.groovy"));
+        String uiDescriptorSupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisUiDescriptorSupport.groovy".replace(".groovy","")));
         assertThat(uiDescriptorSupport)
             .contains("static Map<String, Object> descriptor", "displayFieldsFor", "list.displayFields");
         assertThat(uiDescriptorSupport).contains("Unknown field");
         assertThat(uiDescriptorSupport).contains("detailSections", "scalarDetailProperty");
-        String relationshipDisplayOptions = Files.readString(projectDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"));
+        String relationshipDisplayOptions = Files.readString(PluginSourcePaths.runtimeSource("InterlisRelationshipOptions.groovy".replace(".groovy","")));
         assertThat(relationshipDisplayOptions).contains("optionLabel(def grailsApplication, Object value)",
             "configuredDisplayFields", "optionPageForInverseRelationship",
             "inverseRelationshipSearchFields");
@@ -528,51 +475,44 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(inverseRelationshipPicker)
             .contains("data-inverse-relationship-form=\"true\"")
             .doesNotContain("data-inverse-relationship-form>");
-        String workspaceSupport = Files.readString(projectDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisWorkspaceSupport.groovy"));
+        String workspaceSupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisWorkspaceSupport.groovy".replace(".groovy","")));
         assertThat(workspaceSupport).contains("workspaceDisplayLabel", "displayFields", "#${id}");
-        String crudControllerSupport = Files.readString(projectDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisCrudControllerSupport.groovy"));
+        String crudControllerSupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisCrudControllerSupport.groovy".replace(".groovy","")));
         assertThat(crudControllerSupport).contains(
             "InterlisWorkspaceSupport.renderValue(grailsApplication, value)",
             "InterlisRelationshipOptions.optionLabel(grailsApplication, selected)");
-        String listQuerySupport = Files.readString(projectDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisListQuerySupport.groovy"));
+        String listQuerySupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisListQuerySupport.groovy".replace(".groovy","")));
         assertThat(listQuerySupport).contains("optionLabel(grailsApplication, selected)");
-        String associationQueryService = Files.readString(projectDir.resolve(
-            "grails-app/services/ch/interlis/generator/grails/runtime/InterlisAssociationQueryService.groovy"));
+        String associationQueryService = Files.readString(PluginSourcePaths.service("InterlisAssociationQueryService.groovy".replace(".groovy","")));
         assertThat(associationQueryService).contains("optionLabel(grailsApplication, target)");
-        String associationContextSupport = Files.readString(projectDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/runtime/InterlisAssociationContextSupport.groovy"));
+        String associationContextSupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisAssociationContextSupport.groovy".replace(".groovy","")));
         assertThat(associationContextSupport).contains("optionLabel(grailsApplication, owner)");
 
-        String uiController = Files.readString(projectDir.resolve(
-            "grails-app/controllers/ch/interlis/generator/grails/runtime/InterlisUiController.groovy"));
+        String uiController = Files.readString(PluginSourcePaths.controller("InterlisUiController.groovy".replace(".groovy","")));
         assertThat(uiController).contains("static allowedMethods = [index: \"GET\", domains: \"GET\"]");
         assertThat(uiController).contains("Content-Security-Policy");
         assertThat(uiController).doesNotContain("unsafe-inline");
         assertThat(uiController).doesNotContain("unsafe-eval");
         assertThat(uiController).doesNotContain("UrlMappings");
 
-        String uiTagLib = Files.readString(projectDir.resolve(
-            "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy"));
+        String uiTagLib = Files.readString(PluginSourcePaths.tagLib("InterlisUiTagLib"));
         assertThat(uiTagLib).contains("static namespace = \"ili\"");
         assertThat(uiTagLib).contains("ICON_PATHS");
         assertThat(uiTagLib).doesNotContain("icon-font");
         assertThat(uiTagLib).doesNotContain("cdn");
 
-        String relationshipOptions = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisRelationshipOptions.groovy"));
+        String relationshipOptions = Files.readString(PluginSourcePaths.runtimeSource("InterlisRelationshipOptions.groovy".replace(".groovy","")));
         assertThat(relationshipOptions).contains("interlisDisplayMeta");
         assertThat(relationshipOptions).contains("nextOffset");
         assertThat(relationshipOptions).contains("pagination.offset + options.size()");
 
-        String geometryBinder = Files.readString(projectDir.resolve("src/main/groovy/ch/interlis/generator/grails/runtime/InterlisGeometryBinder.groovy"));
+        String geometryBinder = Files.readString(PluginSourcePaths.runtimeSource("InterlisGeometryBinder.groovy".replace(".groovy","")));
         assertThat(geometryBinder).contains("IsValidOp");
         assertThat(geometryBinder).contains("MULTIPOLYGON");
         assertThat(geometryBinder).contains("maxWktLength");
         assertThat(geometryBinder).contains("maxVertices");
 
-        String formUx = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-form-ux.js"));
+        String formUx = Files.readString(PluginSourcePaths.asset("javascripts/ili-form-ux.js"));
         assertThat(formUx).contains("initRelationshipAutocomplete");
         assertThat(formUx).contains("js-relationship-search");
         assertThat(formUx).contains("pagination.nextOffset");
@@ -593,10 +533,10 @@ class GrailsTemplateOverlayInstallerTest {
             "assignmentUrl.searchParams.set(\"format\", \"json\")"
         ).doesNotContain("initInverseRelationshipBrowsers", "renderInverseBrowserPage", "data-inverse-browser");
 
-        String geometryEditor = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-geometry-editor.js"));
+        String geometryEditor = Files.readString(PluginSourcePaths.asset("javascripts/ili-geometry-editor.js"));
         assertThat(geometryEditor).contains("ol.interaction.Snap");
 
-        String stylesheet = Files.readString(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css"));
+        String stylesheet = Files.readString(PluginSourcePaths.asset("stylesheets/ili-modern.css"));
         assertThat(stylesheet).contains(".ili-list-tools");
         int formActionsStart = stylesheet.indexOf(".ili-form-actions {");
         int formActionsEnd = stylesheet.indexOf('}', formActionsStart);
@@ -646,7 +586,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(stylesheet).contains("prefers-reduced-motion");
         assertThat(stylesheet).contains("@media print");
 
-        String navigationJs = Files.readString(projectDir.resolve("grails-app/assets/javascripts/ili-navigation.js"));
+        String navigationJs = Files.readString(PluginSourcePaths.asset("javascripts/ili-navigation.js"));
         assertThat(navigationJs).contains("ili2grails.ui.favorites");
         assertThat(navigationJs).contains("ili2grails.ui.recents");
         assertThat(navigationJs).contains("ArrowDown");
@@ -699,10 +639,8 @@ class GrailsTemplateOverlayInstallerTest {
         URL overlayUrl = getClass().getClassLoader().getResource("grails/overlays/bootstrap-openlayers");
         assertThat(overlayUrl).isNotNull();
         Path overlayRoot = Path.of(overlayUrl.toURI());
-        String stylesheet = Files.readString(overlayRoot.resolve(
-            "grails-app/assets/stylesheets/ili-modern.css"));
-        String layout = Files.readString(overlayRoot.resolve(
-            "grails-app/views/layouts/main.gsp"));
+        String stylesheet = Files.readString(PluginSourcePaths.asset("stylesheets/ili-modern.css"));
+        String layout = Files.readString(PluginSourcePaths.view("layouts/ili2grails.gsp"));
         String listHeader = Files.readString(overlayRoot.resolve(
             "src/main/templates/scaffolding/_list-header.gsp"));
         String listFilters = Files.readString(overlayRoot.resolve(
@@ -741,10 +679,7 @@ class GrailsTemplateOverlayInstallerTest {
     void genericIconsAreCentralEmbeddedBootstrapIconsAndOverlayHasNoUnsafeLegacyMarkers() throws Exception {
         URL overlayUrl = getClass().getClassLoader().getResource("grails/overlays/bootstrap-openlayers");
         assertThat(overlayUrl).isNotNull();
-        Path overlayRoot = Path.of(overlayUrl.toURI());
-        Path tagLib = overlayRoot.resolve(
-            "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy");
-        String tagLibContent = Files.readString(tagLib);
+        String tagLibContent = Files.readString(PluginSourcePaths.tagLib("InterlisUiTagLib"));
 
         Set<String> declaredIcons = new HashSet<>();
         Matcher declarationMatcher = ICON_DECLARATION.matcher(tagLibContent);
@@ -755,7 +690,7 @@ class GrailsTemplateOverlayInstallerTest {
         }
         assertThat(declaredIcons).contains("grid-3x3-gap");
 
-        try (var paths = Files.walk(overlayRoot)) {
+        try (var paths = Files.walk(Path.of("grails-runtime/grails-app"))) {
             paths.filter(Files::isRegularFile)
                 .filter(path -> path.toString().endsWith(".gsp"))
                 .forEach(path -> {
@@ -776,7 +711,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(tagLibContent).contains("<svg", "aria-hidden=\"true\"")
             .doesNotContain("icon-font", "cdn");
 
-        try (var paths = Files.walk(overlayRoot)) {
+        try (var paths = Files.walk(Path.of("grails-runtime/grails-app"))) {
             paths.filter(Files::isRegularFile)
                 .filter(path -> !path.toString().endsWith(".woff2"))
                 .filter(path -> !path.toString().endsWith(".properties"))
@@ -841,7 +776,7 @@ class GrailsTemplateOverlayInstallerTest {
     }
 
     @Test
-    void installsSelectedLanguageBundlesAndPreservesProjectMessages(@TempDir Path tempDir) throws Exception {
+    void i18nBundlesStayInPluginAndProjectMessagesStayUntouched(@TempDir Path tempDir) throws Exception {
         Path projectDir = tempDir.resolve("my-grails-app");
         Path baseMessages = projectDir.resolve("grails-app/i18n/messages.properties");
         Files.createDirectories(baseMessages.getParent());
@@ -854,19 +789,19 @@ class GrailsTemplateOverlayInstallerTest {
 
         new GrailsTemplateOverlayInstaller().install(projectDir, config);
 
-        assertThat(projectDir.resolve("grails-app/i18n/messages_en.properties")).exists();
+        // The i18n bundles are plugin artefacts; the installer must not copy or
+        // merge them into the application anymore.
+        assertThat(projectDir.resolve("grails-app/i18n/messages_en.properties")).doesNotExist();
         assertThat(projectDir.resolve("grails-app/i18n/messages_de_CH.properties")).doesNotExist();
-        String merged = Files.readString(baseMessages);
-        assertThat(merged).contains("custom.project.message=Keep me");
-        assertThat(merged).contains("ili2grails.pagination.pageSize=Rows per page");
-        assertThat(merged).contains("ili2grails.list.searchPlaceholder=Search for {0} ...");
-        assertThat(merged).contains("ili2grails.action.save=Save", "ili2grails.form.createTitle=Create {0}",
-            "ili2grails.list.removeFilter=Remove filter", "ili2grails.action.create=Create",
-            "ili2grails.list.noResults=No results",
-            "ili2grails.list.noResultsDescription=Adjust the search or filters.");
-        assertThat(merged).doesNotContain("ili2grails.list.reset=", "ili2grails.list.active=");
-        assertThat(merged).doesNotContain("ili2grails.pagination.pageSize=Zeilen pro Seite");
+        assertThat(Files.readString(baseMessages)).isEqualTo("custom.project.message=Keep me\n");
+
+        // The plugin bundles still carry the full default texts.
+        String enMessages = Files.readString(PluginSourcePaths.i18n("messages_en.properties"));
+        assertThat(enMessages).contains("ili2grails.pagination.pageSize=Rows per page");
+        assertThat(enMessages).contains("ili2grails.list.searchPlaceholder=Search for {0} ...");
+        String deMessages = Files.readString(PluginSourcePaths.i18n("messages_de_CH.properties"));
+        assertThat(deMessages).contains("ili2grails.action.save=Speichern");
         assertThat(Files.readString(projectDir.resolve("grails-app/conf/spring/resources.groovy")))
-            .contains("Locale.forLanguageTag(\"en\")");
+            .contains("FixedLocaleResolver", "Locale.forLanguageTag(\"en\")");
     }
 }
