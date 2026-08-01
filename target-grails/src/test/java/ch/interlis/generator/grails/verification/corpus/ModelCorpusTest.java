@@ -73,11 +73,17 @@ class ModelCorpusTest {
     @Test
     void featureMatrixStatusRulesAreApplied() {
         String matrix = new FeatureMatrixGenerator().generateMarkdown(corpus);
-        // Persistenzfeatures mit realem DB-Vertrag sind SUPPORTED
+        // Persistenzfeatures mit realem DB-Vertrag ohne Einschränkung sind SUPPORTED
         assertThat(matrix).contains("`reference.many-to-one` | SUPPORTED");
+        // Features mit dokumentierter Einschränkung sind PARTIAL
+        assertThat(matrix).contains("`association.two-roles-same-class` | PARTIAL");
+        assertThat(matrix).contains("`association.role-fk-column-naming` | PARTIAL");
         // Semantik-only-Features sind PARTIAL, nicht SUPPORTED
         assertThat(matrix).contains("`model-selection.root` | PARTIAL");
         assertThat(matrix).contains("`real-world.large-model` | PARTIAL");
+        // Features ohne Szenario sind ehrlich UNSUPPORTED
+        assertThat(matrix).contains("`inverse.read-only` | UNSUPPORTED");
+        assertThat(matrix).contains("`inverse.writable` | UNSUPPORTED");
     }
 
     @Test
@@ -159,7 +165,7 @@ class ModelCorpusTest {
             List.of(new CorpusScenario("s1", "Outside", modelOutside,
                 List.of(), CorpusDatabaseRequirement.none(), java.util.Set.of("unknown-feature"),
                 new CorpusExpectation(0, null, 1, null, null, null,
-                    true, false, false, List.of()))));
+                    true, false, false, List.of(), List.of()))));
         CorpusValidationResult validation = new ModelCorpusValidator().validate(invalid, fakeRoot);
         assertThat(validation.blockingDiagnostics())
             .extracting(CorpusValidationDiagnostic::code)
@@ -178,7 +184,7 @@ class ModelCorpusTest {
             List.of(new CorpusScenario("s1", "M", model,
                 List.of(), CorpusDatabaseRequirement.none(), java.util.Set.of("feature.x"),
                 new CorpusExpectation(0, 5, 3, null, null, null,
-                    true, false, false, List.of()))));
+                    true, false, false, List.of(), List.of()))));
         CorpusValidationResult validation = new ModelCorpusValidator().validate(invalid, fakeRoot);
         assertThat(validation.blockingDiagnostics())
             .extracting(CorpusValidationDiagnostic::code)

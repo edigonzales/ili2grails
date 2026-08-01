@@ -42,16 +42,24 @@ public final class FeatureMatrixGenerator {
             .toList();
         for (CorpusFeature feature : sortedFeatures) {
             List<CorpusScenario> scenarios = scenariosByFeature.getOrDefault(feature.id(), List.of());
+            boolean realDbClean = scenarios.stream()
+                .anyMatch(scenario -> scenario.database() != null && scenario.database().required()
+                    && scenario.expected() != null && scenario.expected().mappingContract()
+                    && scenario.expected().allowedDifferences().isEmpty());
             boolean realDb = scenarios.stream()
                 .anyMatch(scenario -> scenario.database() != null && scenario.database().required()
                     && scenario.expected() != null && scenario.expected().mappingContract());
             boolean generated = !scenarios.isEmpty();
-            FeatureStatus status = realDb
+            FeatureStatus status = realDbClean
                 ? FeatureStatus.SUPPORTED
-                : generated ? FeatureStatus.PARTIAL : FeatureStatus.UNSUPPORTED;
+                : realDb
+                    ? FeatureStatus.PARTIAL
+                    : generated ? FeatureStatus.PARTIAL : FeatureStatus.UNSUPPORTED;
             String remark = switch (status) {
                 case SUPPORTED -> "belegt durch realen PostgreSQL/ili2pg-Vertrag";
-                case PARTIAL -> "semantische Generierung belegt; kein realer DB-Vertrag";
+                case PARTIAL -> realDb
+                    ? "realer DB-Vertrag mit dokumentierter Einschränkung (allowedDifferences)"
+                    : "semantische Generierung belegt; kein realer DB-Vertrag";
                 case UNSUPPORTED -> "kein Szenario belegt dieses Feature";
                 case EXPERIMENTAL -> "experimentell";
             };

@@ -4,13 +4,14 @@ Generiert aus `verification/model-corpus.yaml` (Schema-Version 1).
 
 | Feature | Status | Szenarien | Core-Test | Real-DB-Test | Browser-Test | Bemerkung |
 |---|---|---|---|---|---|---|
-| `association.cardinality` | SUPPORTED | association-cases | association-cases | association-cases | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
-| `association.composite-role` | SUPPORTED | association-cases | association-cases | association-cases | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
-| `association.external-role` | SUPPORTED | association-cases | association-cases | association-cases | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
+| `association.cardinality` | PARTIAL | association-cases | association-cases | association-cases | - | realer DB-Vertrag mit dokumentierter Einschränkung (allowedDifferences) |
+| `association.composite-role` | PARTIAL | association-cases | association-cases | association-cases | - | realer DB-Vertrag mit dokumentierter Einschränkung (allowedDifferences) |
+| `association.external-role` | PARTIAL | association-cases | association-cases | association-cases | - | realer DB-Vertrag mit dokumentierter Einschränkung (allowedDifferences) |
 | `association.link-entity` | SUPPORTED | p0-persistence-contract, structure-composition | p0-persistence-contract, structure-composition | p0-persistence-contract, structure-composition | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
-| `association.two-roles-same-class` | SUPPORTED | association-cases, merge-ambiguity | association-cases, merge-ambiguity | association-cases | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
-| `association.with-attribute` | SUPPORTED | association-cases | association-cases | association-cases | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
-| `association.without-attribute` | SUPPORTED | association-cases | association-cases | association-cases | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
+| `association.role-fk-column-naming` | PARTIAL | association-cases | association-cases | association-cases | - | realer DB-Vertrag mit dokumentierter Einschränkung (allowedDifferences) |
+| `association.two-roles-same-class` | PARTIAL | association-cases, merge-ambiguity | association-cases, merge-ambiguity | association-cases | - | realer DB-Vertrag mit dokumentierter Einschränkung (allowedDifferences) |
+| `association.with-attribute` | PARTIAL | association-cases | association-cases | association-cases | - | realer DB-Vertrag mit dokumentierter Einschränkung (allowedDifferences) |
+| `association.without-attribute` | PARTIAL | association-cases | association-cases | association-cases | - | realer DB-Vertrag mit dokumentierter Einschränkung (allowedDifferences) |
 | `composition.child-fk` | SUPPORTED | p0-persistence-contract, structure-composition | p0-persistence-contract, structure-composition | p0-persistence-contract, structure-composition | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
 | `composition.no-join-table` | SUPPORTED | p0-persistence-contract, structure-composition | p0-persistence-contract, structure-composition | p0-persistence-contract, structure-composition | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
 | `enum.basic` | PARTIAL | core-types | core-types | - | - | semantische Generierung belegt; kein realer DB-Vertrag |
@@ -27,8 +28,8 @@ Generiert aus `verification/model-corpus.yaml` (Schema-Version 1).
 | `persistence.contract` | SUPPORTED | association-cases, geometry-basic, p0-persistence-contract, structure-composition | association-cases, geometry-basic, p0-persistence-contract, structure-composition | association-cases, geometry-basic, p0-persistence-contract, structure-composition | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
 | `real-world.large-model` | PARTIAL | vsadssmini-large-model | vsadssmini-large-model | - | - | semantische Generierung belegt; kein realer DB-Vertrag |
 | `reference.many-to-one` | SUPPORTED | merge-ambiguity, p0-persistence-contract, structure-composition | merge-ambiguity, p0-persistence-contract, structure-composition | p0-persistence-contract, structure-composition | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
-| `reference.two-fks-same-target` | SUPPORTED | association-cases | association-cases | association-cases | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
+| `reference.two-fks-same-target` | PARTIAL | association-cases | association-cases | association-cases | - | realer DB-Vertrag mit dokumentierter Einschränkung (allowedDifferences) |
 | `scalar.basic` | PARTIAL | core-types | core-types | - | - | semantische Generierung belegt; kein realer DB-Vertrag |
-| `structure.basic` | SUPPORTED | structure-composition | structure-composition | structure-composition | - | belegt durch realen PostgreSQL/ili2pg-Vertrag |
+| `structure.basic` | PARTIAL | structure-composition | structure-composition | structure-composition | - | realer DB-Vertrag mit dokumentierter Einschränkung (allowedDifferences) |
 
 Statuswerte: SUPPORTED = realer Datenbank-/Mapping-Contract vorhanden; PARTIAL = konkrete Einschränkung dokumentiert; EXPERIMENTAL = experimentell; UNSUPPORTED = nicht belegt.

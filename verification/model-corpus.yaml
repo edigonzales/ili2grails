@@ -56,6 +56,9 @@ features:
     description: Kein unerwarteter Join-Table
   - id: real-world.large-model
     description: Grösseres realitätsnahes Modell (VSADSSMINI_2020_LV95)
+  - id: association.role-fk-column-naming
+    description: FK-Spaltennamen von Association-Rollen (ternäre Rollen mit
+      erweiterten Zielklassen) - derzeit dokumentierte Einschränkung
   - id: persistence.contract
     description: Realer Datenbank-Vertrag gegen PostgreSQL/PostGIS
 
@@ -104,6 +107,21 @@ scenarios:
       generatedGrails: true
       compileGeneratedGrails: true
       mappingContract: true
+      allowedDifferences:
+        - code: COLUMN_NAME_MISMATCH
+          entity: com.example.domain.Asset
+          property: mainInspection
+          reason: >-
+            Embedded STRUCTURE-Referenzen (BAG {1} OF Inspection) besitzen
+            keine physische FK-Spalte in der ili2pg-Tabelle; der Generator
+            erzeugt trotzdem eine Relationship-Property mit
+            GORM-Default-Spaltenname. Bewusst dokumentiert (P2-D009).
+        - code: COLUMN_NAME_MISMATCH
+          entity: com.example.domain.Asset
+          property: optionalAttachment
+          reason: >-
+            siehe mainInspection; gleiche Einschränkung bei embedded
+            STRUCTURE-Referenzen (P2-D009).
 
   - id: geometry-basic
     modelName: GeometryBasicCases
@@ -140,6 +158,7 @@ scenarios:
       - association.external-role
       - association.composite-role
       - reference.two-fks-same-target
+      - association.role-fk-column-naming
       - persistence.contract
     expected:
       blockingDiagnostics: 0
@@ -148,6 +167,21 @@ scenarios:
       generatedGrails: true
       compileGeneratedGrails: true
       mappingContract: true
+      allowedDifferences:
+        - code: COLUMN_NAME_MISMATCH
+          entity: com.example.domain.TernaryAssociation
+          property: parcelRole
+          reason: >-
+            ili2pg benennt die ternäre Rollen-FK parcelrole_base_parcel;
+            der Generator bildet die Rolle ohne Attribut-Match auf den
+            GORM-Default-Spaltennamen parcel_role_id ab (kein DB-Vertrag).
+            Bewusst dokumentiert, bis der Rolle-zu-Attribut-Match die
+            physische Spalte auflöst (P2-D008).
+        - code: FOREIGN_KEY_COLUMN_MISMATCH
+          entity: com.example.domain.TernaryAssociation
+          property: parcelRole
+          reason: >-
+            siehe COLUMN_NAME_MISMATCH parcelRole; gleiche Einschränkung.
 
   - id: model-selection
     modelName: ModelSelectionRoot

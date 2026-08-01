@@ -16,9 +16,23 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import ch.interlis.generator.grails.verification.contract.CommandResult;
 import ch.interlis.generator.grails.verification.contract.CommandRunner;
+import ch.interlis.generator.grails.verification.contract.ContractEvidenceWriter;
+import ch.interlis.generator.grails.verification.contract.Ili2pgSchemaFixture;
+import ch.interlis.generator.grails.verification.corpus.CorpusScenario;
+import ch.interlis.generator.grails.verification.corpus.ModelCorpus;
+import ch.interlis.generator.grails.verification.corpus.ModelCorpusLoader;
 import ch.interlis.generator.grails.verification.environment.ExternalToolStatus;
-import ch.interlis.generator.grails.verification.environment.InfrastructureSupport;
 import ch.interlis.generator.grails.verification.environment.VerificationEnvironmentDetector;
+import ch.interlis.generator.grails.verification.mapping.DatabasePhysicalSnapshot;
+import ch.interlis.generator.grails.verification.mapping.DatabasePhysicalSnapshotReader;
+import ch.interlis.generator.grails.verification.mapping.ExpectedPersistenceMapping;
+import ch.interlis.generator.grails.verification.mapping.ExpectedPersistenceMappingPlanner;
+import ch.interlis.generator.grails.verification.mapping.HibernateMappingSnapshot;
+import ch.interlis.generator.grails.verification.mapping.MappingConsistencyReport;
+import ch.interlis.generator.grails.verification.mapping.MappingConsistencyValidator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.TestFactory;
 import org.opentest4j.TestAbortedException;
 
 import java.io.File;
@@ -39,19 +53,22 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Kombinierter Vertragstest: generierte Grails-App + GORM + Runtime-Services
- * gegen ein echtes ili2pg-PostgreSQL-Schema.
+ * Kombinierter Mapping- und Business-Vertragstest: generierte Grails-App +
+ * GORM + Runtime-Services gegen ein echtes ili2pg-PostgreSQL-Schema.
  *
- * <p>Kette: {@code P0PersistenceContract.ili} → ili2pg-Import → physischer
+ * <p>Corpus-gesteuert (Spezifikation §35): alle Szenarien mit
+ * {@code database.required=true} aus {@code verification/model-corpus.yaml}
+ * laufen datengetrieben. Die Kette pro Szenario: ili2pg-Import → physischer
  * Reader → semantischer Reader → ModelSelection → MetadataMerger →
- * Grails-Generator → temporäre echte Grails-App → GORM → echtes PostgreSQL →
- * Runtime-Service-Aufrufe. Direktes JDBC-SQL wird nur für Infrastruktur,
- * Setup und unabhängige Verifikation verwendet; die Businessoperationen laufen
- * über die generierten Runtime-Services.</p>
+ * Grails-Generator → temporäre echte Grails-App → GORM → echtes PostgreSQL.
+ * Das erwartete Mapping (Core-IR + Grails-Planer) wird gegen das tatsächliche
+ * Hibernate-Mapping der gestarteten App und das reale Datenbankschema
+ * verglichen ({@link MappingConsistencyValidator}).</p>
  *
  * <p>Infrastrukturmodus: Bei {@code contractTestRequired=false} wird fehlende
  * Infrastruktur mit {@link TestAbortedException} gemeldet. Im obligatorischen
@@ -60,16 +77,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class GrailsPostgresContractTest {
 
-    private static final Path MODEL_FILE = Path.of("test-models/P0PersistenceContract.ili");
-    private static final String MODEL_NAME = "P0PersistenceContract";
-    private static final List<String> MODEL_REPOSITORIES = List.of(
-        "test-models",
-        "https://models.interlis.ch/",
-        "https://models.geo.admin.ch/"
-    );
-    private static final Path REPORT_DIR =
+    private static final Path REPORT_BASE_DIR =
         Path.of("target-grails/build/reports/grails-postgres-contract");
-    private static final String APP_NAME = "p0-contract-app";
+    private static final String APP_NAME = "contract-app";
     private static final String BASE_PACKAGE = "com.example";
     private static final String DOMAIN_PACKAGE = "com.example.domain";
     private static final String ENUM_PACKAGE = "com.example.enums";
@@ -117,53 +127,101 @@ public class GrailsPostgresContractTest {
         return Path.of(status.resolvedPath());
     }
 
-    @Test
-    void generatedAppPersistsAgainstRealIli2pgPostgresSchema() throws Exception {
+    private Path reportDir;
+
+    @TestFactory
+    Stream<DynamicTest> mappingContractScenarios() throws Exception {
+        ModelCorpus corpus = new ModelCorpusLoader().load(Path.of("verification/model-corpus.yaml"));
+        List<CorpusScenario> dbScenarios = corpus.scenarios().stream()
+            .filter(scenario -> scenario.database() != null && scenario.database().required())
+            .toList();
+        return dbScenarios.stream().map(scenario -> DynamicTest.dynamicTest(
+            "mapping-contract-" + scenario.id(), () -> runScenario(scenario)));
+    }
+
+    private void runScenario(CorpusScenario scenario) throws Exception {
         boolean required = contractTestRequired();
         requireGrailsCli(required);
         requireDockerCompose(required);
         Path ili2pgHome = ili2pgHome();
         ensurePostgresDatabase(required);
 
-        Files.createDirectories(REPORT_DIR);
+        reportDir = REPORT_BASE_DIR.resolve(scenario.id());
+        Files.createDirectories(reportDir);
         cleanStaleReports();
-        writeEnvironmentReport();
 
         String schemaName = "p0ct_" + Long.toUnsignedString(System.nanoTime(), 36)
             .toLowerCase(Locale.ROOT);
         Path generatedAppPath = null;
         String integrationOutput = null;
-        ModelMetadata metadata = null;
+        ContractEvidenceWriter evidence = new ContractEvidenceWriter(reportDir);
+        Map<String, Object> environment = new LinkedHashMap<>();
+        environment.put("os", System.getProperty("os.name"));
+        environment.put("java", System.getProperty("java.version"));
+        environment.put("jdbc", redactJdbc(contractJdbcUrl()));
+        environment.put("contractTestRequired", contractTestRequired());
+        evidence.writeEnvironment(new ObjectMapper().writeValueAsString(environment));
 
+        Path[] appPath = new Path[1];
         try (Connection connection = DriverManager.getConnection(contractJdbcUrl())) {
-            dropSchema(connection, schemaName);
+            Ili2pgSchemaFixture schemaFixture = Ili2pgSchemaFixture.create(
+                connection, ili2pgHome, scenario, schemaName, commandRunner, contractJdbcUrl());
+            try {
+                schemaFixture.importSchema();
+                integrationOutput = runScenarioMetadataAndApp(scenario, schemaName, schemaFixture,
+                    ili2pgHome, appPath);
+            } finally {
+                schemaFixture.close();
+            }
+        } catch (AssertionError | RuntimeException | IOException e) {
+            if (appPath[0] != null) {
+                writeFailureArtifacts(appPath[0], integrationOutput, e);
+            }
+            throw e;
+        } finally {
+            try (Connection connection = DriverManager.getConnection(contractJdbcUrl())) {
+                dropSchema(connection, schemaName);
+            }
+            evidence.writeProcessOutput(integrationOutput);
+        }
+    }
 
-            runIli2pgImport(ili2pgHome, schemaName);
+    /**
+     * Business- und Mapping-Vertrag pro Szenario.
+     */
+    private String runScenarioMetadataAndApp(CorpusScenario scenario, String schemaName,
+                                             Ili2pgSchemaFixture schemaFixture,
+                                             Path ili2pgHome,
+                                             Path[] appPath)
+        throws Exception {
+        ContractEvidenceWriter evidence = new ContractEvidenceWriter(reportDir);
+        List<String> repositories = scenario.repositories() == null
+            ? List.of("test-models")
+            : scenario.repositories();
 
-            // Setup für den Optimistic-Locking-Vertrag (Test 8): version-Spalte
-            // wie in der etablierten E2E-Fixture. Die Spalte wird über JDBC angelegt
-            // und über t_ili2db_attrname dem physischen Reader gemeldet, damit die
-            // generierte Domain GORM-Optimistic-Locking aktiviert.
-            addVersionColumn(connection, schemaName, "contract_document");
-            insertVersionAttrNameRow(connection, schemaName);
+        try (Connection connection = schemaFixture.connection()) {
+            if ("p0-persistence-contract".equals(scenario.id())) {
+                // Setup für den Optimistic-Locking-Vertrag: version-Spalte wie in
+                // der etablierten E2E-Fixture.
+                addVersionColumn(connection, schemaName, "contract_document");
+                insertVersionAttrNameRow(connection, schemaName);
+            }
 
             MetadataReader reader = new MetadataReader(
-                connection, MODEL_FILE.toFile(), schemaName, MODEL_REPOSITORIES);
+                connection, scenario.modelFile().toFile(), schemaName, repositories);
             MetadataReadResult readResult = reader.readMetadataResult(
-                MODEL_NAME, MetadataMergePolicy.STRICT);
-            metadata = readResult.metadata();
+                scenario.modelName(), MetadataMergePolicy.STRICT);
+            ModelMetadata metadata = readResult.metadata();
 
             writeMetadataDiagnosticsReport(readResult.diagnostics());
             assertThat(readResult.diagnostics().stream()
-                .anyMatch(ch.interlis.generator.metadata.merge.MergeDiagnostic::isBlocking))
+                .anyMatch(MergeDiagnostic::isBlocking))
                 .as("STRICT metadata merge must not produce blocking diagnostics:\n%s",
                     readResult.diagnostics())
                 .isFalse();
-            assertThat(readResult.modelSelection().includedModelNames())
-                .contains(MODEL_NAME);
 
             GenerationConfig config = GenerationConfig.builder(
-                tempDir.resolve(APP_NAME), BASE_PACKAGE)
+                tempDir.resolve(APP_NAME + "-" + scenario.id()), BASE_PACKAGE)
                 .domainPackage(DOMAIN_PACKAGE)
                 .controllerPackage(BASE_PACKAGE)
                 .enumPackage(ENUM_PACKAGE)
@@ -171,11 +229,12 @@ public class GrailsPostgresContractTest {
                 .schema(schemaName)
                 .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
                 .mapEditor(GenerationConfig.MAP_EDITOR_NONE)
-                .geometryEnabled(false)
+                .geometryEnabled(true)
                 .build();
             Path appDir = config.getOutputDir();
 
-            generatedAppPath = createGrailsApp(appDir);
+            appPath[0] = appDir;
+            Path appCreated = createGrailsApp(appDir, "contract-app-" + scenario.id());
             new GrailsTemplateOverlayInstaller().install(appDir, config);
             new GrailsCrudGenerator().generate(metadata, config);
             generateScaffolding(appDir, metadata, config);
@@ -190,28 +249,71 @@ public class GrailsPostgresContractTest {
                 GrailsInverseRelationshipPlanner.forMetadata(metadata, config, registry, mapper);
 
             writeGeneratedDomainSummary(metadata, registry, mapper, planner, appDir);
+
+            // Erwartetes Mapping aus Core-IR + Grails-Planern
+            ExpectedPersistenceMapping expected = new ExpectedPersistenceMappingPlanner()
+                .plan(metadata, config, registry, mapper, planner);
+
+            // Hibernate-Snapshot-Collector in die App rendern
+            renderSnapshotCollector(appDir);
+            List<String> integrationTests = new ArrayList<>(List.of(
+                "com.example.HibernateMappingSnapshotSpec"));
+            if ("p0-persistence-contract".equals(scenario.id())) {
+                String spec = renderSpec(metadata, config, registry, mapper, planner,
+                    inversePlanner, schemaName);
+                Files.createDirectories(appDir.resolve(SPEC_PATH).getParent());
+                Files.writeString(appDir.resolve(SPEC_PATH), spec, StandardCharsets.UTF_8);
+                integrationTests.add("com.example.P0PostgresPersistenceContractSpec");
+            }
+
+            String output = runIntegrationTests(appDir, integrationTests);
+            evidence.writeProcessOutput(output);
+
+            // Tatsächliches Hibernate-Mapping aus der gestarteten App
+            Path hibernateJson = appDir.resolve("build/ili2grails-contract/hibernate-mapping.json");
+            if (!Files.isRegularFile(hibernateJson)) {
+                throw new IOException(
+                    "Hibernate mapping snapshot missing after integration tests: " + hibernateJson);
+            }
+            HibernateMappingSnapshot hibernate = new ObjectMapper().readValue(
+                hibernateJson.toFile(), HibernateMappingSnapshot.class);
+
+            // Reales Datenbankschema
+            DatabasePhysicalSnapshot database = new DatabasePhysicalSnapshotReader()
+                .read(schemaFixture.connection(), schemaName);
+
+            // Vergleich; dokumentierte Abweichungen (Corpus) sind die einzige Toleranz
+            MappingConsistencyReport mappingReport = new MappingConsistencyValidator()
+                .validate(expected, hibernate, database,
+                    scenario.expected().allowedDifferences());
+            evidence.writeMappingReport(expected, hibernate, database, mappingReport);
             writeDatabaseMappingSummary(connection, schemaName, metadata, registry, mapper, planner);
 
-            String spec = renderSpec(metadata, config, registry, mapper, planner, inversePlanner,
-                schemaName);
-            Files.createDirectories(appDir.resolve(SPEC_PATH).getParent());
-            Files.writeString(appDir.resolve(SPEC_PATH), spec, StandardCharsets.UTF_8);
+            assertThat(mappingReport.mismatches())
+                .as("expected GORM mapping must match Hibernate and the real PostgreSQL "
+                    + "schema (scenario %s)", scenario.id())
+                .isEmpty();
 
-            integrationOutput = runIntegrationTests(appDir);
-
-            verifyNoJoinTable(connection, schemaName);
-        } catch (AssertionError | RuntimeException | IOException e) {
-            if (generatedAppPath != null) {
-                writeFailureArtifacts(generatedAppPath, integrationOutput, e);
+            if ("p0-persistence-contract".equals(scenario.id())) {
+                verifyNoJoinTable(connection, schemaName);
             }
-            throw e;
-        } finally {
-            try (Connection connection = DriverManager.getConnection(contractJdbcUrl())) {
-                dropSchema(connection, schemaName);
-            }
-            writeGeneratedAppPathReport(generatedAppPath);
-            writeIntegrationOutputReport(integrationOutput);
+            return output;
         }
+    }
+
+    private void renderSnapshotCollector(Path appDir) throws IOException {
+        String collector = Files.readString(Path.of(
+            "target-grails/src/grailsPostgresContractTest/resources/templates/"
+                + "HibernateMappingSnapshotCollector.groovy"));
+        String spec = Files.readString(Path.of(
+            "target-grails/src/grailsPostgresContractTest/resources/templates/"
+                + "HibernateMappingSnapshotSpec.groovy"));
+        Path base = appDir.resolve("src/integration-test/groovy/com/example");
+        Files.createDirectories(base);
+        Files.writeString(base.resolve("HibernateMappingSnapshotCollector.groovy"),
+            collector, StandardCharsets.UTF_8);
+        Files.writeString(base.resolve("HibernateMappingSnapshotSpec.groovy"),
+            spec, StandardCharsets.UTF_8);
     }
 
     // ------------------------------------------------------------------
@@ -271,41 +373,6 @@ public class GrailsPostgresContractTest {
     // ili2pg und Schema
     // ------------------------------------------------------------------
 
-    private void runIli2pgImport(Path ili2pgHome, String schemaName)
-        throws IOException, InterruptedException {
-        Path javaExecutable = Path.of(System.getProperty("java.home"), "bin", "java");
-        String classpath = ili2pgHome.resolve("ili2pg-5.5.1.jar")
-            + File.pathSeparator
-            + ili2pgHome.resolve("libs/*");
-
-        List<String> command = new ArrayList<>(List.of(
-            javaExecutable.toString(),
-            "-cp", classpath,
-            "ch.ehi.ili2pg.PgMain",
-            "--dbhost", "localhost",
-            "--dbport", "54321",
-            "--dbdatabase", "edit",
-            "--dbusr", "postgres",
-            "--dbpwd", "secret",
-            "--defaultSrsCode", "2056",
-            "--createFk",
-            "--nameByTopic",
-            "--strokeArcs",
-            "--smart2Inheritance",
-            "--createEnumTabs",
-            "--modeldir", String.join(";", MODEL_REPOSITORIES),
-            "--models", MODEL_NAME,
-            "--dbschema", schemaName,
-            "--schemaimport"
-        ));
-
-        CommandResult result = runCommand(Path.of("."), command, PROCESS_TIMEOUT);
-        if (result.exitCode() != 0) {
-            throw new IOException("ili2pg import failed for " + MODEL_NAME + " in schema "
-                + schemaName + " (exit " + result.exitCode() + "):\n" + result.output());
-        }
-    }
-
     private void addVersionColumn(Connection connection, String schemaName, String tableName)
         throws Exception {
         try (Statement statement = connection.createStatement()) {
@@ -353,16 +420,22 @@ public class GrailsPostgresContractTest {
     // Grails-App
     // ------------------------------------------------------------------
 
-    private Path createGrailsApp(Path appDir) throws IOException, InterruptedException {
-        CommandResult result = runCommand(tempDir, List.of("grails", "create-app", APP_NAME),
+    private Path createGrailsApp(Path appDir, String appName) throws IOException, InterruptedException {
+        CommandResult result = runCommand(tempDir, List.of("grails", "create-app", appName),
             PROCESS_TIMEOUT);
         if (result.exitCode() != 0) {
             throw new IOException("grails create-app failed:\n" + result.output());
         }
-        appDir.resolve("gradlew").toFile().setExecutable(true);
-        appDir.resolve("grailsw").toFile().setExecutable(true);
-        if (!Files.isRegularFile(appDir.resolve("grailsw"))) {
-            throw new IOException("grails create-app did not produce " + appDir);
+        Path created = tempDir.resolve(appName);
+        created.resolve("gradlew").toFile().setExecutable(true);
+        created.resolve("grailsw").toFile().setExecutable(true);
+        if (!Files.isRegularFile(created.resolve("grailsw"))) {
+            throw new IOException("grails create-app did not produce " + created);
+        }
+        if (!created.equals(appDir)) {
+            Files.move(created, appDir);
+            appDir.resolve("gradlew").toFile().setExecutable(true);
+            appDir.resolve("grailsw").toFile().setExecutable(true);
         }
         RuntimeApiTestSupport.installRuntimePluginDependency(appDir);
         return appDir;
@@ -417,11 +490,15 @@ public class GrailsPostgresContractTest {
             """.formatted(url, schemaName));
     }
 
-    private String runIntegrationTests(Path appDir) throws IOException, InterruptedException {
-        CommandResult result = runCommand(appDir,
-            List.of("./gradlew", "integrationTest", "--tests",
-                "com.example.P0PostgresPersistenceContractSpec", "--no-daemon"),
-            PROCESS_TIMEOUT);
+    private String runIntegrationTests(Path appDir, List<String> testNames)
+        throws IOException, InterruptedException {
+        List<String> command = new ArrayList<>(List.of(
+            "./gradlew", "integrationTest", "--no-daemon"));
+        for (String testName : testNames) {
+            command.add("--tests");
+            command.add(testName);
+        }
+        CommandResult result = runCommand(appDir, command, PROCESS_TIMEOUT);
         if (result.exitCode() != 0) {
             throw new IOException("integrationTest failed (exit " + result.exitCode()
                 + "):\n" + result.output());
@@ -441,10 +518,10 @@ public class GrailsPostgresContractTest {
     // ------------------------------------------------------------------
 
     private void cleanStaleReports() throws IOException {
-        if (!Files.isDirectory(REPORT_DIR)) {
+        if (!Files.isDirectory(reportDir)) {
             return;
         }
-        try (var files = Files.list(REPORT_DIR)) {
+        try (var files = Files.list(reportDir)) {
             files.filter(path -> path.getFileName().toString().startsWith("failure-"))
                 .forEach(path -> {
                     try {
@@ -457,7 +534,7 @@ public class GrailsPostgresContractTest {
     }
 
     private void writeEnvironmentReport() throws IOException {
-        Files.writeString(REPORT_DIR.resolve("environment.txt"), """
+        Files.writeString(reportDir.resolve("environment.txt"), """
             os: %s
             java: %s
             grails: %s
@@ -479,7 +556,7 @@ public class GrailsPostgresContractTest {
     }
 
     private void writeGeneratedAppPathReport(Path generatedAppPath) throws IOException {
-        Files.writeString(REPORT_DIR.resolve("generated-app-path.txt"),
+        Files.writeString(reportDir.resolve("generated-app-path.txt"),
             generatedAppPath == null
                 ? "no app generated\n"
                 : generatedAppPath + "\n"
@@ -487,7 +564,7 @@ public class GrailsPostgresContractTest {
     }
 
     private void writeIntegrationOutputReport(String output) throws IOException {
-        Files.writeString(REPORT_DIR.resolve("integration-test-output.log"),
+        Files.writeString(reportDir.resolve("integration-test-output.log"),
             output == null ? "no integration test output\n" : output);
     }
 
@@ -505,7 +582,7 @@ public class GrailsPostgresContractTest {
                 return entry;
             })
             .toList();
-        Files.writeString(REPORT_DIR.resolve("metadata-diagnostics.json"),
+        Files.writeString(reportDir.resolve("metadata-diagnostics.json"),
             objectMapper.writeValueAsString(entries));
     }
 
@@ -536,7 +613,7 @@ public class GrailsPostgresContractTest {
                     + collection.elementType() + " mappedBy " + collection.mappedByProperty());
             }
         }
-        Files.writeString(REPORT_DIR.resolve("generated-domain-summary.md"),
+        Files.writeString(reportDir.resolve("generated-domain-summary.md"),
             String.join("\n", lines) + "\n");
     }
 
@@ -601,13 +678,13 @@ public class GrailsPostgresContractTest {
                     + " -> " + rs.getString(3));
             }
         }
-        Files.writeString(REPORT_DIR.resolve("database-mapping-summary.md"),
+        Files.writeString(reportDir.resolve("database-mapping-summary.md"),
             String.join("\n", lines) + "\n");
     }
 
     private void writeFailureArtifacts(Path appDir, String integrationOutput, Throwable failure)
         throws IOException {
-        Files.writeString(REPORT_DIR.resolve("failure-diagnosis.txt"),
+        Files.writeString(reportDir.resolve("failure-diagnosis.txt"),
             "Failure: " + failure + "\n\nApp kept at: " + appDir + "\n");
         if (integrationOutput != null) {
             writeIntegrationOutputReport(integrationOutput);
@@ -626,7 +703,7 @@ public class GrailsPostgresContractTest {
                     })
                     .forEach(path -> {
                         try {
-                            Files.copy(path, REPORT_DIR.resolve(
+                            Files.copy(path, reportDir.resolve(
                                 "failure-" + path.getFileName().toString()),
                                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                         } catch (IOException ignored) {

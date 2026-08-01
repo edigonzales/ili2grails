@@ -15,10 +15,12 @@ public record CorpusExpectation(
     boolean generatedGrails,
     boolean compileGeneratedGrails,
     boolean mappingContract,
-    List<ExpectedDiagnostic> diagnostics
+    List<ExpectedDiagnostic> diagnostics,
+    List<AllowedDifference> allowedDifferences
 ) {
 
     public CorpusExpectation {
         diagnostics = diagnostics == null ? List.of() : List.copyOf(diagnostics);
+        allowedDifferences = allowedDifferences == null ? List.of() : List.copyOf(allowedDifferences);
     }
 }

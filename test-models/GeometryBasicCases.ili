@@ -23,7 +23,7 @@ MODEL GeometryBasicCases (en)
 
     CLASS SurfaceObject =
       Name: MANDATORY TEXT;
-      Geometry: SURFACE WITH (STRAIGHTS) VERTEX CHKoordinaten;
+      Geometry: SURFACE WITH (STRAIGHTS) VERTEX CHKoordinaten WITHOUT OVERLAPS > 0.001;
     END SurfaceObject;
 
   END Geometry;
