@@ -16,7 +16,7 @@
     "labels" : { },
     "attributes" : [ {
       "name" : "houseNumber",
-      "qualifiedName" : "SimpleAddressModel.Addresses.Address.houseNumber",
+      "qualifiedName" : "SimpleAddressModel.Addresses.Address.HouseNumber",
       "columnName" : "housenumber",
       "sqlName" : "housenumber",
       "iliType" : "TextType",
@@ -43,7 +43,7 @@
       "labels" : { }
     }, {
       "name" : "postalCode",
-      "qualifiedName" : "SimpleAddressModel.Addresses.Address.postalCode",
+      "qualifiedName" : "SimpleAddressModel.Addresses.Address.PostalCode",
       "columnName" : "postalcode",
       "sqlName" : "postalcode",
       "iliType" : "TextType",
@@ -70,7 +70,7 @@
       "labels" : { }
     }, {
       "name" : "street",
-      "qualifiedName" : "SimpleAddressModel.Addresses.Address.street",
+      "qualifiedName" : "SimpleAddressModel.Addresses.Address.Street",
       "columnName" : "astreet",
       "sqlName" : "astreet",
       "iliType" : "TextType",
@@ -127,7 +127,7 @@
     "labels" : { },
     "attributes" : [ {
       "name" : "birthDate",
-      "qualifiedName" : "SimpleAddressModel.Addresses.Person.birthDate",
+      "qualifiedName" : "SimpleAddressModel.Addresses.Person.BirthDate",
       "columnName" : "birthdate",
       "sqlName" : "birthdate",
       "iliType" : "FormattedType",
@@ -153,7 +153,7 @@
       "labels" : { }
     }, {
       "name" : "firstName",
-      "qualifiedName" : "SimpleAddressModel.Addresses.Person.firstName",
+      "qualifiedName" : "SimpleAddressModel.Addresses.Person.FirstName",
       "columnName" : "firstname",
       "sqlName" : "firstname",
       "iliType" : "TextType",
@@ -181,7 +181,7 @@
       "labels" : { }
     }, {
       "name" : "lastName",
-      "qualifiedName" : "SimpleAddressModel.Addresses.Person.lastName",
+      "qualifiedName" : "SimpleAddressModel.Addresses.Person.LastName",
       "columnName" : "lastname",
       "sqlName" : "lastname",
       "iliType" : "TextType",

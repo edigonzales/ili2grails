@@ -1,6 +1,11 @@
 package ch.interlis.generator.metadata;
 
-import ch.interlis.generator.model.*;
+import ch.interlis.generator.metadata.merge.MergeDiagnostic;
+import ch.interlis.generator.metadata.merge.MetadataMergePolicy;
+import ch.interlis.generator.metadata.merge.MetadataMergeResult;
+import ch.interlis.generator.metadata.merge.MetadataMerger;
+import ch.interlis.generator.metadata.selection.ModelSelection;
+import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.reader.Ili2cModelReader;
 import ch.interlis.generator.reader.Ili2dbMetadataReader;
 import ch.interlis.ili2c.Ili2cFailure;
@@ -10,585 +15,112 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
 
 /**
- * Kombiniert Metadaten aus ili2db-Datenbank und ili2c-Modell.
- * 
- * Strategie:
- * 1. Basis-Struktur aus ili2db-Metatabellen lesen
- * 2. Semantische Informationen aus ili2c-Modell anreichern
+ * Orchestriert den Metadaten-Lesepfad: ili2c-Auswahl und semantischer Snapshot,
+ * physischer Snapshot aus ili2db, danach deterministischer {@link MetadataMerger}.
+ *
+ * <p>Strategie (mit ili2c):</p>
+ * <ol>
+ *   <li>Modell einmal kompilieren.</li>
+ *   <li>Semantischen Snapshot lesen.</li>
+ *   <li>{@link ModelSelection} bestimmen.</li>
+ *   <li>Physischen Snapshot nur für die Auswahl lesen.</li>
+ *   <li>{@link MetadataMerger#merge} ausführen.</li>
+ *   <li>Policy anwenden.</li>
+ *   <li>Resultat zurückgeben.</li>
+ * </ol>
+ *
+ * <p>Ohne ili2c gilt {@link ModelSelection#rootOnly(String)} als Fallback.</p>
  */
 public class MetadataReader {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(MetadataReader.class);
-    
+
     private final Connection connection;
     private final File modelFile;
     private final String schemaName;
     private final List<String> modelDirs;
-    
+
     public MetadataReader(Connection connection, File modelFile) {
         this(connection, modelFile, null, null);
     }
-    
-    public MetadataReader(Connection connection, File modelFile, String schemaName, 
-                         List<String> modelDirs) {
-        this.connection = connection;
+
+    public MetadataReader(Connection connection, File modelFile, String schemaName,
+                          List<String> modelDirs) {
+        this.connection = Objects.requireNonNull(connection, "connection");
         this.modelFile = modelFile;
         this.schemaName = schemaName;
         this.modelDirs = modelDirs;
     }
-    
+
     /**
-     * Liest vollständige Metadaten für ein Modell.
-     * Kombiniert ili2db-Datenbank und ili2c-Modell.
+     * Liest vollständige Metadaten für ein Modell im STRICT-Modus.
+     * Blockierende Merge-Diagnostics führen zu einer {@link
+     * ch.interlis.generator.metadata.merge.MetadataMergeException}.
      */
     public ModelMetadata readMetadata(String modelName) throws SQLException, Ili2cFailure {
+        return readMetadataResult(modelName, MetadataMergePolicy.STRICT).metadata();
+    }
+
+    /**
+     * Liest vollständige Metadaten inklusive Diagnostics und Modellauswahl.
+     */
+    public MetadataReadResult readMetadataResult(String modelName, MetadataMergePolicy mergePolicy)
+            throws SQLException, Ili2cFailure {
+        Objects.requireNonNull(modelName, "modelName");
+        Objects.requireNonNull(mergePolicy, "mergePolicy");
         logger.info("Reading combined metadata for model: {}", modelName);
 
         boolean hasModelFile = modelFile != null && modelFile.exists();
         boolean hasModelRepositories = modelDirs != null && !modelDirs.isEmpty();
 
         if (hasModelFile || hasModelRepositories) {
-            // 1. Modell einmal kompilieren und semantischen Snapshot + Auswahl lesen
+            // 1-3. Modell einmal kompilieren, semantischen Snapshot und Auswahl lesen
             Ili2cModelReader ili2cReader = new Ili2cModelReader(modelFile, modelDirs);
             Ili2cModelReader.Ili2cReadResult ili2cResult = ili2cReader.read(modelName);
 
-            // 2. physischen Snapshot nur für die Modellauswahl lesen
+            // 4. physischen Snapshot nur für die Modellauswahl lesen
             logger.info("Reading ili2db metadata from database for selection: {}",
                 ili2cResult.modelSelection().includedModelNames());
-            Ili2dbMetadataReader ili2dbReader =
-                Ili2dbMetadataReader.create(connection, schemaName);
-            ModelMetadata metadata = ili2dbReader.readMetadata(ili2cResult.modelSelection());
+            Ili2dbMetadataReader ili2dbReader = Ili2dbMetadataReader.create(connection, schemaName);
+            ModelMetadata physical = ili2dbReader.readMetadata(ili2cResult.modelSelection());
 
-            // 3. Semantische Anreicherung
-            logger.info("Enriching with ili2c model information");
-            enrichFromIli2cModel(metadata, ili2cResult.metadata());
+            // 5. Merge
+            logger.info("Merging physical and semantic metadata");
+            MetadataMergeResult mergeResult = MetadataMerger.defaultMerger()
+                .merge(physical, ili2cResult.metadata());
 
-            // 4. Nachbearbeitung
-            logger.info("Post-processing metadata");
-            postProcess(metadata);
+            // 6. Policy anwenden
+            if (mergePolicy == MetadataMergePolicy.STRICT) {
+                mergeResult.throwIfBlocking();
+            }
 
-            logger.info("Metadata reading complete");
-            return metadata;
+            logger.info("Metadata reading complete with {} diagnostic(s)",
+                mergeResult.diagnostics().size());
+            return new MetadataReadResult(
+                mergeResult.metadata(),
+                mergeResult.diagnostics(),
+                ili2cResult.modelSelection()
+            );
         }
 
+        // DB-only-Fallback: Root-Modell ohne ili2c-Abhängigkeitsgraph
         logger.warn("No model file or repositories provided. Skipping ili2c enrichment.");
+        ModelSelection selection = ModelSelection.rootOnly(modelName);
         Ili2dbMetadataReader ili2dbReader = Ili2dbMetadataReader.create(connection, schemaName);
-        ModelMetadata metadata = ili2dbReader.readMetadata(
-            ch.interlis.generator.metadata.selection.ModelSelection.rootOnly(modelName));
+        ModelMetadata metadata = ili2dbReader.readMetadata(selection);
 
-        logger.info("Post-processing metadata");
-        postProcess(metadata);
-
-        logger.info("Metadata reading complete");
-        return metadata;
-    }
-    
-    /**
-     * Reichert die Metadaten mit Informationen aus dem ili2c-Modell an.
-     */
-    private void enrichFromIli2cModel(ModelMetadata metadata, ModelMetadata ili2cMetadata) {
-        
-        // ILI-Version
-        if (ili2cMetadata.getIliVersion() != null) {
-            metadata.setIliVersion(ili2cMetadata.getIliVersion());
+        MetadataPostProcessor postProcessor = new MetadataPostProcessor();
+        postProcessor.process(metadata);
+        List<MergeDiagnostic> validatorDiagnostics =
+            new MetadataValidator().validate(metadata);
+        MetadataMergeResult result = new MetadataMergeResult(metadata, validatorDiagnostics);
+        if (mergePolicy == MetadataMergePolicy.STRICT) {
+            result.throwIfBlocking();
         }
-        if (ili2cMetadata.getModelVersion() != null) {
-            metadata.setModelVersion(ili2cMetadata.getModelVersion());
-        }
-        
-        // Klassen anreichern
-        for (ClassMetadata ili2cClass : ili2cMetadata.getAllClasses()) {
-            ClassMetadata dbClass = metadata.getClass(ili2cClass.getName());
-            
-            if (dbClass != null) {
-                // Informationen von ili2c übernehmen
-                enrichClass(dbClass, ili2cClass);
-            } else {
-                // Klasse existiert nur im Modell (z.B. abstrakte Klasse ohne Tabelle)
-                logger.debug("Class {} exists in model but not in database (abstract?)", 
-                    ili2cClass.getName());
-                metadata.addClass(ili2cClass);
-            }
-        }
-        
-        // Enumerationen übernehmen
-        for (EnumMetadata enumMetadata : ili2cMetadata.getAllEnums()) {
-            metadata.addEnum(enumMetadata);
-        }
-
-        // Beziehungen mergen: ili2db liefert physische Spalten, ili2c die Semantik.
-        for (RelationshipMetadata ili2cRelationship : ili2cMetadata.getAllRelationships()) {
-            mergeRelationship(metadata, ili2cRelationship);
-        }
-
-        for (AssociationMetadata association : ili2cMetadata.getAllAssociations()) {
-            metadata.addAssociation(association);
-        }
-    }
-    
-    /**
-     * Reichert eine Klasse mit ili2c-Informationen an.
-     */
-    private void enrichClass(ClassMetadata dbClass, ClassMetadata ili2cClass) {
-        // Dokumentation
-        if (ili2cClass.getDocumentation() != null) {
-            dbClass.setDocumentation(ili2cClass.getDocumentation());
-        }
-        
-        // Typ (CLASS, STRUCTURE, ASSOCIATION)
-        if (ili2cClass.getKind() != null) {
-            dbClass.setKind(ili2cClass.getKind());
-        }
-
-        if (ili2cClass.getTopicName() != null) {
-            dbClass.setTopicName(ili2cClass.getTopicName());
-        }
-        
-        // Abstract
-        dbClass.setAbstract(ili2cClass.isAbstract());
-        
-        // Labels
-        dbClass.getLabels().putAll(ili2cClass.getLabels());
-        
-        // Attribute anreichern
-        for (AttributeMetadata ili2cAttr : ili2cClass.getAllAttributes()) {
-            AttributeMetadata dbAttr = findAttribute(dbClass, ili2cAttr);
-            
-            if (dbAttr != null) {
-                enrichAttribute(dbAttr, ili2cAttr);
-            } else {
-                String displayName = ili2cAttr.getQualifiedName() != null
-                    ? ili2cAttr.getQualifiedName()
-                    : ili2cAttr.getName();
-                logger.debug("Attribute {} exists in model but not in database", displayName);
-            }
-        }
-    }
-
-    private AttributeMetadata findAttribute(ClassMetadata dbClass, AttributeMetadata ili2cAttr) {
-        String qualifiedName = ili2cAttr.getQualifiedName();
-        if (qualifiedName != null) {
-            for (AttributeMetadata dbAttr : dbClass.getAllAttributes()) {
-                if (qualifiedName.equals(dbAttr.getQualifiedName())) {
-                    return dbAttr;
-                }
-            }
-        }
-        String simpleName = ili2cAttr.getName();
-        if (simpleName != null) {
-            AttributeMetadata direct = dbClass.getAttribute(simpleName);
-            if (direct != null) {
-                return direct;
-            }
-        }
-        Set<String> ili2cTokens = attributeNameTokens(ili2cAttr);
-        if (!ili2cTokens.isEmpty()) {
-            for (AttributeMetadata dbAttr : dbClass.getAllAttributes()) {
-                Set<String> dbTokens = attributeNameTokens(dbAttr);
-                for (String token : ili2cTokens) {
-                    if (dbTokens.contains(token)) {
-                        return dbAttr;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private Set<String> attributeNameTokens(AttributeMetadata attribute) {
-        Set<String> names = new LinkedHashSet<>();
-        addNameToken(names, attribute.getQualifiedName());
-        addNameToken(names, attribute.getName());
-        addNameToken(names, attribute.getColumnName());
-        addNameToken(names, attribute.getSqlName());
-        return names;
-    }
-    
-    /**
-     * Reichert ein Attribut mit ili2c-Informationen an.
-     */
-    private void enrichAttribute(AttributeMetadata dbAttr, AttributeMetadata ili2cAttr) {
-        // Dokumentation
-        if (ili2cAttr.getDocumentation() != null) {
-            dbAttr.setDocumentation(ili2cAttr.getDocumentation());
-        }
-        
-        // ILI-Typ
-        if (ili2cAttr.getIliType() != null) {
-            dbAttr.setIliType(ili2cAttr.getIliType());
-        }
-
-        if (ili2cAttr.getDomainName() != null) {
-            dbAttr.setDomainName(ili2cAttr.getDomainName());
-        }
-
-        if (ili2cAttr.getCoreType() != CoreType.UNKNOWN) {
-            dbAttr.setCoreType(ili2cAttr.getCoreType());
-        }
-
-        // Java-Typ (vom ili2c-Reader abgeleitet)
-        String ili2cJavaType = ili2cAttr.getJavaType();
-        if (ili2cJavaType != null) {
-            dbAttr.setJavaType(ili2cJavaType);
-        }
-
-        // Mandatory (OR-Logik: Modell-Constraint zählt)
-        if (ili2cAttr.isMandatory() && !dbAttr.isMandatory()) {
-            dbAttr.setMandatory(true);
-        }
-        
-        // Constraints
-        if (ili2cAttr.getMaxLength() != null && dbAttr.getMaxLength() == null) {
-            dbAttr.setMaxLength(ili2cAttr.getMaxLength());
-        }
-        
-        if (ili2cAttr.getMinValue() != null) {
-            dbAttr.setMinValue(ili2cAttr.getMinValue());
-        }
-        
-        if (ili2cAttr.getMaxValue() != null) {
-            dbAttr.setMaxValue(ili2cAttr.getMaxValue());
-        }
-
-        if (ili2cAttr.getCardinalityMin() != null) {
-            dbAttr.setCardinalityMin(ili2cAttr.getCardinalityMin());
-        }
-
-        if (ili2cAttr.getCardinalityMax() != null) {
-            dbAttr.setCardinalityMax(ili2cAttr.getCardinalityMax());
-        }
-
-        if (ili2cAttr.isOrdered()) {
-            dbAttr.setOrdered(true);
-        }
-        
-        // Enum-Typ
-        if (ili2cAttr.getEnumType() != null) {
-            dbAttr.setEnumType(ili2cAttr.getEnumType());
-        }
-        
-        // Unit
-        if (ili2cAttr.getUnit() != null) {
-            dbAttr.setUnit(ili2cAttr.getUnit());
-        }
-        
-        // Geometrie
-        if (ili2cAttr.isGeometry()) {
-            dbAttr.setGeometry(true);
-        }
-
-        if (ili2cAttr.getGeometryKind() != null) {
-            dbAttr.setGeometryKind(ili2cAttr.getGeometryKind());
-        }
-
-        if (ili2cAttr.getGeometryHasZ() != null) {
-            dbAttr.setGeometryHasZ(ili2cAttr.getGeometryHasZ());
-        }
-
-        if (ili2cAttr.getGeometryHasM() != null) {
-            dbAttr.setGeometryHasM(ili2cAttr.getGeometryHasM());
-        }
-
-        if (ili2cAttr.getAllowEmptyGeometry() != null) {
-            dbAttr.setAllowEmptyGeometry(ili2cAttr.getAllowEmptyGeometry());
-        }
-        
-        // Labels
-        dbAttr.getLabels().putAll(ili2cAttr.getLabels());
-    }
-
-    private void mergeRelationship(ModelMetadata metadata, RelationshipMetadata ili2cRelationship) {
-        RelationshipMatch match = findMatchingRelationship(metadata, ili2cRelationship);
-        if (match == null) {
-            metadata.addRelationship(ili2cRelationship);
-            return;
-        }
-
-        RelationshipMetadata existing = match.relationship();
-        if (ili2cRelationship.getType() != null) {
-            existing.setType(ili2cRelationship.getType());
-        }
-        if (ili2cRelationship.getSemanticKind() != null) {
-            existing.setSemanticKind(ili2cRelationship.getSemanticKind());
-        }
-        if (ili2cRelationship.getAssociationName() != null) {
-            existing.setAssociationName(ili2cRelationship.getAssociationName());
-        }
-        if (ili2cRelationship.getSourceRoleName() != null) {
-            existing.setSourceRoleName(ili2cRelationship.getSourceRoleName());
-        }
-        if (ili2cRelationship.getTargetRoleName() != null) {
-            existing.setTargetRoleName(ili2cRelationship.getTargetRoleName());
-        }
-        if (ili2cRelationship.getOppositeRoleName() != null) {
-            existing.setOppositeRoleName(ili2cRelationship.getOppositeRoleName());
-        }
-        if (ili2cRelationship.getCardinality() != null) {
-            existing.setCardinality(ili2cRelationship.getCardinality());
-        }
-        existing.setMandatory(ili2cRelationship.isMandatory());
-        existing.setOrdered(ili2cRelationship.isOrdered());
-        existing.setExternal(ili2cRelationship.isExternal());
-        existing.setComposition(ili2cRelationship.isComposition());
-        existing.setSource("ili2db+ili2c");
-        if (existing.getPhysicalName() == null && existing.getSourceAttribute() != null) {
-            existing.setPhysicalName(existing.getSourceAttribute());
-        }
-        if (ili2cRelationship.getSemanticName() != null) {
-            existing.setSemanticName(ili2cRelationship.getSemanticName());
-        } else if (ili2cRelationship.getName() != null) {
-            existing.setSemanticName(ili2cRelationship.getName());
-        }
-        existing.setMergeReason(match.reason());
-        existing.setMergeConfidence(match.confidence());
-        existing.setMergeToken(match.token());
-    }
-
-    private RelationshipMatch findMatchingRelationship(ModelMetadata metadata,
-                                                       RelationshipMetadata candidate) {
-        for (RelationshipMetadata existing : metadata.getRelationships()) {
-            if (!Objects.equals(existing.getSourceClass(), candidate.getSourceClass())
-                || !Objects.equals(existing.getTargetClass(), candidate.getTargetClass())) {
-                continue;
-            }
-            RelationshipMatch match = matchRelationship(existing, candidate);
-            if (match != null) {
-                return match;
-            }
-        }
-        return null;
-    }
-
-    private RelationshipMatch matchRelationship(RelationshipMetadata existing,
-                                                RelationshipMetadata candidate) {
-        if (candidate.getName() != null && Objects.equals(existing.getName(), candidate.getName())) {
-            return new RelationshipMatch(
-                existing,
-                RelationshipMetadata.MergeReason.EXACT_NAME,
-                RelationshipMetadata.MergeConfidence.EXACT,
-                normalizeNameToken(candidate.getName())
-            );
-        }
-        if (candidate.getSourceAttribute() != null
-            && Objects.equals(existing.getSourceAttribute(), candidate.getSourceAttribute())) {
-            return new RelationshipMatch(
-                existing,
-                RelationshipMetadata.MergeReason.EXACT_SOURCE_ATTRIBUTE,
-                RelationshipMetadata.MergeConfidence.EXACT,
-                normalizeNameToken(candidate.getSourceAttribute())
-            );
-        }
-        if (candidate.getTargetRoleName() != null
-            && Objects.equals(existing.getTargetRoleName(), candidate.getTargetRoleName())) {
-            return new RelationshipMatch(
-                existing,
-                RelationshipMetadata.MergeReason.EXACT_TARGET_ROLE,
-                RelationshipMetadata.MergeConfidence.EXACT,
-                normalizeNameToken(candidate.getTargetRoleName())
-            );
-        }
-
-        Set<String> existingNames = relationshipNameTokens(existing);
-        Set<String> candidateNames = relationshipNameTokens(candidate);
-        for (String candidateName : candidateNames) {
-            if (existingNames.contains(candidateName)) {
-                return new RelationshipMatch(
-                    existing,
-                    RelationshipMetadata.MergeReason.NORMALIZED_TOKEN,
-                    RelationshipMetadata.MergeConfidence.MEDIUM,
-                    candidateName
-                );
-            }
-        }
-        return null;
-    }
-
-    private Set<String> relationshipNameTokens(RelationshipMetadata relationship) {
-        Set<String> names = new LinkedHashSet<>();
-        addNameToken(names, relationship.getTargetRoleName());
-        addNameToken(names, relationship.getSourceAttribute());
-        addNameToken(names, relationship.getPhysicalName());
-        addNameToken(names, relationship.getName());
-        return names;
-    }
-
-    private void addNameToken(Set<String> names, String value) {
-        if (value == null || value.isBlank()) {
-            return;
-        }
-        String normalized = normalizeNameToken(value);
-        names.add(normalized);
-        if (normalized.endsWith("_id")) {
-            names.add(normalized.substring(0, normalized.length() - 3));
-        }
-        if (normalized.endsWith("id") && normalized.length() > 2) {
-            names.add(normalized.substring(0, normalized.length() - 2));
-        }
-        int lastDot = normalized.lastIndexOf('.');
-        if (lastDot >= 0 && lastDot < normalized.length() - 1) {
-            names.add(normalized.substring(lastDot + 1));
-        }
-        int lastUnderscore = normalized.lastIndexOf('_');
-        if (lastUnderscore >= 0 && lastUnderscore < normalized.length() - 1) {
-            names.add(normalized.substring(lastUnderscore + 1));
-        }
-    }
-
-    private String normalizeNameToken(String value) {
-        return value
-            .replace('-', '_')
-            .toLowerCase(Locale.ROOT)
-            .trim();
-    }
-
-    private record RelationshipMatch(
-        RelationshipMetadata relationship,
-        RelationshipMetadata.MergeReason reason,
-        RelationshipMetadata.MergeConfidence confidence,
-        String token
-    ) {
-    }
-    
-    /**
-     * Nachbearbeitung: Java-Typen ableiten, Validierung, etc.
-     */
-    private void postProcess(ModelMetadata metadata) {
-        for (ClassMetadata classMetadata : metadata.getAllClasses()) {
-            for (AttributeMetadata attr : classMetadata.getAllAttributes()) {
-                if (attr.getCoreType() == CoreType.UNKNOWN) {
-                    attr.inferCoreType();
-                }
-                // Java-Typ ableiten falls noch nicht gesetzt
-                if (attr.getJavaType() == null) {
-                    attr.inferJavaType();
-                }
-            }
-        }
-
-        syncAssociationMetadata(metadata);
-        
-        logger.debug("Post-processing complete");
-    }
-
-    private void syncAssociationMetadata(ModelMetadata metadata) {
-        for (ClassMetadata classMetadata : metadata.getAllClasses()) {
-            if (classMetadata.getKind() != ClassMetadata.ClassKind.ASSOCIATION) {
-                continue;
-            }
-            AssociationMetadata association = metadata.getAssociation(classMetadata.getName());
-            if (association == null) {
-                association = new AssociationMetadata(classMetadata.getName());
-            }
-            association.setAssociationClass(classMetadata.getName());
-            association.setPhysicalTable(classMetadata.getTableName());
-            association.setPhysicalSqlName(classMetadata.getSqlName());
-            metadata.addAssociation(association);
-        }
-
-        for (AssociationMetadata association : metadata.getAllAssociations()) {
-            ClassMetadata associationClass = metadata.getClass(association.getAssociationClass());
-            if (associationClass == null) {
-                associationClass = metadata.getClass(association.getName());
-            }
-            if (associationClass != null) {
-                association.setAssociationClass(associationClass.getName());
-                association.setPhysicalTable(associationClass.getTableName());
-                association.setPhysicalSqlName(associationClass.getSqlName());
-            }
-
-            List<RelationshipMetadata> roleRelationships = metadata.getAllRelationships().stream()
-                .filter(relationship -> relationship.getSemanticKind()
-                    == RelationshipMetadata.SemanticKind.ASSOCIATION_ROLE)
-                .filter(relationship -> association.getName()
-                    .equals(resolveAssociationName(metadata, relationship)))
-                .toList();
-            if (!roleRelationships.isEmpty()) {
-                association.setRoles(roleRelationships.stream()
-                    .map(this::toAssociationRole)
-                    .toList());
-            }
-
-            if (associationClass != null) {
-                association.setAttributes(new LinkedHashMap<>());
-                for (AttributeMetadata attribute : associationClass.getAllAttributes()) {
-                    if (!isAssociationRoleAttribute(attribute, roleRelationships)) {
-                        association.addAttribute(attribute);
-                    }
-                }
-            }
-        }
-    }
-
-    private String resolveAssociationName(ModelMetadata metadata, RelationshipMetadata relationship) {
-        if (relationship.getAssociationName() != null && !relationship.getAssociationName().isBlank()) {
-            return relationship.getAssociationName();
-        }
-        ClassMetadata sourceClass = metadata.getClass(relationship.getSourceClass());
-        if (sourceClass != null && sourceClass.getKind() == ClassMetadata.ClassKind.ASSOCIATION) {
-            return sourceClass.getName();
-        }
-        return relationship.getSourceClass();
-    }
-
-    private AssociationRoleMetadata toAssociationRole(RelationshipMetadata relationship) {
-        String roleName = relationship.getTargetRoleName();
-        if (roleName == null || roleName.isBlank()) {
-            roleName = relationship.getSourceAttribute();
-        }
-        if (roleName == null || roleName.isBlank()) {
-            roleName = relationship.getName();
-        }
-        AssociationRoleMetadata role = new AssociationRoleMetadata(roleName);
-        role.setTargetClass(relationship.getTargetClass());
-        role.setOppositeRoleName(relationship.getOppositeRoleName());
-        role.setCardinality(relationship.getCardinality());
-        role.setMandatory(relationship.isMandatory());
-        role.setOrdered(relationship.isOrdered());
-        role.setExternal(relationship.isExternal());
-        role.setComposition(relationship.isComposition());
-        role.setSourceAttribute(relationship.getSourceAttribute());
-        role.setTargetAttribute(relationship.getTargetAttribute());
-        role.setPhysicalName(relationship.getPhysicalName());
-        role.setSemanticName(relationship.getSemanticName());
-        role.setSource(relationship.getSource());
-        role.setMergeReason(relationship.getMergeReason());
-        role.setMergeConfidence(relationship.getMergeConfidence());
-        role.setMergeToken(relationship.getMergeToken());
-        return role;
-    }
-
-    private boolean isAssociationRoleAttribute(AttributeMetadata attribute,
-                                               List<RelationshipMetadata> roleRelationships) {
-        if (attribute.isPrimaryKey() || attribute.isForeignKey()) {
-            return true;
-        }
-        for (RelationshipMetadata relationship : roleRelationships) {
-            if (equalsAny(attribute.getName(), relationship.getSourceAttribute(), relationship.getPhysicalName())
-                || equalsAny(attribute.getColumnName(), relationship.getSourceAttribute(), relationship.getPhysicalName())
-                || equalsAny(attribute.getSqlName(), relationship.getSourceAttribute(), relationship.getPhysicalName())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean equalsAny(String value, String... candidates) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        for (String candidate : candidates) {
-            if (candidate != null && value.equalsIgnoreCase(candidate)) {
-                return true;
-            }
-        }
-        return false;
+        return new MetadataReadResult(metadata, result.diagnostics(), selection);
     }
 }

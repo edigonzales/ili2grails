@@ -969,7 +969,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "documentrole"
+      "mergeToken" : "DocumentRole"
     }, {
       "name" : "PersonRole",
       "targetClass" : "AssociationCases.Base.Person",
@@ -991,7 +991,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "personrole"
+      "mergeToken" : "PersonRole"
     } ],
     "attributes" : [ {
       "name" : "RoleNote",
@@ -1047,7 +1047,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "parcelrole"
+      "mergeToken" : "ParcelRole"
     }, {
       "name" : "PersonRole",
       "targetClass" : "AssociationCases.Base.Person",
@@ -1069,7 +1069,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "personrole"
+      "mergeToken" : "PersonRole"
     } ],
     "attributes" : [ ]
   }, {
@@ -1098,7 +1098,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "buildings"
+      "mergeToken" : "Buildings"
     }, {
       "name" : "Owner",
       "targetClass" : "AssociationCases.Base.Person",
@@ -1120,7 +1120,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "owner"
+      "mergeToken" : "Owner"
     } ],
     "attributes" : [ ]
   }, {
@@ -1149,7 +1149,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "docs"
+      "mergeToken" : "Docs"
     }, {
       "name" : "Owner",
       "targetClass" : "AssociationCases.Base.Person",
@@ -1171,7 +1171,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "owner"
+      "mergeToken" : "Owner"
     } ],
     "attributes" : [ ]
   }, {
@@ -1200,7 +1200,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "ownedparcel"
+      "mergeToken" : "OwnedParcel"
     }, {
       "name" : "SemanticOwner",
       "targetClass" : "AssociationCases.Base.Person",
@@ -1222,7 +1222,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "semanticowner"
+      "mergeToken" : "SemanticOwner"
     } ],
     "attributes" : [ ]
   }, {
@@ -1251,7 +1251,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "primaryperson"
+      "mergeToken" : "PrimaryPerson"
     }, {
       "name" : "SecondaryPerson",
       "targetClass" : "AssociationCases.Base.Person",
@@ -1273,7 +1273,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "secondaryperson"
+      "mergeToken" : "SecondaryPerson"
     } ],
     "attributes" : [ ]
   }, {
@@ -1302,7 +1302,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "extendedparcelrole"
+      "mergeToken" : "ExtendedParcelRole"
     }, {
       "name" : "ExtendedPersonRole",
       "targetClass" : "AssociationCases.Base.Person",
@@ -1324,7 +1324,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "extendedpersonrole"
+      "mergeToken" : "ExtendedPersonRole"
     } ],
     "attributes" : [ ]
   }, {
@@ -1352,7 +1352,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "documentrole"
+      "mergeToken" : "DocumentRole"
     }, {
       "name" : "ParcelRole",
       "targetClass" : "AssociationCases.Base.Parcel",
@@ -1373,7 +1373,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "parcelrole"
+      "mergeToken" : "ParcelRole"
     }, {
       "name" : "PersonRole",
       "targetClass" : "AssociationCases.Base.Person",
@@ -1394,7 +1394,7 @@
       "source" : "ili2db+ili2c",
       "mergeReason" : "EXACT_TARGET_ROLE",
       "mergeConfidence" : "EXACT",
-      "mergeToken" : "personrole"
+      "mergeToken" : "PersonRole"
     } ],
     "attributes" : [ {
       "name" : "Note",
@@ -1453,7 +1453,7 @@
     "semanticName" : "AssociationCases.Base.AssociationWithAttribute.DocumentRole",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "documentrole"
+    "mergeToken" : "DocumentRole"
   }, {
     "name" : "AssociationCases.Base.AssociationWithAttribute_PersonRole",
     "sourceClass" : "AssociationCases.Base.AssociationWithAttribute",
@@ -1481,7 +1481,7 @@
     "semanticName" : "AssociationCases.Base.AssociationWithAttribute.PersonRole",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "personrole"
+    "mergeToken" : "PersonRole"
   }, {
     "name" : "AssociationCases.Base.EmptyAssociation_ParcelRole",
     "sourceClass" : "AssociationCases.Base.EmptyAssociation",
@@ -1509,7 +1509,7 @@
     "semanticName" : "AssociationCases.Base.EmptyAssociation.ParcelRole",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "parcelrole"
+    "mergeToken" : "ParcelRole"
   }, {
     "name" : "AssociationCases.Base.EmptyAssociation_PersonRole",
     "sourceClass" : "AssociationCases.Base.EmptyAssociation",
@@ -1537,7 +1537,7 @@
     "semanticName" : "AssociationCases.Base.EmptyAssociation.PersonRole",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "personrole"
+    "mergeToken" : "PersonRole"
   }, {
     "name" : "AssociationCases.Base.ExternalCompositeAssociation_Buildings",
     "sourceClass" : "AssociationCases.Base.ExternalCompositeAssociation",
@@ -1565,7 +1565,7 @@
     "semanticName" : "AssociationCases.Base.ExternalCompositeAssociation.Buildings",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "buildings"
+    "mergeToken" : "Buildings"
   }, {
     "name" : "AssociationCases.Base.ExternalCompositeAssociation_Owner",
     "sourceClass" : "AssociationCases.Base.ExternalCompositeAssociation",
@@ -1593,7 +1593,7 @@
     "semanticName" : "AssociationCases.Base.ExternalCompositeAssociation.Owner",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "owner"
+    "mergeToken" : "Owner"
   }, {
     "name" : "AssociationCases.Base.OrderedAssociation_Docs",
     "sourceClass" : "AssociationCases.Base.OrderedAssociation",
@@ -1621,7 +1621,7 @@
     "semanticName" : "AssociationCases.Base.OrderedAssociation.Docs",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "docs"
+    "mergeToken" : "Docs"
   }, {
     "name" : "AssociationCases.Base.OrderedAssociation_Owner",
     "sourceClass" : "AssociationCases.Base.OrderedAssociation",
@@ -1649,7 +1649,7 @@
     "semanticName" : "AssociationCases.Base.OrderedAssociation.Owner",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "owner"
+    "mergeToken" : "Owner"
   }, {
     "name" : "AssociationCases.Base.PhysicalMismatchAssociation_OwnedParcel",
     "sourceClass" : "AssociationCases.Base.PhysicalMismatchAssociation",
@@ -1677,7 +1677,7 @@
     "semanticName" : "AssociationCases.Base.PhysicalMismatchAssociation.OwnedParcel",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "ownedparcel"
+    "mergeToken" : "OwnedParcel"
   }, {
     "name" : "AssociationCases.Base.PhysicalMismatchAssociation_SemanticOwner",
     "sourceClass" : "AssociationCases.Base.PhysicalMismatchAssociation",
@@ -1705,7 +1705,7 @@
     "semanticName" : "AssociationCases.Base.PhysicalMismatchAssociation.SemanticOwner",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "semanticowner"
+    "mergeToken" : "SemanticOwner"
   }, {
     "name" : "AssociationCases.Base.SameTargetAssociation_PrimaryPerson",
     "sourceClass" : "AssociationCases.Base.SameTargetAssociation",
@@ -1733,7 +1733,7 @@
     "semanticName" : "AssociationCases.Base.SameTargetAssociation.PrimaryPerson",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "primaryperson"
+    "mergeToken" : "PrimaryPerson"
   }, {
     "name" : "AssociationCases.Base.SameTargetAssociation_SecondaryPerson",
     "sourceClass" : "AssociationCases.Base.SameTargetAssociation",
@@ -1761,7 +1761,7 @@
     "semanticName" : "AssociationCases.Base.SameTargetAssociation.SecondaryPerson",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "secondaryperson"
+    "mergeToken" : "SecondaryPerson"
   }, {
     "name" : "AssociationCases.Extended.ExtendedTopicAssociation_ExtendedParcelRole",
     "sourceClass" : "AssociationCases.Extended.ExtendedTopicAssociation",
@@ -1789,7 +1789,7 @@
     "semanticName" : "AssociationCases.Extended.ExtendedTopicAssociation.ExtendedParcelRole",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "extendedparcelrole"
+    "mergeToken" : "ExtendedParcelRole"
   }, {
     "name" : "AssociationCases.Extended.ExtendedTopicAssociation_ExtendedPersonRole",
     "sourceClass" : "AssociationCases.Extended.ExtendedTopicAssociation",
@@ -1817,7 +1817,7 @@
     "semanticName" : "AssociationCases.Extended.ExtendedTopicAssociation.ExtendedPersonRole",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "extendedpersonrole"
+    "mergeToken" : "ExtendedPersonRole"
   }, {
     "name" : "AssociationCases.Extended.TernaryAssociation_DocumentRole",
     "sourceClass" : "AssociationCases.Extended.TernaryAssociation",
@@ -1843,7 +1843,7 @@
     "semanticName" : "AssociationCases.Extended.TernaryAssociation.DocumentRole",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "documentrole"
+    "mergeToken" : "DocumentRole"
   }, {
     "name" : "AssociationCases.Extended.TernaryAssociation_ParcelRole",
     "sourceClass" : "AssociationCases.Extended.TernaryAssociation",
@@ -1869,7 +1869,7 @@
     "semanticName" : "AssociationCases.Extended.TernaryAssociation.ParcelRole",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "parcelrole"
+    "mergeToken" : "ParcelRole"
   }, {
     "name" : "AssociationCases.Extended.TernaryAssociation_PersonRole",
     "sourceClass" : "AssociationCases.Extended.TernaryAssociation",
@@ -1895,6 +1895,6 @@
     "semanticName" : "AssociationCases.Extended.TernaryAssociation.PersonRole",
     "mergeReason" : "EXACT_TARGET_ROLE",
     "mergeConfidence" : "EXACT",
-    "mergeToken" : "personrole"
+    "mergeToken" : "PersonRole"
   } ]
 }

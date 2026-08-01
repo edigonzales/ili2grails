@@ -226,7 +226,7 @@ class MetadataReaderTest {
                     .isEqualTo(RelationshipMetadata.MergeReason.EXACT_SOURCE_ATTRIBUTE);
                 assertThat(relationship.getMergeConfidence())
                     .isEqualTo(RelationshipMetadata.MergeConfidence.EXACT);
-                assertThat(relationship.getMergeToken()).isEqualTo("parentref");
+                assertThat(relationship.getMergeToken()).isEqualTo("ParentRef");
             });
     }
 

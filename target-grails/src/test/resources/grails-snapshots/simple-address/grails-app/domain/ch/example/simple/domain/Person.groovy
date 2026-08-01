@@ -9,9 +9,9 @@ class Person {
     String lastname
 
     static final Map<String, Map<String, Object>> interlisFieldMeta = [
-        birthdate: [label: 'birthDate', qualifiedName: 'SimpleAddressModel.Addresses.Person.birthDate'],
-        firstname: [label: 'firstName', documentation: 'Vorname', qualifiedName: 'SimpleAddressModel.Addresses.Person.firstName'],
-        lastname: [label: 'lastName', documentation: 'Nachname', qualifiedName: 'SimpleAddressModel.Addresses.Person.lastName']
+        birthdate: [label: 'birthDate', qualifiedName: 'SimpleAddressModel.Addresses.Person.BirthDate'],
+        firstname: [label: 'firstName', documentation: 'Vorname', qualifiedName: 'SimpleAddressModel.Addresses.Person.FirstName'],
+        lastname: [label: 'lastName', documentation: 'Nachname', qualifiedName: 'SimpleAddressModel.Addresses.Person.LastName']
     ]
 
     static final Map<String, Object> interlisDisplayMeta = [

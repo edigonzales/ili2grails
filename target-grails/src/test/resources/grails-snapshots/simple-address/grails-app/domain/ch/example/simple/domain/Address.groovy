@@ -7,9 +7,9 @@ class Address {
     String postalcode
 
     static final Map<String, Map<String, Object>> interlisFieldMeta = [
-        astreet: [label: 'street', qualifiedName: 'SimpleAddressModel.Addresses.Address.street'],
-        housenumber: [label: 'houseNumber', qualifiedName: 'SimpleAddressModel.Addresses.Address.houseNumber'],
-        postalcode: [label: 'postalCode', qualifiedName: 'SimpleAddressModel.Addresses.Address.postalCode']
+        astreet: [label: 'street', qualifiedName: 'SimpleAddressModel.Addresses.Address.Street'],
+        housenumber: [label: 'houseNumber', qualifiedName: 'SimpleAddressModel.Addresses.Address.HouseNumber'],
+        postalcode: [label: 'postalCode', qualifiedName: 'SimpleAddressModel.Addresses.Address.PostalCode']
     ]
 
     static final Map<String, Object> interlisDisplayMeta = [
