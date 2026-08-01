@@ -1,5 +1,7 @@
 package ch.interlis.generator.reader.ili2db.assemble;
 
+import ch.interlis.generator.metadata.selection.ModelSelection;
+import ch.interlis.generator.metadata.selection.ModelSelectionSource;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.GeometryKind;
@@ -58,9 +60,9 @@ public final class Ili2dbMetadataAssembler {
                                          Ili2dbCatalogSnapshot catalog,
                                          JdbcSchemaSnapshot schema,
                                          GeometrySchemaSnapshot geometry,
+                                         ModelSelection selection,
                                          List<Ili2dbDiagnostic> diagnostics) {
-        ModelMetadataBuilder builder = ModelMetadataBuilder.model(
-            context.modelSelection().rootModelName());
+        ModelMetadataBuilder builder = ModelMetadataBuilder.model(selection.rootModelName());
         SqlSchemaLookup schemaLookup = new SqlSchemaLookup(schema);
         GeometryLookup geometryLookup = new GeometryLookup(geometry);
 
@@ -77,7 +79,7 @@ public final class Ili2dbMetadataAssembler {
         Map<EnumColumnKey, EnumDomainRow> enumDomains = indexEnumDomains(catalog.enumDomains());
         for (AttributeMappingRow row : catalog.attributes()) {
             assembleAttribute(context, builder, row, schemaLookup, geometryLookup,
-                enumDomains, diagnostics);
+                enumDomains, selection, diagnostics);
         }
 
         for (InheritanceRow row : catalog.inheritance()) {
@@ -115,9 +117,19 @@ public final class Ili2dbMetadataAssembler {
                                List<Ili2dbDiagnostic> diagnostics) {
         Optional<ClassMetadata.ClassKind> kind = mapClassKind(row.tableKind());
         if (kind.isEmpty()) {
+            diagnostics.add(new Ili2dbDiagnostic(
+                Ili2dbSeverity.WARNING,
+                Ili2dbDiagnosticCode.CLASS_MAPPING_INCOMPLETE,
+                "Class mapping incomplete: unknown table kind '" + row.tableKind() + "'",
+                row.iliName(), row.tableName(), Map.of("tableKind", String.valueOf(row.tableKind()))));
             return;
         }
         if (row.tableName() == null || row.tableName().isBlank()) {
+            diagnostics.add(new Ili2dbDiagnostic(
+                Ili2dbSeverity.WARNING,
+                Ili2dbDiagnosticCode.CLASS_MAPPING_INCOMPLETE,
+                "Class mapping incomplete: no physical table for class",
+                row.iliName(), null, Map.of()));
             return;
         }
         ClassMetadataBuilder classMetadata = builder.classBuilder(row.iliName());
@@ -152,6 +164,7 @@ public final class Ili2dbMetadataAssembler {
                                    SqlSchemaLookup schemaLookup,
                                    GeometryLookup geometryLookup,
                                    Map<EnumColumnKey, EnumDomainRow> enumDomains,
+                                   ModelSelection selection,
                                    List<Ili2dbDiagnostic> diagnostics) {
         String ownerClassName = extractOwnerClassName(row.iliName());
         ClassMetadataBuilder classMetadata = resolveAttributeOwner(builder, ownerClassName, row.owner());
@@ -184,7 +197,18 @@ public final class Ili2dbMetadataAssembler {
 
         if (row.target() != null && !row.target().isEmpty()) {
             attrMetadata.foreignKey(true);
-            attrMetadata.referencedClass(resolveTargetClass(builder, row.target()));
+            String resolved = resolveTargetClass(builder, row.target());
+            attrMetadata.referencedClass(resolved);
+            if (resolved == null || builder.findClassBuilder(resolved).isEmpty()) {
+                boolean partialSelection =
+                    selection.source() == ModelSelectionSource.ROOT_ONLY_FALLBACK;
+                diagnostics.add(new Ili2dbDiagnostic(
+                    partialSelection ? Ili2dbSeverity.WARNING : Ili2dbSeverity.ERROR,
+                    Ili2dbDiagnosticCode.TARGET_CLASS_UNRESOLVED,
+                    "Foreign key target class could not be resolved in the read selection: "
+                        + row.target(),
+                    row.iliName(), row.target(), Map.of("partialSelection", String.valueOf(partialSelection))));
+            }
         }
 
         enrichAttributeFromSchema(attrMetadata, classMetadata.tableName(), row.sqlName(),

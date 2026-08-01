@@ -53,11 +53,9 @@ class SqliteSchemaIntrospectorTest {
     private Ili2dbReadContext context(Connection connection) throws Exception {
         return new Ili2dbReadContext(
             connection,
-            ModelSelection.rootOnly("SqliteModel"),
             null,
             SqlIdentifierRenderer.from(connection.getMetaData()),
-            DatabaseDialect.SQLITE,
-            Ili2dbFailurePolicy.STRICT
+            DatabaseDialect.SQLITE
         );
     }
 }

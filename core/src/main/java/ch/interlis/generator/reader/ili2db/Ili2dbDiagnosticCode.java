@@ -2,6 +2,10 @@ package ch.interlis.generator.reader.ili2db;
 
 /**
  * Codes der Reader-Diagnostics.
+ *
+ * <p>Physische Duplikate (Tabelle/Spalte) gehören nicht hierher: Die
+ * einzige Wahrheit dafür ist {@code ModelMetadataDiagnosticCode} im
+ * Modell-Validator (P2-D005).</p>
  */
 public enum Ili2dbDiagnosticCode {
     REQUIRED_META_TABLE_MISSING,
@@ -18,8 +22,6 @@ public enum Ili2dbDiagnosticCode {
     INHERITANCE_UNRESOLVED,
     GEOMETRY_METADATA_UNAVAILABLE,
     PRIMARY_KEY_ASSUMED,
-    DUPLICATE_PHYSICAL_CLASS,
-    DUPLICATE_PHYSICAL_COLUMN,
     ASSOCIATION_MAPPING_INCOMPLETE,
     DATABASE_DIALECT_UNSUPPORTED
 }

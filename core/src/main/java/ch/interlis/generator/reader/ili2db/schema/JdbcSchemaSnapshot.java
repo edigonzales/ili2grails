@@ -5,6 +5,7 @@ import ch.interlis.generator.reader.sql.QualifiedSqlName;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -37,6 +38,10 @@ public final class JdbcSchemaSnapshot {
 
     public Optional<TableSchema> table(QualifiedSqlName name) {
         return name == null ? Optional.empty() : Optional.ofNullable(tables.get(name));
+    }
+
+    public static JdbcSchemaSnapshot empty() {
+        return new JdbcSchemaSnapshot(List.of());
     }
 
     public Optional<TableSchema> tableByRawName(String rawName) {

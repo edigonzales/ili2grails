@@ -4,6 +4,12 @@ import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.reader.Ili2cModelReader;
 import ch.interlis.generator.reader.Ili2dbMetadataReader;
+import ch.interlis.generator.reader.ili2db.Ili2dbDiagnostic;
+import ch.interlis.generator.reader.ili2db.Ili2dbDiagnosticCode;
+import ch.interlis.generator.reader.ili2db.Ili2dbFailurePolicy;
+import ch.interlis.generator.reader.ili2db.Ili2dbReadException;
+import ch.interlis.generator.reader.ili2db.Ili2dbReadResult;
+import ch.interlis.generator.reader.ili2db.Ili2dbSeverity;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
@@ -86,8 +92,28 @@ class ModelSelectionIntegrationTest {
                 Ili2dbMetadataReader.create(connection, null);
             assertThatThrownBy(() -> physicalReader.readMetadata(
                 ModelSelection.rootOnly("ModelSelectionNotImported")))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(Ili2dbReadException.class)
                 .hasMessageContaining("ModelSelectionNotImported");
+        }
+    }
+
+    @Test
+    void missingRootProducesRequestedModelMissingDiagnostic() throws Exception {
+        try (Connection connection = DriverManager.getConnection(
+            "jdbc:h2:mem:selection_missing_diag_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1")) {
+            createIli2dbFixture(connection);
+
+            Ili2dbMetadataReader physicalReader =
+                Ili2dbMetadataReader.create(connection, null);
+            Ili2dbReadResult result = physicalReader.read(
+                ModelSelection.rootOnly("ModelSelectionNotImported"), Ili2dbFailurePolicy.DIAGNOSTIC);
+            assertThat(result.hasFatalDiagnostics()).isTrue();
+            assertThat(result.diagnostics())
+                .filteredOn(diagnostic -> diagnostic.code() == Ili2dbDiagnosticCode.REQUESTED_MODEL_MISSING)
+                .extracting(Ili2dbDiagnostic::severity)
+                .containsExactly(Ili2dbSeverity.FATAL);
+            assertThat(result.optionalMetadata()).isEmpty();
+            assertThat(result.isUsable()).isFalse();
         }
     }
 

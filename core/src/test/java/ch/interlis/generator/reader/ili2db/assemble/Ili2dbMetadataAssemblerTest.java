@@ -71,7 +71,8 @@ class Ili2dbMetadataAssemblerTest {
 
             ModelMetadata metadata = new ModelMetadataFactory().buildValidated(
                 new Ili2dbMetadataAssembler().assemble(
-                    context(connection), catalog, schema, geometry, diagnostics));
+                    context(connection), catalog, schema, geometry,
+                    ModelSelection.rootOnly("AssembleModel"), diagnostics));
 
             assertThat(metadata.getModelName()).isEqualTo("AssembleModel");
             assertThat(metadata.getSchemaName()).isNull();
@@ -136,7 +137,8 @@ class Ili2dbMetadataAssemblerTest {
             ModelMetadata metadata = new ModelMetadataFactory().buildValidated(
                 new Ili2dbMetadataAssembler().assemble(
                     context(connection), catalog, new JdbcSchemaSnapshot(List.of()),
-                    GeometrySchemaSnapshot.empty(), new ArrayList<>()));
+                    GeometrySchemaSnapshot.empty(), ModelSelection.rootOnly("AssembleModel"),
+                    new ArrayList<>()));
 
             AttributeMetadata area =
                 metadata.getClass("AssembleModel.Topic.Sample").getAttribute("area");
@@ -147,11 +149,9 @@ class Ili2dbMetadataAssemblerTest {
     private Ili2dbReadContext context(Connection connection) throws Exception {
         return new Ili2dbReadContext(
             connection,
-            ModelSelection.rootOnly("AssembleModel"),
             null,
             SqlIdentifierRenderer.from(connection.getMetaData()),
-            DatabaseDialect.H2,
-            Ili2dbFailurePolicy.STRICT
+            DatabaseDialect.H2
         );
     }
 

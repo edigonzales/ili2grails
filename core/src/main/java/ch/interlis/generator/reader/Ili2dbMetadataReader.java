@@ -93,34 +93,48 @@ public class Ili2dbMetadataReader {
 
     /**
      * Kompatibilitäts-API: liest nur das Root-Modell
-     * ({@link ModelSelection#rootOnly(String)}).
+     * ({@link ModelSelection#rootOnly(String)}) im Strict-Modus.
      */
     public ModelMetadata readMetadata(String modelName) throws SQLException {
         return readMetadata(ModelSelection.rootOnly(modelName));
     }
 
     /**
-     * Liest die kompletten Metadaten für die übergebene Modellauswahl.
+     * Liest die kompletten Metadaten für die übergebene Modellauswahl im
+     * Strict-Modus.
      *
      * <p>Gelesen wird nur die Schnittmenge aus {@link ModelSelection#includedModelNames()}
      * und den in {@code t_ili2db_model} verfügbaren Modellen. Unabhängige Modelle des
      * Schemas werden nie hinzugefügt. Das Root-Modell muss in der Datenbank vorhanden
-     * sein.</p>
+     * sein; fehlt es, erscheint eine {@code REQUESTED_MODEL_MISSING}-Diagnostic statt
+     * einer fachlichen {@code IllegalArgumentException}.</p>
      */
     public ModelMetadata readMetadata(ModelSelection selection) throws SQLException {
+        Ili2dbReadResult result = read(selection, Ili2dbFailurePolicy.STRICT);
+        result.throwIfBlocking();
+        return result.requireMetadata();
+    }
+
+    /**
+     * Liest Metadaten mit expliziter Fehlerpolitik (Spezifikation §13.3).
+     *
+     * <p>Im {@code DIAGNOSTIC}-Modus liefert das Ergebnis auch bei ERROR-
+     * Diagnostics ein partielles, klar markiertes Resultat; blockierende
+     * FATAL-Diagnostics führen zu einem Ergebnis ohne Metadaten.</p>
+     */
+    public Ili2dbReadResult read(ModelSelection selection, Ili2dbFailurePolicy policy)
+        throws SQLException {
         Objects.requireNonNull(selection, "selection");
+        Objects.requireNonNull(policy, "policy");
         logger.info("Reading ili2db metadata for selection: {} -> {}",
             selection.rootModelName(), selection.includedModelNames());
 
         DatabaseDialect dialect = new DatabaseDialectDetector().detect(connection.getMetaData());
         Ili2dbReadContext context = new Ili2dbReadContext(
-            connection, selection, schema, identifierRenderer, dialect,
-            Ili2dbFailurePolicy.STRICT);
-        Ili2dbReadRequest request = Ili2dbReadRequest.strict(selection,
-            schema != null ? schema.value() : null);
+            connection, schema, identifierRenderer, dialect);
+        Ili2dbReadRequest request = new Ili2dbReadRequest(
+            selection, policy, true, true);
 
-        Ili2dbReadResult result = new Ili2dbReadCoordinator().read(context, request);
-        result.throwIfBlocking();
-        return result.metadata();
+        return new Ili2dbReadCoordinator().read(context, request);
     }
 }
