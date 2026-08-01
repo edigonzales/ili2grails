@@ -16,6 +16,7 @@ import ch.interlis.generator.grails.runtime.api.persistence.RuntimeRecordLoader
 import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
 import ch.interlis.generator.grails.runtime.api.security.AssociationOperationContext
 import ch.interlis.generator.grails.runtime.api.security.InterlisAuthorizationPolicy
+import ch.interlis.generator.grails.runtime.registry.InterlisRuntimeSafetyState
 import grails.gorm.transactions.Transactional
 import groovy.util.logging.Slf4j
 import org.springframework.dao.DataIntegrityViolationException
@@ -46,12 +47,18 @@ class InterlisAssociationCommandService {
     InterlisAuthorizationPolicy authorizationPolicy
     InterlisLifecycleHooks lifecycleHooks
     RuntimeRecordLoader recordLoader
+    InterlisRuntimeSafetyState runtimeSafetyState
 
     AssociationCommandResult createQuickLink(Class participantType,
                                              Serializable participantId,
                                              String contextId,
                                              String targetRoleName,
                                              Serializable targetId) {
+        if (!runtimeSafetyState?.writeAllowed) {
+            return typedReadOnlyResult(CommandCode.RUNTIME_DESCRIPTOR_INVALID,
+                "Runtime descriptor validation has blocking diagnostics; " +
+                "all generated write operations are disabled.")
+        }
         AssociationContextDescriptor context = requireContextOrFail(participantType, contextId)
         if (context == null) {
             return null
@@ -172,6 +179,11 @@ class InterlisAssociationCommandService {
                                         Serializable participantId,
                                         String contextId,
                                         Serializable associationId) {
+        if (!runtimeSafetyState?.writeAllowed) {
+            return typedReadOnlyResult(CommandCode.RUNTIME_DESCRIPTOR_INVALID,
+                "Runtime descriptor validation has blocking diagnostics; " +
+                "all generated write operations are disabled.")
+        }
         AssociationContextDescriptor context = requireContextOrFail(participantType, contextId)
         if (context == null) {
             return null
@@ -448,6 +460,10 @@ class InterlisAssociationCommandService {
         return AssociationCommandResult.failure(status, commandStatus, code,
             InterlisMessageSupport.text(grailsApplication,
                 "ili2grails.association.error.${code.name()}", message))
+    }
+
+    private AssociationCommandResult typedReadOnlyResult(CommandCode code, String message) {
+        return AssociationCommandResult.failure(409, CommandStatus.CONFLICT, code, message)
     }
 
     static class AssociationOwnershipException extends RuntimeException {

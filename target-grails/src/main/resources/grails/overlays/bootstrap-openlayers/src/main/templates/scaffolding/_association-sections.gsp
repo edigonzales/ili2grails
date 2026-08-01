@@ -24,7 +24,8 @@
                 owner: owner
             ]}"/>
             <g:if test="\${contextualForm && section.writable}">
-                <g:link controller="\${section.associationController ?: ''}" action="create"
+                <g:if test="\${runtimeWriteAllowed}">
+<g:link controller="\${section.associationController ?: ''}" action="create"
                         params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
                         class="btn btn-primary btn-sm mt-2">
                     \${message(code: 'ili2grails.association.add', args: [section.label], default: section.label + ' hinzufügen')}
@@ -84,7 +85,7 @@
                                             <g:message code="ili2grails.action.details" default="Details"/>
                                         </g:link>
                                     </g:if>
-                                    <g:if test="\${row.deleteAllowed}">
+                                    <g:if test="\${runtimeWriteAllowed && row.deleteAllowed}">
                                         <button type="button" class="btn btn-sm btn-outline-danger ili-association-delete-btn"
                                                 data-association-delete
                                                 data-delete-form="assoc-delete-\${sectionDomId}-\${row.associationId}"
@@ -107,7 +108,8 @@
             </g:if>
 
             <g:if test="\${contextualForm && section.writable}">
-                <g:link controller="\${section.associationController ?: ''}" action="create"
+                <g:if test="\${runtimeWriteAllowed}">
+<g:link controller="\${section.associationController ?: ''}" action="create"
                         params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
                         class="btn btn-primary btn-sm mt-2">
                     \${message(code: 'ili2grails.association.add', args: [section.label], default: section.label + ' hinzufügen')}

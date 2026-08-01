@@ -10,6 +10,7 @@
         <g:link class="btn btn-outline-secondary" controller="${controllerName}" action="index">
             <ili:icon name="list" cssClass="me-1"/><g:message code="ili2grails.workspace.list" default="Liste"/>
         </g:link>
+        <g:if test="${runtimeWriteAllowed}">
         <g:link class="btn btn-outline-primary" controller="${controllerName}" action="create">
             <ili:icon name="plus-lg" cssClass="me-1"/><g:message code="ili2grails.workspace.new" default="Neu"/>
         </g:link>
@@ -24,6 +25,7 @@
                     data-bs-target="#${deleteModalId}">
                 <ili:icon name="trash" cssClass="me-1"/><g:message code="ili2grails.action.delete" default="Löschen"/>
             </button>
+        </g:if>
         </g:if>
     </nav>
 </section>

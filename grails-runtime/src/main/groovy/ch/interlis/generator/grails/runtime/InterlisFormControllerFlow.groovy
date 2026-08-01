@@ -21,6 +21,10 @@ final class InterlisFormControllerFlow<T> {
     def create(InterlisCrudControllerSupport<T> controller,
                InterlisControllerContext<T> context) {
         InterlisSecurityHeaderSupport.apply(controller, controller.response)
+        if (!controller.runtimeWriteAllowed()) {
+            respondReadOnly(controller)
+            return
+        }
         if (!context.authorizationPolicy.canCreate(domainOperation(context, DomainOperation.CREATE))) {
             InterlisControllerResponseSupport.respondForbidden(controller,
                 "Keine Berechtigung für diese Aktion.")
@@ -47,6 +51,10 @@ final class InterlisFormControllerFlow<T> {
     def save(InterlisCrudControllerSupport<T> controller,
              InterlisControllerContext<T> context) {
         InterlisSecurityHeaderSupport.apply(controller, controller.response)
+        if (!controller.runtimeWriteAllowed()) {
+            respondReadOnly(controller)
+            return
+        }
         if (!context.authorizationPolicy.canCreate(domainOperation(context, DomainOperation.CREATE))) {
             InterlisControllerResponseSupport.respondForbidden(controller,
                 "Keine Berechtigung für diese Aktion.")
@@ -104,6 +112,10 @@ final class InterlisFormControllerFlow<T> {
              InterlisControllerContext<T> context,
              Long id) {
         InterlisSecurityHeaderSupport.apply(controller, controller.response)
+        if (!controller.runtimeWriteAllowed()) {
+            respondReadOnly(controller)
+            return
+        }
         if (!context.authorizationPolicy.canView(domainOperation(context, DomainOperation.VIEW))) {
             InterlisControllerResponseSupport.respondForbidden(controller,
                 "Keine Berechtigung für diese Aktion.")
@@ -129,6 +141,10 @@ final class InterlisFormControllerFlow<T> {
                InterlisControllerContext<T> context,
                Long id) {
         InterlisSecurityHeaderSupport.apply(controller, controller.response)
+        if (!controller.runtimeWriteAllowed()) {
+            respondReadOnly(controller)
+            return
+        }
         T instance = context.crudService.get(id) as T
         if (instance == null) {
             InterlisControllerResponseSupport.notFound(
@@ -193,6 +209,10 @@ final class InterlisFormControllerFlow<T> {
                InterlisControllerContext<T> context,
                Long id) {
         InterlisSecurityHeaderSupport.apply(controller, controller.response)
+        if (!controller.runtimeWriteAllowed()) {
+            respondReadOnly(controller)
+            return
+        }
         if (id == null) {
             InterlisControllerResponseSupport.notFound(
                 controller, context.grailsApplication, controller.modelKey())

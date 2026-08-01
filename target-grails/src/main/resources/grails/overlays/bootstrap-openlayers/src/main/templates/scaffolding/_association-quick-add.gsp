@@ -1,4 +1,4 @@
-<g:if test="\${section?.createMode == 'QUICK' && section?.writable && section?.quickTargetRole}">
+<g:if test="\${runtimeWriteAllowed && section?.createMode == 'QUICK' && section?.writable && section?.quickTargetRole}">
     <g:form action="associationCreate"
             id="\${owner?.id}"
             method="POST"

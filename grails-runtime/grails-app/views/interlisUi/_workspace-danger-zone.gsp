@@ -7,6 +7,7 @@
     <button type="submit" class="ili-native-submit js-delete-submit"><g:message code="ili2grails.action.delete" default="Löschen"/></button>
 </g:form>
 
+<g:if test="${runtimeWriteAllowed}">
 <div class="modal fade" id="${deleteModalId}" tabindex="-1"
      role="dialog" aria-modal="true"
      aria-labelledby="${deleteModalId}-title" aria-describedby="${deleteModalId}-description"
@@ -46,3 +47,4 @@
         </div>
     </div>
 </div>
+</g:if>

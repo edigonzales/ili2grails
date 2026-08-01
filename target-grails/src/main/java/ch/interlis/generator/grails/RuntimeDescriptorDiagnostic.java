@@ -2,7 +2,9 @@ package ch.interlis.generator.grails;
 
 import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeDescriptorSeverity;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Diagnostic raised while planning typed runtime descriptors
@@ -17,7 +19,11 @@ public record RuntimeDescriptorDiagnostic(
 ) {
 
     public RuntimeDescriptorDiagnostic {
-        details = details == null ? Map.of() : Map.copyOf(details);
+        TreeMap<String, String> sorted = new TreeMap<>();
+        if (details != null) {
+            sorted.putAll(details);
+        }
+        details = Collections.unmodifiableMap(sorted);
     }
 
     public boolean blocking() {
