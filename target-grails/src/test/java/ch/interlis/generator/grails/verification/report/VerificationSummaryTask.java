@@ -40,9 +40,18 @@ public final class VerificationSummaryTask {
         checks.add(checkTargetTests(repositoryRoot, "cli"));
         checks.add(checkReports(repositoryRoot, "model-corpus",
             List.of("corpus-results.json"), "corpus"));
-        checks.add(checkReports(repositoryRoot, "grails-postgres-contract",
+        checks.add(checkModuleReports(repositoryRoot, "target-grails",
+            "grails-postgres-contract",
             List.of("p0-persistence-contract/mapping-comparison.json",
                 "geometry-basic/mapping-comparison.json"), "mapping-contract"));
+        checks.add(checkTargetTests(repositoryRoot, "target-grails",
+            "grailsRuntimeSmokeTest"));
+        checks.add(checkTargetTests(repositoryRoot, "target-grails",
+            "realIli2dbSmokeTest"));
+        checks.add(checkTargetTests(repositoryRoot, "target-grails",
+            "grailsPostgresContractTest"));
+        checks.add(checkTargetTests(repositoryRoot, "target-grails",
+            "browserE2eTest"));
         checks.add(checkReports(repositoryRoot, "ili2grails-verification",
             List.of(), "summary"));
 
@@ -59,9 +68,15 @@ public final class VerificationSummaryTask {
     }
 
     private static VerificationCheckResult checkTargetTests(Path repositoryRoot, String module) {
-        Path results = repositoryRoot.resolve(module).resolve("build/test-results/test");
+        return checkTargetTests(repositoryRoot, module, "test");
+    }
+
+    private static VerificationCheckResult checkTargetTests(Path repositoryRoot, String module,
+                                                            String testTask) {
+        Path results = repositoryRoot.resolve(module).resolve("build/test-results").resolve(testTask);
+        String id = module + ":" + testTask;
         if (!Files.isDirectory(results)) {
-            return new VerificationCheckResult(module + ":test", VerificationStatus.SKIPPED_INFRASTRUCTURE,
+            return new VerificationCheckResult(id, VerificationStatus.SKIPPED_INFRASTRUCTURE,
                 "no test results", List.of(), List.of());
         }
         int tests = 0;
@@ -79,22 +94,44 @@ public final class VerificationSummaryTask {
                 skipped += Integer.parseInt(root.getDocumentElement().getAttribute("skipped"));
             }
         } catch (Exception e) {
-            return new VerificationCheckResult(module + ":test", VerificationStatus.FAILED,
+            return new VerificationCheckResult(id, VerificationStatus.FAILED,
                 "could not read test results: " + e.getMessage(), List.of(),
                 List.of(e.getMessage()));
         }
         VerificationStatus status = failures + errors == 0
             ? VerificationStatus.PASSED : VerificationStatus.FAILED;
-        return new VerificationCheckResult(module + ":test", status,
+        return new VerificationCheckResult(id, status,
             tests + " tests, " + failures + " failures, " + errors + " errors, "
                 + skipped + " skipped",
-            List.of(module + "/build/reports/tests/test/index.html"), List.of());
+            List.of(module + "/build/reports/tests/" + testTask + "/index.html"), List.of());
     }
 
     private static VerificationCheckResult checkReports(Path repositoryRoot, String relative,
                                                         List<String> evidence,
                                                         String id) {
         Path reportDir = repositoryRoot.resolve("build/reports").resolve(relative);
+        if (!Files.isDirectory(reportDir)) {
+            return new VerificationCheckResult(id, VerificationStatus.SKIPPED_INFRASTRUCTURE,
+                "no reports under build/reports/" + relative, List.of(), List.of());
+        }
+        List<String> missing = evidence.stream()
+            .filter(file -> !Files.isRegularFile(reportDir.resolve(file)))
+            .toList();
+        if (!missing.isEmpty()) {
+            return new VerificationCheckResult(id, VerificationStatus.FAILED,
+                "missing evidence: " + missing, List.of(), missing);
+        }
+        return new VerificationCheckResult(id, VerificationStatus.PASSED,
+            "reports present under build/reports/" + relative,
+            evidence.stream().map(file -> "build/reports/" + relative + "/" + file).toList(),
+            List.of());
+    }
+
+    private static VerificationCheckResult checkModuleReports(Path repositoryRoot, String module,
+                                                              String relative,
+                                                              List<String> evidence,
+                                                              String id) {
+        Path reportDir = repositoryRoot.resolve(module).resolve("build/reports").resolve(relative);
         if (!Files.isDirectory(reportDir)) {
             return new VerificationCheckResult(id, VerificationStatus.SKIPPED_INFRASTRUCTURE,
                 "no reports under build/reports/" + relative, List.of(), List.of());

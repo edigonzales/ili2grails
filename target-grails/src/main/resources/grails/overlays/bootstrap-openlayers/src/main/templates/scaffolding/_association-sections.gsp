@@ -25,11 +25,12 @@
             ]}"/>
             <g:if test="\${contextualForm && section.writable}">
                 <g:if test="\${runtimeWriteAllowed}">
-<g:link controller="\${section.associationController ?: ''}" action="create"
-                        params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
-                        class="btn btn-primary btn-sm mt-2">
-                    \${message(code: 'ili2grails.association.add', args: [section.label], default: section.label + ' hinzufügen')}
-                </g:link>
+                    <g:link controller="\${section.associationController ?: ''}" action="create"
+                            params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
+                            class="btn btn-primary btn-sm mt-2">
+                        \${message(code: 'ili2grails.association.add', args: [section.label], default: section.label + ' hinzufügen')}
+                    </g:link>
+                </g:if>
             </g:if>
         </g:if>
         <g:else>
@@ -109,11 +110,12 @@
 
             <g:if test="\${contextualForm && section.writable}">
                 <g:if test="\${runtimeWriteAllowed}">
-<g:link controller="\${section.associationController ?: ''}" action="create"
-                        params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
-                        class="btn btn-primary btn-sm mt-2">
-                    \${message(code: 'ili2grails.association.add', args: [section.label], default: section.label + ' hinzufügen')}
-                </g:link>
+                    <g:link controller="\${section.associationController ?: ''}" action="create"
+                            params="\${[associationContext: section.contextId, associationOwnerId: owner?.id]}"
+                            class="btn btn-primary btn-sm mt-2">
+                        \${message(code: 'ili2grails.association.add', args: [section.label], default: section.label + ' hinzufügen')}
+                    </g:link>
+                </g:if>
             </g:if>
 
             <g:if test="\${section.more}">
