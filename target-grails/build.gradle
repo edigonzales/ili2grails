@@ -99,7 +99,7 @@ tasks.register('writeVerificationSummary', JavaExec) {
     group = 'verification'
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'ch.interlis.generator.grails.verification.report.VerificationSummaryTask'
-    systemProperty 'reportDir', layout.buildDirectory.dir('reports/ili2grails-verification').get().asFile.absolutePath
+    systemProperty 'reportDir', rootProject.layout.buildDirectory.dir('reports/ili2grails-verification').get().asFile.absolutePath
 }
 
 tasks.register('grailsRuntimeSmokeTest', Test) {

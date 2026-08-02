@@ -203,14 +203,21 @@ public final class VerificationEnvironmentDetector {
         if (output == null || output.isBlank()) {
             return null;
         }
-        return output.strip().lines().findFirst().orElse(null);
+        return stripAnsi(output.strip().lines().findFirst().orElse(null));
     }
 
     private String extractVersion(String output, Pattern pattern) {
         if (output == null) {
             return null;
         }
-        Matcher matcher = pattern.matcher(output);
+        Matcher matcher = pattern.matcher(stripAnsi(output));
         return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private String stripAnsi(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.replaceAll("\\u001B\\[[;\\d]*m", "").trim();
     }
 }
