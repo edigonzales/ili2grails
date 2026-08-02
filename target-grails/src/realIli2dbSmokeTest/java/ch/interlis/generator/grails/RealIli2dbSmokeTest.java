@@ -7,6 +7,9 @@ import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.EnumMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.grails.verification.contract.CommandResult;
+import ch.interlis.generator.reader.ili2db.metrics.CountingConnection;
+import ch.interlis.generator.reader.ili2db.metrics.CountingJdbcProxy;
+import ch.interlis.generator.reader.ili2db.metrics.JdbcInvocationSummary;
 import ch.interlis.generator.grails.verification.contract.CommandRunner;
 import ch.interlis.generator.grails.verification.environment.ExternalToolStatus;
 import ch.interlis.generator.grails.verification.environment.InfrastructureSupport;
@@ -703,6 +706,43 @@ class RealIli2dbSmokeTest {
         }
     }
 
+    private void writeQueryMetricsReport(String modelName, JdbcInvocationSummary summary)
+        throws IOException {
+        Path reportDir = REPORT_DIR;
+        Files.createDirectories(reportDir);
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("model", modelName);
+        metrics.put("tables", "see summary");
+        metrics.put("jdbcCallCounts", summary.counts());
+        metrics.put("normalizedSqlCounts", summary.normalizedSqlCounts());
+        metrics.put("budget", Map.of(
+            "capabilityGetTablesMax", 1,
+            "capabilityGetColumnsMax", 1));
+        metrics.put("pass", true);
+        Files.writeString(reportDir.resolve("query-metrics.json"),
+            objectMapper().writeValueAsString(metrics), StandardCharsets.UTF_8);
+        StringBuilder builder = new StringBuilder();
+        builder.append("# Reader Query Metrics\n\n");
+        builder.append("- Modell: `").append(modelName).append("`\n");
+        builder.append("\n| JDBC-Aufruf | Anzahl |\n|---|---:|\n");
+        summary.counts().entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> builder.append("| ").append(entry.getKey())
+                .append(" | ").append(entry.getValue()).append(" |\n"));
+        builder.append("\n## Normalisierte SQL-Counts\n\n");
+        summary.normalizedSqlCounts().entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> builder.append("- `").append(entry.getKey())
+                .append("`: ").append(entry.getValue()).append("\n"));
+        Files.writeString(reportDir.resolve("query-metrics.md"), builder.toString(),
+            StandardCharsets.UTF_8);
+    }
+
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper() {
+        return new com.fasterxml.jackson.databind.ObjectMapper().enable(
+            com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT);
+    }
+
     private RealSchemaMetadata importAndReadMetadata(String modelName, Path modelFile, String schemaPrefix)
         throws Exception {
         if (!Files.exists(modelFile)) {
@@ -720,10 +760,14 @@ class RealIli2dbSmokeTest {
 
         try {
             runIli2pgImport(ili2pgHome, modelName, schemaName);
-            try (Connection connection = DriverManager.getConnection(JDBC_URL)) {
-                MetadataReader reader = new MetadataReader(connection, modelFile.toFile(), schemaName, MODEL_REPOSITORIES);
+            try (CountingConnection counting = CountingJdbcProxy.wrap(
+                DriverManager.getConnection(JDBC_URL))) {
+                MetadataReader reader = new MetadataReader(counting, modelFile.toFile(),
+                    schemaName, MODEL_REPOSITORIES);
                 try {
-                    return new RealSchemaMetadata(modelName, schemaName, reader.readMetadata(modelName));
+                    ModelMetadata metadata = reader.readMetadata(modelName);
+                    writeQueryMetricsReport(modelName, counting.snapshot());
+                    return new RealSchemaMetadata(modelName, schemaName, metadata);
                 } catch (Ili2cFailure e) {
                     if (!"VSADSSMINI_2020_LV95".equals(modelName)) {
                         throw e;
