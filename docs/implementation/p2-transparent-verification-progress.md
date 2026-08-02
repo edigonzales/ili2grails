@@ -222,6 +222,8 @@ pre-P1-Legacy-Exemplar darf über den Legacy-Migrationspfad entfernt werden.
 - `331d3ce` ci: run verificationFast on pushes and pull requests
 - `d261dce`/`32820b5` docs: P2 verification documentation
 - `e4eedaa` fix: render Grails 7 dev-mode UI views, assets and shell layout app-local
+- `c135808` fix: repair unclosed g:if in association-sections template (E2E 6/6)
+- (docs) correct browser E2E status to fully green (P2-D016)
 
 ## Entscheidungen (fortgeführt)
 
@@ -275,19 +277,23 @@ Plugin-JAR behält seine Kopien für War-Deployments.
 ## Browser-E2E-Status (Stand Abnahme)
 
 Der Browser-E2E lief beim P1-Mergecommit nie (dokumentierter Skip). Nach den
-P2-Fixes (P2-D014/D015) laufen 4 von 6 Tests gegen einen echten Browser:
+P2-Fixes laufen alle 6 Tests gegen einen echten Browser:
 
 - PASSED: CRUD+Relationships+Geometry, List/Search/Filters, Multi-Domain-
-  Workspace, Getting-Started-Inverse.
-- FAILED (vorbestehend, P1-Ära, nie verifiziert): Quick-Link/Association-
-  Delete und Contextual-Association: die Association-Sections auf der
-  Show-Seite rendern leer. Die Registry-Erzeugung ist gegen den realen
-  QuickLinkE2E-Import nachgewiesen korrekt (QUICK-Kontexte, aufgelöste
-  Property-Namen, CONTEXT_IDS_BY_PARTICIPANT). Der Fehler liegt im
-  Runtime-Section-Pfad der gestarteten App und wurde als vorbestehend
-  nachgewiesen: identisches Fehlerbild am P1-Baseline-Commit
-  `e75fb932` (Separate-Worktree-Lauf).
+  Workspace, Getting-Started-Inverse, Quick-Link/Association-Delete und
+  Contextual-Association (6/6).
 
-`verificationFull` ist auf dieser Maschine deshalb rot (browserE2eTest
-required). Alle übrigen Full-Tasks sind grün (Runtime-Smoke, Real-ili2db-
-Smoke, PostgreSQL-Contract inkl. Mapping-Consistency).
+### P2-D016 – Ursache der E2E-Association-Failures (eigener Bug, nicht vorbestehend)
+
+Beim Debuggen der Association-Tests (App-Log der laufenden App) wurde die
+Ursache gefunden: `GrailsTagException: [views/person/_association-sections.gsp]
+Grails tag [g:if] was not closed`. Mein Runtime-Safety-Guard aus P2-C
+(`<g:if test="${runtimeWriteAllowed}">` um den Contextual-Form-Button) hatte
+im `g:else`-Zweig das schliessende `</g:if>` des äusseren
+`contextualForm && section.writable`-`g:if` verschluckt; die Show-Seite
+brach mit einem GSP-Kompilierungsfehler ab und rendert keine
+Association-Sections. Der Fehler war selbstverschuldet (nicht P1-vorbestehend);
+die P1-Baseline zeigte eine andere Fehlerstufe (Plugin-JAR-Views nicht
+auflösbar). Nach der Klammer-Reparatur sind alle 6 E2E-Tests grün.
+
+`verificationFull` ist damit auf dieser Maschine vollständig grün.

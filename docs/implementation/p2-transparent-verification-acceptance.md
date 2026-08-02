@@ -7,8 +7,8 @@ vollständige Reader-Diagnostics, wirksame Runtime-Descriptor-Diagnostics,
 fail-closed Runtime-Safety, versionierter Modellkorpus, Mapping-Consistency
 gegen Hibernate und PostgreSQL, Plan-before-write-Generierung mit Manifest,
 Dry-run, Reader-Query-Budgets, Guards, JaCoCo-Class-Gates und
-GitHub-Fast-Check. `verificationFast` ist grün; alle `verificationFull`-Tasks
-sind grün bis auf zwei vorbestehende Browser-E2E-Tests (siehe unten).
+GitHub-Fast-Check. `verificationFast` und `verificationFull` sind grün,
+inklusive Browser-E2E (6/6).
 
 ## Ausgangscommit und Umgebung
 
@@ -137,8 +137,8 @@ app-lokale Views/Assets/Layout u.a.).
 
 ## Verifikationsprofile
 
-- `verificationFast` (grün) und `verificationFull` (bis auf 2 vorbestehende
-  E2E-Tests grün); keine weiteren Profile.
+- `verificationFast` (grün) und `verificationFull` (grün, inklusive
+  Browser-E2E 6/6); keine weiteren Profile.
 
 ## GitHub Actions
 
@@ -201,7 +201,9 @@ target-grails-build.gradle, settings.gradle, JaCoCo-Gates.
 - `grailsRuntimeSmokeTest` 7/7 grün (inkl. E2E-Regenerationsvertrag).
 - `realIli2dbSmokeTest` grün (inkl. Query-Metrics).
 - `grailsPostgresContractTest` 4/4 grün (Mapping-Consistency).
-- `browserE2eTest` 4/6 grün; 2 vorbestehende Failures (siehe unten).
+- `browserE2eTest` 6/6 grün (inkl. Quick-Link/Association-Delete und
+  Contextual-Association; zwischenzeitliche Failures waren ein eigener
+  GSP-Guard-Bug, P2-D016).
 - Reports: build/reports/ili2grails-verification/summary.json|md,
   build/reports/model-corpus/, target-grails/build/reports/
   grails-postgres-contract/<szenario>/, build/reports/real-ili2db-smoke/.
@@ -210,7 +212,7 @@ target-grails-build.gradle, settings.gradle, JaCoCo-Gates.
 
 | Prüfung | Grund | vorgesehener Befehl | nicht bewiesene Aussage |
 |---|---|---|---|
-| Browser-E2E Association-Tests (2/6) | vorbestehendes P1-Problem (nie ausgeführt); Sections-Pfad rendert leer; identisches Fehlerbild am P1-Baseline-Commit (Separate-Worktree-Lauf) | `./scripts/run-verification-full.sh` bzw. `:target-grails:browserE2eTest -PbrowserE2eRequired=true` | „alle Browser-Pfade grün“; Quick-Link-/Contextual-Form-Pfade |
+| (keine) | Browser-E2E ist vollständig grün (6/6); die zwischenzeitlichen Association-Failures waren ein eigener GSP-Guard-Bug (P2-D016), behoben | `./scripts/run-verification-full.sh` | – |
 | GitHub-Workflow-Lauf | kein Push (nur lokale Arbeit) | Workflow `verification-fast.yml` | „CI auf GitHub grün“ |
 | War-Deployment-Rendering | nicht Teil von P2 | – | Plugin-JAR-Views im War-Modus |
 
@@ -219,14 +221,13 @@ target-grails-build.gradle, settings.gradle, JaCoCo-Gates.
 - `RuntimeDescriptorSeverity`/`RuntimeDescriptorPlanningException`-Modul-
   Zuordnung (P2-D006, begründet).
 - `GenerationPlan` trägt zusätzlich den Modellnamen (P2-D011).
-- Browser-E2E nicht vollständig grün (2 vorbestehende Failures, siehe oben).
+- Keine; Browser-E2E vollständig grün (6/6).
 
 ## Verbleibende Risiken
 
-- Association-Sections-Rendering im Browser (vorbestehend, P1-Ära):
-  Die Registry-Erzeugung ist gegen den realen Import nachgewiesen korrekt;
-  der Fehler liegt im Runtime-Section-Pfad der gestarteten App und braucht
-  eine Laufzeit-Debugging-Sitzung mit der laufenden App.
+- Keine bekannten offenen Risiken aus der Browser-E2E-Seite mehr; die
+  zwischenzeitlichen Failures waren ein eigener GSP-Klammerungs-Bug
+  (P2-D016), behoben und durch 6/6 grüne E2E-Tests belegt.
 - VSADSSMINI-Szenario hängt vom externen Modell-Repository ab
   (Infrastruktur-Skip bei Nichterreichbarkeit).
 - Der GitHub-Fast-Check ist konfiguriert, aber noch nicht auf einem
@@ -248,7 +249,6 @@ target-grails-build.gradle, settings.gradle, JaCoCo-Gates.
   Mismatches, Reports vorhanden.
 - Regeneration: Plan vor Write, Dry-run, Manifest, Idempotenz,
   User-modified-Blocking, application-owned-Schutz, Manifest zuletzt.
-- Tests: Standardtests, Runtime-Smoke, Real-ili2db-Smoke und
-  PostgreSQL-Contract grün; Browser-E2E 4/6 grün (2 vorbestehende
-  Failures dokumentiert); Verification-Summary vorhanden; keine Secrets
-  in Reports (Guard).
+- Tests: Standardtests, Runtime-Smoke, Real-ili2db-Smoke,
+  PostgreSQL-Contract und Browser-E2E grün (6/6);
+  Verification-Summary PASSED (complete); keine Secrets in Reports (Guard).
