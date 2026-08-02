@@ -207,4 +207,87 @@ pre-P1-Legacy-Exemplar darf über den Legacy-Migrationspfad entfernt werden.
 
 ## Commit-Liste
 
-- (Noch keine; erste Commits folgen ab Phase 1.)
+- `390cc8e` docs: record P2 transparent verification baseline
+- `6a7c44d` build: pin Java 17 toolchain and add verification profiles
+- `d60a6d7` test: centralize external verification environment detection
+- `7ab8db7` refactor(core): align ili2db request context and diagnostic semantics
+- `4ddd44d` refactor(grails): emit blocking runtime descriptor diagnostics
+- `45e43a4` fix(runtime): enforce read-only safety state for invalid descriptors
+- `4779f9d` test: add versioned INTERLIS model corpus and feature matrix
+- `891b5bc` test: compare expected GORM mapping with Hibernate and PostgreSQL
+- `3658897` refactor(grails): plan all generated project changes before writing
+- `a45837f` test: add regeneration manifest and user-change protection contracts
+- `6ed0904` test: enforce ili2db query budgets
+- `26077a5` build: add focused JaCoCo and generation boundary guards
+- `331d3ce` ci: run verificationFast on pushes and pull requests
+- `d261dce`/`32820b5` docs: P2 verification documentation
+- `e4eedaa` fix: render Grails 7 dev-mode UI views, assets and shell layout app-local
+
+## Entscheidungen (fortgeführt)
+
+### P2-D005 – Reader-Diagnostic-Codes ohne Duplikat
+`DUPLICATE_PHYSICAL_CLASS`/`DUPLICATE_PHYSICAL_COLUMN` wurden aus
+`Ili2dbDiagnosticCode` entfernt: die einzige Wahrheit für physische Duplikate
+ist `ModelMetadataDiagnosticCode` im Modell-Validator.
+
+### P2-D006 – RuntimeDescriptorSeverity im runtime-api, Exception im Generator
+`RuntimeDescriptorSeverity` liegt im `grails-runtime-api` (reiner API-Typ);
+`RuntimeDescriptorPlanningException` referenziert die target-grails-eigene
+`RuntimeDescriptorDiagnostic` und bleibt im Generator (Abweichung von der
+Modul-Zuordnung in Anhang A, begründet durch die reale Paketlage).
+
+### P2-D007 – Semantic-only Corpus-Generierung bei unvollständiger Auswahl
+Die ili2c-semantische Lesung liefert nur Root-Klassen; Szenarien mit
+Abhängigkeiten (model-selection) belegen die Auswahl-Semantik über
+`selectedModels` und generieren ohne Kompilierung.
+
+### P2-D008/P2-D009 – Dokumentierte Mapping-Einschränkungen (allowedDifferences)
+- Ternäre Association-Rollen mit erweiterten Zielklassen: der
+  Rolle-zu-Attribut-Match löst `parcelrole_base_parcel` nicht auf
+  (GORM-Default `parcel_role_id`); im Corpus dokumentiert.
+- Eingebettete STRUCTURE-Referenzen besitzen keine physische FK-Spalte;
+  im Corpus dokumentiert.
+
+### P2-D010 – ProjectFileOwner delegiert an GrailsProjectFileOwner
+Der vorhandene Owner-Enum ist die einzige Owner-Wahrheit; `ProjectFileOwner`
+ist ein Delegations-Typ im plan-Paket.
+
+### P2-D011 – GenerationPlan trägt den Modellnamen
+Der Plan benötigt den Modellnamen für das Manifest; zusätzliches Record-Feld.
+
+### P2-D012 – Legacy-Scan nur für Runtime-Package-Dateien blockierend
+main.gsp/Assets/i18n gehören auch der App; dort nur WARNING. main.gsp-
+Löschung nur mit Herkunfts-Evidenz (vorhandene Legacy-Runtime-Dateien).
+
+### P2-D013 – Runtime-Dependency-Insertion im top-level dependencies-Block
+Die Insertion überspringt den buildscript-Block (sonst
+`implementation()`-Fehler im buildscript).
+
+### P2-D014/P2-D015 – Grails-7-Dev-Mode: Views, Assets, Layout app-lokal
+Grails 7 kann Plugin-JAR-Views/Assets im bootRun-Modus nicht auflösen und
+verkettet Layouts nicht. Die generierte App erhält die interlisUi-Views,
+die ili-*-JS-Assets, `ili-modern.css` und das Shell-Layout als
+GENERATOR_MANAGED app-lokale Dateien; ein byte-identisches
+Grails-Scaffold-main.gsp wird einmalig auf das Shell-Layout angehoben
+(APPLICATION_OWNED; benutzerveränderte main.gsp bleiben unberührt). Das
+Plugin-JAR behält seine Kopien für War-Deployments.
+
+## Browser-E2E-Status (Stand Abnahme)
+
+Der Browser-E2E lief beim P1-Mergecommit nie (dokumentierter Skip). Nach den
+P2-Fixes (P2-D014/D015) laufen 4 von 6 Tests gegen einen echten Browser:
+
+- PASSED: CRUD+Relationships+Geometry, List/Search/Filters, Multi-Domain-
+  Workspace, Getting-Started-Inverse.
+- FAILED (vorbestehend, P1-Ära, nie verifiziert): Quick-Link/Association-
+  Delete und Contextual-Association: die Association-Sections auf der
+  Show-Seite rendern leer. Die Registry-Erzeugung ist gegen den realen
+  QuickLinkE2E-Import nachgewiesen korrekt (QUICK-Kontexte, aufgelöste
+  Property-Namen, CONTEXT_IDS_BY_PARTICIPANT). Der Fehler liegt im
+  Runtime-Section-Pfad der gestarteten App und wurde als vorbestehend
+  nachgewiesen: identisches Fehlerbild am P1-Baseline-Commit
+  `e75fb932` (Separate-Worktree-Lauf).
+
+`verificationFull` ist auf dieser Maschine deshalb rot (browserE2eTest
+required). Alle übrigen Full-Tasks sind grün (Runtime-Smoke, Real-ili2db-
+Smoke, PostgreSQL-Contract inkl. Mapping-Consistency).
