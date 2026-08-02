@@ -222,6 +222,68 @@ class GrailsRegenerationContractTest {
     }
 
     @Test
+    void modifiedLegacyRuntimeFileBlocksEntireApply() throws Exception {
+        Path projectDir = tempDir.resolve("legacy-modified");
+        Files.createDirectories(projectDir);
+        GenerationConfig config = config(projectDir);
+        GrailsCrudGenerator generator = new GrailsCrudGenerator();
+        generator.generate(sampleMetadata(), config);
+
+        // Legacy-Runtime-Datei mit verändertem Hash anlegen (Herkunfts-Evidenz:
+        // ein weiterer Legacy-Runtime-Pfad existiert).
+        Path legacyDir = projectDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/runtime");
+        Files.createDirectories(legacyDir);
+        Files.writeString(legacyDir.resolve("InterlisLegacyProbe.groovy"),
+            "class InterlisLegacyProbe {}\n");
+        Path legacyService = projectDir.resolve(
+            "grails-app/services/ch/interlis/generator/grails/runtime/"
+                + "InterlisAssociationQueryService.groovy");
+        Files.createDirectories(legacyService.getParent());
+        Files.writeString(legacyService,
+            "class InterlisAssociationQueryService { String hacked }\n");
+
+        GenerationPlan plan = generator.plan(sampleMetadata(), config);
+        assertThat(plan.hasBlockingDiagnostics()).isTrue();
+        assertThat(plan.diagnostics())
+            .filteredOn(diagnostic ->
+                diagnostic.code() == GenerationDiagnosticCode.MODIFIED_LEGACY_RUNTIME_FILE)
+            .isNotEmpty();
+        assertThatThrownBy(() -> generator.generate(sampleMetadata(), config))
+            .isInstanceOf(ch.interlis.generator.grails.GrailsGenerationBlockedException.class)
+            .hasMessageContaining("no project files were changed");
+    }
+
+    @Test
+    void textEditsPlanAssetsAndSpringResources() throws Exception {
+        Path projectDir = tempDir.resolve("text-edits");
+        Files.createDirectories(projectDir.resolve("grails-app/assets/javascripts"));
+        Files.createDirectories(projectDir.resolve("grails-app/assets/stylesheets"));
+        Files.createDirectories(projectDir.resolve("grails-app/conf/spring"));
+        Files.writeString(projectDir.resolve("build.gradle"),
+            "buildscript {}\n\ndependencies {\n    implementation \"x:y:1\"\n}\n");
+        Files.writeString(projectDir.resolve("grails-app/conf/application.yml"),
+            "environments:\n  development:\n    dataSource:\n      url: jdbc:h2:mem:x\n");
+        Files.writeString(projectDir.resolve("grails-app/assets/javascripts/application.js"),
+            "//= require_self\n");
+        Files.writeString(projectDir.resolve("grails-app/assets/stylesheets/application.css"),
+            "/*= require_self */\n");
+        Files.writeString(projectDir.resolve("grails-app/conf/spring/resources.groovy"),
+            "beans {}\n");
+
+        GenerationConfig config = config(projectDir);
+        GrailsCrudGenerator generator = new GrailsCrudGenerator();
+        GenerationPlan plan = generator.plan(sampleMetadata(), config);
+        assertThat(plan.hasBlockingDiagnostics()).isFalse();
+        assertThat(plan.changes())
+            .filteredOn(change -> change.relativePath().toString().endsWith("application.js"))
+            .isNotEmpty();
+        assertThat(plan.changes())
+            .filteredOn(change -> change.relativePath().toString().endsWith("resources.groovy"))
+            .isNotEmpty();
+    }
+
+    @Test
     void planOrderingIsDeterministic() throws Exception {
         Path projectDir = tempDir.resolve("ordering");
         Files.createDirectories(projectDir);
