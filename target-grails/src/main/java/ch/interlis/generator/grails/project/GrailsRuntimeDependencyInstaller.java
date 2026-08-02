@@ -17,7 +17,7 @@ import java.util.Objects;
  */
 public final class GrailsRuntimeDependencyInstaller {
 
-    private static final String DEPENDENCY_MARKER = "ili2grails-runtime";
+    private static final String DEPENDENCY_MARKER = "ili2grails-runtime-dependency";
 
     private final ch.interlis.generator.grails.GrailsBuildGradleUpdater buildGradleUpdater =
         new ch.interlis.generator.grails.GrailsBuildGradleUpdater();
@@ -47,6 +47,12 @@ public final class GrailsRuntimeDependencyInstaller {
         if (existingContent == null) {
             return new TextFileEdit(relativePath, null, false, "build.gradle missing");
         }
+        // Managed-Block vorhanden: idempotent, nichts zu tun. Die Prüfung
+        // erfolgt VOR dem Strippen, damit der Block nie doppelt eingefügt wird.
+        if (existingContent.contains("// <" + DEPENDENCY_MARKER + ">")) {
+            return new TextFileEdit(relativePath, existingContent, false,
+                "runtime plugin dependency present");
+        }
         List<String> lines = new java.util.ArrayList<>(List.of(existingContent.split("\\n", -1)));
         List<String> stripped = new java.util.ArrayList<>();
         boolean inBlock = false;
@@ -69,13 +75,50 @@ public final class GrailsRuntimeDependencyInstaller {
             stripped.add(line);
         }
         String content = String.join("\n", stripped);
-        boolean blockPresent = content.contains(managedBlock(coordinates));
-        if (!blockPresent) {
-            content = content.replaceFirst("dependencies \\{",
-                "dependencies {\n" + "    " + managedBlock(coordinates) + "\n");
+        int insertAt = -1;
+        int[] buildscriptRange = findBlockRange(content, "buildscript", null);
+        int[] dependenciesRange = findBlockRange(content, "dependencies", buildscriptRange);
+        insertAt = dependenciesRange != null ? dependenciesRange[0] : -1;
+        if (insertAt < 0) {
+            insertAt = content.indexOf("dependencies {");
         }
-        return new TextFileEdit(relativePath, content, !content.equals(existingContent),
-            "runtime plugin dependency");
+        if (insertAt < 0) {
+            throw new IllegalStateException(
+                "Cannot locate top-level dependencies block in build.gradle");
+        }
+        int brace = content.indexOf('{', insertAt);
+        String before = content.substring(0, brace + 1);
+        String after = content.substring(brace + 1);
+        content = before + "\n    " + managedBlock(coordinates) + "\n" + after;
+        return new TextFileEdit(relativePath, content, true, "runtime plugin dependency");
+    }
+
+    /**
+     * Findet den Block-Range eines top-level Blocks ({@code name { ... }}).
+     * Der buildscript-Block wird übersprungen, damit die Runtime-Dependency
+     * nie im buildscript-dependencies-Block landet (P2-D013).
+     */
+    private static int[] findBlockRange(String content, String blockName,
+                                        int[] skipRange) {
+        int searchFrom = skipRange != null ? skipRange[1] : 0;
+        int start = content.indexOf(blockName + " {", searchFrom);
+        if (start < 0) {
+            return null;
+        }
+        int brace = content.indexOf('{', start);
+        int depth = 0;
+        for (int i = brace; i < content.length(); i++) {
+            char c = content.charAt(i);
+            if (c == '{') {
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0) {
+                    return new int[] {start, i + 1};
+                }
+            }
+        }
+        return new int[] {start, content.length()};
     }
 
     static String managedBlock(RuntimeCoordinates coordinates) {

@@ -104,15 +104,24 @@ public final class GrailsGenerationPlanner {
         // 3. Text-Updater für application-owned idempotente Dateien
         plannedFiles.addAll(planTextEdits(projectRoot, config, runtimeCoordinates));
 
-        // 4. Legacy-Scan
+        // 4. Legacy-Scan (Spezifikation §42.2, P2-D012): Nur Dateien in den
+        // Runtime-Package-Verzeichnissen haben eindeutige Legacy-Herkunft;
+        // dort blockieren Modifikationen. Pfade, die auch die App selbst
+        // besitzt (main.gsp, Assets, i18n), erzeugen nur eine WARNING und
+        // werden nie angefasst.
         LegacyRuntimeScanResult scanResult = legacyScanner.scan(projectRoot);
+        boolean legacyProvenance = hasLegacyRuntimeFiles(projectRoot);
         for (LegacyFileMatch modified : scanResult.modifiedFiles()) {
+            boolean runtimePackage = isRuntimePackagePath(modified.relativePath());
             diagnostics.add(new GenerationDiagnostic(
-                ProjectCustomizationDiagnostic.Level.ERROR,
+                runtimePackage
+                    ? ProjectCustomizationDiagnostic.Level.ERROR
+                    : ProjectCustomizationDiagnostic.Level.WARNING,
                 GenerationDiagnosticCode.MODIFIED_LEGACY_RUNTIME_FILE,
                 modified.relativePath(),
                 "Modified legacy runtime file requires manual migration; it will not be deleted.",
-                Map.of("sha256", modified.actualSha256())));
+                Map.of("sha256", modified.actualSha256(),
+                    "runtimePackage", String.valueOf(runtimePackage))));
         }
         for (Path unknown : scanResult.unknownRuntimeFiles()) {
             diagnostics.add(new GenerationDiagnostic(
@@ -123,6 +132,14 @@ public final class GrailsGenerationPlanner {
                 Map.of()));
         }
         for (LegacyFileMatch known : scanResult.knownUnmodifiedFiles()) {
+            // main.gsp ist immer APPLICATION_OWNED (P2-D003): Die Löschung
+            // eines lokalen main.gsp ist nur über den expliziten
+            // Legacy-Migrationspfad erlaubt, wenn das Projekt nachweislich
+            // Legacy-Runtime-Dateien besitzt (Herkunfts-Evidenz).
+            if (known.relativePath().toString().endsWith("views/layouts/main.gsp")
+                && !legacyProvenance) {
+                continue;
+            }
             plannedFiles.add(new PlannedProjectFile(
                 known.relativePath(),
                 GrailsProjectFileOwner.LEGACY_RUNTIME,
@@ -142,6 +159,35 @@ public final class GrailsGenerationPlanner {
         changes.sort(Comparator.comparing(change -> change.relativePath().toString()));
         return new GenerationPlan(PLAN_SCHEMA_VERSION, metadata.getModelName(),
             modelFingerprint, configFingerprint, changes, diagnostics);
+    }
+
+    private boolean hasLegacyRuntimeFiles(Path projectRoot) {
+        List<String> runtimeDirs = List.of(
+            "src/main/groovy/ch/interlis/generator/grails/runtime",
+            "grails-app/services/ch/interlis/generator/grails/runtime",
+            "grails-app/controllers/ch/interlis/generator/grails/runtime",
+            "grails-app/taglib/ch/interlis/generator/grails/runtime");
+        for (String dir : runtimeDirs) {
+            Path path = projectRoot.resolve(dir);
+            if (Files.isDirectory(path)) {
+                try (var files = Files.list(path)) {
+                    if (files.findAny().isPresent()) {
+                        return true;
+                    }
+                } catch (IOException ignored) {
+                    // nicht lesbar zählt nicht als Herkunft
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isRuntimePackagePath(Path relativePath) {
+        String path = relativePath.toString().replace('\\', '/');
+        return path.startsWith("src/main/groovy/ch/interlis/generator/grails/runtime")
+            || path.startsWith("grails-app/services/ch/interlis/generator/grails/runtime")
+            || path.startsWith("grails-app/controllers/ch/interlis/generator/grails/runtime")
+            || path.startsWith("grails-app/taglib/ch/interlis/generator/grails/runtime");
     }
 
     private List<PlannedProjectFile> planTextEdits(Path projectRoot,

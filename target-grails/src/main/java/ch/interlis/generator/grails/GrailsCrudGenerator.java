@@ -50,13 +50,22 @@ public final class GrailsCrudGenerator {
         GenerationPlan plan = plan(metadata, config);
         if (plan.hasBlockingDiagnostics()) {
             GenerationPlanSummary summary = plan.summary();
-            throw new GrailsGenerationBlockedException(plan,
-                "Generation blocked; no project files were changed.\n"
-                    + "  CREATE: " + summary.create() + "\n"
-                    + "  UPDATE: " + summary.update() + "\n"
-                    + "  DELETE: " + summary.delete() + "\n"
-                    + "  UNCHANGED: " + summary.unchanged() + "\n"
-                    + "  BLOCKED: " + summary.blocked());
+            StringBuilder message = new StringBuilder();
+            message.append("Generation blocked; no project files were changed.\n")
+                .append("  CREATE: ").append(summary.create()).append("\n")
+                .append("  UPDATE: ").append(summary.update()).append("\n")
+                .append("  DELETE: ").append(summary.delete()).append("\n")
+                .append("  UNCHANGED: ").append(summary.unchanged()).append("\n")
+                .append("  BLOCKED: ").append(summary.blocked()).append("\n");
+            for (ch.interlis.generator.grails.project.plan.GenerationDiagnostic diagnostic
+                : plan.diagnostics()) {
+                if (diagnostic.blocking()) {
+                    message.append("  ").append(diagnostic.code()).append(" ")
+                        .append(diagnostic.relativePath() == null ? "" : diagnostic.relativePath())
+                        .append(" ").append(diagnostic.message()).append("\n");
+                }
+            }
+            throw new GrailsGenerationBlockedException(plan, message.toString());
         }
         return apply(plan, config);
     }
