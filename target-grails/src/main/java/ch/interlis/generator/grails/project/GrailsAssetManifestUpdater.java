@@ -28,7 +28,8 @@ public final class GrailsAssetManifestUpdater {
     );
     private static final List<String> APPLICATION_CSS_REQUIRES = List.of(
         "*= require webjars/bootstrap/5.3.3/css/bootstrap.min.css",
-        "*= require webjars/ol/9.2.4/ol.css"
+        "*= require webjars/ol/9.2.4/ol.css",
+        "*= require ili-modern.css"
     );
     private static final List<String> LEGACY_APPLICATION_JS_REQUIRES = List.of(
         "//= require ili-carbon-input-bridge.js"

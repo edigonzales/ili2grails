@@ -165,9 +165,15 @@ class GrailsRuntimeSmokeTest {
         assertThat(appDir.resolve(
             "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy"
         )).doesNotExist();
-        assertThat(appDir.resolve("grails-app/views/interlisUi/index.gsp")).doesNotExist();
-        assertThat(appDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).doesNotExist();
-        assertThat(appDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).doesNotExist();
+        // UI-Views sind seit P2-D014 generator-managed app-lokal (Grails 7
+        // kann Plugin-JAR-Views im Dev-Modus nicht auflösen); Runtime-KLASSEN
+        // kommen weiterhin ausschliesslich aus dem Plugin-JAR.
+        assertThat(appDir.resolve("grails-app/views/interlisUi/index.gsp")).exists();
+        // JS/CSS der Runtime sind seit P2-D014 ebenfalls generator-managed
+        // app-lokal (Grails-7-Dev-Mode-Einschränkung), damit die App im
+        // bootRun-Modus die Shell rendern kann.
+        assertThat(appDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).exists();
+        assertThat(appDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).exists();
 
         Path associationSectionsGsp = appDir.resolve(
             "src/main/templates/scaffolding/_association-sections.gsp");

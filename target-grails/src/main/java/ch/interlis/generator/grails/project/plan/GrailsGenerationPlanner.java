@@ -38,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -100,6 +101,9 @@ public final class GrailsGenerationPlanner {
         plannedFiles.add(associationRegistryGenerator.plan(descriptorPlan, config));
         plannedFiles.add(uiRegistryGenerator.plan(descriptorPlan, config, registry));
         plannedFiles.addAll(scaffoldingInstaller.plan());
+        plannedFiles.addAll(scaffoldingInstaller.planUiViews());
+        plannedFiles.addAll(scaffoldingInstaller.planUiAssets());
+        plannedFiles.addAll(scaffoldingInstaller.planUiStylesheet());
 
         // 3. Text-Updater für application-owned idempotente Dateien
         plannedFiles.addAll(planTextEdits(projectRoot, config, runtimeCoordinates));
@@ -131,6 +135,9 @@ public final class GrailsGenerationPlanner {
                 "Unknown legacy runtime file blocks generation; remove it manually.",
                 Map.of()));
         }
+        Set<String> plannedPaths = plannedFiles.stream()
+            .map(file -> file.relativePath().toString())
+            .collect(java.util.stream.Collectors.toSet());
         for (LegacyFileMatch known : scanResult.knownUnmodifiedFiles()) {
             // main.gsp ist immer APPLICATION_OWNED (P2-D003): Die Löschung
             // eines lokalen main.gsp ist nur über den expliziten
@@ -138,6 +145,13 @@ public final class GrailsGenerationPlanner {
             // Legacy-Runtime-Dateien besitzt (Herkunfts-Evidenz).
             if (known.relativePath().toString().endsWith("views/layouts/main.gsp")
                 && !legacyProvenance) {
+                continue;
+            }
+            // Pfade, die der Generator jetzt selbst verwaltet (z.B. die
+            // app-lokalen UI-Views, P2-D014), werden nicht als Legacy
+            // gelöscht - der Legacy-Migrationspfad gilt nur für Dateien,
+            // die nicht erneut generiert werden.
+            if (plannedPaths.contains(known.relativePath().toString())) {
                 continue;
             }
             plannedFiles.add(new PlannedProjectFile(
@@ -190,6 +204,34 @@ public final class GrailsGenerationPlanner {
             || path.startsWith("grails-app/taglib/ch/interlis/generator/grails/runtime");
     }
 
+    /**
+     * P2-D015: Das unveränderte Grails-Scaffold-main.gsp (byte-identisch zum
+     * bekannten create-app-Stand) wird einmalig durch die Plugin-Delegation
+     * ersetzt, damit die generierte App die ili2grails-Shell rendert. Ein
+     * benutzerverändertes main.gsp wird nie angefasst (APPLICATION_OWNED).
+     */
+    static final String GRAILS_SCAFFOLD_MAIN_GSP_SHA256 =
+        "5c32efe05e1084384905ca872e6fe0c7e8d01a3b6012b45f373d7802af9881ea";
+
+    private static final String MAIN_GSP_DELEGATION = readMainGspShellLayout();
+
+    /**
+     * Grails 7 kann Layouts nicht über Meta-Tags verketten: Die app-lokale
+     * main.gsp muss daher den vollständigen Shell-Layout-Inhalt enthalten
+     * (P2-D015). Die Quelle ist das Plugin-Layout im Overlay.
+     */
+    private static String readMainGspShellLayout() {
+        try (var input = GrailsGenerationPlanner.class.getClassLoader()
+            .getResourceAsStream("grails/overlays/ui-views/layouts/ili2grails.gsp")) {
+            if (input == null) {
+                throw new IllegalStateException("Missing overlay layout ili2grails.gsp");
+            }
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot read overlay layout ili2grails.gsp", e);
+        }
+    }
+
     private List<PlannedProjectFile> planTextEdits(Path projectRoot,
                                                    GenerationConfig config,
                                                    RuntimeCoordinates runtimeCoordinates)
@@ -235,6 +277,14 @@ public final class GrailsGenerationPlanner {
             edits.put(Path.of("grails-app/conf/spring/resources.groovy"),
                 configUpdater.plan(Path.of("grails-app/conf/spring/resources.groovy"),
                     Files.readString(resourcesGroovy, StandardCharsets.UTF_8), config));
+        }
+        Path mainGsp = projectRoot.resolve("grails-app/views/layouts/main.gsp");
+        if (Files.isRegularFile(mainGsp)
+            && ModelMetadataFingerprint.sha256(Files.readAllBytes(mainGsp))
+                .equals(GRAILS_SCAFFOLD_MAIN_GSP_SHA256)) {
+            planned.add(PlannedProjectFile.text(Path.of("grails-app/views/layouts/main.gsp"),
+                GrailsProjectFileOwner.APPLICATION_OWNED, MAIN_GSP_DELEGATION,
+                "replace unmodified Grails scaffold main.gsp with the ili2grails shell layout"));
         }
 
         for (TextFileEdit edit : edits.values()) {
