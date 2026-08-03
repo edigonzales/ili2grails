@@ -1,0 +1,31 @@
+INTERLIS 2.4;
+
+MODEL GeometryBasicCases (en)
+  AT "mailto:ili2grails@example.org" VERSION "2026-01-01" =
+
+  TOPIC Geometry =
+
+    DOMAIN
+      CHKoordinaten = COORD
+        2480000.000 .. 2840000.000,
+        1070000.000 .. 1300000.000,
+        ROTATION 2 -> 1;
+
+    CLASS PointObject =
+      Name: MANDATORY TEXT;
+      Position: MANDATORY CHKoordinaten;
+    END PointObject;
+
+    CLASS LineObject =
+      Name: MANDATORY TEXT;
+      Geometry: POLYLINE WITH (STRAIGHTS) VERTEX CHKoordinaten;
+    END LineObject;
+
+    CLASS SurfaceObject =
+      Name: MANDATORY TEXT;
+      Geometry: SURFACE WITH (STRAIGHTS) VERTEX CHKoordinaten WITHOUT OVERLAPS > 0.001;
+    END SurfaceObject;
+
+  END Geometry;
+
+END GeometryBasicCases.

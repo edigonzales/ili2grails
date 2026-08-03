@@ -13,13 +13,11 @@ import ch.interlis.generator.reader.ili2db.catalog.Ili2dbCatalogReader;
 import ch.interlis.generator.reader.ili2db.catalog.Ili2dbCatalogSnapshot;
 import ch.interlis.generator.reader.ili2db.catalog.ModelRow;
 import ch.interlis.generator.reader.ili2db.schema.DatabaseDialect;
-import ch.interlis.generator.reader.ili2db.schema.DatabaseDialectDetector;
 import ch.interlis.generator.reader.ili2db.schema.DefaultJdbcSchemaIntrospector;
 import ch.interlis.generator.reader.ili2db.schema.GeometryIntrospectorFactory;
 import ch.interlis.generator.reader.ili2db.schema.GeometrySchemaSnapshot;
 import ch.interlis.generator.reader.ili2db.schema.JdbcSchemaIntrospector;
 import ch.interlis.generator.reader.ili2db.schema.JdbcSchemaSnapshot;
-import ch.interlis.generator.reader.ili2db.schema.PostgisGeometryIntrospector;
 import ch.interlis.generator.reader.ili2db.schema.SqliteSchemaIntrospector;
 import ch.interlis.generator.reader.sql.QualifiedSqlName;
 import ch.interlis.generator.reader.sql.SqlIdentifier;
@@ -28,10 +26,12 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Orchestriert einen ili2db-Lesedurchgang: Katalog lesen (typed Rows),
@@ -39,6 +39,11 @@ import java.util.Set;
  * batchweise), Enum-Werte lesen und die IR über den Assembler bauen.
  * Die Phasen bleiben strikt getrennt; der Assembler ist die einzige Stelle,
  * die IR-Builder erzeugt.
+ *
+ * <p>Koordinatoren-Regel (Spezifikation §13.2): Die Auswahl stammt
+ * ausschliesslich aus {@code request.modelSelection()}, die Policy
+ * ausschliesslich aus {@code request.failurePolicy()} und das Schema
+ * ausschliesslich aus {@code context.schema()}.</p>
  */
 public final class Ili2dbReadCoordinator {
 
@@ -59,7 +64,12 @@ public final class Ili2dbReadCoordinator {
         Map<String, String> settings = catalogReader.readSettings(context, capabilities, diagnostics);
         List<ModelRow> models = catalogReader.readModels(context, capabilities, diagnostics);
 
-        Set<String> effectiveModels = effectiveModelNames(context, models, diagnostics);
+        Set<String> effectiveModels = effectiveModelNames(request, models, diagnostics);
+        if (effectiveModels.isEmpty()) {
+            // Das Root-Modell fehlt; die FATAL-Diagnostic ist bereits erfasst.
+            return new Ili2dbReadResult(null, null, JdbcSchemaSnapshot.empty(),
+                GeometrySchemaSnapshot.empty(), diagnostics);
+        }
 
         List<ClassMappingRow> classes = catalogReader.readClasses(
             context, capabilities, diagnostics, effectiveModels);
@@ -81,13 +91,13 @@ public final class Ili2dbReadCoordinator {
             capabilities
         );
 
-        JdbcSchemaSnapshot schema = inspectSchema(context, tableNames);
+        JdbcSchemaSnapshot schema = inspectSchema(context, tableNames, diagnostics);
         GeometrySchemaSnapshot geometry = inspectGeometry(context, request, tableNames, diagnostics);
 
         ModelMetadataBuilder builder = assembler.assemble(context, catalog, schema, geometry,
-            diagnostics);
+            request.modelSelection(), diagnostics);
         relationshipDeriver.derive(builder);
-        associationDeriver.derive(builder);
+        associationDeriver.derive(builder, diagnostics);
 
         ModelMetadata metadata = metadataFactory.buildValidated(builder);
         logger.info("Metadata reading complete: {} classes, {} enums",
@@ -97,16 +107,22 @@ public final class Ili2dbReadCoordinator {
     }
 
     /**
-     * Effektive Modellnamen = Auswahl ∩ verfügbare DB-Modelle. Das Root-Modell
-     * muss in der Datenbank vorhanden sein (sonst Fehler). Fehlende benötigte
-     * Dependencies werden übersprungen und gewarnt; unabhängige DB-Modelle werden
-     * nie hinzugefügt. Wenn die Metatabelle nicht lesbar ist (leere
-     * Verfügbarkeitsmenge), wird Root-only gelesen.
+     * Effektive Modellnamen = Auswahl ∩ verfügbare DB-Modelle.
+     *
+     * <ul>
+     *   <li>Root-Modell fehlt in der Datenbank: {@code REQUESTED_MODEL_MISSING}
+     *       als FATAL-Diagnostic (keine {@code IllegalArgumentException}).</li>
+     *   <li>Benötigte Dependency fehlt: {@code SELECTED_DEPENDENCY_MISSING}
+     *       als WARNING-Diagnostic (nicht nur loggen).</li>
+     *   <li>Unabhängige DB-Modelle werden nie hinzugefügt.</li>
+     *   <li>Wenn die Metatabelle nicht lesbar ist (leere Verfügbarkeitsmenge),
+     *       wird Root-only gelesen (WARNING).</li>
+     * </ul>
      */
-    private Set<String> effectiveModelNames(Ili2dbReadContext context,
+    private Set<String> effectiveModelNames(Ili2dbReadRequest request,
                                             List<ModelRow> databaseModels,
                                             List<Ili2dbDiagnostic> diagnostics) {
-        ModelSelection selection = context.modelSelection();
+        ModelSelection selection = request.modelSelection();
         Set<String> available = new LinkedHashSet<>();
         for (ModelRow row : databaseModels) {
             if (row.modelName() != null && !row.modelName().isBlank()) {
@@ -114,20 +130,41 @@ public final class Ili2dbReadCoordinator {
             }
         }
         if (available.isEmpty()) {
-            logger.warn("Dependency graph models not verifiable against t_ili2db_model; "
-                + "reading root model only: {}", selection.rootModelName());
+            diagnostics.add(new Ili2dbDiagnostic(
+                Ili2dbSeverity.WARNING,
+                Ili2dbDiagnosticCode.OPTIONAL_META_TABLE_MISSING,
+                "t_ili2db_model is not readable; dependency graph not verifiable, "
+                    + "reading root model only",
+                null, "t_ili2db_model", Map.of()));
             return new LinkedHashSet<>(Set.of(selection.rootModelName()));
         }
         if (!available.contains(selection.rootModelName())) {
-            throw new IllegalArgumentException(
-                "Root model not found in t_ili2db_model: " + selection.rootModelName());
+            List<String> sortedAvailable = new TreeSet<>(available).stream().limit(50).toList();
+            Map<String, String> details = new LinkedHashMap<>();
+            details.put("requestedModel", selection.rootModelName());
+            details.put("availableModelCount", String.valueOf(available.size()));
+            details.put("availableModels", String.join(", ", sortedAvailable));
+            diagnostics.add(new Ili2dbDiagnostic(
+                Ili2dbSeverity.FATAL,
+                Ili2dbDiagnosticCode.REQUESTED_MODEL_MISSING,
+                "Root model not found in t_ili2db_model: " + selection.rootModelName(),
+                selection.rootModelName(), "t_ili2db_model", details));
+            return Set.of();
         }
         Set<String> effective = new LinkedHashSet<>();
         for (String name : selection.includedModelNames()) {
             if (available.contains(name)) {
                 effective.add(name);
             } else {
-                logger.warn("Requested model {} is not present in t_ili2db_model; skipping.", name);
+                Map<String, String> details = new LinkedHashMap<>();
+                details.put("rootModel", selection.rootModelName());
+                details.put("missingDependency", name);
+                details.put("selectedModelCount", String.valueOf(selection.includedModelNames().size()));
+                diagnostics.add(new Ili2dbDiagnostic(
+                    Ili2dbSeverity.WARNING,
+                    Ili2dbDiagnosticCode.SELECTED_DEPENDENCY_MISSING,
+                    "Selected model " + name + " is not present in t_ili2db_model; skipping.",
+                    name, "t_ili2db_model", details));
             }
         }
         return effective;
@@ -138,7 +175,15 @@ public final class Ili2dbReadCoordinator {
     // ------------------------------------------------------------------
 
     private JdbcSchemaSnapshot inspectSchema(Ili2dbReadContext context,
-                                             List<String> tableNames) throws SQLException {
+                                             List<String> tableNames,
+                                             List<Ili2dbDiagnostic> diagnostics) throws SQLException {
+        if (context.dialect() == DatabaseDialect.OTHER) {
+            diagnostics.add(new Ili2dbDiagnostic(
+                Ili2dbSeverity.WARNING,
+                Ili2dbDiagnosticCode.DATABASE_DIALECT_UNSUPPORTED,
+                "Database dialect is not recognized; generic JDBC introspection is used",
+                null, null, Map.of()));
+        }
         List<QualifiedSqlName> tables = new ArrayList<>();
         for (String tableName : tableNames) {
             tables.add(new QualifiedSqlName(context.schema(), SqlIdentifier.discovered(tableName)));

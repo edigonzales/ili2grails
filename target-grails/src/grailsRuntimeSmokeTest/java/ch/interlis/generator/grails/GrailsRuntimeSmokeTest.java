@@ -1,5 +1,9 @@
 package ch.interlis.generator.grails;
 
+import ch.interlis.generator.grails.verification.contract.CommandRunner;
+import ch.interlis.generator.grails.verification.environment.ExternalToolStatus;
+import ch.interlis.generator.grails.verification.environment.InfrastructureSupport;
+import ch.interlis.generator.grails.verification.environment.VerificationEnvironmentDetector;
 import ch.interlis.generator.model.ClassMetadata;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.ModelMetadataFactory;
@@ -9,7 +13,6 @@ import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.opentest4j.TestAbortedException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +22,7 @@ import java.time.Duration;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class GrailsRuntimeSmokeTest {
 
@@ -34,10 +38,52 @@ class GrailsRuntimeSmokeTest {
 
     @BeforeAll
     static void requireGrailsCli() throws Exception {
-        if (!isGrailsAvailable()) {
-            throw new TestAbortedException("grails CLI not available in PATH; skipping runtime smoke test");
-        }
+        boolean required = InfrastructureSupport.required("grailsRuntimeSmokeRequired");
+        ExternalToolStatus status = new VerificationEnvironmentDetector().detectGrails(new CommandRunner());
+        InfrastructureSupport.requireTool(status, required, "grails runtime smoke test");
         RuntimeApiTestSupport.publishRuntimeToMavenLocal(Path.of("."));
+    }
+
+    @Test
+    void regenerationIsIdempotentAndUserModificationsBlock() throws Exception {
+        Path appDir = createGrailsApp();
+        ModelMetadata metadata = collisionMetadata();
+        GenerationConfig config = grailsConfig(appDir, true);
+
+        new GrailsTemplateOverlayInstaller().install(appDir, config);
+        GrailsCrudGenerator generator = new GrailsCrudGenerator();
+
+        // 1. Erste Generation
+        generator.generate(metadata, config);
+        String projectHash = projectHash(appDir);
+        Path manifest = appDir.resolve(".ili2grails/generation-manifest.json");
+        assertThat(manifest).exists();
+
+        // 2. Zweite identische Generation: keine mutierenden Aktionen
+        ch.interlis.generator.grails.project.plan.GenerationPlan secondPlan =
+            generator.plan(metadata, config);
+        assertThat(secondPlan.hasBlockingDiagnostics()).isFalse();
+        assertThat(secondPlan.mutatingChanges())
+            .as("second identical generation must not mutate")
+            .isEmpty();
+        assertThat(projectHash(appDir)).isEqualTo(projectHash(appDir));
+
+        // 3. Domain-Datei manuell verändern -> neue Generation blockiert
+        //    vollständig, keine andere Datei wird geändert.
+        Path domainFile = appDir.resolve(
+            "grails-app/domain/com/example/domain/TopicAGebaeude.groovy");
+        Files.writeString(domainFile, "class TopicAGebaeude { String hacked = 'x' }");
+        String manifestBefore = Files.readString(manifest);
+        String registryBefore = Files.readString(appDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy"));
+
+        assertThatThrownBy(() -> generator.generate(metadata, config))
+            .isInstanceOf(ch.interlis.generator.grails.GrailsGenerationBlockedException.class)
+            .hasMessageContaining("no project files were changed");
+        assertThat(Files.readString(manifest)).isEqualTo(manifestBefore);
+        assertThat(Files.readString(appDir.resolve(
+            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy")))
+            .isEqualTo(registryBefore);
     }
 
     @Test
@@ -119,9 +165,15 @@ class GrailsRuntimeSmokeTest {
         assertThat(appDir.resolve(
             "grails-app/taglib/ch/interlis/generator/grails/runtime/InterlisUiTagLib.groovy"
         )).doesNotExist();
-        assertThat(appDir.resolve("grails-app/views/interlisUi/index.gsp")).doesNotExist();
-        assertThat(appDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).doesNotExist();
-        assertThat(appDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).doesNotExist();
+        // UI-Views sind seit P2-D014 generator-managed app-lokal (Grails 7
+        // kann Plugin-JAR-Views im Dev-Modus nicht auflösen); Runtime-KLASSEN
+        // kommen weiterhin ausschliesslich aus dem Plugin-JAR.
+        assertThat(appDir.resolve("grails-app/views/interlisUi/index.gsp")).exists();
+        // JS/CSS der Runtime sind seit P2-D014 ebenfalls generator-managed
+        // app-lokal (Grails-7-Dev-Mode-Einschränkung), damit die App im
+        // bootRun-Modus die Shell rendern kann.
+        assertThat(appDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).exists();
+        assertThat(appDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).exists();
 
         Path associationSectionsGsp = appDir.resolve(
             "src/main/templates/scaffolding/_association-sections.gsp");
@@ -290,6 +342,22 @@ class GrailsRuntimeSmokeTest {
 
         runCommand(appDir, List.of("./gradlew", "integrationTest", "--tests",
             "com.example.ParcelWorkspaceIntegrationSpec", "--no-daemon"), COMMAND_TIMEOUT);
+    }
+
+    private String projectHash(Path root) throws Exception {
+        java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+        try (var files = Files.walk(root)) {
+            List<Path> regularFiles = files.filter(Files::isRegularFile)
+                .filter(path -> !path.startsWith(root.resolve("build")))
+                .filter(path -> !path.startsWith(root.resolve(".gradle")))
+                .sorted()
+                .toList();
+            for (Path file : regularFiles) {
+                digest.update(root.relativize(file).toString().getBytes(StandardCharsets.UTF_8));
+                digest.update(Files.readAllBytes(file));
+            }
+        }
+        return java.util.HexFormat.of().formatHex(digest.digest());
     }
 
     private Path createGrailsApp() throws Exception {
@@ -777,15 +845,6 @@ class GrailsRuntimeSmokeTest {
             .mapEditor(geometryEnabled ? GenerationConfig.MAP_EDITOR_OPENLAYERS : GenerationConfig.MAP_EDITOR_NONE)
             .geometryEnabled(geometryEnabled)
             .build();
-    }
-
-    private static boolean isGrailsAvailable() throws IOException, InterruptedException {
-        try {
-            runCommand(Path.of(".").toAbsolutePath().normalize(), List.of("grails", "--version"), Duration.ofSeconds(30));
-            return true;
-        } catch (IOException e) {
-            return false;
-        }
     }
 
     private static void runCommand(Path workingDir, List<String> command)

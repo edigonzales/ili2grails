@@ -99,6 +99,28 @@ final class GrailsCliOptions {
     )
     private String associationNavigation;
 
+    @Option(
+        names = "--grails-dry-run",
+        description = "Plan the generation and write only explicitly requested " +
+            "plan reports; the Grails project is not modified. Exit code is " +
+            "non-zero when the plan has blockers."
+    )
+    private boolean dryRun;
+
+    @Option(
+        names = "--grails-plan-json",
+        paramLabel = "<file>",
+        description = "Write the generation plan as JSON to the given file."
+    )
+    private Path planJson;
+
+    @Option(
+        names = "--grails-plan-markdown",
+        paramLabel = "<file>",
+        description = "Write the generation plan as Markdown to the given file."
+    )
+    private Path planMarkdown;
+
     boolean isConfigured() {
         return outputDir != null
             || initAppName != null
@@ -113,7 +135,22 @@ final class GrailsCliOptions {
             || generateAll
             || associationUi != null
             || associationPageSize != null
-            || associationNavigation != null;
+            || associationNavigation != null
+            || dryRun
+            || planJson != null
+            || planMarkdown != null;
+    }
+
+    boolean dryRun() {
+        return dryRun;
+    }
+
+    Path planJson() {
+        return planJson;
+    }
+
+    Path planMarkdown() {
+        return planMarkdown;
     }
 
     Path outputDir() {

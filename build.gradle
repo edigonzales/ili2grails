@@ -32,8 +32,60 @@ subprojects {
         }
     }
 
+    if (name in ['core', 'grails-runtime-api', 'target-grails']) {
+        apply plugin: 'jacoco'
+        tasks.withType(JacocoReport).configureEach {
+            reports {
+                xml.required = true
+                html.required = true
+            }
+        }
+
+        // Fokussierte Class-Level-Gates (Spezifikation §56): keine pauschalen
+        // Prozentziele; nur die kritischen P2-Klassen. Die Untergrenzen sind
+        // die gemessenen Baseline-Werte beziehungsweise 80% für neue Klassen.
+        def coverageRules = []
+        if (name == 'core') {
+            coverageRules = [
+                'ch.interlis.generator.metadata.merge.MetadataMerger': 0.80,
+                'ch.interlis.generator.metadata.merge.AttributeMatcher': 0.80,
+                'ch.interlis.generator.metadata.merge.RelationshipMatcher': 0.80,
+                'ch.interlis.generator.model.ModelMetadataFactory': 0.80,
+                'ch.interlis.generator.model.ModelMetadataValidator': 0.70,
+                'ch.interlis.generator.reader.ili2db.Ili2dbReadCoordinator': 0.80,
+                'ch.interlis.generator.reader.ili2db.catalog.Ili2dbCatalogReader': 0.80,
+                'ch.interlis.generator.reader.ili2db.assemble.Ili2dbMetadataAssembler': 0.80
+            ]
+        } else if (name == 'target-grails') {
+            coverageRules = [
+                'ch.interlis.generator.grails.RuntimeDescriptorPlanner': 0.80,
+                'ch.interlis.generator.grails.project.plan.GrailsGenerationPlanner': 0.80,
+                'ch.interlis.generator.grails.project.plan.GrailsGenerationExecutor': 0.80,
+                'ch.interlis.generator.grails.project.plan.GeneratedProjectManifestStore': 0.80
+            ]
+        }
+        tasks.withType(JacocoCoverageVerification).configureEach {
+            coverageRules.each { className, minimum ->
+                violationRules {
+                    rule {
+                        element = 'CLASS'
+                        includes = [className]
+                        limit {
+                            counter = 'LINE'
+                            value = 'COVEREDRATIO'
+                            minimum = minimum
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pluginManager.withPlugin('java') {
         java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(17)
+            }
             sourceCompatibility = JavaVersion.VERSION_17
             targetCompatibility = JavaVersion.VERSION_17
         }
@@ -42,5 +94,84 @@ subprojects {
             useJUnitPlatform()
             workingDir = rootProject.projectDir
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Verification profiles (spec Teil V §11)
+// ---------------------------------------------------------------------------
+
+tasks.register('verificationFast') {
+    group = 'verification'
+    description = 'Schnelle Verifikation: alle Unit-Test-Tasks plus statische Verification-Tasks ohne externe Tools.'
+    dependsOn(
+        ':core:test',
+        ':grails-runtime-api:test',
+        ':grails-runtime:test',
+        ':target-grails:test',
+        ':target-django:test',
+        ':cli:test',
+        ':target-grails:verifyModelCorpusManifest',
+        ':target-grails:verifyGenerationOwnershipRules',
+        ':core:jacocoTestCoverageVerification',
+        ':target-grails:jacocoTestCoverageVerification',
+        ':verifyJavaTestToolchains'
+    )
+}
+
+tasks.register('verificationFull') {
+    group = 'verification'
+    description = 'Vollständige Verifikation: verificationFast plus alle erweiterten Tests im Required-Modus.'
+    dependsOn('verificationFast')
+    dependsOn(
+        ':target-grails:grailsRuntimeSmokeTest',
+        ':target-grails:realIli2dbSmokeTest',
+        ':target-grails:grailsPostgresContractTest',
+        ':target-grails:browserE2eTest',
+        ':target-grails:writeVerificationSummary'
+    )
+    doFirst {
+        // Alle erweiterten Tasks laufen im Required-Modus. Die Required-Properties
+        // werden über -P auf der Kommandozeile gesetzt (scripts/run-verification-full.sh);
+        // der Task verweigert den Lauf, wenn ein erweiterter Test nicht required ist.
+        def requiredProperties = [
+            'grailsRuntimeSmokeRequired',
+            'realIli2dbRequired',
+            'contractTestRequired',
+            'browserE2eRequired'
+        ]
+        def missing = requiredProperties.findAll { name ->
+            project.findProperty(name) != 'true'
+        }
+        if (!missing.isEmpty()) {
+            throw new GradleException(
+                'verificationFull requires all extended tests in required mode; missing: '
+                    + missing.collect { "-P${it}=true" }.join(', '))
+        }
+    }
+}
+
+// Acceptanztest (Spezifikation §9.2): Alle Java-Testtasks müssen mit einem
+// Java-17-Launcher laufen. Keine Prüfung gegen absolute lokale JDK-Pfade.
+tasks.register('verifyJavaTestToolchains') {
+    group = 'verification'
+    description = 'Prüft, dass alle Java-Testtasks einen Java-17-Launcher verwenden.'
+    doLast {
+        def violations = []
+        allprojects { project ->
+            project.plugins.withId('java') {
+                project.tasks.withType(Test).configureEach { testTask ->
+                    def launcher = testTask.getJavaLauncher().get()
+                    def languageVersion = launcher.metadata.languageVersion.asInt()
+                    if (languageVersion != 17) {
+                        violations.add("${project.path}:${testTask.name} uses Java ${languageVersion}")
+                    }
+                }
+            }
+        }
+        if (!violations.isEmpty()) {
+            throw new GradleException('Java test toolchain violations:\n  ' + violations.join('\n  '))
+        }
+        logger.lifecycle('verifyJavaTestToolchains: all Java test tasks use launcher language version 17')
     }
 }

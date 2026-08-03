@@ -59,6 +59,27 @@ class MetadataReaderAppCliTest {
     }
 
     @Test
+    void grailsDryRunOptionsAreParsed() {
+        CommandLine.ParseResult parseResult = parse(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "grails",
+            "--grails-output", "generated-grails",
+            "--grails-dry-run",
+            "--grails-plan-json", "plan.json",
+            "--grails-plan-markdown", "plan.md"
+        );
+
+        GenerateCommand command = (GenerateCommand) parseResult.subcommand().commandSpec().userObject();
+        GrailsCliOptions options = readField(command, "grailsOptions");
+        assertThat(options.dryRun()).isTrue();
+        assertThat(options.planJson().toString()).isEqualTo("plan.json");
+        assertThat(options.planMarkdown().toString()).isEqualTo("plan.md");
+        assertThat(options.isConfigured()).isTrue();
+    }
+
+    @Test
     void repeatedTargetsParseInUserSpecifiedOrder() {
         CommandLine.ParseResult parseResult = parse(
             "generate",

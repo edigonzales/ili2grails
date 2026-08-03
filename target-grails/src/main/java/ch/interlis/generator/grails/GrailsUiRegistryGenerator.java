@@ -10,12 +10,14 @@ import ch.interlis.generator.grails.runtime.api.descriptor.InverseRelationshipMo
 import ch.interlis.generator.grails.runtime.api.descriptor.RelationshipDescriptor;
 import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeCoreType;
 import ch.interlis.generator.grails.source.GroovySourceWriter;
+import ch.interlis.generator.grails.project.plan.PlannedProjectFile;
 import ch.interlis.generator.model.ModelMetadata;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,16 +41,29 @@ public final class GrailsUiRegistryGenerator {
 
     private final GroovySourceWriter source = new GroovySourceWriter();
 
-    public void generate(RuntimeDescriptorPlan plan,
-                         GenerationConfig config,
-                         TargetNameRegistry registry) throws IOException {
+    /**
+     * Reine Planungsfunktion (Spezifikation §41.4): kein Write.
+     */
+    public PlannedProjectFile plan(RuntimeDescriptorPlan plan,
+                                   GenerationConfig config,
+                                   TargetNameRegistry registry) {
         Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(registry, "registry");
+        return PlannedProjectFile.text(
+            Path.of(RELATIVE_PATH),
+            ch.interlis.generator.grails.project.GrailsProjectFileOwner.GENERATOR_MANAGED,
+            renderRegistry(plan),
+            "generated typed UI registry");
+    }
 
+    public void generate(RuntimeDescriptorPlan plan,
+                         GenerationConfig config,
+                         TargetNameRegistry registry) throws IOException {
+        PlannedProjectFile planned = plan(plan, config, registry);
         Path target = config.getOutputDir().resolve(RELATIVE_PATH);
         Files.createDirectories(target.getParent());
-        Files.writeString(target, renderRegistry(plan), StandardCharsets.UTF_8);
+        Files.write(target, planned.content());
     }
 
     String renderRegistry(RuntimeDescriptorPlan plan) {

@@ -5,6 +5,7 @@ import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
 import ch.interlis.generator.grails.runtime.api.registry.RegistryValidationReport
 import ch.interlis.generator.grails.runtime.config.InterlisRuntimeOverridesService
 import ch.interlis.generator.grails.runtime.registry.InterlisRuntimeRegistryValidator
+import ch.interlis.generator.grails.runtime.registry.InterlisRuntimeSafetyState
 import grails.plugins.Plugin
 import groovy.util.logging.Slf4j
 import org.springframework.beans.factory.config.BeanDefinition
@@ -47,6 +48,8 @@ class Ili2grailsRuntimeGrailsPlugin extends Plugin {
                 ch.interlis.generator.grails.runtime.registry.InterlisRuntimeRegistryValidator) {
                 grailsApplication = ref('grailsApplication')
             }
+            runtimeSafetyState(
+                ch.interlis.generator.grails.runtime.registry.InterlisRuntimeSafetyState)
         }
     }
 
@@ -71,23 +74,28 @@ class Ili2grailsRuntimeGrailsPlugin extends Plugin {
 
     private void validateGeneratedRegistries() {
         boolean strict = resolveStrictDescriptorValidation()
+        InterlisRuntimeSafetyState safetyState =
+            applicationContext.getBean(InterlisRuntimeSafetyState)
         try {
             InterlisRuntimeRegistry registry = applicationContext.getBean(InterlisRuntimeRegistry)
             InterlisRuntimeRegistryValidator validator =
                 applicationContext.getBean(InterlisRuntimeRegistryValidator)
             RegistryValidationReport report = validator.validate(registry)
+            // Technische Durchsetzung (Spezifikation §16): Strict-Modus wirft,
+            // Non-strict-Modus startet technisch read-only. Es gibt keinen
+            // Per-Feature-Downgrade.
+            safetyState.initialize(report, strict)
             if (report.hasBlockingDiagnostics()) {
                 String summary = report.blockingDiagnostics()
                     .collect { "${it.code().name()}: ${it.message()}" }
                     .join('\n  - ')
-                if (strict) {
-                    throw new IllegalStateException(
-                        "Invalid ili2grails generated registry descriptors (strict " +
-                        "descriptor validation):\n  - ${summary}")
+                if (!strict) {
+                    log.warn(
+                        "Runtime descriptor validation has blocking diagnostics.\n" +
+                        "  - ${summary}\n" +
+                        "Strict mode is disabled; all generated write operations are disabled.\n" +
+                        "Read-only navigation remains available.")
                 }
-                log.warn(
-                    "ili2grails registry validation found blocking diagnostics " +
-                    "(strict mode disabled, writable functions downgraded):\n  - ${summary}")
             } else if (!report.diagnostics().isEmpty()) {
                 log.info(
                     "ili2grails registry validation complete ({} diagnostics)",
@@ -101,8 +109,17 @@ class Ili2grailsRuntimeGrailsPlugin extends Plugin {
                     "ili2grails registry validation failed: ${validationFailure.message}",
                     validationFailure)
             }
+            // Auch ein nicht ausführbarer Validator führt zu read-only
+            // (fail-closed), damit nie ungeprüft geschrieben wird.
+            safetyState.initialize(new RegistryValidationReport([
+                new ch.interlis.generator.grails.runtime.api.registry.RegistryDiagnostic(
+                    ch.interlis.generator.grails.runtime.api.registry.RegistryDiagnosticCode.VALIDATION_INCOMPLETE,
+                    null, "registry validation could not run: ${validationFailure.message}",
+                    [:], true)
+            ]), strict)
             log.warn(
-                "ili2grails registry validation could not run: ${validationFailure.message}")
+                "ili2grails registry validation could not run: ${validationFailure.message}; " +
+                "all generated write operations are disabled (read-only mode).")
         }
     }
 

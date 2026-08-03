@@ -67,7 +67,8 @@ final class InterlisListControllerFlow<T> {
             offset: listQuery.offset,
             sort: listQuery.sort,
             order: listQuery.order,
-            listUrlParams: listQuery.params
+            listUrlParams: listQuery.params,
+            runtimeWriteAllowed: controller.runtimeWriteAllowed()
         ]
     }
 
@@ -96,6 +97,7 @@ final class InterlisListControllerFlow<T> {
         model.putAll(InterlisWorkspaceSupport.showModel(
             context.grailsApplication, context.domainType, instance, descriptor))
         model.put("uiDescriptor", descriptor)
+        model.put("runtimeWriteAllowed", controller.runtimeWriteAllowed())
         controller.respond instance, model: model
     }
 

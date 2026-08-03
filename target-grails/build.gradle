@@ -51,12 +51,64 @@ configurations {
     grailsPostgresContractTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
+// Externe Testumgebung (Spezifikation §10): ili2pg wird ausschliesslich über
+// -Pili2pgHome oder ILI2PG_HOME bezogen. Es gibt keinen lokalen Default.
+def resolveIli2pgHome() {
+    def configured = project.findProperty('ili2pgHome')
+    if (configured != null && !configured.toString().isBlank()) {
+        return configured
+    }
+    def env = System.getenv('ILI2PG_HOME')
+    if (env != null && !env.isBlank()) {
+        return env
+    }
+    return null
+}
+
+def ili2pgHome = resolveIli2pgHome()
+
+def requiredSystemProperty(name) {
+    project.findProperty(name) ?: 'false'
+}
+
+tasks.register('verifyModelCorpusManifest', JavaExec) {
+    description = 'Validiert den versionierten INTERLIS-Modellkorpus (verification/model-corpus.yaml).'
+    group = 'verification'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'ch.interlis.generator.grails.verification.corpus.ModelCorpusManifestVerifier'
+    systemProperty 'corpusFile', rootProject.file('verification/model-corpus.yaml').absolutePath
+}
+
+tasks.register('verifyFeatureMatrixUpToDate', JavaExec) {
+    description = 'Regeneriert die Feature-Matrix und vergleicht sie mit der committeden Datei.'
+    group = 'verification'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'ch.interlis.generator.grails.verification.corpus.FeatureMatrixVerifier'
+    systemProperty 'corpusFile', rootProject.file('verification/model-corpus.yaml').absolutePath
+}
+
+tasks.register('verifyGenerationOwnershipRules', JavaExec) {
+    description = 'Validiert die Ownership-Regeln der Generator-Projektdateien.'
+    group = 'verification'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'ch.interlis.generator.grails.project.GenerationOwnershipRuleVerifier'
+}
+
+tasks.register('writeVerificationSummary', JavaExec) {
+    description = 'Schreibt die gemeinsame Verification-Summary (JSON + Markdown).'
+    group = 'verification'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'ch.interlis.generator.grails.verification.report.VerificationSummaryTask'
+    systemProperty 'reportDir', rootProject.layout.buildDirectory.dir('reports/ili2grails-verification').get().asFile.absolutePath
+}
+
 tasks.register('grailsRuntimeSmokeTest', Test) {
     description = 'Runs opt-in Grails runtime smoke tests against a temporary Grails app.'
     group = 'verification'
     testClassesDirs = sourceSets.grailsRuntimeSmokeTest.output.classesDirs
     classpath = sourceSets.grailsRuntimeSmokeTest.runtimeClasspath
     shouldRunAfter tasks.named('test')
+    systemProperty 'grailsRuntimeSmokeRequired', requiredSystemProperty('grailsRuntimeSmokeRequired')
     outputs.upToDateWhen { false }
 }
 
@@ -66,7 +118,10 @@ tasks.register('realIli2dbSmokeTest', Test) {
     testClassesDirs = sourceSets.realIli2dbSmokeTest.output.classesDirs
     classpath = sourceSets.realIli2dbSmokeTest.runtimeClasspath
     shouldRunAfter tasks.named('test')
-    systemProperty 'ili2pgHome', project.findProperty('ili2pgHome') ?: '/Users/stefan/apps/ili2pg-5.5.1'
+    systemProperty 'realIli2dbRequired', requiredSystemProperty('realIli2dbRequired')
+    if (ili2pgHome != null) {
+        systemProperty 'ili2pgHome', ili2pgHome
+    }
     outputs.upToDateWhen { false }
 }
 
@@ -76,7 +131,10 @@ tasks.register('browserE2eTest', Test) {
     testClassesDirs = sourceSets.browserE2eTest.output.classesDirs
     classpath = sourceSets.browserE2eTest.runtimeClasspath
     shouldRunAfter tasks.named('realIli2dbSmokeTest')
-    systemProperty 'ili2pgHome', project.findProperty('ili2pgHome') ?: '/Users/stefan/apps/ili2pg-5.5.1'
+    systemProperty 'browserE2eRequired', requiredSystemProperty('browserE2eRequired')
+    if (ili2pgHome != null) {
+        systemProperty 'ili2pgHome', ili2pgHome
+    }
     systemProperty 'browserE2eJdbcUrl', project.findProperty('browserE2eJdbcUrl') ?: 'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret&dbSchema=sa'
     if (project.findProperty('browserE2eAppUrl') != null) {
         systemProperty 'browserE2eAppUrl', project.findProperty('browserE2eAppUrl')
@@ -91,11 +149,11 @@ tasks.register('grailsPostgresContractTest', Test) {
     classpath = sourceSets.grailsPostgresContractTest.runtimeClasspath
     useJUnitPlatform()
     shouldRunAfter tasks.named('grailsRuntimeSmokeTest')
-    systemProperty 'ili2pgHome',
-        project.findProperty('ili2pgHome') ?: '/Users/stefan/apps/ili2pg-5.5.1'
+    systemProperty 'contractTestRequired', requiredSystemProperty('contractTestRequired')
+    if (ili2pgHome != null) {
+        systemProperty 'ili2pgHome', ili2pgHome
+    }
     systemProperty 'contractJdbcUrl',
         project.findProperty('contractJdbcUrl') ?: 'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret'
-    systemProperty 'contractTestRequired',
-        project.findProperty('contractTestRequired') ?: 'false'
     outputs.upToDateWhen { false }
 }

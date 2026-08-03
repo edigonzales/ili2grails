@@ -1,5 +1,6 @@
 package ch.interlis.generator.grails.project;
 
+import ch.interlis.generator.grails.project.plan.TextFileEdit;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -27,7 +28,8 @@ public final class GrailsAssetManifestUpdater {
     );
     private static final List<String> APPLICATION_CSS_REQUIRES = List.of(
         "*= require webjars/bootstrap/5.3.3/css/bootstrap.min.css",
-        "*= require webjars/ol/9.2.4/ol.css"
+        "*= require webjars/ol/9.2.4/ol.css",
+        "*= require ili-modern.css"
     );
     private static final List<String> LEGACY_APPLICATION_JS_REQUIRES = List.of(
         "//= require ili-carbon-input-bridge.js"
@@ -35,8 +37,67 @@ public final class GrailsAssetManifestUpdater {
 
     public void update(Path grailsProjectDir) throws IOException {
         Objects.requireNonNull(grailsProjectDir, "grailsProjectDir");
-        ensureJavascriptRequires(grailsProjectDir.resolve("grails-app/assets/javascripts/application.js"));
-        ensureStylesheetRequires(grailsProjectDir.resolve("grails-app/assets/stylesheets/application.css"));
+        applyPlan(grailsProjectDir, "grails-app/assets/javascripts/application.js", true);
+        applyPlan(grailsProjectDir, "grails-app/assets/stylesheets/application.css", false);
+    }
+
+    /**
+     * Reine Planungsfunktion (Spezifikation §41.5): kein Write.
+     */
+    public TextFileEdit plan(Path relativePath, String existingContent) {
+        if (existingContent == null) {
+            return new TextFileEdit(relativePath, null, false, "asset manifest missing");
+        }
+        String updatedContent = relativePath.toString().endsWith(".css")
+            ? ensureStylesheetRequiresInContent(existingContent)
+            : ensureJavascriptRequiresInContent(existingContent);
+        return new TextFileEdit(relativePath, updatedContent,
+            !updatedContent.equals(existingContent), "asset requires");
+    }
+
+    private void applyPlan(Path grailsProjectDir, String relative, boolean javascript)
+        throws IOException {
+        Path target = grailsProjectDir.resolve(relative);
+        if (!Files.exists(target)) {
+            return;
+        }
+        TextFileEdit edit = plan(Path.of(relative),
+            Files.readString(target, StandardCharsets.UTF_8));
+        if (edit.changed()) {
+            Files.writeString(target, edit.updatedContent(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private String ensureJavascriptRequiresInContent(String content) {
+        String updatedContent = removeLegacyRequires(content);
+        for (String requireLine : APPLICATION_JS_REQUIRES) {
+            if (updatedContent.contains(requireLine)) {
+                continue;
+            }
+            if (updatedContent.contains("//= require_self")) {
+                updatedContent = updatedContent.replace("//= require_self", requireLine + "\n//= require_self");
+            } else {
+                updatedContent = updatedContent + "\n" + requireLine + "\n";
+            }
+        }
+        return updatedContent;
+    }
+
+    private String ensureStylesheetRequiresInContent(String content) {
+        String updatedContent = content;
+        for (String requireLine : APPLICATION_CSS_REQUIRES) {
+            if (updatedContent.contains(requireLine)) {
+                continue;
+            }
+            if (updatedContent.contains("*= require_self")) {
+                updatedContent = updatedContent.replace("*= require_self", requireLine + "\n *= require_self");
+            } else if (updatedContent.contains("*/")) {
+                updatedContent = updatedContent.replace("*/", " " + requireLine + "\n */");
+            } else {
+                updatedContent = updatedContent + "\n" + requireLine + "\n";
+            }
+        }
+        return updatedContent;
     }
 
     static List<String> applicationJsRequiresForTesting() {

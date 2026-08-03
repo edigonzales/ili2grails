@@ -1,0 +1,18 @@
+package ch.interlis.generator.grails.project.plan;
+
+/**
+ * Codes der Generations-Diagnostics (Spezifikation §38.5).
+ */
+public enum GenerationDiagnosticCode {
+    USER_MODIFIED_MANAGED_FILE,
+    UNKNOWN_LEGACY_RUNTIME_FILE,
+    MODIFIED_LEGACY_RUNTIME_FILE,
+    AMBIGUOUS_FILE_OWNERSHIP,
+    FORBIDDEN_RUNTIME_PLUGIN_PATH,
+    MANIFEST_INVALID,
+    MANIFEST_VERSION_UNSUPPORTED,
+    MANIFEST_FILE_MISSING,
+    ORPHANED_MANAGED_FILE,
+    TARGET_PATH_OUTSIDE_PROJECT,
+    FILE_WRITE_FAILED
+}

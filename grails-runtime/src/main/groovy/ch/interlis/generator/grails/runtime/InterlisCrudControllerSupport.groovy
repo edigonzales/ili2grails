@@ -32,6 +32,7 @@ class InterlisCrudControllerSupport<T> {
 
     InterlisAuthorizationPolicy authorizationPolicy
     InterlisRuntimeRegistry runtimeRegistry
+    ch.interlis.generator.grails.runtime.registry.InterlisRuntimeSafetyState runtimeSafetyState
 
     private static final InterlisListControllerFlow LIST_FLOW = new InterlisListControllerFlow()
     private static final InterlisFormControllerFlow FORM_FLOW = new InterlisFormControllerFlow()
@@ -128,8 +129,16 @@ class InterlisCrudControllerSupport<T> {
         return ASSOCIATION_FLOW.associationDelete(this, controllerContext(), id)
     }
 
-    static boolean isDeleteIntegrityConflict(Throwable failure) {
-        Throwable current = failure
+    /**
+     * Technischer Runtime-Safety-State (Spezifikation §20.5): Create-, Edit-,
+     * Delete- und Association-Aktionen werden nicht angeboten, wenn die
+     * Registry-Validierung blockierende Diagnostics hat.
+     */
+    boolean runtimeWriteAllowed() {
+        return runtimeSafetyState == null || runtimeSafetyState.writeAllowed
+    }
+
+    static boolean isDeleteIntegrityConflict(Throwable failure) {        Throwable current = failure
         while (current != null) {
             if (current instanceof DataIntegrityViolationException ||
                 current.class.name in [
@@ -153,11 +162,13 @@ class InterlisCrudControllerSupport<T> {
                     domainType(),
                     instance.id as java.io.Serializable,
                     associationPageSize()
-                )
+                ),
+                runtimeWriteAllowed: runtimeWriteAllowed()
             ]
         } catch (Exception e) {
             log.warn("associationModel failed for ${domainType().simpleName}#${instance.id}: ${e.message}", e)
-            return [associationSections: [], associationDiagnostic: "Assoziationsdaten konnten nicht geladen werden."]
+            return [associationSections: [], associationDiagnostic: "Assoziationsdaten konnten nicht geladen werden.",
+                runtimeWriteAllowed: runtimeWriteAllowed()]
         }
     }
 

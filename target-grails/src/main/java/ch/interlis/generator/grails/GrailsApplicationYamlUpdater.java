@@ -1,7 +1,9 @@
 package ch.interlis.generator.grails;
 
 import com.fasterxml.jackson.databind.MappingIterator;
+import ch.interlis.generator.grails.project.plan.TextFileEdit;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
@@ -18,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-class GrailsApplicationYamlUpdater {
+public class GrailsApplicationYamlUpdater {
 
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(
         new YAMLFactory().enable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
@@ -55,8 +57,29 @@ class GrailsApplicationYamlUpdater {
         if (!Files.exists(applicationYamlPath)) {
             return;
         }
+        TextFileEdit edit = plan(Path.of("grails-app/conf/application.yml"),
+            Files.readString(applicationYamlPath, StandardCharsets.UTF_8),
+            jdbcUrl, schema, geometryEnabled, defaultSrid, language);
+        if (edit.changed()) {
+            Files.writeString(applicationYamlPath, edit.updatedContent(), StandardCharsets.UTF_8);
+        }
+    }
+
+    /**
+     * Reine Planungsfunktion (Spezifikation §41.5): kein Write.
+     */
+    public TextFileEdit plan(Path relativePath,
+                             String existingContent,
+                             String jdbcUrl,
+                             String schema,
+                             boolean geometryEnabled,
+                             Integer defaultSrid,
+                             String language) {
+        if (existingContent == null) {
+            return new TextFileEdit(relativePath, null, false, "application.yml missing");
+        }
         String resolvedJdbcUrl = jdbcUrl == null || jdbcUrl.isBlank() ? null : jdbcUrl;
-        List<Object> documents = readDocuments(applicationYamlPath);
+        List<Object> documents = readDocumentsFromString(existingContent);
         boolean changed = updateDevelopmentDataSource(documents, resolvedJdbcUrl, schema);
         changed |= removeRootDataSourceDriver(documents);
         changed |= removeRootDataSourceCredentials(documents);
@@ -66,8 +89,38 @@ class GrailsApplicationYamlUpdater {
         if (geometryEnabled) {
             changed |= ensureGeometryDefaults(documents, defaultSrid);
         }
-        if (changed) {
-            writeDocuments(applicationYamlPath, documents);
+        if (!changed) {
+            return new TextFileEdit(relativePath, existingContent, false, "data source unchanged");
+        }
+        return new TextFileEdit(relativePath, renderDocumentsToString(documents), true,
+            "data source and dialect");
+    }
+
+    private List<Object> readDocumentsFromString(String content) {
+        try {
+            List<Object> documents = new ArrayList<>();
+            ObjectReader reader = YAML_MAPPER.readerFor(Object.class);
+            try (com.fasterxml.jackson.databind.MappingIterator<Object> iterator =
+                reader.readValues(content)) {
+                iterator.forEachRemaining(documents::add);
+            }
+            return documents;
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot parse application.yml: " + e.getMessage(), e);
+        }
+    }
+
+    private String renderDocumentsToString(List<Object> documents) {
+        try {
+            java.io.StringWriter writer = new java.io.StringWriter();
+            try (SequenceWriter sequenceWriter = YAML_MAPPER.writer().writeValues(writer)) {
+                for (Object document : documents) {
+                    sequenceWriter.write(document);
+                }
+            }
+            return writer.toString();
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot render application.yml: " + e.getMessage(), e);
         }
     }
 

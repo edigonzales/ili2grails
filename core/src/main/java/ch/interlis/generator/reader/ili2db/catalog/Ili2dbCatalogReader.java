@@ -52,7 +52,6 @@ public final class Ili2dbCatalogReader {
         "t_ili2db_column_prop",
         "t_ili2db_trafo"
     );
-
     public Ili2dbCatalogSnapshot read(Ili2dbReadContext context,
                                       List<Ili2dbDiagnostic> diagnostics) throws SQLException {
         Ili2dbCatalogCapabilities capabilities = detectCapabilities(context, diagnostics);
@@ -84,53 +83,22 @@ public final class Ili2dbCatalogReader {
     }
 
     /**
-     * Ermittelt einmalig, welche Metatabellen vorhanden und lesbar sind.
+     * Ermittelt einmalig, welche Metatabellen vorhanden und lesbar sind
+     * (Spezifikation §16): ein {@code getTables}-Durchlauf, ein
+     * {@code getColumns}-Durchlauf, dann Required-/Optional-Diagnostics über
+     * den {@link Ili2dbTableRequirementResolver} als einzige Wahrheit.
      */
     public Ili2dbCatalogCapabilities detectCapabilities(Ili2dbReadContext context,
                                                         List<Ili2dbDiagnostic> diagnostics)
         throws SQLException {
         DatabaseMetaData metadata = context.connection().getMetaData();
-        Set<String> availableTables = new LinkedHashSet<>();
-        Map<String, Set<String>> columnsByTable = new LinkedHashMap<>();
+        Map<String, String> discoveredTables = discoverMetaTables(metadata, schemaPattern(context));
+        Map<String, Set<String>> columnsByTable =
+            discoverMetaColumns(metadata, schemaPattern(context), discoveredTables.keySet());
 
-        for (String metaTable : META_TABLES) {
-            Set<String> columns = new LinkedHashSet<>();
-            boolean available = false;
-            try (ResultSet rs = metadata.getTables(null, schemaPattern(context), null, null)) {
-                while (rs.next()) {
-                    String tableName = rs.getString("TABLE_NAME");
-                    if (tableName != null && tableName.equalsIgnoreCase(metaTable)) {
-                        available = true;
-                        break;
-                    }
-                }
-            } catch (SQLException e) {
-                diagnostics.add(new Ili2dbDiagnostic(
-                    Ili2dbSeverity.WARNING,
-                    Ili2dbDiagnosticCode.META_TABLE_COLUMNS_UNSUPPORTED,
-                    "Could not inspect meta table " + metaTable + ": " + e.getMessage(),
-                    null, metaTable, Map.of()));
-            }
-            if (available) {
-                availableTables.add(metaTable.toLowerCase(Locale.ROOT));
-                try (ResultSet rs = metadata.getColumns(null, schemaPattern(context), null, null)) {
-                    while (rs.next()) {
-                        String tableName = rs.getString("TABLE_NAME");
-                        if (tableName != null && tableName.equalsIgnoreCase(metaTable)) {
-                            String column = rs.getString("COLUMN_NAME");
-                            if (column != null) {
-                                columns.add(column);
-                            }
-                        }
-                    }
-                } catch (SQLException e) {
-                    logger.warn("Could not inspect columns of {}: {}", metaTable, e.getMessage());
-                }
-            }
-            columnsByTable.put(metaTable.toLowerCase(Locale.ROOT), columns);
-        }
-
-        for (String requiredTable : new String[] {"t_ili2db_classname", "t_ili2db_attrname"}) {
+        Set<String> availableTables = new LinkedHashSet<>(discoveredTables.keySet());
+        Ili2dbTableRequirementResolver resolver = new Ili2dbTableRequirementResolver();
+        for (String requiredTable : resolver.requiredTables()) {
             if (!availableTables.contains(requiredTable)) {
                 diagnostics.add(new Ili2dbDiagnostic(
                     Ili2dbSeverity.FATAL,
@@ -140,6 +108,60 @@ public final class Ili2dbCatalogReader {
             }
         }
         return new Ili2dbCatalogCapabilities(availableTables, columnsByTable);
+    }
+
+    /**
+     * Ein einziger {@code getTables}-Durchlauf; liefert
+     * {@code normalizedName -> actualDatabaseName} für alle relevanten
+     * Metatabellen (case-insensitiv).
+     */
+    private Map<String, String> discoverMetaTables(DatabaseMetaData metadata, String schemaPattern)
+        throws SQLException {
+        Map<String, String> discovered = new LinkedHashMap<>();
+        try (ResultSet rs = metadata.getTables(null, schemaPattern, null, null)) {
+            while (rs.next()) {
+                String tableName = rs.getString("TABLE_NAME");
+                if (tableName == null) {
+                    continue;
+                }
+                String normalized = tableName.toLowerCase(Locale.ROOT);
+                if (META_TABLES.contains(normalized)) {
+                    discovered.putIfAbsent(normalized, tableName);
+                }
+            }
+        }
+        return discovered;
+    }
+
+    /**
+     * Ein einziger {@code getColumns}-Durchlauf; Spalten werden nach Tabelle
+     * gruppiert. Nicht lesbare Metadaten erzeugen eine WARNING-Diagnostic.
+     */
+    private Map<String, Set<String>> discoverMetaColumns(DatabaseMetaData metadata,
+                                                         String schemaPattern,
+                                                         Set<String> discoveredTables)
+        throws SQLException {
+        Map<String, Set<String>> columnsByTable = new LinkedHashMap<>();
+        for (String table : discoveredTables) {
+            columnsByTable.put(table, new LinkedHashSet<>());
+        }
+        try (ResultSet rs = metadata.getColumns(null, schemaPattern, null, null)) {
+            while (rs.next()) {
+                String tableName = rs.getString("TABLE_NAME");
+                String column = rs.getString("COLUMN_NAME");
+                if (tableName == null || column == null) {
+                    continue;
+                }
+                String normalized = tableName.toLowerCase(Locale.ROOT);
+                Set<String> columns = columnsByTable.get(normalized);
+                if (columns != null) {
+                    columns.add(column);
+                }
+            }
+        } catch (SQLException e) {
+            logger.warn("Could not inspect meta table columns: {}", e.getMessage());
+        }
+        return columnsByTable;
     }
 
     public Map<String, String> readSettings(Ili2dbReadContext context,
@@ -479,10 +501,6 @@ public final class Ili2dbCatalogReader {
                     uniqueNames.add(name);
                 }
             }
-        }
-        if (uniqueNames.isEmpty() && context.modelSelection().rootModelName() != null
-            && !context.modelSelection().rootModelName().isBlank()) {
-            uniqueNames.add(context.modelSelection().rootModelName());
         }
         List<String> prefixes = new ArrayList<>();
         if (uniqueNames.isEmpty()) {

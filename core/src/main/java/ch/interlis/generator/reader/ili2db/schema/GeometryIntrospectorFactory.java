@@ -9,6 +9,8 @@ public final class GeometryIntrospectorFactory {
         if (dialect == DatabaseDialect.POSTGRESQL) {
             return new PostgisGeometryIntrospector();
         }
-        return (context, selectedTables) -> GeometrySchemaSnapshot.empty();
+        // Kein PostGIS: Geometrie-Metadaten sind nicht verfügbar; der
+        // Coordinator erzeugt dafür die WARNING GEOMETRY_METADATA_UNAVAILABLE.
+        return (context, selectedTables) -> GeometrySchemaSnapshot.unavailable();
     }
 }

@@ -107,6 +107,10 @@ final class InterlisInverseRelationshipControllerFlow<T> {
                            InterlisControllerContext<T> context,
                            Long id) {
         InterlisSecurityHeaderSupport.apply(controller, controller.response)
+        if (!controller.runtimeWriteAllowed()) {
+            respondReadOnly(controller)
+            return
+        }
         T instance = context.crudService.get(id) as T
         if (instance == null) {
             InterlisControllerResponseSupport.notFound(

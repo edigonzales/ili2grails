@@ -25,7 +25,7 @@ Der **INTERLIS CRUD Generator** liest Metadaten aus einer ili2db-Datenbank und e
 - [Bootstrap Atomarer Multi-Domain-Save (Phase 6)](#bootstrap-atomarer-multi-domain-save-phase-6)
 - [Projektstruktur](#projektstruktur)
 - [Tests](#tests)
-- [Dependencies](#dependencies)
+- [Verifikation (P2)](#verifikation-p2)
 - [Weitere Dokumente](#weitere-dokumente)
 
 ## Ziel & Funktionsumfang
@@ -1582,6 +1582,50 @@ PATH=$HOME/.sdkman/candidates/grails/current/bin:$PATH \
   Metadata-Diagnostics, Integration-Test-Log, Domain- und DB-Mapping-Summary;
   Passwörter redigiert).
 - Skript: `scripts/run-p0-contract-tests.sh`.
+
+## Verifikation (P2)
+
+Es gibt zwei reproduzierbare Verifikationsprofile:
+
+```bash
+# Schnelle Matrix (alle Unit-Tests + statische Verifikation, kein Docker/Grails/ili2pg)
+./gradlew verificationFast --no-daemon
+
+# Vollständige Matrix (zusätzlich Smoke-, Contract- und Browser-E2E-Tests)
+PATH="/pfad/zu/grails/bin:$PATH" ILI2PG_HOME="/pfad/zu/ili2pg-5.5.1" \
+  ./scripts/run-verification-full.sh
+```
+
+Weitere Details, Reportpfade und die Required-/Skip-Semantik stehen in
+[`docs/verification/README.md`](docs/verification/README.md).
+
+### Generation-Manifest
+
+Jede Generierung schreibt `.ili2grails/generation-manifest.json` im
+Zielprojekt (deterministisch, keine Credentials, keine absoluten Pfade). Das
+Manifest ist die Wahrheit für generatorverwaltete Dateien: zweite identische
+Generationen sind idempotent; benutzerveränderte verwaltete Dateien blockieren
+den gesamten Apply.
+
+### Dry-run
+
+```bash
+java -jar ... generate <jdbc> <modell> --target grails \
+  --grails-output <projekt> --grails-dry-run \
+  --grails-plan-json plan.json --grails-plan-markdown plan.md
+```
+
+Der Dry-run plant die Generierung, verändert das Projekt nicht und liefert
+einen JSON-/Markdown-Plan; bei Blockern ist der Exit-Code ungleich null.
+
+### Feature-Matrix und Runtime-Safety
+
+Die [INTERLIS-Feature-Matrix](docs/verification/interlis-feature-matrix.md)
+belegt pro Feature, welches Modell und welcher Test es abdecken und ob ein
+realer Datenbank-Vertrag existiert. Die Runtime validiert die generierten
+Registry-Deskriptoren fail-closed: bei ungültigen Deskriptoren startet die
+Anwendung im Strict-Modus nicht, im Non-strict-Modus technisch read-only
+(alle generierten Schreiboperationen sind blockiert).
 
 ## Weitere Dokumente
 

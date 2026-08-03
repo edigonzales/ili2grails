@@ -1,5 +1,18 @@
 rootProject.name = 'interlis-crud-generator'
 
+// Verbindlicher Java-17-Daemon (Spezifikation §9.1): Gradle 8.14 / Groovy 3.0.24
+// können Skripte, die die Toolchain-API referenzieren, auf neueren JDKs nicht
+// kompilieren (ASM: "Unsupported class file major version"). Deshalb muss der
+// Gradle-Daemon selbst auf Java 17 laufen; die Java-17-Toolchain in build.gradle
+// sorgt zusätzlich dafür, dass alle Testtasks einen Java-17-Launcher verwenden.
+def daemonMajor = JavaVersion.current().majorVersion.toInteger()
+if (daemonMajor != 17) {
+    throw new GradleException(
+        "This build requires the Gradle daemon to run on Java 17 " +
+        "(found Java ${daemonMajor}). Set JAVA_HOME to a JDK 17 installation " +
+        "(e.g. JAVA_HOME=\$(dirname \$(dirname \$(readlink -f \$(command -v java)))) ) and retry.")
+}
+
 include 'core'
 include 'grails-runtime-api'
 include 'grails-runtime'

@@ -66,11 +66,9 @@ class Ili2dbEnumReaderTest {
     private Ili2dbReadContext context(Connection connection) throws Exception {
         return new Ili2dbReadContext(
             connection,
-            ModelSelection.rootOnly("EnumModel"),
             null,
             SqlIdentifierRenderer.from(connection.getMetaData()),
-            DatabaseDialect.H2,
-            Ili2dbFailurePolicy.STRICT
+            DatabaseDialect.H2
         );
     }
 }

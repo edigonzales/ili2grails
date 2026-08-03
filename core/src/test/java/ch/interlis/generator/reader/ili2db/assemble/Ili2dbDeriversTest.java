@@ -9,6 +9,8 @@ import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import ch.interlis.generator.model.builder.RelationshipMetadataBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+
 import static org.assertj.core.api.Assertions.*;
 
 /**
@@ -64,7 +66,7 @@ class Ili2dbDeriversTest {
         link.attribute(label);
 
         new Ili2dbRelationshipDeriver().derive(builder);
-        new Ili2dbAssociationDeriver().derive(builder);
+        new Ili2dbAssociationDeriver().derive(builder, new ArrayList<>());
 
         assertThat(builder.relationshipBuilders()).hasSize(2);
         assertThat(builder.associationBuilders()).hasSize(1);

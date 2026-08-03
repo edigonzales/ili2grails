@@ -1,0 +1,250 @@
+# Versionierter INTERLIS-Modellkorpus (Spezifikation §22)
+#
+# Eine einzige Wahrheit für unterstützte Modell-Szenarien: jedes Szenario
+# referenziert ein reales Modell, eine Feature-Menge und Erwartungen.
+# Änderungen an dieser Datei sind bewusste Vertragsänderungen.
+schemaVersion: 1
+
+features:
+  - id: scalar.basic
+    description: Skalare Typen (TEXT, NUMERIC, BOOLEAN, DATE, XMLDate) mit optional/mandatory
+  - id: enum.basic
+    description: Enum mit Werten inkl. DispName
+  - id: geometry.basic
+    description: Einfache Geometrie (POINT/LINE/SURFACE) über COORD-Domains
+  - id: geometry.srid
+    description: SRID-Abbildung der Geometrie (reale DB-Evidenz)
+  - id: model-selection.root
+    description: Root-Modell wird gelesen
+  - id: model-selection.dependency
+    description: Direkte Dependency wird mitgelesen
+  - id: model-selection.transitive-dependency
+    description: Transitive Dependency wird mitgelesen
+  - id: model-selection.unrelated-excluded
+    description: Unabhängiges Modell wird ausgeschlossen
+  - id: merge.attribute-ambiguity
+    description: Mehrdeutiges Attribut erzeugt erklärbare Merge-Diagnostics
+  - id: merge.relationship-ambiguity
+    description: Mehrdeutige Beziehung erzeugt erklärbare Merge-Diagnostics
+  - id: reference.many-to-one
+    description: Normale Referenz über physische FK-Spalte
+  - id: reference.two-fks-same-target
+    description: Zwei FKs auf dieselbe Zielklasse bleiben getrennt
+  - id: inverse.read-only
+    description: Inverse read-only Darstellung ohne persistente Collection
+  - id: inverse.writable
+    description: Inverse writable Zuordnung mit Bestätigung
+  - id: association.link-entity
+    description: Association mit eigener Link-Tabelle (LINK_ENTITY)
+  - id: association.without-attribute
+    description: Attributlose binäre Association
+  - id: association.with-attribute
+    description: Association mit eigenem Attribut
+  - id: association.two-roles-same-class
+    description: Zwei Rollen auf dieselbe Klasse
+  - id: association.cardinality
+    description: Begrenzte Kardinalität
+  - id: association.external-role
+    description: EXTERNAL-Rolle
+  - id: association.composite-role
+    description: COMPOSITE-Rolle
+  - id: structure.basic
+    description: Structure mit physischer Abbildung
+  - id: composition.child-fk
+    description: To-many-Komposition über Child-FK ohne Join-Tabelle
+  - id: composition.no-join-table
+    description: Kein unerwarteter Join-Table
+  - id: real-world.large-model
+    description: Grösseres realitätsnahes Modell (VSADSSMINI_2020_LV95)
+  - id: association.role-fk-column-naming
+    description: FK-Spaltennamen von Association-Rollen (ternäre Rollen mit
+      erweiterten Zielklassen) - derzeit dokumentierte Einschränkung
+  - id: persistence.contract
+    description: Realer Datenbank-Vertrag gegen PostgreSQL/PostGIS
+
+scenarios:
+  - id: p0-persistence-contract
+    modelName: P0PersistenceContract
+    modelFile: test-models/P0PersistenceContract.ili
+    repositories:
+      - test-models
+    database:
+      required: true
+      importProfile: postgres-smart-inheritance
+    features:
+      - reference.many-to-one
+      - association.link-entity
+      - composition.child-fk
+      - composition.no-join-table
+      - geometry.basic
+      - geometry.srid
+      - persistence.contract
+    expected:
+      blockingDiagnostics: 0
+      minimumClasses: 5
+      generatedGrails: true
+      compileGeneratedGrails: true
+      mappingContract: true
+
+  - id: structure-composition
+    modelName: StructureCompositionCases
+    modelFile: test-models/StructureCompositionCases.ili
+    repositories:
+      - test-models
+    database:
+      required: true
+      importProfile: postgres-smart-inheritance
+    features:
+      - structure.basic
+      - association.link-entity
+      - composition.child-fk
+      - composition.no-join-table
+      - reference.many-to-one
+      - persistence.contract
+    expected:
+      blockingDiagnostics: 0
+      minimumClasses: 4
+      generatedGrails: true
+      compileGeneratedGrails: true
+      mappingContract: true
+      allowedDifferences:
+        - code: COLUMN_NAME_MISMATCH
+          entity: com.example.domain.Asset
+          property: mainInspection
+          reason: >-
+            Embedded STRUCTURE-Referenzen (BAG {1} OF Inspection) besitzen
+            keine physische FK-Spalte in der ili2pg-Tabelle; der Generator
+            erzeugt trotzdem eine Relationship-Property mit
+            GORM-Default-Spaltenname. Bewusst dokumentiert (P2-D009).
+        - code: COLUMN_NAME_MISMATCH
+          entity: com.example.domain.Asset
+          property: optionalAttachment
+          reason: >-
+            siehe mainInspection; gleiche Einschränkung bei embedded
+            STRUCTURE-Referenzen (P2-D009).
+
+  - id: geometry-basic
+    modelName: GeometryBasicCases
+    modelFile: test-models/GeometryBasicCases.ili
+    repositories:
+      - test-models
+    database:
+      required: true
+      importProfile: postgres-smart-inheritance
+    features:
+      - geometry.basic
+      - geometry.srid
+      - persistence.contract
+    expected:
+      blockingDiagnostics: 0
+      minimumClasses: 1
+      generatedGrails: true
+      compileGeneratedGrails: false
+      mappingContract: true
+
+  - id: association-cases
+    modelName: AssociationCases
+    modelFile: test-models/AssociationCases.ili
+    repositories:
+      - test-models
+    database:
+      required: true
+      importProfile: postgres-smart-inheritance
+    features:
+      - association.without-attribute
+      - association.with-attribute
+      - association.two-roles-same-class
+      - association.cardinality
+      - association.external-role
+      - association.composite-role
+      - reference.two-fks-same-target
+      - association.role-fk-column-naming
+      - persistence.contract
+    expected:
+      blockingDiagnostics: 0
+      minimumClasses: 5
+      exactAssociations: 8
+      generatedGrails: true
+      compileGeneratedGrails: true
+      mappingContract: true
+      allowedDifferences:
+        - code: COLUMN_NAME_MISMATCH
+          entity: com.example.domain.TernaryAssociation
+          property: parcelRole
+          reason: >-
+            ili2pg benennt die ternäre Rollen-FK parcelrole_base_parcel;
+            der Generator bildet die Rolle ohne Attribut-Match auf den
+            GORM-Default-Spaltennamen parcel_role_id ab (kein DB-Vertrag).
+            Bewusst dokumentiert, bis der Rolle-zu-Attribut-Match die
+            physische Spalte auflöst (P2-D008).
+        - code: FOREIGN_KEY_COLUMN_MISMATCH
+          entity: com.example.domain.TernaryAssociation
+          property: parcelRole
+          reason: >-
+            siehe COLUMN_NAME_MISMATCH parcelRole; gleiche Einschränkung.
+
+  - id: model-selection
+    modelName: ModelSelectionRoot
+    modelFile: test-models/ModelSelectionRoot.ili
+    repositories:
+      - test-models
+    features:
+      - model-selection.root
+      - model-selection.dependency
+      - model-selection.transitive-dependency
+      - model-selection.unrelated-excluded
+    expected:
+      blockingDiagnostics: 0
+      minimumClasses: 1
+      generatedGrails: true
+      compileGeneratedGrails: false
+      diagnostics:
+        - source: reader
+          code: GEOMETRY_METADATA_UNAVAILABLE
+          severity: WARNING
+          minimumCount: 0
+
+  - id: merge-ambiguity
+    modelName: MergeAmbiguityCases
+    modelFile: test-models/MergeAmbiguityCases.ili
+    repositories:
+      - test-models
+    features:
+      - merge.attribute-ambiguity
+      - merge.relationship-ambiguity
+      - association.two-roles-same-class
+      - reference.many-to-one
+    expected:
+      blockingDiagnostics: 0
+      minimumClasses: 3
+      generatedGrails: true
+      compileGeneratedGrails: true
+
+  - id: core-types
+    modelName: CoreTypeTestModel
+    modelFile: test-models/CoreTypeTestModel.ili
+    repositories:
+      - test-models
+    features:
+      - scalar.basic
+      - enum.basic
+    expected:
+      blockingDiagnostics: 0
+      minimumClasses: 1
+      generatedGrails: true
+      compileGeneratedGrails: true
+
+  - id: vsadssmini-large-model
+    modelName: VSADSSMINI_2020_LV95
+    modelFile: test-models/VSADSSMINI_2020_2_d_LV95-20251129.ili
+    repositories:
+      - test-models
+      - https://models.interlis.ch/
+      - https://models.geo.admin.ch/
+    features:
+      - real-world.large-model
+    expected:
+      blockingDiagnostics: 0
+      minimumClasses: 20
+      generatedGrails: true
+      compileGeneratedGrails: false

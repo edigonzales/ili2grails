@@ -98,17 +98,63 @@ final class GrailsCliTarget implements CliTargetAdapter {
     public void generate(ModelMetadata metadata) throws IOException, InterruptedException {
         Path grailsProjectDir = resolveProjectDir();
         GenerationConfig config = buildConfig(metadata, grailsProjectDir);
+        GrailsCrudGenerator generator = new GrailsCrudGenerator();
 
+        if (options.dryRun()) {
+            runDryRun(metadata, config, generator);
+            return;
+        }
         System.out.println("Installing Grails UI overlay...");
         new GrailsTemplateOverlayInstaller().install(grailsProjectDir, config);
         System.out.println("Generating Grails domains and supporting artifacts...");
-        new GrailsCrudGenerator().generate(metadata, config);
+        generator.generate(metadata, config);
         if (options.generateAll()) {
             runGrailsGenerateAll(metadata, config, grailsProjectDir);
         }
         System.out.println();
         System.out.println("===================================================");
         System.out.println("Grails CRUD artifacts generated in: " + grailsProjectDir.toAbsolutePath());
+    }
+
+    /**
+     * Dry-run (Spezifikation §47): Plan erzeugen, nur explizit angeforderte
+     * Reportdateien ausserhalb des Zielprojekts schreiben, das Projekt nicht
+     * verändern. Bei Blockern Exit-Code ungleich null.
+     */
+    private void runDryRun(ModelMetadata metadata, GenerationConfig config,
+                           GrailsCrudGenerator generator) throws IOException {
+        ch.interlis.generator.grails.project.plan.GenerationPlan plan = generator.plan(metadata, config);
+        ch.interlis.generator.grails.project.plan.GenerationPlanSummary summary = plan.summary();
+        System.out.println("Grails generation plan");
+        System.out.println("  CREATE:    " + summary.create());
+        System.out.println("  UPDATE:    " + summary.update());
+        System.out.println("  DELETE:    " + summary.delete());
+        System.out.println("  UNCHANGED: " + summary.unchanged());
+        System.out.println("  BLOCKED:   " + summary.blocked());
+
+        ch.interlis.generator.grails.project.plan.GenerationPlanReportWriter writer =
+            new ch.interlis.generator.grails.project.plan.GenerationPlanReportWriter();
+        if (options.planJson() != null) {
+            writer.writeJson(plan, options.planJson());
+            System.out.println("Plan JSON written to: " + options.planJson().toAbsolutePath());
+        }
+        if (options.planMarkdown() != null) {
+            writer.writeMarkdown(plan, options.planMarkdown());
+            System.out.println("Plan Markdown written to: " + options.planMarkdown().toAbsolutePath());
+        }
+        if (plan.hasBlockingDiagnostics()) {
+            System.out.println("Generation blocked; no project files were changed.");
+            for (ch.interlis.generator.grails.project.plan.GenerationDiagnostic diagnostic
+                : plan.diagnostics()) {
+                if (diagnostic.blocking()) {
+                    System.out.println("  " + diagnostic.code() + " "
+                        + (diagnostic.relativePath() == null ? "" : diagnostic.relativePath())
+                        + " " + diagnostic.message());
+                }
+            }
+            throw new ch.interlis.generator.grails.GrailsGenerationBlockedException(plan,
+                "Generation blocked; no project files were changed.");
+        }
     }
 
     GenerationConfig buildConfig(ModelMetadata metadata, Path grailsProjectDir) {

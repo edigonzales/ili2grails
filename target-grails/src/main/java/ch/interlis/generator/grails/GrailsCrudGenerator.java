@@ -1,69 +1,72 @@
 package ch.interlis.generator.grails;
 
+import ch.interlis.generator.grails.project.RuntimeCoordinates;
+import ch.interlis.generator.grails.project.plan.GenerationExecutionResult;
+import ch.interlis.generator.grails.project.plan.GenerationPlan;
+import ch.interlis.generator.grails.project.plan.GenerationPlanSummary;
+import ch.interlis.generator.grails.project.plan.GeneratedProjectManifest;
+import ch.interlis.generator.grails.project.plan.GeneratedProjectManifestStore;
+import ch.interlis.generator.grails.project.plan.GrailsGenerationExecutor;
+import ch.interlis.generator.grails.project.plan.GrailsGenerationPlanner;
 import ch.interlis.generator.model.ModelMetadata;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import java.util.Optional;
 
 /**
- * Orchestriert die Generierung von Grails Domains, Controllern und Views.
+ * Orchestriert die Generierung nach dem Plan-before-write-Prinzip
+ * (Spezifikation §46):
+ *
+ * <pre>
+ * plan(metadata, config)   - vollständiger Plan, keine Dateiänderung
+ * apply(plan, config)      - Plan ausführen, Manifest zuletzt
+ * generate(metadata, config) - plan + Gate + apply
+ * </pre>
+ *
+ * <p>Keine Generator-Komponente schreibt vor Abschluss von
+ * {@code plan(...)}. Bei blockierenden Diagnostics wird keine Projektdatei
+ * verändert.</p>
  */
-public class GrailsCrudGenerator {
+public final class GrailsCrudGenerator {
 
-    private final GrailsDomainGenerator domainGenerator = new GrailsDomainGenerator();
-    private final GrailsControllerGenerator controllerGenerator = new GrailsControllerGenerator();
-    private final GrailsViewGenerator viewGenerator = new GrailsViewGenerator();
-    private final GrailsEnumGenerator enumGenerator = new GrailsEnumGenerator();
-    private final GrailsAssociationRegistryGenerator associationRegistryGenerator =
-        new GrailsAssociationRegistryGenerator();
-    private final GrailsUiRegistryGenerator uiRegistryGenerator =
-        new GrailsUiRegistryGenerator();
-    private final GrailsBuildGradleUpdater buildGradleUpdater = new GrailsBuildGradleUpdater();
-    private final GrailsApplicationYamlUpdater applicationYamlUpdater = new GrailsApplicationYamlUpdater();
+    private final GrailsGenerationPlanner planner = new GrailsGenerationPlanner();
+    private final GrailsGenerationExecutor executor = new GrailsGenerationExecutor();
+    private final GeneratedProjectManifestStore manifestStore = new GeneratedProjectManifestStore();
 
-    public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
-        Files.createDirectories(config.getOutputDir());
-        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
-        GrailsRelationshipMapper relationshipMapper =
-            GrailsRelationshipMapper.forMetadata(metadata, config, registry);
-        GrailsAssociationPlanner associationPlanner =
-            GrailsAssociationPlanner.forMetadata(metadata, config, registry, relationshipMapper);
-        GrailsInverseRelationshipPlanner inverseRelationshipPlanner =
-            GrailsInverseRelationshipPlanner.forMetadata(metadata, config, registry, relationshipMapper);
+    public GenerationPlan plan(ModelMetadata metadata, GenerationConfig config) throws IOException {
+        RuntimeCoordinates runtimeCoordinates = RuntimeCoordinates.ili2grailsRuntime();
+        Optional<GeneratedProjectManifest> previousManifest =
+            manifestStore.read(config.getOutputDir());
+        return planner.plan(metadata, config, runtimeCoordinates, previousManifest);
+    }
 
-        RuntimeDescriptorPlanner descriptorPlanner = new RuntimeDescriptorPlanner(
-            registry, relationshipMapper, associationPlanner, inverseRelationshipPlanner);
-        RuntimeDescriptorPlan descriptorPlan = descriptorPlanner.plan(metadata, config);
+    public GenerationExecutionResult apply(GenerationPlan plan, GenerationConfig config)
+        throws IOException {
+        return executor.apply(config.getOutputDir(), plan);
+    }
 
-        enumGenerator.generate(metadata, config, registry);
-        domainGenerator.generate(
-            metadata,
-            config,
-            registry,
-            relationshipMapper,
-            inverseRelationshipPlanner
-        );
-        associationRegistryGenerator.generate(descriptorPlan, config);
-        uiRegistryGenerator.generate(descriptorPlan, config, registry);
-        //controllerGenerator.generate(metadata, config, registry);
-        //viewGenerator.generate(metadata, config, registry);
-        buildGradleUpdater.ensureDependencies(
-            config.getOutputDir().resolve("build.gradle"),
-            config.isGeometryEnabled()
-        );
-        applicationYamlUpdater.ensureDevelopmentDataSourceUrl(
-            config.getOutputDir().resolve("grails-app/conf/application.yml"),
-            config.getJdbcUrl(),
-            config.getSchema(),
-            config.isGeometryEnabled(),
-            config.getDefaultSrid(),
-            config.getLanguage()
-        );
-        ch.interlis.generator.grails.project.GrailsProjectCustomizer.defaultCustomizer()
-            .customize(
-                config.getOutputDir(),
-                config,
-                ch.interlis.generator.grails.project.RuntimeCoordinates.ili2grailsRuntime()
-            );
+    public GenerationExecutionResult generate(ModelMetadata metadata, GenerationConfig config)
+        throws IOException {
+        GenerationPlan plan = plan(metadata, config);
+        if (plan.hasBlockingDiagnostics()) {
+            GenerationPlanSummary summary = plan.summary();
+            StringBuilder message = new StringBuilder();
+            message.append("Generation blocked; no project files were changed.\n")
+                .append("  CREATE: ").append(summary.create()).append("\n")
+                .append("  UPDATE: ").append(summary.update()).append("\n")
+                .append("  DELETE: ").append(summary.delete()).append("\n")
+                .append("  UNCHANGED: ").append(summary.unchanged()).append("\n")
+                .append("  BLOCKED: ").append(summary.blocked()).append("\n");
+            for (ch.interlis.generator.grails.project.plan.GenerationDiagnostic diagnostic
+                : plan.diagnostics()) {
+                if (diagnostic.blocking()) {
+                    message.append("  ").append(diagnostic.code()).append(" ")
+                        .append(diagnostic.relativePath() == null ? "" : diagnostic.relativePath())
+                        .append(" ").append(diagnostic.message()).append("\n");
+                }
+            }
+            throw new GrailsGenerationBlockedException(plan, message.toString());
+        }
+        return apply(plan, config);
     }
 }

@@ -39,12 +39,18 @@ class InterlisInverseRelationshipCommandService {
     InterlisLifecycleHooks lifecycleHooks
     RuntimeRecordLoader recordLoader
     ch.interlis.generator.grails.runtime.config.InterlisRuntimeOverridesService overridesService
+    ch.interlis.generator.grails.runtime.registry.InterlisRuntimeSafetyState runtimeSafetyState
 
     InverseRelationshipCommandResult assign(Class ownerType,
                                             Serializable ownerId,
                                             String relationshipName,
                                             Serializable relatedId,
                                             boolean confirmReassignment) {
+        if (!runtimeSafetyState?.writeAllowed) {
+            return typedReadOnlyResult(CommandCode.RUNTIME_DESCRIPTOR_INVALID,
+                "Runtime descriptor validation has blocking diagnostics; " +
+                "all generated write operations are disabled.")
+        }
         InverseRelationshipDescriptor descriptor
         try {
             def domain = runtimeRegistry.requireDomain(ownerType)
@@ -253,5 +259,9 @@ class InterlisInverseRelationshipCommandService {
     private InverseRelationshipCommandResult failure(int status, CommandStatus commandStatus,
                                                      CommandCode code, String message) {
         return InverseRelationshipCommandResult.failure(status, commandStatus, code, message)
+    }
+
+    private InverseRelationshipCommandResult typedReadOnlyResult(CommandCode code, String message) {
+        return InverseRelationshipCommandResult.failure(409, CommandStatus.CONFLICT, code, message)
     }
 }

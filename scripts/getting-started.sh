@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 ILI2PG_VERSION="5.5.1"
-ILI2PG_HOME="${ILI2PG_HOME:-/Users/stefan/apps/ili2pg-${ILI2PG_VERSION}}"
+ILI2PG_HOME="${ILI2PG_HOME:-}"
 ILI2PG_JAR="$ILI2PG_HOME/ili2pg-${ILI2PG_VERSION}.jar"
 
 DB_HOST="localhost"
@@ -36,8 +36,7 @@ Options:
   -h, --help Show this help.
 
 Environment:
-  ILI2PG_HOME  ili2pg installation directory
-              (default: /Users/stefan/apps/ili2pg-5.5.1)
+  ILI2PG_HOME  ili2pg installation directory (required)
 EOF
 }
 
@@ -126,6 +125,8 @@ validate_inputs() {
     docker compose version >/dev/null 2>&1 \
         || fail "Docker Compose ist nicht verfügbar."
 
+    [[ -n "$ILI2PG_HOME" ]] \
+        || fail "ILI2PG_HOME ist nicht gesetzt (ili2pg-Installationsverzeichnis, z.B. export ILI2PG_HOME=~/apps/ili2pg-$ILI2PG_VERSION)."
     [[ -d "$ILI2PG_HOME" ]] \
         || fail "ili2pg-Verzeichnis nicht gefunden: $ILI2PG_HOME"
     [[ -f "$ILI2PG_JAR" ]] \

@@ -1,6 +1,8 @@
 package ch.interlis.generator.reader.ili2db;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Strukturierte Reader-Diagnostik. Logs sind Zusatzinformation; fachliche
@@ -16,7 +18,11 @@ public record Ili2dbDiagnostic(
 ) {
 
     public Ili2dbDiagnostic {
-        details = details == null ? Map.of() : Map.copyOf(details);
+        TreeMap<String, String> sorted = new TreeMap<>();
+        if (details != null) {
+            sorted.putAll(details);
+        }
+        details = Collections.unmodifiableMap(sorted);
     }
 
     public boolean isBlocking() {

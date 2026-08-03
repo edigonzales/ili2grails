@@ -7,8 +7,12 @@ import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
 import ch.interlis.generator.model.builder.ClassMetadataBuilder;
 import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import ch.interlis.generator.model.builder.RelationshipMetadataBuilder;
+import ch.interlis.generator.reader.ili2db.Ili2dbDiagnostic;
+import ch.interlis.generator.reader.ili2db.Ili2dbDiagnosticCode;
+import ch.interlis.generator.reader.ili2db.Ili2dbSeverity;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -18,7 +22,7 @@ import java.util.Objects;
  */
 public final class Ili2dbAssociationDeriver {
 
-    public void derive(ModelMetadataBuilder builder) {
+    public void derive(ModelMetadataBuilder builder, List<Ili2dbDiagnostic> diagnostics) {
         for (ClassMetadataBuilder classMetadata : builder.classBuilders().values()) {
             if (classMetadata.kind() != ClassMetadata.ClassKind.ASSOCIATION) {
                 continue;
@@ -34,6 +38,13 @@ public final class Ili2dbAssociationDeriver {
                 builder.relationshipBuilders().stream()
                     .filter(relationship -> Objects.equals(relationship.sourceClass(), classMetadata.name()))
                     .toList();
+            if (associationRelationships.isEmpty()) {
+                diagnostics.add(new Ili2dbDiagnostic(
+                    Ili2dbSeverity.WARNING,
+                    Ili2dbDiagnosticCode.ASSOCIATION_MAPPING_INCOMPLETE,
+                    "Association mapping incomplete: no roles for association class",
+                    classMetadata.name(), classMetadata.tableName(), Map.of()));
+            }
             for (RelationshipMetadataBuilder relationship : associationRelationships) {
                 association.role(toAssociationRole(relationship));
             }
