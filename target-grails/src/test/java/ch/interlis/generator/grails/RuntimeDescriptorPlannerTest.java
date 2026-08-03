@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Runtime-Descriptor-Diagnostics (Spezifikation §64).
@@ -36,8 +35,6 @@ class RuntimeDescriptorPlannerTest {
                 assertThat(diagnostic.severity()).isEqualTo(RuntimeDescriptorSeverity.ERROR);
                 assertThat(diagnostic.details()).containsEntry("writable", "true");
             });
-        assertThatThrownBy(plan::throwIfBlocking)
-            .isInstanceOf(RuntimeDescriptorPlanningException.class);
     }
 
     @Test
@@ -120,8 +117,6 @@ class RuntimeDescriptorPlannerTest {
             List.of(), List.of(), List.of(duplicateContext("same-id"), duplicateContext("same-id")),
             diagnostics);
         assertThat(manual.hasBlockingDiagnostics()).isTrue();
-        assertThatThrownBy(manual::throwIfBlocking)
-            .isInstanceOf(RuntimeDescriptorPlanningException.class);
     }
 
     @Test
@@ -170,8 +165,14 @@ class RuntimeDescriptorPlannerTest {
 
         Path outputDir = tempDir.resolve("blocked-project");
         GenerationConfig config = GenerationConfig.builder(outputDir, "com.example").build();
-        assertThatThrownBy(() -> new GrailsCrudGenerator().generate(metadata, config))
-            .isInstanceOf(RuntimeDescriptorPlanningException.class);
+        try {
+            new GrailsCrudGenerator().generate(metadata, config);
+            throw new AssertionError("expected generation blocker");
+        } catch (GrailsGenerationBlockedException blocked) {
+            assertThat(blocked.getPlan().diagnostics())
+                .extracting(ch.interlis.generator.grails.project.plan.GenerationDiagnostic::code)
+                .contains(ch.interlis.generator.grails.project.plan.GenerationDiagnosticCode.RUNTIME_DESCRIPTOR_INVALID);
+        }
         assertThat(outputDir.toFile().list()).isNullOrEmpty();
     }
 

@@ -237,7 +237,7 @@ import_schema_and_data() {
 
 build_generator() {
     echo "==> Generator bauen"
-    (cd "$REPO_ROOT" && ./gradlew :cli:installDist)
+    (cd "$REPO_ROOT" && ./gradlew :cli:installDist prepareLocalRuntime)
 
     GENERATOR="$REPO_ROOT/cli/build/install/cli/bin/cli"
     [[ -x "$GENERATOR" ]] \

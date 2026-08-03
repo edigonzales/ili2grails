@@ -39,7 +39,8 @@ class GrailsAssociationRegistryGeneratorTest {
         assertThat(first).contains("static final Map<String, AssociationDescriptor> ASSOCIATIONS = [");
         assertThat(first).contains("static final Map<String, AssociationContextDescriptor> CONTEXTS = [");
         assertThat(first).contains("static final Map<String, List<String>> CONTEXT_IDS_BY_PARTICIPANT = [");
-        assertThat(first).contains("static final Map<String, EntityDescriptor> ENTITIES = [");
+        assertThat(first)
+            .doesNotContain("LegacyDescriptorMapAdapter", "EntityDescriptor", "legacyAssociation");
         // Associations are emitted in stable, sorted order.
         int withAttribute = first.indexOf("AssociationCases.Base.AssociationWithAttribute");
         int emptyAssociation = first.indexOf("AssociationCases.Base.EmptyAssociation");
@@ -144,12 +145,10 @@ class GrailsAssociationRegistryGeneratorTest {
         GenerationConfig config = config();
         RuntimeDescriptorPlan plan = mergedPlan(config);
 
-        generator.generate(plan, config);
+        String generated = new String(generator.plan(plan, config).content(),
+            java.nio.charset.StandardCharsets.UTF_8);
 
-        Path expected = tempDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy");
-        assertThat(expected).exists();
-        assertGroovyCompiles(Files.readString(expected));
+        assertGroovyCompiles(generated);
     }
 
     @Test
@@ -164,7 +163,7 @@ class GrailsAssociationRegistryGeneratorTest {
         assertThat(rendered).contains("ASSOCIATIONS = [:]");
         assertThat(rendered).contains("CONTEXTS = [:]");
         assertThat(rendered).contains("CONTEXT_IDS_BY_PARTICIPANT = [:]");
-        assertThat(rendered).contains("ENTITIES = [:]");
+        assertThat(rendered).doesNotContain("ENTITIES", "legacy");
         assertGroovyCompiles(rendered);
     }
 

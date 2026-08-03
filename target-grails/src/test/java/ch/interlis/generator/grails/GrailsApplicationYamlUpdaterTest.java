@@ -31,14 +31,12 @@ class GrailsApplicationYamlUpdaterTest {
             ""
         ));
 
-        GrailsApplicationYamlUpdater updater = new GrailsApplicationYamlUpdater();
-        updater.ensureDevelopmentDataSourceUrl(
-            yamlPath,
+        String updated = new GrailsApplicationYamlUpdater().plan(
+            Path.of("grails-app/conf/application.yml"),
+            Files.readString(yamlPath),
             "jdbc:postgresql://localhost:5432/testdb?user=postgres&password=secret&dbSchema=ignored",
-            "public"
-        );
-
-        String updated = Files.readString(yamlPath);
+            "public", false, 2056, GenerationConfig.LANGUAGE_DE_CH
+        ).updatedContent();
         assertThat(updated).contains("jdbc:postgresql://localhost:5432/testdb?currentSchema=public");
         assertThat(updated).contains("username: \"${DB_USERNAME}\"");
         assertThat(updated).contains("password: \"${DB_PASSWORD}\"");
@@ -63,16 +61,12 @@ class GrailsApplicationYamlUpdaterTest {
             "grails:\n" +
             "  profile: web\n");
 
-        new GrailsApplicationYamlUpdater().ensureDevelopmentDataSourceUrl(
-            yamlPath,
-            null,
-            null,
-            false,
-            2056,
-            GenerationConfig.LANGUAGE_EN
-        );
+        String updated = new GrailsApplicationYamlUpdater().plan(
+            Path.of("grails-app/conf/application.yml"), Files.readString(yamlPath),
+            null, null, false, 2056, GenerationConfig.LANGUAGE_EN
+        ).updatedContent();
 
-        assertThat(Files.readString(yamlPath)).contains(
+        assertThat(updated).contains(
             "ili2grails:", "language: \"en\"", "locale: \"en\"", "locale-resolver: \"fixed\""
         );
     }
@@ -92,16 +86,14 @@ class GrailsApplicationYamlUpdaterTest {
             ""
         ));
 
-        GrailsApplicationYamlUpdater updater = new GrailsApplicationYamlUpdater();
-        updater.ensureDevelopmentDataSourceUrl(
-            yamlPath,
+        String updated = new GrailsApplicationYamlUpdater().plan(
+            Path.of("grails-app/conf/application.yml"), Files.readString(yamlPath),
             "jdbc:postgresql://localhost:5432/testdb",
             "public",
             true,
-            2056
-        );
-
-        String updated = Files.readString(yamlPath);
+            2056,
+            GenerationConfig.LANGUAGE_DE_CH
+        ).updatedContent();
         assertThat(updated).contains("org.hibernate.spatial.dialect.postgis.PostgisDialect");
         assertThat(updated).contains("production:");
         assertThat(updated).contains("url: \"${DB_URL}\"");

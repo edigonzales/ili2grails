@@ -9,9 +9,6 @@ import ch.interlis.generator.grails.project.plan.PlannedProjectFile;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.RelationshipMetadata;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -35,29 +32,6 @@ public class GrailsDomainGenerator {
         "code",
         "ident"
     );
-
-    public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
-        generate(metadata, config, TargetNameRegistry.forMetadata(metadata, config));
-    }
-
-    public void generate(ModelMetadata metadata,
-                         GenerationConfig config,
-                         TargetNameRegistry registry) throws IOException {
-        generate(metadata, config, registry, GrailsRelationshipMapper.forMetadata(metadata, config, registry));
-    }
-
-    public void generate(ModelMetadata metadata,
-                         GenerationConfig config,
-                         TargetNameRegistry registry,
-                         GrailsRelationshipMapper mapper) throws IOException {
-        generate(
-            metadata,
-            config,
-            registry,
-            mapper,
-            GrailsInverseRelationshipPlanner.forMetadata(metadata, config, registry, mapper)
-        );
-    }
 
     /**
      * Reine Planungsfunktion (Spezifikation §41.1): kein Write.
@@ -87,22 +61,6 @@ public class GrailsDomainGenerator {
                 "generated domain " + registry.className(classMetadata)));
         }
         return planned;
-    }
-
-    public void generate(ModelMetadata metadata,
-                         GenerationConfig config,
-                         TargetNameRegistry registry,
-                         GrailsRelationshipMapper mapper,
-                         GrailsInverseRelationshipPlanner inverseRelationshipPlanner) throws IOException {
-        Path baseDir = config.getOutputDir()
-            .resolve("grails-app/domain")
-            .resolve(NameUtils.packageToPath(config.getDomainPackage()));
-        for (PlannedProjectFile planned : plan(metadata, config, registry, mapper,
-            inverseRelationshipPlanner)) {
-            Path target = baseDir.resolve(planned.relativePath().getFileName());
-            Files.createDirectories(target.getParent());
-            Files.write(target, planned.content());
-        }
     }
 
     private String renderDomain(ClassMetadata classMetadata,

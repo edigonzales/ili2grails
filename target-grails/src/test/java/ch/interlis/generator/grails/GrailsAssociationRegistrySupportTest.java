@@ -174,19 +174,18 @@ class GrailsAssociationRegistrySupportTest {
 
         ModelMetadata metadata = MetadataTestFixtures.readMergedAssociationCasesMetadata();
         RuntimeDescriptorPlan plan = GrailsUiRegistryGeneratorTest.plan(metadata, config);
-        generator.generate(plan, config);
-
-        Path registryFile = tempDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisAssociationRegistry.groovy");
+        var registryPlan = generator.plan(plan, config);
+        Path registryFile = tempDir.resolve(registryPlan.relativePath());
+        Files.createDirectories(registryFile.getParent());
+        Files.write(registryFile, registryPlan.content());
         assertThat(registryFile).exists();
 
         String registryContent = Files.readString(registryFile, StandardCharsets.UTF_8);
         assertThat(registryContent).contains("ASSOCIATIONS = [");
         assertThat(registryContent).contains("CONTEXTS = [");
         assertThat(registryContent).contains("CONTEXT_IDS_BY_PARTICIPANT");
-        assertThat(registryContent).contains("ENTITIES = [");
         assertThat(registryContent).contains("contextsForParticipant");
-        assertThat(registryContent).contains("legacyShowInNavigation");
+        assertThat(registryContent).doesNotContain("legacy", "EntityDescriptor");
 
         GeneratedGroovyCompiler.compileGeneratedSources(tempDir);
     }

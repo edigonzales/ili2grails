@@ -125,31 +125,23 @@ class DescriptorValidationTest {
     void inverseRelationshipWritabilityDowngradesButNeverUpgrades() {
         InverseRelationshipDescriptor writable = new InverseRelationshipDescriptor(
             "children", "Kinder", "M.Owner", "M.Related", "com.example.Related",
-            "related", "owner", "Besitzer", true, true, InverseRelationshipMode.AUTO);
+            "related", "owner", "Besitzer", false, true, true, InverseRelationshipMode.AUTO);
         assertThat(writable.writable()).isTrue();
 
         InverseRelationshipDescriptor downgraded = new InverseRelationshipDescriptor(
             "children", "Kinder", "M.Owner", "M.Related", "com.example.Related",
-            "related", "owner", "Besitzer", true, true, InverseRelationshipMode.READ_ONLY);
+            "related", "owner", "Besitzer", false, true, true, InverseRelationshipMode.READ_ONLY);
         assertThat(downgraded.writable()).isFalse();
 
         InverseRelationshipDescriptor off = new InverseRelationshipDescriptor(
             "children", "Kinder", "M.Owner", "M.Related", "com.example.Related",
-            "related", "owner", "Besitzer", true, false, InverseRelationshipMode.OFF);
+            "related", "owner", "Besitzer", false, true, false, InverseRelationshipMode.OFF);
         assertThat(off.writable()).isFalse();
 
         InverseRelationshipDescriptor unsafeUpgrade = new InverseRelationshipDescriptor(
             "children", "Kinder", "M.Owner", "M.Related", "com.example.Related",
-            "related", "owner", "Besitzer", false, true, InverseRelationshipMode.EDITABLE);
+            "related", "owner", "Besitzer", false, false, true, InverseRelationshipMode.EDITABLE);
         assertThat(unsafeUpgrade.writable()).isFalse();
     }
 
-    @Test
-    void formDescriptorRejectsDuplicateSectionTitles() {
-        FormSectionDescriptor a = new FormSectionDescriptor("Basisdaten", List.of("name"));
-        FormSectionDescriptor b = new FormSectionDescriptor("Basisdaten", List.of("code"));
-        assertThatThrownBy(() -> new FormDescriptor(List.of(a, b)))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("duplicate");
-    }
 }

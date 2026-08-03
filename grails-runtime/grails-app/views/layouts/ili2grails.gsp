@@ -18,8 +18,7 @@
       data-ili-message-favorite-mark="${message(code: 'ili2grails.workspace.favoriteMark', default: 'Als Favorit markieren')}"
       data-ili-message-favorite-remove="${message(code: 'ili2grails.workspace.favoriteRemove', default: 'Favorit entfernen')}"
       data-ili-message-no-domain="${message(code: 'ili2grails.js.noDomain', default: 'Keine Domain gefunden')}">
-<g:set var="navigationModel"
-       value="${ch.interlis.generator.grails.runtime.InterlisNavigationSupport.navigationModel(grailsApplication)}"/>
+<ili:navigation var="navigationModel"/>
 <g:set var="shellAppTitle"
        value="${ch.interlis.generator.grails.runtime.InterlisUiDescriptorSupport.appTitle(grailsApplication)}"/>
 <g:set var="shellAppLogo"

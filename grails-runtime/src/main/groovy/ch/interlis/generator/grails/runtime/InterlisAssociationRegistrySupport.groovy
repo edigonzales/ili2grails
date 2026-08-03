@@ -1,127 +1,126 @@
 package ch.interlis.generator.grails.runtime
 
-
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
 
 final class InterlisAssociationRegistrySupport {
 
     private InterlisAssociationRegistrySupport() {
     }
 
-    static List<Map<String, Object>> contextsForParticipant(Class domainType) {
+    static List<AssociationContextDescriptor> contextsForParticipant(
+        InterlisRuntimeRegistry runtimeRegistry, Class domainType) {
         if (domainType == null) {
             return []
         }
-        return GeneratedRegistryAccessor.associationRegistryType().legacyContextsForParticipant(domainType.name)
+        return runtimeRegistry.contextsForParticipant(domainType.name)
     }
 
-    static Map<String, Object> requireContext(Class participantType, String contextId) {
+    static AssociationContextDescriptor requireContext(InterlisRuntimeRegistry runtimeRegistry,
+                                                        Class participantType,
+                                                        String contextId) {
         if (participantType == null) {
             throw new IllegalArgumentException("participantType must not be null")
         }
         if (contextId == null || contextId.isBlank()) {
             throw new IllegalArgumentException("contextId must not be null or blank")
         }
-        Map<String, Object> context = GeneratedRegistryAccessor.associationRegistryType().legacyContext(contextId)
+        AssociationContextDescriptor context = runtimeRegistry.context(contextId).orElse(null)
         if (context == null) {
             throw new AssociationContextNotFoundException("Unknown association context: ${contextId}")
         }
-        String participantDomainClass = context.participantDomainClass
+        String participantDomainClass = context.participantDomainClassName()
         if (participantDomainClass == null || participantDomainClass != participantType.name) {
             throw new AssociationOwnershipException(
                 "Context ${contextId} does not belong to domain ${participantType.name}, " +
                 "expected ${participantDomainClass ?: 'null'}"
             )
         }
-        String associationName = context.associationName
-        Map<String, Object> association = GeneratedRegistryAccessor.associationRegistryType().legacyAssociation(associationName)
+        String associationName = context.associationName()
+        AssociationDescriptor association = runtimeRegistry.association(associationName).orElse(null)
         if (association == null) {
             throw new AssociationContextNotFoundException("Association ${associationName} not found in registry for context ${contextId}")
         }
-        String fixedRole = context.fixedRole
-        List<Map<String, Object>> roles = association.roles as List<Map<String, Object>>
-        if (roles == null || roles.every { it.name != fixedRole }) {
+        String fixedRole = context.fixedRoleName()
+        if (association.role(fixedRole).isEmpty()) {
             throw new AssociationContextNotFoundException("Fixed role '${fixedRole}' not found in association ${associationName}")
         }
-        String fixedProperty = context.fixedProperty
+        String fixedProperty = context.fixedPropertyName()
         if (fixedProperty == null || fixedProperty.isBlank()) {
             throw new AssociationContextNotFoundException("Fixed property not resolved for context ${contextId}")
         }
         return context
     }
 
-    static Map<String, Object> requireAssociation(String associationName) {
+    static AssociationDescriptor requireAssociation(InterlisRuntimeRegistry runtimeRegistry,
+                                                     String associationName) {
         if (associationName == null || associationName.isBlank()) {
             throw new IllegalArgumentException("associationName must not be null or blank")
         }
-        Map<String, Object> association = GeneratedRegistryAccessor.associationRegistryType().legacyAssociation(associationName)
+        AssociationDescriptor association = runtimeRegistry.association(associationName).orElse(null)
         if (association == null) {
             throw new AssociationContextNotFoundException("Unknown association: ${associationName}")
         }
         return association
     }
 
-    static Class resolveDomainClass(def grailsApplication, String qualifiedClassName) {
-        if (grailsApplication == null || qualifiedClassName == null || qualifiedClassName.isBlank()) {
+    static Class resolveDomainClass(InterlisRuntimeRegistry runtimeRegistry, String qualifiedClassName) {
+        if (runtimeRegistry == null || qualifiedClassName == null || qualifiedClassName.isBlank()) {
             return null
         }
         try {
-            def artefact = grailsApplication.getDomainClass(qualifiedClassName)
-            return artefact?.clazz
+            return runtimeRegistry.resolveDomainClass(qualifiedClassName)
         } catch (Exception ignored) {
             return null
         }
     }
 
-    static Class resolveAssociationClass(def grailsApplication, Map<String, Object> context) {
-        if (grailsApplication == null || context == null) {
+    static Class resolveAssociationClass(InterlisRuntimeRegistry runtimeRegistry,
+                                         AssociationContextDescriptor context) {
+        if (runtimeRegistry == null || context == null) {
             return null
         }
-        String associationName = context.associationName
-        Map<String, Object> association = GeneratedRegistryAccessor.associationRegistryType().legacyAssociation(associationName)
+        AssociationDescriptor association = runtimeRegistry.association(context.associationName()).orElse(null)
         if (association == null) {
             return null
         }
-        String domainQualifiedName = association.domainClassQualifiedName
-        return resolveDomainClass(grailsApplication, domainQualifiedName)
+        return resolveDomainClass(runtimeRegistry, association.domainClassName())
     }
 
-    static Map<String, Object> role(Map<String, Object> association, String roleName) {
+    static AssociationRoleDescriptor role(AssociationDescriptor association, String roleName) {
         if (association == null || roleName == null) {
             return null
         }
-        List<Map<String, Object>> roles = association.roles as List<Map<String, Object>>
-        return roles?.find { it.name == roleName }
+        return association.role(roleName).orElse(null)
     }
 
-    static List<Map<String, Object>> editableRoles(Map<String, Object> association, Map<String, Object> context) {
+    static List<AssociationRoleDescriptor> editableRoles(AssociationDescriptor association,
+                                                         AssociationContextDescriptor context) {
         if (association == null || context == null) {
             return []
         }
-        List<Map<String, Object>> roles = association.roles as List<Map<String, Object>>
-        if (roles == null) {
-            return []
-        }
-        String fixedRole = context.fixedRole
-        List<String> editableRoleNames = context.editableRoles as List<String>
-        if (editableRoleNames == null) {
-            return []
-        }
-        return roles.findAll { editableRoleNames.contains(it.name) }
+        return association.roles().findAll { context.editableRoleNames().contains(it.name()) }
     }
 
-    static boolean isAssociationDomain(Class domainType) {
+    static boolean isAssociationDomain(InterlisRuntimeRegistry runtimeRegistry, Class domainType) {
         if (domainType == null) {
             return false
         }
-        def entity = GeneratedRegistryAccessor.associationRegistryType().legacyEntity(domainType.name)
-        return entity != null && entity.kind == 'ASSOCIATION'
+        return runtimeRegistry.domainByClassName(domainType.name)
+            .map { it.kind() == DomainKind.ASSOCIATION }
+            .orElse(false)
     }
 
-    static boolean showInNavigation(Class domainType) {
+    static boolean showInNavigation(InterlisRuntimeRegistry runtimeRegistry, Class domainType) {
         if (domainType == null) {
             return false
         }
-        return GeneratedRegistryAccessor.associationRegistryType().legacyShowInNavigation(domainType.name)
+        return runtimeRegistry.domainByClassName(domainType.name)
+            .map { it.navigationVisible() }
+            .orElse(true)
     }
 
     static class AssociationContextNotFoundException extends RuntimeException {

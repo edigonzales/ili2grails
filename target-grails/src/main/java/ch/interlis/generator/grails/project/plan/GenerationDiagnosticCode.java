@@ -4,6 +4,7 @@ package ch.interlis.generator.grails.project.plan;
  * Codes der Generations-Diagnostics (Spezifikation §38.5).
  */
 public enum GenerationDiagnosticCode {
+    RUNTIME_DESCRIPTOR_INVALID,
     USER_MODIFIED_MANAGED_FILE,
     UNKNOWN_LEGACY_RUNTIME_FILE,
     MODIFIED_LEGACY_RUNTIME_FILE,

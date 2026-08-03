@@ -116,14 +116,15 @@ class GrailsInverseRelationshipPlannerTest {
             .domainPackage("com.example.domain")
             .build();
 
-        new GrailsDomainGenerator().generate(fixture.metadata(), config);
-
-        String department = Files.readString(
-            tempDir.resolve("grails-app/domain/com/example/domain/Department.groovy")
-        );
-        String employee = Files.readString(
-            tempDir.resolve("grails-app/domain/com/example/domain/Employee.groovy")
-        );
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(fixture.metadata(), config);
+        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(
+            fixture.metadata(), config, registry);
+        GrailsInverseRelationshipPlanner inversePlanner =
+            GrailsInverseRelationshipPlanner.forMetadata(fixture.metadata(), config, registry, mapper);
+        List<ch.interlis.generator.grails.project.plan.PlannedProjectFile> domains =
+            new GrailsDomainGenerator().plan(fixture.metadata(), config, registry, mapper, inversePlanner);
+        String department = plannedContent(domains, "Department.groovy");
+        String employee = plannedContent(domains, "Employee.groovy");
         assertThat(department)
             .contains("static final Map<String, Map<String, Object>> interlisInverseRelationshipMeta")
             .contains("employees: [relatedDomainClass: 'com.example.domain.Employee'")
@@ -133,6 +134,17 @@ class GrailsInverseRelationshipPlannerTest {
         assertThat(employee)
             .contains("Department department")
             .contains("department column: 'department'");
+    }
+
+    private String plannedContent(
+        List<ch.interlis.generator.grails.project.plan.PlannedProjectFile> files,
+        String fileName
+    ) {
+        return files.stream()
+            .filter(file -> file.relativePath().getFileName().toString().equals(fileName))
+            .findFirst()
+            .map(file -> new String(file.content(), java.nio.charset.StandardCharsets.UTF_8))
+            .orElseThrow();
     }
 
     @Test

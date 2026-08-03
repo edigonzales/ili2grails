@@ -3,15 +3,11 @@ package ch.interlis.generator.grails;
 import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeDescriptorSeverity;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Runtime-Descriptor-Planning-Guard (Spezifikation §55.1):
@@ -20,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *   <li>der Planner liefert Diagnostics nicht nur als leere API weiter;</li>
  *   <li>kein stilles {@code null} für unresolved writable targets ohne
  *       Diagnostic;</li>
- *   <li>der Generator ruft {@code throwIfBlocking()} vor der Dateiplanung auf.</li>
+ *   <li>der Generator übernimmt Descriptor-Diagnostics in den Gesamtplan.</li>
  * </ul>
  */
 class RuntimeDescriptorPlanningGuardTest {
@@ -38,12 +34,6 @@ class RuntimeDescriptorPlanningGuardTest {
         RuntimeDescriptorPlan plan = new RuntimeDescriptorPlan(
             List.of(), List.of(), List.of(), List.of(blocking));
         assertThat(plan.hasBlockingDiagnostics()).isTrue();
-        try {
-            plan.throwIfBlocking();
-            throw new AssertionError("expected RuntimeDescriptorPlanningException");
-        } catch (RuntimeDescriptorPlanningException expected) {
-            assertThat(expected.getDiagnostics()).hasSize(1);
-        }
     }
 
     @Test
@@ -57,14 +47,49 @@ class RuntimeDescriptorPlanningGuardTest {
     }
 
     @Test
-    void generatorInvokesDescriptorGateBeforeFilePlanning() throws Exception {
-        // GrailsGenerationPlanner ruft descriptorPlan.throwIfBlocking() vor
-        // jeder Dateiplanung auf (Spezifikation §19.5).
+    void generatorCopiesDescriptorDiagnosticsIntoGenerationPlan() throws Exception {
         String plannerSource = Files.readString(sourceFile(
             "project/plan/GrailsGenerationPlanner.java"));
         assertThat(plannerSource)
-            .contains("descriptorPlan.throwIfBlocking()")
-            .contains("descriptorPlan.blockingDiagnostics()");
+            .contains("descriptorPlan.diagnostics()")
+            .contains("GenerationDiagnosticCode.RUNTIME_DESCRIPTOR_INVALID")
+            .doesNotContain("descriptorPlan.throwIfBlocking()");
+    }
+
+    @Test
+    void productiveRuntimeUsesGeneratedRegistryAccessorOnlyDuringStartup() throws Exception {
+        Path runtimeRoot = Path.of("grails-runtime").toAbsolutePath().normalize();
+        List<Path> productionSources;
+        try (var paths = Files.walk(runtimeRoot)) {
+            productionSources = paths
+                .filter(Files::isRegularFile)
+                .filter(path -> path.toString().endsWith(".groovy"))
+                .filter(path -> !path.toString().contains("/src/test/"))
+                .toList();
+        }
+
+        List<Path> accessorUsers = productionSources.stream()
+            .filter(path -> {
+                try {
+                    return Files.readString(path).contains("GeneratedRegistryAccessor");
+                } catch (java.io.IOException exception) {
+                    throw new java.io.UncheckedIOException(exception);
+                }
+            })
+            .map(runtimeRoot::relativize)
+            .toList();
+
+        assertThat(accessorUsers).containsExactlyInAnyOrder(
+            Path.of("src/main/groovy/ch/interlis/generator/grails/runtime/GeneratedRegistryAccessor.groovy"),
+            Path.of("src/main/groovy/ch/interlis/generator/grails/runtime/registry/InterlisRuntimeRegistryBeanFactory.groovy")
+        );
+        for (Path source : productionSources) {
+            assertThat(Files.readString(source))
+                .as("legacy registry calls in %s", runtimeRoot.relativize(source))
+                .doesNotContain("legacyDomains(", "legacyAssociation(", "legacyContext(",
+                    "legacyEntity(", "legacyEntities(", "legacyContextsForParticipant(",
+                    "legacyShowInNavigation(");
+        }
     }
 
     private static Path sourceFile(String relative) {

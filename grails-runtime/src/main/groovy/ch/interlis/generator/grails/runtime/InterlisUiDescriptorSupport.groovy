@@ -1,6 +1,8 @@
 package ch.interlis.generator.grails.runtime
 
-
+import ch.interlis.generator.grails.runtime.api.descriptor.DomainDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
 
 import java.time.temporal.Temporal
 import java.util.regex.Pattern
@@ -24,20 +26,18 @@ final class InterlisUiDescriptorSupport {
     private InterlisUiDescriptorSupport() {
     }
 
-    static Map<String, Object> descriptor(def grailsApplication, Class domainType) {
+    static Map<String, Object> descriptor(def grailsApplication,
+                                          InterlisRuntimeRegistry runtimeRegistry,
+                                          Class domainType) {
         if (domainType == null) {
             throw new IllegalArgumentException("domainType must not be null")
         }
 
-        Map<String, Object> registryEntry = GeneratedRegistryAccessor.uiRegistryType().domainForClassName(domainType.name)
-        if (registryEntry == null) {
-            throw new IllegalArgumentException(
-                "No UI registry entry found for domainClassName '" + domainType.name + "'"
-            )
-        }
+        DomainDescriptor domain = runtimeRegistry.requireDomain(domainType)
+        Map<String, Object> registryEntry = domainViewModel(domain)
 
-        String iliName = registryEntry.iliName?.toString()
-        Map<String, Object> configuredDomain = configuredDomain(grailsApplication, iliName)
+        String iliName = domain.iliName()
+        Map<String, Object> configuredDomain = configuredDomain(grailsApplication, runtimeRegistry, iliName)
         List<Map<String, Object>> properties = propertyDescriptors(grailsApplication, domainType)
         Set<String> knownFields = properties.collect { it.name as String } as LinkedHashSet<String>
         knownFields.add("id")
@@ -79,7 +79,7 @@ final class InterlisUiDescriptorSupport {
 
         String label = configuredDomain.containsKey("label")
             ? requireText(configuredDomain.label, iliName, "label")
-            : registryEntry.label?.toString()
+            : domain.label()
 
         return [
             registry    : registryEntry,
@@ -103,16 +103,18 @@ final class InterlisUiDescriptorSupport {
         ]
     }
 
-    static List<String> displayFieldsFor(def grailsApplication, Class domainType) {
+    static List<String> displayFieldsFor(def grailsApplication,
+                                         InterlisRuntimeRegistry runtimeRegistry,
+                                         Class domainType) {
         if (domainType == null) {
             return []
         }
-        Map<String, Object> registryEntry = GeneratedRegistryAccessor.uiRegistryType().domainForClassName(domainType.name)
-        if (registryEntry == null) {
+        DomainDescriptor domain = runtimeRegistry.domainByClassName(domainType.name).orElse(null)
+        if (domain == null) {
             return []
         }
-        String iliName = registryEntry.iliName?.toString()
-        Map<String, Object> configuredDomain = configuredDomain(grailsApplication, iliName)
+        String iliName = domain.iliName()
+        Map<String, Object> configuredDomain = configuredDomain(grailsApplication, runtimeRegistry, iliName)
         return configuredDisplayFields(
             asMap(configuredDomain.list),
             domainType,
@@ -152,15 +154,19 @@ final class InterlisUiDescriptorSupport {
         return configuredText == null || configuredText.isBlank() ? "grid" : configuredText
     }
 
-    static Map<String, Object> configuredDomainForType(def grailsApplication, Class domainType) {
-        Map<String, Object> registryEntry = GeneratedRegistryAccessor.uiRegistryType().domainForClassName(domainType?.name)
-        if (registryEntry == null) {
+    static Map<String, Object> configuredDomainForType(def grailsApplication,
+                                                       InterlisRuntimeRegistry runtimeRegistry,
+                                                       Class domainType) {
+        DomainDescriptor domain = runtimeRegistry.domainByClassName(domainType?.name).orElse(null)
+        if (domain == null) {
             return [:]
         }
-        return configuredDomain(grailsApplication, registryEntry.iliName?.toString())
+        return configuredDomain(grailsApplication, runtimeRegistry, domain.iliName())
     }
 
-    private static Map<String, Object> configuredDomain(def grailsApplication, String iliName) {
+    private static Map<String, Object> configuredDomain(def grailsApplication,
+                                                        InterlisRuntimeRegistry runtimeRegistry,
+                                                        String iliName) {
         Object rawDomains = grailsApplication?.config?.ili2grails?.ui?.domains
         List<?> domains = normalizeList(rawDomains)
         Map<String, Object> match = [:]
@@ -173,7 +179,7 @@ final class InterlisUiDescriptorSupport {
                     "Invalid ili2grails.ui.domains[" + index + "]: iliName is required"
                 )
             }
-            if (GeneratedRegistryAccessor.uiRegistryType().domain(configuredIliName) == null) {
+            if (runtimeRegistry.domainByIliName(configuredIliName).isEmpty()) {
                 throw new IllegalArgumentException(
                     "Unknown iliName '" + configuredIliName + "' in ili2grails.ui.domains[" + index + "]"
                 )
@@ -183,6 +189,20 @@ final class InterlisUiDescriptorSupport {
             }
         }
         return match
+    }
+
+    private static Map<String, Object> domainViewModel(DomainDescriptor domain) {
+        return [
+            domainClassName : domain.domainClassName(),
+            controller      : domain.controllerName(),
+            iliName         : domain.iliName(),
+            modelName       : domain.modelName(),
+            topicName       : domain.topicName(),
+            className       : domain.className(),
+            label           : domain.label(),
+            navigationVisible: domain.navigationVisible(),
+            associationDomain: domain.kind() == DomainKind.ASSOCIATION
+        ]
     }
 
     private static List<Map<String, Object>> propertyDescriptors(def grailsApplication, Class domainType) {

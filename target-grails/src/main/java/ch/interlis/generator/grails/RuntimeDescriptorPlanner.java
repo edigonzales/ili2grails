@@ -401,6 +401,7 @@ public final class RuntimeDescriptorPlanner {
             relatedController,
             plan.relatedPropertyName(),
             plan.relatedLabel(),
+            plan.mandatory(),
             plan.writable(),
             plan.visible(),
             InverseRelationshipMode.AUTO

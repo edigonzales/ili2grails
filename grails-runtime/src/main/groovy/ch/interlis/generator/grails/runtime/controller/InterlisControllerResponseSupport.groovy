@@ -23,7 +23,7 @@ final class InterlisControllerResponseSupport {
 
     static void respondAssociationCommand(Object controller, Object instance,
                                           AssociationCommandResult result) {
-        Map<String, Object> legacyResult = RuntimeResponseMapper.toLegacyMap(result)
+        Map<String, Object> responseMap = RuntimeResponseMapper.toMap(result)
         boolean success = result?.success() == true
         int status = (result?.httpStatus() ?: (success ? 200 : 400)) as int
         String userMessage = result?.message()?.toString()
@@ -36,14 +36,14 @@ final class InterlisControllerResponseSupport {
             }
             "*" {
                 controller.response.status = status
-                controller.render legacyResult as JSON
+                controller.render responseMap as JSON
             }
         }
     }
 
     static void respondInverseRelationshipCommand(Object controller, Object instance,
                                                   InverseRelationshipCommandResult result) {
-        Map<String, Object> legacyResult = RuntimeResponseMapper.toLegacyMap(result)
+        Map<String, Object> responseMap = RuntimeResponseMapper.toMap(result)
         boolean success = result?.success() == true
         int status = (result?.httpStatus() ?: (success ? 200 : 400)) as int
         String userMessage = result?.message()?.toString()
@@ -52,7 +52,7 @@ final class InterlisControllerResponseSupport {
         }
         if (inverseRelationshipJsonRequested(controller)) {
             controller.response.status = status
-            controller.render legacyResult as JSON
+            controller.render responseMap as JSON
             return
         }
         controller.request.withFormat {
@@ -64,7 +64,7 @@ final class InterlisControllerResponseSupport {
             }
             "*" {
                 controller.response.status = status
-                controller.render legacyResult as JSON
+                controller.render responseMap as JSON
             }
         }
     }

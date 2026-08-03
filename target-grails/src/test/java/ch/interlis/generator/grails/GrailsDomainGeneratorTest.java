@@ -13,7 +13,7 @@ import ch.interlis.generator.model.builder.RelationshipMetadataBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,10 +40,7 @@ class GrailsDomainGeneratorTest {
         ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
-        new GrailsDomainGenerator().generate(metadata, config);
-
-        Path personDomain = tempDir.resolve("grails-app/domain/com/example/Person.groovy");
-        String content = Files.readString(personDomain);
+        String content = renderDomain(metadata, config, "Person.groovy");
 
         assertThat(content).contains("Address address");
         assertThat(content).doesNotContain("static belongsTo");
@@ -52,8 +49,7 @@ class GrailsDomainGeneratorTest {
         assertThat(content).contains("address: [targetClass: 'Address', semanticKind: 'REFERENCE_ATTRIBUTE'");
         assertThat(content).doesNotContain("address_id");
 
-        Path addressDomain = tempDir.resolve("grails-app/domain/com/example/Address.groovy");
-        String addressContent = Files.readString(addressDomain);
+        String addressContent = renderDomain(metadata, config, "Address.groovy");
         assertThat(addressContent).contains("static final Map<String, Object> interlisDisplayMeta");
         assertThat(addressContent).contains("displayFields: ['name']");
         assertThat(addressContent).contains("searchFields: ['name']");
@@ -68,10 +64,7 @@ class GrailsDomainGeneratorTest {
         ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
-        new GrailsDomainGenerator().generate(metadata, config);
-
-        Path invoiceDomain = tempDir.resolve("grails-app/domain/com/example/Invoice.groovy");
-        String content = Files.readString(invoiceDomain);
+        String content = renderDomain(metadata, config, "Invoice.groovy");
 
         assertThat(content).contains("BigDecimal amount");
         assertThat(content).contains("amount nullable: true, min: 0.0, max: 9999.999, scale: 3");
@@ -99,10 +92,7 @@ class GrailsDomainGeneratorTest {
         ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
-        new GrailsDomainGenerator().generate(metadata, config);
-
-        Path stationDomain = tempDir.resolve("grails-app/domain/com/example/Station.groovy");
-        String content = Files.readString(stationDomain);
+        String content = renderDomain(metadata, config, "Station.groovy");
 
         assertThat(content).doesNotContain("static hasMany");
         assertThat(content)
@@ -130,16 +120,12 @@ class GrailsDomainGeneratorTest {
         ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
-        new GrailsDomainGenerator().generate(metadata, config);
-
-        Path ownerDomain = tempDir.resolve("grails-app/domain/com/example/Owner.groovy");
-        String content = Files.readString(ownerDomain);
+        String content = renderDomain(metadata, config, "Owner.groovy");
 
         assertThat(content).contains("static hasMany = [parts: Part]");
         assertThat(content).contains("static mappedBy = [parts: 'ownerId']");
 
-        Path partDomain = tempDir.resolve("grails-app/domain/com/example/Part.groovy");
-        String partContent = Files.readString(partDomain);
+        String partContent = renderDomain(metadata, config, "Part.groovy");
         assertThat(partContent).contains("Owner ownerId");
         assertThat(partContent).contains("static belongsTo = [ownerId: Owner]");
     }
@@ -177,10 +163,7 @@ class GrailsDomainGeneratorTest {
         ModelMetadata metadata = new ModelMetadataFactory().buildValidated(modelBuilder);
 
         GenerationConfig config = GenerationConfig.builder(tempDir, "com.example").build();
-        new GrailsDomainGenerator().generate(metadata, config);
-
-        Path parcelDomain = tempDir.resolve("grails-app/domain/com/example/Parcel.groovy");
-        String content = Files.readString(parcelDomain);
+        String content = renderDomain(metadata, config, "Parcel.groovy");
 
         assertThat(content).contains("static final Map<String, Map<String, Object>> geometryMeta");
         assertThat(content).contains("footprint: [srid: 2056, kind: 'MULTIPOLYGON', hasZ: false, hasM: false, allowEmpty: false]");
@@ -191,5 +174,17 @@ class GrailsDomainGeneratorTest {
             .sqlName("t_id")
             .columnName("t_id")
             .primaryKey(true);
+    }
+
+    private String renderDomain(ModelMetadata metadata, GenerationConfig config, String fileName) {
+        TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
+        GrailsRelationshipMapper mapper = GrailsRelationshipMapper.forMetadata(metadata, config, registry);
+        GrailsInverseRelationshipPlanner inverses =
+            GrailsInverseRelationshipPlanner.forMetadata(metadata, config, registry, mapper);
+        return new GrailsDomainGenerator().plan(metadata, config, registry, mapper, inverses).stream()
+            .filter(file -> file.relativePath().getFileName().toString().equals(fileName))
+            .findFirst()
+            .map(file -> new String(file.content(), StandardCharsets.UTF_8))
+            .orElseThrow();
     }
 }

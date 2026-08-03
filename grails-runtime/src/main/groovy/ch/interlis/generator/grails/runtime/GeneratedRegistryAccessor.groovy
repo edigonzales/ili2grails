@@ -8,7 +8,7 @@ package ch.interlis.generator.grails.runtime
  * plugin cannot reference them at compile time. Access happens through this
  * tiny indirection only; the typed contract is the API interfaces.</p>
  */
-final class GeneratedRegistryAccessor {
+public final class GeneratedRegistryAccessor {
 
     private static final String GENERATED_PACKAGE = 'ch.interlis.generator.grails.generated'
     private static final ClassLoader CLASS_LOADER = GeneratedRegistryAccessor.classLoader
@@ -16,20 +16,12 @@ final class GeneratedRegistryAccessor {
     private GeneratedRegistryAccessor() {
     }
 
-    static Class<?> uiRegistryType() {
-        return load('InterlisUiRegistry')
-    }
-
-    static Class<?> associationRegistryType() {
-        return load('InterlisAssociationRegistry')
-    }
-
     static Object uiRegistryInstance() {
-        return instanceOf(uiRegistryType())
+        return instanceOf(load('InterlisUiRegistry'))
     }
 
     static Object associationRegistryInstance() {
-        return instanceOf(associationRegistryType())
+        return instanceOf(load('InterlisAssociationRegistry'))
     }
 
     private static Class<?> load(String simpleName) {

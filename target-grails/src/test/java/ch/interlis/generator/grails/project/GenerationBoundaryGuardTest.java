@@ -19,41 +19,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * (Files.writeString / Files.write / Files.delete / Files.deleteIfExists)
  * nur in den dafür vorgesehenen Writer-/Executor-Klassen vorkommen.
  *
- * <p>Klar begründete Ausnahmen:</p>
- * <ul>
- *   <li>Kompatibilitäts-Wrapper der einzelnen Generatoren
- *       ({@code generate(...)}-Methoden) schreiben über die
- *       {@code plan()}-Ergebnisse - sie sind die dokumentierte
- *       Legacy-Ausnahme, der {@code GrailsCrudGenerator} nutzt sie nicht
- *       mehr.</li>
- *   <li>{@code GrailsGenerationExecutor} und
- *       {@code GeneratedProjectManifestStore} sind die einzigen
- *       produktiven Write-Orte.</li>
- *   <li>{@code GrailsProjectCustomizer} und
- *       {@code GrailsTemplateOverlayInstaller} sind die deprecated
- *       Legacy-Orchestratoren (P1-Ära) - dokumentierte Ausnahme.</li>
- * </ul>
+ * <p>{@code GrailsGenerationExecutor} und
+ * {@code GeneratedProjectManifestStore} sind die einzigen produktiven
+ * Schreiborte innerhalb des Zielprojekts. Der Report-Writer schreibt nur
+ * explizit angeforderte Dateien ausserhalb des Zielprojekts.</p>
  */
 class GenerationBoundaryGuardTest {
 
     private static final List<String> ALLOWED_WRITE_CLASSES = List.of(
         "GrailsGenerationExecutor.java",
         "GeneratedProjectManifestStore.java",
-        "GrailsDomainGenerator.java",
-        "GrailsEnumGenerator.java",
-        "GrailsAssociationRegistryGenerator.java",
-        "GrailsUiRegistryGenerator.java",
-        "GrailsBuildGradleUpdater.java",
-        "GrailsApplicationYamlUpdater.java",
-        "GrailsRuntimeDependencyInstaller.java",
-        "GrailsAssetManifestUpdater.java",
-        "GrailsApplicationConfigurationUpdater.java",
-        "GrailsScaffoldingTemplateInstaller.java",
-        "GrailsProjectCustomizer.java",
-        "GrailsTemplateOverlayInstaller.java",
-        "GrailsViewGenerator.java",
-        "GrailsControllerGenerator.java",
-        "LegacyRuntimeMigrator.java",
         "GenerationPlanReportWriter.java"
     );
 
@@ -86,8 +61,7 @@ class GenerationBoundaryGuardTest {
             }
         }
         assertThat(violations)
-            .as("direct file writes are only allowed in the executor/manifest "
-                + "store and the documented compat wrappers")
+            .as("direct file writes are only allowed in executor, manifest store, and report writer")
             .isEmpty();
     }
 

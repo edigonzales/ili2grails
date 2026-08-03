@@ -5,8 +5,8 @@ import java.util.List;
 /**
  * Typed result of an association command (quick-link create or delete).
  *
- * <p>Controllers convert this record into the legacy map/JSON shape at the
- * web boundary.</p>
+ * <p>Controllers convert this record into a map/JSON response at the web
+ * boundary.</p>
  */
 public record AssociationCommandResult(
     boolean success,

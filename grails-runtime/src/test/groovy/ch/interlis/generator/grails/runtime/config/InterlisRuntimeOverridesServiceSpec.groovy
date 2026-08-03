@@ -10,12 +10,12 @@ class InterlisRuntimeOverridesServiceSpec extends Specification {
     private static final InverseRelationshipDescriptor GENERATED = new InverseRelationshipDescriptor(
         'employees', 'Mitarbeitende', 'Test.Department', 'Test.Employee',
         'com.example.Employee', 'employee', 'department', 'Mitarbeiter',
-        true, true, InverseRelationshipMode.AUTO)
+        false, true, true, InverseRelationshipMode.AUTO)
 
     private static final InverseRelationshipDescriptor READ_ONLY_GENERATED = new InverseRelationshipDescriptor(
         'employees', 'Mitarbeitende', 'Test.Department', 'Test.Employee',
         'com.example.Employee', 'employee', 'department', 'Mitarbeiter',
-        false, true, InverseRelationshipMode.AUTO)
+        false, false, true, InverseRelationshipMode.AUTO)
 
     private def overrides(Map relationships) {
         def service = new InterlisRuntimeOverridesService()

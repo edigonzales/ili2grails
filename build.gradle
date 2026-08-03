@@ -101,6 +101,15 @@ subprojects {
 // Verification profiles (spec Teil V §11)
 // ---------------------------------------------------------------------------
 
+tasks.register('prepareLocalRuntime') {
+    group = 'build setup'
+    description = 'Publiziert Runtime-Plugin und Runtime-API für Source-Checkout-Consumer nach Maven Local.'
+    dependsOn(
+        ':grails-runtime-api:publishToMavenLocal',
+        ':grails-runtime:publishToMavenLocal'
+    )
+}
+
 tasks.register('verificationFast') {
     group = 'verification'
     description = 'Schnelle Verifikation: alle Unit-Test-Tasks plus statische Verification-Tasks ohne externe Tools.'

@@ -114,7 +114,6 @@ class GrailsBrowserE2eTest {
                 .geometryEnabled(true)
                 .build();
 
-            new GrailsTemplateOverlayInstaller().install(appDir, config);
             new GrailsCrudGenerator().generate(metadata, config);
             generateScaffolding(appDir, metadata, config);
 
@@ -168,7 +167,6 @@ class GrailsBrowserE2eTest {
                 .geometryEnabled(false)
                 .build();
 
-            new GrailsTemplateOverlayInstaller().install(appDir, config);
             new GrailsCrudGenerator().generate(metadata, config);
             generateScaffolding(appDir, metadata, config);
 
@@ -222,7 +220,6 @@ class GrailsBrowserE2eTest {
                 .geometryEnabled(false)
                 .build();
 
-            new GrailsTemplateOverlayInstaller().install(appDir, config);
             new GrailsCrudGenerator().generate(metadata, config);
             generateScaffolding(appDir, metadata, config);
 
@@ -269,7 +266,6 @@ class GrailsBrowserE2eTest {
                 .geometryEnabled(false)
                 .build();
 
-            new GrailsTemplateOverlayInstaller().install(appDir, config);
             new GrailsCrudGenerator().generate(metadata, config);
             configureListFormSections(appDir);
             augmentListRecordFieldMetadata(appDir);
@@ -322,7 +318,6 @@ class GrailsBrowserE2eTest {
                 .geometryEnabled(false)
                 .build();
 
-            new GrailsTemplateOverlayInstaller().install(appDir, config);
             new GrailsCrudGenerator().generate(metadata, config);
             MultiDomainWorkspaceFixture.install(appDir);
             generateScaffolding(appDir, metadata, config);
@@ -376,7 +371,6 @@ class GrailsBrowserE2eTest {
                 .geometryEnabled(false)
                 .build();
 
-            new GrailsTemplateOverlayInstaller().install(appDir, config);
             new GrailsCrudGenerator().generate(metadata, config);
             assertThat(Files.readString(appDir.resolve(
                 "grails-app/domain/com/example/domain/Department.groovy"
@@ -414,7 +408,7 @@ class GrailsBrowserE2eTest {
     private void runGettingStartedInverseRelationshipE2E(String baseUrl, String schemaName) {
         try (Playwright playwright = Playwright.create();
              Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
-            Page page = browser.newPage();
+            Page page = newPage(browser);
             List<String> pageErrors = new ArrayList<>();
             List<String> consoleMessages = new ArrayList<>();
             List<String> relationshipRequests = new ArrayList<>();
@@ -680,7 +674,7 @@ class GrailsBrowserE2eTest {
         }
         try (Playwright playwright = Playwright.create();
              Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
-            Page page = browser.newPage();
+            Page page = newPage(browser);
 
             String personId = createRecord(page, baseUrl, "person");
             String docId = createRecord(page, baseUrl, "document");
@@ -732,7 +726,7 @@ class GrailsBrowserE2eTest {
     private void runListQueryE2E(String baseUrl) {
         try (Playwright playwright = Playwright.create();
              Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
-            Page page = browser.newPage();
+            Page page = newPage(browser);
             String bernId = createListMunicipality(page, baseUrl, "Bern");
             String zurichId = createListMunicipality(page, baseUrl, "Zürich");
             String bernRecordId = createListRecord(page, baseUrl, "Bahnhof Bern", "ACTIVE", true, "2024", "2024-01-01", bernId);
@@ -844,7 +838,7 @@ class GrailsBrowserE2eTest {
     private void runMultiDomainWorkspaceE2E(String baseUrl) {
         try (Playwright playwright = Playwright.create();
              Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
-            Page page = browser.newPage();
+            Page page = newPage(browser);
             String selectedParcelId = createWorkspaceParcel(page, baseUrl, "P-100");
             String emptyParcelId = createWorkspaceParcel(page, baseUrl, "P-200");
             createWorkspaceRelated(page, baseUrl, "building", "Haus A", selectedParcelId);
@@ -867,7 +861,9 @@ class GrailsBrowserE2eTest {
             page.locator("[data-workspace-table='parcels'] a[href*='/parcelWorkspace/show/']")
                 .filter(new Locator.FilterOptions().setHasText("P-100")).click();
             page.waitForLoadState(LoadState.NETWORKIDLE);
-            assertThat(page.locator("[data-multi-domain-workspace]").count()).isEqualTo(1);
+            assertThat(page.locator("[data-multi-domain-workspace]").count())
+                .as("workspace detail at " + page.url() + "\n" + page.locator("body").innerText())
+                .isEqualTo(1);
             assertThat(page.locator("[data-workspace-display-label]").textContent()).contains("P-100");
             assertThat(page.locator("[data-workspace-table='buildings']").textContent()).contains("Haus A");
             assertThat(page.locator("[data-workspace-table='owners']").textContent()).contains("Anna Beispiel");
@@ -936,6 +932,13 @@ class GrailsBrowserE2eTest {
             }
             throw e;
         }
+    }
+
+    private Page newPage(Browser browser) {
+        Page page = browser.newPage();
+        page.setDefaultTimeout(BOOT_TIMEOUT.toMillis());
+        page.setDefaultNavigationTimeout(BOOT_TIMEOUT.toMillis());
+        return page;
     }
 
     private String createWorkspaceParcel(Page page, String baseUrl, String number) {
@@ -1220,7 +1223,7 @@ class GrailsBrowserE2eTest {
     private void runBrowserCrud(String baseUrl) {
         try (Playwright playwright = Playwright.create();
              Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
-            Page page = browser.newPage();
+            Page page = newPage(browser);
 
             verifyApplicationShell(page, browser, baseUrl);
             createAddress(page, baseUrl);
@@ -1690,7 +1693,6 @@ class GrailsBrowserE2eTest {
         Path appDir = tempDir.resolve("browser-e2e");
         appDir.resolve("gradlew").toFile().setExecutable(true);
         appDir.resolve("grailsw").toFile().setExecutable(true);
-        RuntimeApiTestSupport.installRuntimePluginDependency(appDir);
         return appDir;
     }
 
@@ -1901,7 +1903,7 @@ class GrailsBrowserE2eTest {
     private void runAssociationQuickLinkE2E(String baseUrl) {
         try (Playwright playwright = Playwright.create();
              Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
-            Page page = browser.newPage();
+            Page page = newPage(browser);
 
             // Create two participants and one counterpart via the generated CRUD UI.
             String personAId = createRecord(page, baseUrl, "person");

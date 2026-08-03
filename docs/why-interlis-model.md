@@ -1,5 +1,9 @@
 # Warum ili2grails das INTERLIS-Datenmodell braucht
 
+Der aktuelle Produkt-, Reader- und Generatorvertrag steht in der
+[README](../README.md). Dieses Dokument vertieft ausschließlich die fachliche
+Begründung des Hybridansatzes.
+
 ili2grails ist nicht einfach ein Generator, der aus Datenbanktabellen CRUD-Masken
 erzeugt. Die Datenbank bleibt zwar die verbindliche Quelle für die physische
 Persistenz, sie beschreibt aber nur teilweise, welche fachliche Bedeutung ihre

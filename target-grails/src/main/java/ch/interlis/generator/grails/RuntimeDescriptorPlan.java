@@ -10,9 +10,8 @@ import java.util.List;
  * Typed runtime descriptor plan: the single source for the generated typed
  * registries.
  *
- * <p>Blockierende Diagnostics (ERROR) verhindern jede Dateiplanung:
- * {@link #throwIfBlocking()} muss vom Generator vor dem ersten Write
- * aufgerufen werden (Spezifikation §19.5).</p>
+ * <p>Blockierende Diagnostics (ERROR) werden in den vollständigen
+ * {@code GenerationPlan} übernommen und verhindern dort jeden Write.</p>
  */
 public record RuntimeDescriptorPlan(
     List<DomainDescriptor> domains,
@@ -36,15 +35,4 @@ public record RuntimeDescriptorPlan(
         return diagnostics.stream().filter(RuntimeDescriptorDiagnostic::blocking).toList();
     }
 
-    public void throwIfBlocking() {
-        if (hasBlockingDiagnostics()) {
-            throw new RuntimeDescriptorPlanningException(
-                "Runtime descriptor planning has blocking diagnostics; no files may be written:\n  - "
-                    + blockingDiagnostics().stream()
-                        .map(diagnostic -> diagnostic.code() + ": " + diagnostic.message())
-                        .reduce((left, right) -> left + "\n  - " + right)
-                        .orElse("unknown planning failure"),
-                blockingDiagnostics());
-        }
-    }
 }

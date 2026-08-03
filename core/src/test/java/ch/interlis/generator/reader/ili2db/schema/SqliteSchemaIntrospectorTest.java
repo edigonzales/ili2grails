@@ -1,7 +1,5 @@
 package ch.interlis.generator.reader.ili2db.schema;
 
-import ch.interlis.generator.metadata.selection.ModelSelection;
-import ch.interlis.generator.reader.ili2db.Ili2dbFailurePolicy;
 import ch.interlis.generator.reader.ili2db.Ili2dbReadContext;
 import ch.interlis.generator.reader.sql.QualifiedSqlName;
 import ch.interlis.generator.reader.sql.SqlIdentifier;

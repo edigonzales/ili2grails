@@ -32,8 +32,6 @@ class Ili2grailsRuntimeGrailsPlugin extends Plugin {
             // plugin beans in Spring).
             authorizationPolicy(
                 ch.interlis.generator.grails.runtime.policy.AllowAllInterlisAuthorizationPolicy)
-            lifecycleHooks(
-                ch.interlis.generator.grails.runtime.lifecycle.NoopInterlisLifecycleHooks)
             interlisDisplayLabelResolver(
                 ch.interlis.generator.grails.runtime.display.DefaultInterlisDisplayLabelResolver)
             recordLoader(

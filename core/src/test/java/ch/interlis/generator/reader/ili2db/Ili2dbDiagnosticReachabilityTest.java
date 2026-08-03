@@ -148,7 +148,7 @@ class Ili2dbDiagnosticReachabilityTest {
             baseFixture(stmt);
             ch.interlis.generator.reader.Ili2dbMetadataReader reader =
                 ch.interlis.generator.reader.Ili2dbMetadataReader.create(connection, null);
-            Ili2dbReadResult result = reader.read(request().modelSelection(), Ili2dbFailurePolicy.DIAGNOSTIC);
+            Ili2dbReadResult result = reader.read(selection());
             assertThat(result.diagnostics())
                 .filteredOn(diagnostic -> diagnostic.code() == Ili2dbDiagnosticCode.GEOMETRY_METADATA_UNAVAILABLE)
                 .isNotEmpty();
@@ -162,7 +162,7 @@ class Ili2dbDiagnosticReachabilityTest {
             Connection otherDialect = dialectOverride(connection, "Some Unknown Database");
             ch.interlis.generator.reader.Ili2dbMetadataReader reader =
                 ch.interlis.generator.reader.Ili2dbMetadataReader.create(otherDialect, null);
-            Ili2dbReadResult result = reader.read(request().modelSelection(), Ili2dbFailurePolicy.DIAGNOSTIC);
+            Ili2dbReadResult result = reader.read(selection());
             assertThat(result.diagnostics())
                 .filteredOn(diagnostic -> diagnostic.code() == Ili2dbDiagnosticCode.DATABASE_DIALECT_UNSUPPORTED)
                 .isNotEmpty();
@@ -204,10 +204,9 @@ class Ili2dbDiagnosticReachabilityTest {
         return catalogReader.detectCapabilities(context(connection), diagnostics);
     }
 
-    private Ili2dbReadRequest request() {
-        return new Ili2dbReadRequest(new ModelSelection("ReadModel",
-            new LinkedHashSet<>(List.of("ReadModel")), ModelSelectionSource.ILI2C_DEPENDENCY_GRAPH),
-            Ili2dbFailurePolicy.DIAGNOSTIC, true, true);
+    private ModelSelection selection() {
+        return new ModelSelection("ReadModel",
+            new LinkedHashSet<>(List.of("ReadModel")), ModelSelectionSource.ILI2C_DEPENDENCY_GRAPH);
     }
 
     private void baseFixture(Statement stmt) throws Exception {

@@ -108,6 +108,7 @@ tasks.register('grailsRuntimeSmokeTest', Test) {
     testClassesDirs = sourceSets.grailsRuntimeSmokeTest.output.classesDirs
     classpath = sourceSets.grailsRuntimeSmokeTest.runtimeClasspath
     shouldRunAfter tasks.named('test')
+    dependsOn rootProject.tasks.named('prepareLocalRuntime')
     systemProperty 'grailsRuntimeSmokeRequired', requiredSystemProperty('grailsRuntimeSmokeRequired')
     outputs.upToDateWhen { false }
 }
@@ -131,6 +132,7 @@ tasks.register('browserE2eTest', Test) {
     testClassesDirs = sourceSets.browserE2eTest.output.classesDirs
     classpath = sourceSets.browserE2eTest.runtimeClasspath
     shouldRunAfter tasks.named('realIli2dbSmokeTest')
+    dependsOn rootProject.tasks.named('prepareLocalRuntime')
     systemProperty 'browserE2eRequired', requiredSystemProperty('browserE2eRequired')
     if (ili2pgHome != null) {
         systemProperty 'ili2pgHome', ili2pgHome
@@ -149,6 +151,7 @@ tasks.register('grailsPostgresContractTest', Test) {
     classpath = sourceSets.grailsPostgresContractTest.runtimeClasspath
     useJUnitPlatform()
     shouldRunAfter tasks.named('grailsRuntimeSmokeTest')
+    dependsOn rootProject.tasks.named('prepareLocalRuntime')
     systemProperty 'contractTestRequired', requiredSystemProperty('contractTestRequired')
     if (ili2pgHome != null) {
         systemProperty 'ili2pgHome', ili2pgHome
@@ -156,4 +159,13 @@ tasks.register('grailsPostgresContractTest', Test) {
     systemProperty 'contractJdbcUrl',
         project.findProperty('contractJdbcUrl') ?: 'jdbc:postgresql://localhost:54321/edit?user=postgres&password=secret'
     outputs.upToDateWhen { false }
+}
+
+tasks.named('writeVerificationSummary') {
+    mustRunAfter(
+        tasks.named('grailsRuntimeSmokeTest'),
+        tasks.named('realIli2dbSmokeTest'),
+        tasks.named('grailsPostgresContractTest'),
+        tasks.named('browserE2eTest')
+    )
 }

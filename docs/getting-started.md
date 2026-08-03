@@ -34,19 +34,19 @@ docker compose version
 grails --version
 ```
 
-Empfohlen ist Java 17 oder 21. Falls lokal mehrere JDKs installiert sind, ist
-Java 21 fuer dieses Repo aktuell der robuste Default:
+Dieses Repo benötigt exakt JDK 17:
 
 ```bash
-export JAVA_HOME=/Users/stefan/.sdkman/candidates/java/21.0.7-tem
+export JAVA_HOME=/pfad/zu/jdk-17
 export PATH="$JAVA_HOME/bin:$PATH"
 java -version
 ```
 
-Dieses Tutorial verwendet ili2pg 5.5.1. Der lokale Default-Pfad ist:
+Dieses Tutorial verwendet ili2pg 5.5.1. Der Installationspfad muss explizit
+gesetzt werden:
 
 ```bash
-export ILI2PG_HOME="${ILI2PG_HOME:-/Users/stefan/apps/ili2pg-5.5.1}"
+export ILI2PG_HOME=/pfad/zu/ili2pg-5.5.1
 test -f "$ILI2PG_HOME/ili2pg-5.5.1.jar"
 test -d "$ILI2PG_HOME/libs"
 ```
@@ -65,8 +65,13 @@ gewechselt werden.
 ## Generator bauen
 
 ```bash
-./gradlew test
+./gradlew test prepareLocalRuntime
 ```
+
+`prepareLocalRuntime` publiziert Runtime-API und Grails-Runtime nach Maven
+Local, damit die später erzeugte Grails-App die Snapshot-Abhängigkeit direkt
+auflösen kann. Der aktuelle Build- und Generatorvertrag steht in der
+[README](../README.md).
 
 Optional kann die CLI-Distribution gebaut werden:
 

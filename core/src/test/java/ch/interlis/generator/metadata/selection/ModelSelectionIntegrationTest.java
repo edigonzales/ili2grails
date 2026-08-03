@@ -6,7 +6,6 @@ import ch.interlis.generator.reader.Ili2cModelReader;
 import ch.interlis.generator.reader.Ili2dbMetadataReader;
 import ch.interlis.generator.reader.ili2db.Ili2dbDiagnostic;
 import ch.interlis.generator.reader.ili2db.Ili2dbDiagnosticCode;
-import ch.interlis.generator.reader.ili2db.Ili2dbFailurePolicy;
 import ch.interlis.generator.reader.ili2db.Ili2dbReadException;
 import ch.interlis.generator.reader.ili2db.Ili2dbReadResult;
 import ch.interlis.generator.reader.ili2db.Ili2dbSeverity;
@@ -106,7 +105,7 @@ class ModelSelectionIntegrationTest {
             Ili2dbMetadataReader physicalReader =
                 Ili2dbMetadataReader.create(connection, null);
             Ili2dbReadResult result = physicalReader.read(
-                ModelSelection.rootOnly("ModelSelectionNotImported"), Ili2dbFailurePolicy.DIAGNOSTIC);
+                ModelSelection.rootOnly("ModelSelectionNotImported"));
             assertThat(result.hasFatalDiagnostics()).isTrue();
             assertThat(result.diagnostics())
                 .filteredOn(diagnostic -> diagnostic.code() == Ili2dbDiagnosticCode.REQUESTED_MODEL_MISSING)

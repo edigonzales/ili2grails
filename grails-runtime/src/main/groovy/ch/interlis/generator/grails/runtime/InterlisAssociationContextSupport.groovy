@@ -1,13 +1,16 @@
 package ch.interlis.generator.grails.runtime
 
-
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
 
 final class InterlisAssociationContextSupport {
 
     private InterlisAssociationContextSupport() {
     }
 
-    static Map<String, Object> prepareCreateContext(def grailsApplication,
+    static Map<String, Object> prepareCreateContext(InterlisRuntimeRegistry runtimeRegistry,
+                                                      def grailsApplication,
                                                       Class domainType,
                                                       Map params) {
         if (domainType == null || params == null) {
@@ -19,27 +22,27 @@ final class InterlisAssociationContextSupport {
             return [:]
         }
 
-        Map<String, Object> context = GeneratedRegistryAccessor.associationRegistryType().legacyContext(contextId)
+        AssociationContextDescriptor context = runtimeRegistry.context(contextId).orElse(null)
         if (context == null) {
             throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
                     "Unknown association context: ${contextId}")
         }
-        Map<String, Object> association = GeneratedRegistryAccessor.associationRegistryType().legacyAssociation(context.associationName)
+        AssociationDescriptor association = runtimeRegistry.association(context.associationName()).orElse(null)
 
-        if (InterlisAssociationRegistrySupport.isAssociationDomain(domainType)) {
+        if (InterlisAssociationRegistrySupport.isAssociationDomain(runtimeRegistry, domainType)) {
             verifyContextMatchesAssociation(domainType, context, association)
         }
 
-        String participantDomainClass = context.participantDomainClass
-        Class participantType = InterlisAssociationRegistrySupport.resolveDomainClass(grailsApplication,
+        String participantDomainClass = context.participantDomainClassName()
+        Class participantType = InterlisAssociationRegistrySupport.resolveDomainClass(runtimeRegistry,
                 participantDomainClass)
         if (participantType == null) {
             throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
                     "Could not resolve participant domain: ${participantDomainClass}")
         }
 
-        if (!InterlisAssociationRegistrySupport.isAssociationDomain(domainType)) {
-            InterlisAssociationRegistrySupport.requireContext(domainType, contextId)
+        if (!InterlisAssociationRegistrySupport.isAssociationDomain(runtimeRegistry, domainType)) {
+            InterlisAssociationRegistrySupport.requireContext(runtimeRegistry, domainType, contextId)
         }
 
         Object owner = loadOwner(participantType, ownerIdStr)
@@ -48,10 +51,11 @@ final class InterlisAssociationContextSupport {
                     "Owner ${participantType.simpleName}(id=${ownerIdStr}) not found for context ${contextId}")
         }
 
-        return buildContextState(grailsApplication, context, association, owner)
+        return buildContextState(grailsApplication, runtimeRegistry, context, association, owner)
     }
 
-    static Map<String, Object> prepareEditContext(def grailsApplication,
+    static Map<String, Object> prepareEditContext(InterlisRuntimeRegistry runtimeRegistry,
+                                                   def grailsApplication,
                                                    Class associationType,
                                                    Object associationInstance,
                                                    Map params) {
@@ -64,16 +68,16 @@ final class InterlisAssociationContextSupport {
             return [:]
         }
 
-        Map<String, Object> context = GeneratedRegistryAccessor.associationRegistryType().legacyContext(contextId)
+        AssociationContextDescriptor context = runtimeRegistry.context(contextId).orElse(null)
         if (context == null) {
             throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
                     "Unknown association context: ${contextId}")
         }
-        Map<String, Object> association = GeneratedRegistryAccessor.associationRegistryType().legacyAssociation(context.associationName)
+        AssociationDescriptor association = runtimeRegistry.association(context.associationName()).orElse(null)
         verifyContextMatchesAssociation(associationType, context, association)
 
-        String participantDomainClass = context.participantDomainClass
-        Class participantType = InterlisAssociationRegistrySupport.resolveDomainClass(grailsApplication,
+        String participantDomainClass = context.participantDomainClassName()
+        Class participantType = InterlisAssociationRegistrySupport.resolveDomainClass(runtimeRegistry,
                 participantDomainClass)
         if (participantType == null) {
             throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
@@ -88,7 +92,7 @@ final class InterlisAssociationContextSupport {
 
         verifyOwnership(associationInstance, context, owner)
 
-        return buildContextState(grailsApplication, context, association, owner)
+        return buildContextState(grailsApplication, runtimeRegistry, context, association, owner)
     }
 
     static void applyFixedRole(Object associationInstance, Map<String, Object> contextState) {
@@ -131,16 +135,16 @@ final class InterlisAssociationContextSupport {
     }
 
     static void verifyContextMatchesAssociation(Class associationType,
-                                                 Map<String, Object> context,
-                                                 Map<String, Object> association) {
+                                                 AssociationContextDescriptor context,
+                                                 AssociationDescriptor association) {
         if (association == null) {
             throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
-                    "Association not found for context ${context?.id}")
+                    "Association not found for context ${context?.id()}")
         }
-        String expectedDomainClass = association.domainClassQualifiedName
+        String expectedDomainClass = association.domainClassName()
         if (expectedDomainClass != null && expectedDomainClass != associationType.name) {
             throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
-                    "Context ${context?.id} does not belong to association ${associationType.name}")
+                    "Context ${context?.id()} does not belong to association ${associationType.name}")
         }
     }
 
@@ -199,12 +203,12 @@ final class InterlisAssociationContextSupport {
     }
 
     private static void verifyOwnership(Object associationInstance,
-                                         Map<String, Object> context,
+                                         AssociationContextDescriptor context,
                                          Object owner) {
-        String fixedProperty = context.fixedProperty
+        String fixedProperty = context.fixedPropertyName()
         if (fixedProperty == null || fixedProperty.isBlank()) {
             throw new InterlisAssociationRegistrySupport.AssociationContextNotFoundException(
-                    "Fixed property not resolved for context ${context.id}")
+                    "Fixed property not resolved for context ${context.id()}")
         }
         try {
             Object currentOwner = associationInstance."${fixedProperty}"
@@ -220,7 +224,7 @@ final class InterlisAssociationContextSupport {
             if (currentId.toString() != owner.id?.toString()) {
                 throw new InterlisAssociationRegistrySupport.AssociationOwnershipException(
                         "Association instance ${associationInstance.id} does not belong to " +
-                                "participant ${context.participantDomainClass}(id=${owner.id}), " +
+                                "participant ${context.participantDomainClassName()}(id=${owner.id}), " +
                                 "expected ${owner.id} but got ${currentId}")
             }
         } catch (InterlisAssociationRegistrySupport.AssociationOwnershipException e) {
@@ -232,21 +236,22 @@ final class InterlisAssociationContextSupport {
     }
 
     private static Map<String, Object> buildContextState(def grailsApplication,
-                                                          Map<String, Object> context,
-                                                          Map<String, Object> association,
+                                                          InterlisRuntimeRegistry runtimeRegistry,
+                                                          AssociationContextDescriptor context,
+                                                          AssociationDescriptor association,
                                                           Object owner) {
         String ownerLabel = owner != null
-                ? InterlisRelationshipOptions.optionLabel(grailsApplication, owner)
+                ? InterlisRelationshipOptions.optionLabel(grailsApplication, runtimeRegistry, owner)
                 : "?"
         return [
-                contextId              : context.id,
-                associationName        : context.associationName,
+                contextId              : context.id(),
+                associationName        : context.associationName(),
                 ownerId                : owner?.id,
                 owner                  : owner,
                 ownerLabel             : ownerLabel,
-                participantDomainClass : context.participantDomainClass,
-                fixedRoleName          : context.fixedRole,
-                fixedProperty          : context.fixedProperty
+                participantDomainClass : context.participantDomainClassName(),
+                fixedRoleName          : context.fixedRoleName(),
+                fixedProperty          : context.fixedPropertyName()
         ]
     }
 }

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -271,7 +272,11 @@ class GrailsRegenerationContractTest {
         Files.writeString(projectDir.resolve("grails-app/conf/spring/resources.groovy"),
             "beans {}\n");
 
-        GenerationConfig config = config(projectDir);
+        GenerationConfig config = GenerationConfig.builder(projectDir, "com.example")
+            .domainPackage("com.example.domain")
+            .enumPackage("com.example.enums")
+            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+            .build();
         GrailsCrudGenerator generator = new GrailsCrudGenerator();
         GenerationPlan plan = generator.plan(sampleMetadata(), config);
         assertThat(plan.hasBlockingDiagnostics()).isFalse();
@@ -281,6 +286,107 @@ class GrailsRegenerationContractTest {
         assertThat(plan.changes())
             .filteredOn(change -> change.relativePath().toString().endsWith("resources.groovy"))
             .isNotEmpty();
+    }
+
+    @Test
+    void defaultThemePlansCoreArtifactsWithoutBootstrapUiOrOptionalDependencies() throws Exception {
+        Path projectDir = tempDir.resolve("default-theme");
+        createMinimalGrailsFiles(projectDir);
+        GenerationConfig config = config(projectDir);
+
+        GenerationPlan plan = new GrailsCrudGenerator().plan(sampleMetadata(), config);
+        List<String> paths = plan.changes().stream()
+            .map(change -> change.relativePath().toString())
+            .toList();
+
+        assertThat(paths)
+            .contains("grails-app/domain/com/example/domain/Sample.groovy")
+            .contains("src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy")
+            .noneMatch(path -> path.startsWith("src/main/templates/scaffolding/"))
+            .noneMatch(path -> path.startsWith("grails-app/views/interlisUi/"))
+            .noneMatch(path -> path.endsWith("ili-modern.css"))
+            .noneMatch(path -> path.endsWith("application.js"))
+            .noneMatch(path -> path.endsWith("application.css"));
+
+        String buildGradle = plannedContent(plan, "build.gradle");
+        assertThat(buildGradle)
+            .contains("ch.interlis.generator:ili2grails-runtime:",
+                "org.postgresql:postgresql:42.7.7", "mavenLocal()")
+            .doesNotContain("org.webjars:bootstrap", "org.webjars.npm:ol",
+                "org.webjars.npm:proj4", "jts-core", "hibernate-spatial");
+    }
+
+    @Test
+    void bootstrapThemePlansLocalUiAndConfiguredOptionalDependencies() throws Exception {
+        Path projectDir = tempDir.resolve("bootstrap-theme");
+        createMinimalGrailsFiles(projectDir);
+        GenerationConfig config = GenerationConfig.builder(projectDir, "com.example")
+            .domainPackage("com.example.domain")
+            .enumPackage("com.example.enums")
+            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+            .mapEditor(GenerationConfig.MAP_EDITOR_OPENLAYERS)
+            .geometryEnabled(true)
+            .build();
+
+        GenerationPlan plan = new GrailsCrudGenerator().plan(sampleMetadata(), config);
+        assertThat(plan.changes())
+            .extracting(change -> change.relativePath().toString())
+            .contains("src/main/templates/scaffolding/Controller.groovy",
+                "grails-app/views/interlisUi/index.gsp",
+                "grails-app/assets/javascripts/ili-navigation.js",
+                "grails-app/assets/stylesheets/ili-modern.css",
+                "grails-app/assets/javascripts/application.js",
+                "grails-app/assets/stylesheets/application.css");
+
+        assertThat(plannedContent(plan, "build.gradle"))
+            .contains("org.webjars:bootstrap:5.3.3", "org.webjars.npm:ol:9.2.4",
+                "org.webjars.npm:proj4:2.11.0", "org.locationtech.jts:jts-core:1.19.0",
+                "org.hibernate:hibernate-spatial:5.6.15.Final");
+    }
+
+    @Test
+    void switchingToDefaultDeletesOnlyUnmodifiedBootstrapFiles() throws Exception {
+        Path projectDir = tempDir.resolve("theme-switch");
+        createMinimalGrailsFiles(projectDir);
+        GrailsCrudGenerator generator = new GrailsCrudGenerator();
+        GenerationConfig bootstrap = GenerationConfig.builder(projectDir, "com.example")
+            .domainPackage("com.example.domain")
+            .enumPackage("com.example.enums")
+            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+            .build();
+        generator.generate(sampleMetadata(), bootstrap);
+
+        GenerationPlan defaultPlan = generator.plan(sampleMetadata(), config(projectDir));
+
+        assertThat(defaultPlan.hasBlockingDiagnostics()).isFalse();
+        assertThat(defaultPlan.mutatingChanges())
+            .filteredOn(change -> change.type() == ProjectChangeType.DELETE)
+            .extracting(change -> change.relativePath().toString())
+            .contains("src/main/templates/scaffolding/Controller.groovy",
+                "grails-app/views/interlisUi/index.gsp",
+                "grails-app/assets/stylesheets/ili-modern.css");
+    }
+
+    @Test
+    void modifiedBootstrapFileBlocksThemeSwitchWithoutChangingProject() throws Exception {
+        Path projectDir = tempDir.resolve("blocked-theme-switch");
+        createMinimalGrailsFiles(projectDir);
+        GrailsCrudGenerator generator = new GrailsCrudGenerator();
+        GenerationConfig bootstrap = GenerationConfig.builder(projectDir, "com.example")
+            .domainPackage("com.example.domain")
+            .enumPackage("com.example.enums")
+            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+            .build();
+        generator.generate(sampleMetadata(), bootstrap);
+        Path modified = projectDir.resolve("grails-app/views/interlisUi/index.gsp");
+        Files.writeString(modified, "user customization");
+        Path domain = projectDir.resolve("grails-app/domain/com/example/domain/Sample.groovy");
+        String domainBefore = Files.readString(domain);
+
+        assertThatThrownBy(() -> generator.generate(sampleMetadata(), config(projectDir)))
+            .isInstanceOf(ch.interlis.generator.grails.GrailsGenerationBlockedException.class);
+        assertThat(Files.readString(modified)).isEqualTo("user customization");
+        assertThat(Files.readString(domain)).isEqualTo(domainBefore);
     }
 
     @Test
@@ -367,6 +473,30 @@ class GrailsRegenerationContractTest {
             .domainPackage("com.example.domain")
             .enumPackage("com.example.enums")
             .build();
+    }
+
+    private void createMinimalGrailsFiles(Path projectDir) throws Exception {
+        Files.createDirectories(projectDir.resolve("grails-app/assets/javascripts"));
+        Files.createDirectories(projectDir.resolve("grails-app/assets/stylesheets"));
+        Files.createDirectories(projectDir.resolve("grails-app/conf/spring"));
+        Files.writeString(projectDir.resolve("build.gradle"),
+            "repositories {\n    mavenCentral()\n}\n\ndependencies {\n}\n");
+        Files.writeString(projectDir.resolve("grails-app/conf/application.yml"),
+            "grails:\n  profile: web\n");
+        Files.writeString(projectDir.resolve("grails-app/assets/javascripts/application.js"),
+            "//= require_self\n");
+        Files.writeString(projectDir.resolve("grails-app/assets/stylesheets/application.css"),
+            "/*= require_self */\n");
+        Files.writeString(projectDir.resolve("grails-app/conf/spring/resources.groovy"),
+            "beans {\n}\n");
+    }
+
+    private String plannedContent(GenerationPlan plan, String relativePath) {
+        return plan.changes().stream()
+            .filter(change -> change.relativePath().toString().equals(relativePath))
+            .findFirst()
+            .map(change -> new String(change.plannedContent(), StandardCharsets.UTF_8))
+            .orElseThrow();
     }
 
     private ModelMetadata sampleMetadata() throws Exception {

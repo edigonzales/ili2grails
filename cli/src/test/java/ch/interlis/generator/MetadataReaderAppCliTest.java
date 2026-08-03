@@ -1,15 +1,23 @@
 package ch.interlis.generator;
 
 import ch.interlis.generator.django.DjangoGenerationConfig;
+import ch.interlis.generator.grails.GrailsGenerationBlockedException;
+import ch.interlis.generator.model.ModelMetadata;
+import ch.interlis.generator.model.ModelMetadataFactory;
+import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
+import ch.interlis.generator.model.builder.ModelMetadataBuilder;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MetadataReaderAppCliTest {
 
@@ -77,6 +85,38 @@ class MetadataReaderAppCliTest {
         assertThat(options.planJson().toString()).isEqualTo("plan.json");
         assertThat(options.planMarkdown().toString()).isEqualTo("plan.md");
         assertThat(options.isConfigured()).isTrue();
+    }
+
+    @Test
+    void grailsTargetDoesNotWriteWhenTheAtomicPlanIsBlocked(@TempDir Path tempDir) throws Exception {
+        CommandLine.ParseResult parseResult = parse(
+            "generate",
+            "jdbc:postgresql://localhost:5432/test",
+            "SimpleModel",
+            "--target", "grails",
+            "--grails-output", tempDir.toString()
+        );
+        GenerateCommand command = (GenerateCommand) parseResult.subcommand().commandSpec().userObject();
+        MetadataCommandOptions metadataOptions = readField(command, "metadataOptions");
+        GrailsCliOptions grailsOptions = readField(command, "grailsOptions");
+        GrailsCliTarget target = new GrailsCliTarget(metadataOptions, grailsOptions);
+        ModelMetadataBuilder builder = ModelMetadataBuilder.model("SimpleModel");
+        builder.classBuilder("SimpleModel.Sample")
+            .tableName("sample")
+            .attribute(new AttributeMetadataBuilder("name").javaType("String"));
+        ModelMetadata metadata = new ModelMetadataFactory().buildValidated(builder);
+
+        target.generate(metadata);
+        Path managedDomain = tempDir.resolve("grails-app/domain/com/example/Sample.groovy");
+        Path manifest = tempDir.resolve(".ili2grails/generation-manifest.json");
+        Files.writeString(managedDomain, "class Sample { String userChange }\n");
+        String manifestBefore = Files.readString(manifest);
+
+        assertThatThrownBy(() -> target.generate(metadata))
+            .isInstanceOf(GrailsGenerationBlockedException.class);
+        assertThat(Files.readString(managedDomain))
+            .isEqualTo("class Sample { String userChange }\n");
+        assertThat(Files.readString(manifest)).isEqualTo(manifestBefore);
     }
 
     @Test

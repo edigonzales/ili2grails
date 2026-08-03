@@ -107,7 +107,7 @@ class Ili2dbQueryBudgetTest {
     }
 
     @Test
-    void enumValuesAreLoadedOncePerTableAndRead() throws Exception {
+    void enumValuesAreLoadedWhenGeometryIntrospectionIsDisabled() throws Exception {
         try (Connection raw = connection("enum_once");
              Statement stmt = raw.createStatement()) {
             createSchemaFixture(stmt, 3, 5);
@@ -116,9 +116,26 @@ class Ili2dbQueryBudgetTest {
                 readFull(counting);
                 long enumQueries = countEnumQueries(counting.snapshot());
                 assertThat(enumQueries)
-                    .as("each enum table is read exactly once per run (no per-attribute N+1)")
+                    .as("each enum table is still read exactly once (no per-attribute N+1)")
                     .isEqualTo(2);
             }
+        }
+    }
+
+    @Test
+    void geometryDisabledSkipsGeometryIntrospection() throws Exception {
+        try (Connection raw = connection("geometry_off");
+             Statement stmt = raw.createStatement()) {
+            createSchemaFixture(stmt, 1, 1);
+
+            Ili2dbReadResult result = new Ili2dbReadCoordinator()
+                .read(context(raw), selection(), false);
+
+            assertThat(result.geometry().metadataAvailable()).isTrue();
+            assertThat(result.geometry().columns()).isEmpty();
+            assertThat(result.diagnostics())
+                .noneMatch(diagnostic ->
+                    diagnostic.code() == Ili2dbDiagnosticCode.GEOMETRY_METADATA_UNAVAILABLE);
         }
     }
 
@@ -182,7 +199,7 @@ class Ili2dbQueryBudgetTest {
 
     private void readFull(CountingConnection counting) throws Exception {
         List<Ili2dbDiagnostic> diagnostics = new ArrayList<>();
-        new Ili2dbReadCoordinator().read(context(counting), request());
+        new Ili2dbReadCoordinator().read(context(counting), selection(), false);
     }
 
     private AssembleResult assembleOnly(CountingConnection counting) throws Exception {
@@ -237,7 +254,7 @@ class Ili2dbQueryBudgetTest {
         void assemble() {
             builder = new Ili2dbMetadataAssembler().assemble(context(), catalog, schema,
                 ch.interlis.generator.reader.ili2db.schema.GeometrySchemaSnapshot.empty(),
-                request().modelSelection(), diagnostics);
+                selection(), diagnostics);
         }
 
         ch.interlis.generator.model.builder.ModelMetadataBuilder builder() {
@@ -258,11 +275,10 @@ class Ili2dbQueryBudgetTest {
             }
         }
 
-        private Ili2dbReadRequest request() {
-            return new Ili2dbReadRequest(new ModelSelection("BudgetModel",
+        private ModelSelection selection() {
+            return new ModelSelection("BudgetModel",
                 new LinkedHashSet<>(List.of("BudgetModel")),
-                ModelSelectionSource.ILI2C_DEPENDENCY_GRAPH),
-                Ili2dbFailurePolicy.DIAGNOSTIC, true, false);
+                ModelSelectionSource.ILI2C_DEPENDENCY_GRAPH);
         }
     }
 
@@ -287,10 +303,9 @@ class Ili2dbQueryBudgetTest {
         }
     }
 
-    private Ili2dbReadRequest request() {
-        return new Ili2dbReadRequest(new ModelSelection("BudgetModel",
-            new LinkedHashSet<>(List.of("BudgetModel")), ModelSelectionSource.ILI2C_DEPENDENCY_GRAPH),
-            Ili2dbFailurePolicy.DIAGNOSTIC, true, false);
+    private ModelSelection selection() {
+        return new ModelSelection("BudgetModel",
+            new LinkedHashSet<>(List.of("BudgetModel")), ModelSelectionSource.ILI2C_DEPENDENCY_GRAPH);
     }
 
     private Ili2dbReadContext context(Connection connection) throws Exception {

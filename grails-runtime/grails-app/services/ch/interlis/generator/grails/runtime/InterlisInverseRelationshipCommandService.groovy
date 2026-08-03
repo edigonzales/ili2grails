@@ -6,7 +6,6 @@ import ch.interlis.generator.grails.runtime.api.command.FieldError
 import ch.interlis.generator.grails.runtime.api.command.InverseRelationshipCommandResult
 import ch.interlis.generator.grails.runtime.api.command.ReassignmentConfirmation
 import ch.interlis.generator.grails.runtime.api.descriptor.InverseRelationshipDescriptor
-import ch.interlis.generator.grails.runtime.api.lifecycle.InterlisLifecycleHooks
 import ch.interlis.generator.grails.runtime.api.persistence.LockResult
 import ch.interlis.generator.grails.runtime.api.persistence.LockStatus
 import ch.interlis.generator.grails.runtime.api.persistence.RuntimeRecordLoader
@@ -36,7 +35,6 @@ class InterlisInverseRelationshipCommandService {
     def grailsApplication
     InterlisRuntimeRegistry runtimeRegistry
     InterlisAuthorizationPolicy authorizationPolicy
-    InterlisLifecycleHooks lifecycleHooks
     RuntimeRecordLoader recordLoader
     ch.interlis.generator.grails.runtime.config.InterlisRuntimeOverridesService overridesService
     ch.interlis.generator.grails.runtime.registry.InterlisRuntimeSafetyState runtimeSafetyState
@@ -131,11 +129,11 @@ class InterlisInverseRelationshipCommandService {
             return InverseRelationshipCommandResult.reassignmentRequired(
                 new ReassignmentConfirmation(
                     related.id?.toString(),
-                    InterlisRelationshipOptions.optionLabel(grailsApplication, related),
+                    InterlisRelationshipOptions.optionLabel(grailsApplication, runtimeRegistry, related),
                     previousOwner.id?.toString(),
-                    InterlisRelationshipOptions.optionLabel(grailsApplication, previousOwner),
+                    InterlisRelationshipOptions.optionLabel(grailsApplication, runtimeRegistry, previousOwner),
                     owner.id?.toString(),
-                    InterlisRelationshipOptions.optionLabel(grailsApplication, owner),
+                    InterlisRelationshipOptions.optionLabel(grailsApplication, runtimeRegistry, owner),
                     descriptor.relatedLabel()
                 )
             )
@@ -147,28 +145,27 @@ class InterlisInverseRelationshipCommandService {
                 "Diese Umteilung ist nicht erlaubt.")
         }
 
-        lifecycleHooks.beforeUpdate(
-            ch.interlis.generator.grails.runtime.api.security.DomainOperationContext.of(
-                ch.interlis.generator.grails.runtime.api.security.DomainOperation.UPDATE,
-                runtimeRegistry.requireDomain(ownerType)),
-            owner)
         related."${relatedProperty}" = owner
         if (!related.validate()) {
+            related."${relatedProperty}" = previousOwner
             return validationFailure(related)
         }
         try {
             related.save(flush: true, failOnError: false)
         } catch (DataIntegrityViolationException | ConstraintViolationException e) {
+            related."${relatedProperty}" = previousOwner
             log.warn("Inverse relationship assignment failed for ${ownerType.simpleName}#${ownerId}: ${e.message}")
             return failure(409, CommandStatus.CONFLICT, CommandCode.DATA_INTEGRITY,
                 "Die Zuordnung konnte nicht gespeichert werden.")
         } catch (OptimisticLockingFailureException | OptimisticLockException | StaleObjectStateException e) {
+            related."${relatedProperty}" = previousOwner
             log.warn("Inverse relationship assignment was modified concurrently for " +
                 "${ownerType.simpleName}#${ownerId}")
             return failure(409, CommandStatus.CONFLICT, CommandCode.CONCURRENT_MODIFICATION,
                 "Der Datensatz wurde gleichzeitig geändert. Bitte erneut versuchen.")
         }
         if (related.hasErrors()) {
+            related."${relatedProperty}" = previousOwner
             return validationFailure(related)
         }
         return success(

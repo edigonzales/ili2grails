@@ -1,6 +1,5 @@
 package ch.interlis.generator.grails.generated
 
-import ch.interlis.generator.grails.runtime.api.compat.LegacyDescriptorMapAdapter
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor
 import ch.interlis.generator.grails.runtime.api.descriptor.DisplayDescriptor
@@ -894,36 +893,6 @@ final class InterlisUiRegistry implements DomainRegistry {
     @Override
     List<DomainDescriptor> byModel(String modelName) {
         return byModelName[modelName] ?: []
-    }
-
-    // ------------------------------------------------------------------
-    // Legacy map API for the pre-plugin runtime (migration only).
-    // ------------------------------------------------------------------
-
-    @Deprecated(forRemoval = true)
-    static List<Map<String, Object>> legacyDomains() {
-        return DOMAINS.collect { DomainDescriptor d ->
-            LegacyDescriptorMapAdapter.toLegacyDomainMap(d)
-        }
-    }
-
-    @Deprecated(forRemoval = true)
-    static Map<String, Object> domain(String iliName) {
-        DomainDescriptor descriptor = INSTANCE.byIliName[iliName]
-        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyDomainMap(descriptor)
-    }
-
-    @Deprecated(forRemoval = true)
-    static Map<String, Object> domainForClassName(String domainClassName) {
-        DomainDescriptor descriptor = INSTANCE.byClassName[domainClassName]
-        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyDomainMap(descriptor)
-    }
-
-    @Deprecated(forRemoval = true)
-    static List<Map<String, Object>> domainsForModel(String modelName) {
-        return INSTANCE.byModel(modelName).collect { DomainDescriptor d ->
-            LegacyDescriptorMapAdapter.toLegacyDomainMap(d)
-        }
     }
 
 }

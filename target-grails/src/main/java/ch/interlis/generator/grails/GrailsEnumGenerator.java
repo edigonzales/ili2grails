@@ -8,9 +8,6 @@ import ch.interlis.generator.model.ModelMetadata;
 import java.util.ArrayList;
 import java.util.List;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Collectors;
 
@@ -18,10 +15,6 @@ import java.util.stream.Collectors;
  * Generiert Enum-Klassen aus INTERLIS Enumerationen.
  */
 public class GrailsEnumGenerator {
-
-    public void generate(ModelMetadata metadata, GenerationConfig config) throws IOException {
-        generate(metadata, config, TargetNameRegistry.forMetadata(metadata, config));
-    }
 
     /**
      * Reine Planungsfunktion (Spezifikation §41.2): kein Write.
@@ -45,19 +38,6 @@ public class GrailsEnumGenerator {
                 "generated enum " + enumName));
         }
         return planned;
-    }
-
-    public void generate(ModelMetadata metadata,
-                         GenerationConfig config,
-                         TargetNameRegistry registry) throws IOException {
-        Path baseDir = config.getOutputDir()
-            .resolve("src/main/groovy")
-            .resolve(NameUtils.packageToPath(config.getEnumPackage()));
-        for (PlannedProjectFile planned : plan(metadata, config, registry)) {
-            Path target = baseDir.resolve(planned.relativePath().getFileName());
-            Files.createDirectories(target.getParent());
-            Files.write(target, planned.content());
-        }
     }
 
     private String renderEnum(EnumMetadata enumMetadata,

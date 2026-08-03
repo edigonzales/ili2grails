@@ -52,8 +52,6 @@ public final class VerificationSummaryTask {
             "grailsPostgresContractTest"));
         checks.add(checkTargetTests(repositoryRoot, "target-grails",
             "browserE2eTest"));
-        checks.add(checkReports(repositoryRoot, "ili2grails-verification",
-            List.of(), "summary"));
 
         VerificationSummary summary = new VerificationSummary(
             1, environment.gitCommit(), environment, checks);

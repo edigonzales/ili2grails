@@ -6,16 +6,11 @@ import ch.interlis.generator.grails.runtime.api.descriptor.AssociationCreateMode
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor;
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor;
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationStorageKind;
-import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind;
-import ch.interlis.generator.grails.runtime.api.descriptor.EntityDescriptor;
 import ch.interlis.generator.grails.project.GrailsProjectFileOwner;
 import ch.interlis.generator.grails.project.plan.PlannedProjectFile;
 import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeCoreType;
 import ch.interlis.generator.grails.source.GroovySourceWriter;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,8 +26,7 @@ import java.util.TreeMap;
  *
  * <p>The registry implements {@link
  * ch.interlis.generator.grails.runtime.api.registry.AssociationRegistry} and
- * holds immutable descriptor instances. The legacy static map API is kept for
- * the migration window only and delegates to the typed data.</p>
+ * holds immutable descriptor instances.</p>
  */
 public final class GrailsAssociationRegistryGenerator {
 
@@ -55,17 +49,6 @@ public final class GrailsAssociationRegistryGenerator {
             ch.interlis.generator.grails.project.GrailsProjectFileOwner.GENERATOR_MANAGED,
             renderRegistry(plan),
             "generated typed association registry");
-    }
-
-    public void generate(RuntimeDescriptorPlan plan, GenerationConfig config) throws IOException {
-        PlannedProjectFile planned = plan(plan, config);
-        Path target = targetPath(config);
-        Files.createDirectories(target.getParent());
-        Files.write(target, planned.content());
-    }
-
-    Path targetPath(GenerationConfig config) {
-        return config.getOutputDir().resolve(RELATIVE_PATH);
     }
 
     String renderRegistry(RuntimeDescriptorPlan plan) {
@@ -95,28 +78,14 @@ public final class GrailsAssociationRegistryGenerator {
         for (AssociationContextDescriptor context : contexts) {
             contextsById.put(context.id(), context);
         }
-        Map<String, EntityDescriptor> entities = new TreeMap<>();
-        for (AssociationDescriptor association : associations) {
-            if (association.domainClassName() != null && !association.domainClassName().isBlank()) {
-                entities.put(association.domainClassName(), new EntityDescriptor(
-                    association.iliClassName(),
-                    DomainKind.ASSOCIATION,
-                    association.showInNavigation()
-                ));
-            }
-        }
-
         StringBuilder source = new StringBuilder();
         source.append("package ").append(GENERATED_PACKAGE).append("\n\n");
-        source.append("import ch.interlis.generator.grails.runtime.api.compat.LegacyDescriptorMapAdapter\n");
         source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationAttributeDescriptor\n");
         source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor\n");
         source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationCreateMode\n");
         source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor\n");
         source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor\n");
         source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationStorageKind\n");
-        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind\n");
-        source.append("import ch.interlis.generator.grails.runtime.api.descriptor.EntityDescriptor\n");
         source.append("import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeCoreType\n");
         source.append("import ch.interlis.generator.grails.runtime.api.registry.AssociationRegistry\n\n");
 
@@ -129,9 +98,6 @@ public final class GrailsAssociationRegistryGenerator {
         source.append(renderDescriptorMap(contextsById, c -> renderContext((AssociationContextDescriptor) c, 2), 1)).append("\n\n");
         source.append("    static final Map<String, List<String>> CONTEXT_IDS_BY_PARTICIPANT = ");
         source.append(renderStringListMap(contextIdsByParticipant, 1)).append("\n\n");
-        source.append("    static final Map<String, EntityDescriptor> ENTITIES = ");
-        source.append(renderDescriptorMap(entities, e -> renderEntity((EntityDescriptor) e, 2), 1)).append("\n\n");
-
         source.append("    static final ").append(REGISTRY_CLASS_NAME)
             .append(" INSTANCE = new ").append(REGISTRY_CLASS_NAME)
             .append("(ASSOCIATIONS, CONTEXTS)\n\n");
@@ -163,49 +129,6 @@ public final class GrailsAssociationRegistryGenerator {
         source.append("            .collect { String id -> contextsById[id] }\n");
         source.append("            .findAll { it != null }\n");
         source.append("    }\n\n");
-
-        source.append("    // ------------------------------------------------------------------\n");
-        source.append("    // Legacy map API for the pre-plugin runtime (migration only).\n");
-        source.append("    // ------------------------------------------------------------------\n\n");
-
-        source.append("    @Deprecated(forRemoval = true)\n");
-        source.append("    static Map<String, Object> legacyAssociation(String associationName) {\n");
-        source.append("        AssociationDescriptor descriptor = INSTANCE.associationsByName[associationName]\n");
-        source.append("        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyAssociationMap(descriptor)\n");
-        source.append("    }\n\n");
-
-        source.append("    @Deprecated(forRemoval = true)\n");
-        source.append("    static Map<String, Object> legacyContext(String contextId) {\n");
-        source.append("        AssociationContextDescriptor descriptor = INSTANCE.contextsById[contextId]\n");
-        source.append("        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyContextMap(descriptor)\n");
-        source.append("    }\n\n");
-
-        source.append("    @Deprecated(forRemoval = true)\n");
-        source.append("    static List<Map<String, Object>> legacyContextsForParticipant(String domainClassName) {\n");
-        source.append("        return INSTANCE.contextsForParticipant(domainClassName).collect {\n");
-        source.append("            AssociationContextDescriptor descriptor ->\n");
-        source.append("                LegacyDescriptorMapAdapter.toLegacyContextMap(descriptor)\n");
-        source.append("        }\n");
-        source.append("    }\n\n");
-
-        source.append("    @Deprecated(forRemoval = true)\n");
-        source.append("    static List<Map<String, Object>> legacyEntities() {\n");
-        source.append("        return ENTITIES.values().collect { EntityDescriptor e ->\n");
-        source.append("            LegacyDescriptorMapAdapter.toLegacyEntityMap(e)\n");
-        source.append("        }\n");
-        source.append("    }\n\n");
-
-        source.append("    @Deprecated(forRemoval = true)\n");
-        source.append("    static Map<String, Object> legacyEntity(String domainClassName) {\n");
-        source.append("        EntityDescriptor descriptor = ENTITIES[domainClassName]\n");
-        source.append("        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyEntityMap(descriptor)\n");
-        source.append("    }\n\n");
-
-        source.append("    @Deprecated(forRemoval = true)\n");
-        source.append("    static boolean legacyShowInNavigation(String domainClassName) {\n");
-        source.append("        EntityDescriptor entity = ENTITIES[domainClassName]\n");
-        source.append("        return entity == null || entity.showInNavigation()\n");
-        source.append("    }\n");
 
         source.append("}\n");
         return source.toString();
@@ -351,12 +274,4 @@ public final class GrailsAssociationRegistryGenerator {
             + indent + ")";
     }
 
-    private String renderEntity(EntityDescriptor entity, int indentLevel) {
-        String indent = "    ".repeat(indentLevel);
-        return "new EntityDescriptor(\n"
-            + indent + "    " + source.stringLiteral(entity.iliName()) + ",\n"
-            + indent + "    " + source.enumLiteral(DomainKind.class, entity.kind()) + ",\n"
-            + indent + "    " + entity.showInNavigation() + "\n"
-            + indent + ")";
-    }
 }

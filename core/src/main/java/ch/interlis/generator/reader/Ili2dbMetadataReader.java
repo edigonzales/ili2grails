@@ -2,10 +2,8 @@ package ch.interlis.generator.reader;
 
 import ch.interlis.generator.metadata.selection.ModelSelection;
 import ch.interlis.generator.model.ModelMetadata;
-import ch.interlis.generator.reader.ili2db.Ili2dbFailurePolicy;
 import ch.interlis.generator.reader.ili2db.Ili2dbReadContext;
 import ch.interlis.generator.reader.ili2db.Ili2dbReadCoordinator;
-import ch.interlis.generator.reader.ili2db.Ili2dbReadRequest;
 import ch.interlis.generator.reader.ili2db.Ili2dbReadResult;
 import ch.interlis.generator.reader.ili2db.schema.DatabaseDialect;
 import ch.interlis.generator.reader.ili2db.schema.DatabaseDialectDetector;
@@ -24,7 +22,7 @@ import java.util.Objects;
  *
  * <p>Die eigentliche Zerlegung (Katalog, Schema, Geometry, Enum, Assembly)
  * liegt im {@code reader.ili2db}-Paket; diese Klasse delegiert an den
- * {@link Ili2dbReadCoordinator} und bewahrt die Kompatibilitäts-API
+ * {@link Ili2dbReadCoordinator} und bietet eine kleine Fassade
  * ({@link #create(Connection, String)}, {@link #readMetadata(ModelSelection)}).</p>
  *
  * <p>Alle dynamischen Schema-, Tabellen- und Spaltennamen werden als
@@ -110,31 +108,27 @@ public class Ili2dbMetadataReader {
      * einer fachlichen {@code IllegalArgumentException}.</p>
      */
     public ModelMetadata readMetadata(ModelSelection selection) throws SQLException {
-        Ili2dbReadResult result = read(selection, Ili2dbFailurePolicy.STRICT);
+        Ili2dbReadResult result = read(selection);
         result.throwIfBlocking();
         return result.requireMetadata();
     }
 
     /**
-     * Liest Metadaten mit expliziter Fehlerpolitik (Spezifikation §13.3).
+     * Liest Metadaten samt Diagnostics.
      *
-     * <p>Im {@code DIAGNOSTIC}-Modus liefert das Ergebnis auch bei ERROR-
-     * Diagnostics ein partielles, klar markiertes Resultat; blockierende
-     * FATAL-Diagnostics führen zu einem Ergebnis ohne Metadaten.</p>
+     * <p>Der Diagnosepfad liefert auch bei ERROR-Diagnostics ein partielles,
+     * klar markiertes Resultat, soweit ein Modell aufgebaut werden kann.
+     * Der Komfortpfad {@link #readMetadata(ModelSelection)} wirft dagegen bei
+     * blockierenden Diagnostics.</p>
      */
-    public Ili2dbReadResult read(ModelSelection selection, Ili2dbFailurePolicy policy)
-        throws SQLException {
+    public Ili2dbReadResult read(ModelSelection selection) throws SQLException {
         Objects.requireNonNull(selection, "selection");
-        Objects.requireNonNull(policy, "policy");
         logger.info("Reading ili2db metadata for selection: {} -> {}",
             selection.rootModelName(), selection.includedModelNames());
 
         DatabaseDialect dialect = new DatabaseDialectDetector().detect(connection.getMetaData());
         Ili2dbReadContext context = new Ili2dbReadContext(
             connection, schema, identifierRenderer, dialect);
-        Ili2dbReadRequest request = new Ili2dbReadRequest(
-            selection, policy, true, true);
-
-        return new Ili2dbReadCoordinator().read(context, request);
+        return new Ili2dbReadCoordinator().read(context, selection, true);
     }
 }

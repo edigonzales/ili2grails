@@ -106,13 +106,12 @@ class GrailsUiRegistryGeneratorTest {
         GenerationConfig config = config();
         RuntimeDescriptorPlan plan = plan(metadata, config);
 
-        new GrailsUiRegistryGenerator().generate(plan, config, TargetNameRegistry.forMetadata(metadata, config));
+        String generated = new String(new GrailsUiRegistryGenerator()
+            .plan(plan, config, TargetNameRegistry.forMetadata(metadata, config)).content(),
+            java.nio.charset.StandardCharsets.UTF_8);
 
-        Path generated = tempDir.resolve(
-            "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy");
-        assertThat(generated).exists();
-        assertThat(Files.readString(generated)).contains("DOMAINS = [].asImmutable()");
-        assertGroovyCompiles(Files.readString(generated));
+        assertThat(generated).contains("DOMAINS = [].asImmutable()");
+        assertGroovyCompiles(generated);
     }
 
     static RuntimeDescriptorPlan plan(ModelMetadata metadata, GenerationConfig config) {

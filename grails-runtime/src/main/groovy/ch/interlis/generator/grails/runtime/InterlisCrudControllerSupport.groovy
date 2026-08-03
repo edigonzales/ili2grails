@@ -32,6 +32,7 @@ class InterlisCrudControllerSupport<T> {
 
     InterlisAuthorizationPolicy authorizationPolicy
     InterlisRuntimeRegistry runtimeRegistry
+    ch.interlis.generator.grails.runtime.config.InterlisRuntimeOverridesService overridesService
     ch.interlis.generator.grails.runtime.registry.InterlisRuntimeSafetyState runtimeSafetyState
 
     private static final InterlisListControllerFlow LIST_FLOW = new InterlisListControllerFlow()
@@ -232,6 +233,7 @@ class InterlisCrudControllerSupport<T> {
             "workspaceDisplayLabel",
             InterlisWorkspaceSupport.displayLabel(
                 grailsApplication,
+                runtimeRegistry,
                 instance,
                 descriptor?.list?.displayFields instanceof Collection
                     ? descriptor.list.displayFields as Collection<String>
@@ -276,14 +278,14 @@ class InterlisCrudControllerSupport<T> {
             }
             if (!edit && hasInverseRelationshipParameters(params)) {
                 return InterlisInverseRelationshipContextSupport.prepareCreateContext(
-                    grailsApplication, domainType(), params)
+                    runtimeRegistry, overridesService, grailsApplication, domainType(), params)
             }
             if (edit && hasAssociationContext(params)) {
                 return InterlisAssociationContextSupport.prepareEditContext(
-                    grailsApplication, domainType(), instance, params)
+                    runtimeRegistry, grailsApplication, domainType(), instance, params)
             }
             return InterlisAssociationContextSupport.prepareCreateContext(
-                grailsApplication, domainType(), params)
+                runtimeRegistry, grailsApplication, domainType(), params)
         } catch (Exception e) {
             if (hasAnyContext(params)) {
                 log.warn("Context rejected for ${domainType().simpleName}: ${e.message}")
@@ -307,7 +309,7 @@ class InterlisCrudControllerSupport<T> {
             return null
         }
         return state.contextKind == "DIRECT_RELATIONSHIP"
-            ? InterlisInverseRelationshipContextSupport.redirectTarget(grailsApplication, state)
+            ? InterlisInverseRelationshipContextSupport.redirectTarget(runtimeRegistry, state)
             : InterlisAssociationContextSupport.redirectTarget(state)
     }
 
@@ -335,7 +337,7 @@ class InterlisCrudControllerSupport<T> {
             }
             try {
                 return InterlisInverseRelationshipContextSupport.prepareCreateContext(
-                    grailsApplication, domainType(), params)
+                    runtimeRegistry, overridesService, grailsApplication, domainType(), params)
             } catch (Exception e) {
                 log.warn("Failed to load direct relationship context for ${domainType().simpleName}: ${e.message}")
                 return null
@@ -349,10 +351,10 @@ class InterlisCrudControllerSupport<T> {
         try {
             if (edit && instance != null) {
                 return InterlisAssociationContextSupport.prepareEditContext(
-                    grailsApplication, domainType(), instance, params)
+                    runtimeRegistry, grailsApplication, domainType(), instance, params)
             }
             return InterlisAssociationContextSupport.prepareCreateContext(
-                grailsApplication, domainType(), params)
+                runtimeRegistry, grailsApplication, domainType(), params)
         } catch (Exception e) {
             log.warn("Failed to re-load association context for ${domainType().simpleName}: ${e.message}")
             if (hasAnyContext(params)) {
@@ -533,7 +535,7 @@ class InterlisCrudControllerSupport<T> {
     }
 
     protected Map<String, Object> uiDescriptor() {
-        return InterlisUiDescriptorSupport.descriptor(grailsApplication, domainType())
+        return InterlisUiDescriptorSupport.descriptor(grailsApplication, runtimeRegistry, domainType())
     }
 
     protected List<Map<String, Object>> filterFields() {
@@ -559,7 +561,7 @@ class InterlisCrudControllerSupport<T> {
         definitions.findAll { it.type?.toString() == "relationship" }.each { Map<String, Object> definition ->
             String selected = query?.filterValues?.get(definition.name)?.value?.toString()
             options[definition.name] = InterlisListQuerySupport.relationshipOptions(
-                grailsApplication, domainType(), definition, selected, 25
+                grailsApplication, runtimeRegistry, domainType(), definition, selected, 25
             )
         }
         return options
@@ -570,7 +572,7 @@ class InterlisCrudControllerSupport<T> {
     }
 
     protected String renderFieldValue(Object value) {
-        return InterlisWorkspaceSupport.renderValue(grailsApplication, value)
+        return InterlisWorkspaceSupport.renderValue(grailsApplication, runtimeRegistry, value)
     }
 
     protected Map<String, Object> relationshipModel(T instance, Map sourceParams = params) {
@@ -585,7 +587,8 @@ class InterlisCrudControllerSupport<T> {
             String submittedId = relationshipSubmittedId(sourceParams, field)
             Map<String, String> selected = submitted
                 ? InterlisRelationshipOptions.optionForId(
-                    grailsApplication, domainType(), field, submittedId, geometryFields())
+                    grailsApplication, runtimeRegistry, domainType(), field,
+                    submittedId, geometryFields())
                 : selectedRelationshipOption(instance, field)
             if (selected != null && options[field].every { Map<String, String> option -> option.id != selected.id }) {
                 options[field] = [selected] + options[field]
@@ -639,6 +642,7 @@ class InterlisCrudControllerSupport<T> {
         }
         return InterlisRelationshipOptions.optionPage(
             grailsApplication,
+            runtimeRegistry,
             domainType(),
             field,
             query,
@@ -667,7 +671,8 @@ class InterlisCrudControllerSupport<T> {
         }
         return [
             id: id,
-            label: InterlisRelationshipOptions.optionLabel(grailsApplication, selected)
+            label: InterlisRelationshipOptions.optionLabel(
+                grailsApplication, runtimeRegistry, selected)
         ]
     }
 

@@ -3,7 +3,6 @@ package ch.interlis.generator;
 import ch.interlis.generator.grails.GenerationConfig;
 import ch.interlis.generator.grails.GrailsCrudGenerator;
 import ch.interlis.generator.grails.GrailsRelationshipMapper;
-import ch.interlis.generator.grails.GrailsTemplateOverlayInstaller;
 import ch.interlis.generator.grails.TargetNameRegistry;
 import ch.interlis.generator.model.ModelMetadata;
 import picocli.CommandLine;
@@ -104,8 +103,6 @@ final class GrailsCliTarget implements CliTargetAdapter {
             runDryRun(metadata, config, generator);
             return;
         }
-        System.out.println("Installing Grails UI overlay...");
-        new GrailsTemplateOverlayInstaller().install(grailsProjectDir, config);
         System.out.println("Generating Grails domains and supporting artifacts...");
         generator.generate(metadata, config);
         if (options.generateAll()) {

@@ -1,5 +1,10 @@
 package ch.interlis.generator.grails;
 
+import ch.interlis.generator.grails.project.GrailsApplicationConfigurationUpdater;
+import ch.interlis.generator.grails.project.GrailsAssetManifestUpdater;
+import ch.interlis.generator.grails.project.GrailsScaffoldingTemplateInstaller;
+import ch.interlis.generator.grails.project.plan.PlannedProjectFile;
+import ch.interlis.generator.grails.project.plan.TextFileEdit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -16,7 +21,7 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class GrailsTemplateOverlayInstallerTest {
+class GrailsBootstrapResourcesTest {
 
     private static final List<String> NOTO_SANS_FONT_FILES = List.of(
         "NotoSans-Regular.woff2",
@@ -52,19 +57,13 @@ class GrailsTemplateOverlayInstallerTest {
             " */",
             ""
         ));
-        Path legacyBoldFont = projectDir.resolve(
-            "grails-app/assets/fonts/fira-sans/FiraSans-Bold.woff2");
-        Files.createDirectories(legacyBoldFont.getParent());
-        Files.write(legacyBoldFont, new byte[] {0, 1, 2, 3});
-
         GenerationConfig config = GenerationConfig.builder(projectDir, "com.example")
             .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
             .mapEditor(GenerationConfig.MAP_EDITOR_OPENLAYERS)
             .build();
 
-        GrailsTemplateOverlayInstaller installer = new GrailsTemplateOverlayInstaller();
-        installer.install(projectDir, config);
-        installer.install(projectDir, config);
+        applyBootstrapPlan(projectDir, config);
+        applyBootstrapPlan(projectDir, config);
 
         assertThat(projectDir.resolve("src/main/templates/scaffolding/Controller.groovy")).exists();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/create.gsp")).exists();
@@ -88,9 +87,9 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(projectDir.resolve("grails-app/services/ch/interlis/generator/grails/runtime")).doesNotExist();
         assertThat(projectDir.resolve("grails-app/controllers/ch/interlis/generator/grails/runtime")).doesNotExist();
         assertThat(projectDir.resolve("grails-app/taglib/ch/interlis/generator/grails/runtime")).doesNotExist();
-        assertThat(projectDir.resolve("grails-app/views/interlisUi")).doesNotExist();
-        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).doesNotExist();
-        assertThat(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).doesNotExist();
+        assertThat(projectDir.resolve("grails-app/views/interlisUi")).exists();
+        assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-navigation.js")).exists();
+        assertThat(projectDir.resolve("grails-app/assets/stylesheets/ili-modern.css")).exists();
         assertThat(projectDir.resolve("grails-app/assets/fonts/noto-sans")).doesNotExist();
         assertThat(projectDir.resolve("grails-app/i18n/messages_de_CH.properties")).doesNotExist();
         assertThat(projectDir.resolve("src/main/templates/scaffolding/_association-sections.gsp")).exists();
@@ -110,7 +109,6 @@ class GrailsTemplateOverlayInstallerTest {
             "fonts/fira-sans/" + fileName)).exists());
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-wc-bundle.js")).doesNotExist();
         assertThat(projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js")).doesNotExist();
-        assertThat(legacyBoldFont).doesNotExist();
 
         String updatedApplicationJs = Files.readString(applicationJs);
         assertThat(updatedApplicationJs).contains("//= require webjars/proj4/2.11.0/dist/proj4.js");
@@ -121,8 +119,6 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(updatedApplicationJs).contains("//= require ili-notifications.js");
         assertThat(updatedApplicationJs).contains("//= require ili-navigation.js");
         assertThat(updatedApplicationJs).doesNotContain("//= require ili-carbon-input-bridge.js");
-        GrailsTemplateOverlayInstaller.applicationJsRequiresForTesting().forEach(require ->
-            assertThat(updatedApplicationJs).as(require).containsOnlyOnce(require));
         assertThat(updatedApplicationJs.indexOf("//= require ili-geometry-editor.js"))
             .isEqualTo(updatedApplicationJs.lastIndexOf("//= require ili-geometry-editor.js"));
         assertThat(updatedApplicationJs.indexOf("//= require ili-form-ux.js"))
@@ -133,8 +129,6 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(updatedApplicationCss).contains("*= require webjars/ol/9.2.4/ol.css");
         assertThat(updatedApplicationCss).containsOnlyOnce("*= require webjars/bootstrap/5.3.3/css/bootstrap.min.css");
         assertThat(updatedApplicationCss).containsOnlyOnce("*= require webjars/ol/9.2.4/ol.css");
-        GrailsTemplateOverlayInstaller.applicationCssRequiresForTesting().forEach(require ->
-            assertThat(updatedApplicationCss).as(require).containsOnlyOnce(require));
 
         String indexTemplate = Files.readString(projectDir.resolve("src/main/templates/scaffolding/index.gsp"));
         assertThat(indexTemplate).contains("template=\"list-header\"");
@@ -379,7 +373,7 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(layoutTemplate).contains("ili-sidebar-toggle");
         assertThat(layoutTemplate).doesNotContain("ili-carbon-wc-bundle.js");
         assertThat(layoutTemplate).doesNotContain("<bx-header");
-        assertThat(layoutTemplate).contains("InterlisNavigationSupport.navigationModel");
+        assertThat(layoutTemplate).contains("<ili:navigation var=\"navigationModel\"/>");
         assertThat(layoutTemplate)
             .contains("breadcrumbAction", "breadcrumbRecordLabel", "ili2grails.action.create",
                 "aria-current=\"page\"", "action=\"show\" id=\"${params.id}\"", "g:elseif")
@@ -491,14 +485,15 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(workspaceSupport).contains("workspaceDisplayLabel", "displayFields", "#${id}");
         String crudControllerSupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisCrudControllerSupport.groovy".replace(".groovy","")));
         assertThat(crudControllerSupport).contains(
-            "InterlisWorkspaceSupport.renderValue(grailsApplication, value)",
-            "InterlisRelationshipOptions.optionLabel(grailsApplication, selected)");
+            "InterlisWorkspaceSupport.renderValue(grailsApplication, runtimeRegistry, value)",
+            "InterlisRelationshipOptions.optionLabel(\n                grailsApplication, runtimeRegistry, selected)");
         String listQuerySupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisListQuerySupport.groovy".replace(".groovy","")));
-        assertThat(listQuerySupport).contains("optionLabel(grailsApplication, selected)");
+        assertThat(listQuerySupport).contains(
+            "optionLabel(\n                    grailsApplication, runtimeRegistry, selected)");
         String associationQueryService = Files.readString(PluginSourcePaths.service("InterlisAssociationQueryService.groovy".replace(".groovy","")));
-        assertThat(associationQueryService).contains("optionLabel(grailsApplication, target)");
+        assertThat(associationQueryService).contains("optionLabel(grailsApplication, runtimeRegistry, target)");
         String associationContextSupport = Files.readString(PluginSourcePaths.runtimeSource("InterlisAssociationContextSupport.groovy".replace(".groovy","")));
-        assertThat(associationContextSupport).contains("optionLabel(grailsApplication, owner)");
+        assertThat(associationContextSupport).contains("optionLabel(grailsApplication, runtimeRegistry, owner)");
 
         String uiController = Files.readString(PluginSourcePaths.controller("InterlisUiController.groovy".replace(".groovy","")));
         assertThat(uiController).contains("static allowedMethods = [index: \"GET\", domains: \"GET\"]");
@@ -642,8 +637,11 @@ class GrailsTemplateOverlayInstallerTest {
                 .collect(Collectors.toSet());
         }
 
-        assertThat(resources).containsExactlyInAnyOrderElementsOf(
-            new HashSet<>(GrailsTemplateOverlayInstaller.managedFilesForTesting()));
+        Set<String> expected = GrailsScaffoldingTemplateInstaller.templateFilesForTesting().stream()
+            .map(file -> "src/main/templates/scaffolding/" + file)
+            .collect(Collectors.toCollection(HashSet::new));
+        expected.add("grails-app/conf/spring/resources.groovy");
+        assertThat(resources).containsExactlyInAnyOrderElementsOf(expected);
     }
 
     @Test
@@ -743,21 +741,7 @@ class GrailsTemplateOverlayInstallerTest {
     }
 
     @Test
-    void skipsOverlayInstallationForDefaultTheme(@TempDir Path tempDir) throws Exception {
-        Path projectDir = tempDir.resolve("my-grails-app");
-        Files.createDirectories(projectDir);
-        GenerationConfig config = GenerationConfig.builder(projectDir, "com.example")
-            .uiTheme(GenerationConfig.UI_THEME_DEFAULT)
-            .build();
-
-        new GrailsTemplateOverlayInstaller().install(projectDir, config);
-
-        assertThat(projectDir.resolve("src/main/templates/scaffolding/Controller.groovy")).doesNotExist();
-        assertThat(projectDir.resolve("grails-app/assets/fonts/noto-sans")).doesNotExist();
-    }
-
-    @Test
-    void removesLegacyCarbonArtifactsWhenInstallingBootstrapOverlay(@TempDir Path tempDir) throws Exception {
+    void assetPlanRemovesLegacyRequiresWithoutDeletingApplicationFiles(@TempDir Path tempDir) throws Exception {
         Path projectDir = tempDir.resolve("my-grails-app");
         Path legacyBundle = projectDir.resolve("grails-app/assets/javascripts/ili-carbon-wc-bundle.js");
         Path legacyBridge = projectDir.resolve("grails-app/assets/javascripts/ili-carbon-input-bridge.js");
@@ -772,14 +756,13 @@ class GrailsTemplateOverlayInstallerTest {
             ""
         ));
 
-        GenerationConfig config = GenerationConfig.builder(projectDir, "com.example")
-            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
-            .build();
+        GrailsAssetManifestUpdater updater = new GrailsAssetManifestUpdater();
+        applyEdit(projectDir, updater.plan(
+            Path.of("grails-app/assets/javascripts/application.js"),
+            Files.readString(applicationJs)));
 
-        new GrailsTemplateOverlayInstaller().install(projectDir, config);
-
-        assertThat(legacyBundle).doesNotExist();
-        assertThat(legacyBridge).doesNotExist();
+        assertThat(legacyBundle).exists();
+        assertThat(legacyBridge).exists();
 
         String updatedApplicationJs = Files.readString(applicationJs);
         assertThat(updatedApplicationJs).doesNotContain("//= require ili-carbon-input-bridge.js");
@@ -799,7 +782,8 @@ class GrailsTemplateOverlayInstallerTest {
             .language(GenerationConfig.LANGUAGE_EN)
             .build();
 
-        new GrailsTemplateOverlayInstaller().install(projectDir, config);
+        applyEdit(projectDir, new GrailsApplicationConfigurationUpdater().plan(
+            Path.of("grails-app/conf/spring/resources.groovy"), null, config));
 
         // The i18n bundles are plugin artefacts; the installer must not copy or
         // merge them into the application anymore.
@@ -815,5 +799,41 @@ class GrailsTemplateOverlayInstallerTest {
         assertThat(deMessages).contains("ili2grails.action.save=Speichern");
         assertThat(Files.readString(projectDir.resolve("grails-app/conf/spring/resources.groovy")))
             .contains("FixedLocaleResolver", "Locale.forLanguageTag(\"en\")");
+    }
+
+    private static void applyBootstrapPlan(Path projectDir, GenerationConfig config) throws Exception {
+        GrailsScaffoldingTemplateInstaller templates = new GrailsScaffoldingTemplateInstaller();
+        applyFiles(projectDir, templates.plan());
+        applyFiles(projectDir, templates.planUiViews());
+        applyFiles(projectDir, templates.planUiAssets());
+        applyFiles(projectDir, templates.planUiStylesheet());
+
+        GrailsAssetManifestUpdater assets = new GrailsAssetManifestUpdater();
+        Path applicationJs = Path.of("grails-app/assets/javascripts/application.js");
+        applyEdit(projectDir, assets.plan(applicationJs, Files.readString(projectDir.resolve(applicationJs))));
+        Path applicationCss = Path.of("grails-app/assets/stylesheets/application.css");
+        applyEdit(projectDir, assets.plan(applicationCss, Files.readString(projectDir.resolve(applicationCss))));
+
+        Path resources = Path.of("grails-app/conf/spring/resources.groovy");
+        String existing = Files.exists(projectDir.resolve(resources))
+            ? Files.readString(projectDir.resolve(resources)) : null;
+        applyEdit(projectDir, new GrailsApplicationConfigurationUpdater().plan(resources, existing, config));
+    }
+
+    private static void applyFiles(Path projectDir, List<PlannedProjectFile> files) throws Exception {
+        for (PlannedProjectFile file : files) {
+            Path target = projectDir.resolve(file.relativePath());
+            Files.createDirectories(target.getParent());
+            Files.write(target, file.content());
+        }
+    }
+
+    private static void applyEdit(Path projectDir, TextFileEdit edit) throws Exception {
+        if (!edit.changed() || edit.updatedContent() == null) {
+            return;
+        }
+        Path target = projectDir.resolve(edit.relativePath());
+        Files.createDirectories(target.getParent());
+        Files.writeString(target, edit.updatedContent());
     }
 }

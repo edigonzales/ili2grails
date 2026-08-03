@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -40,10 +41,8 @@ import java.util.TreeSet;
  * Die Phasen bleiben strikt getrennt; der Assembler ist die einzige Stelle,
  * die IR-Builder erzeugt.
  *
- * <p>Koordinatoren-Regel (Spezifikation §13.2): Die Auswahl stammt
- * ausschliesslich aus {@code request.modelSelection()}, die Policy
- * ausschliesslich aus {@code request.failurePolicy()} und das Schema
- * ausschliesslich aus {@code context.schema()}.</p>
+ * <p>Die fachliche Auswahl und das tatsächlich gewünschte Geometry-Flag
+ * werden direkt übergeben; die technische Umgebung bleibt im Context.</p>
  */
 public final class Ili2dbReadCoordinator {
 
@@ -55,8 +54,11 @@ public final class Ili2dbReadCoordinator {
     private final Ili2dbAssociationDeriver associationDeriver = new Ili2dbAssociationDeriver();
     private final ModelMetadataFactory metadataFactory = new ModelMetadataFactory();
 
-    public Ili2dbReadResult read(Ili2dbReadContext context, Ili2dbReadRequest request)
-        throws SQLException {
+    public Ili2dbReadResult read(Ili2dbReadContext context,
+                                 ModelSelection selection,
+                                 boolean includeGeometryMetadata) throws SQLException {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(selection, "selection");
         List<Ili2dbDiagnostic> diagnostics = new ArrayList<>();
 
         Ili2dbCatalogCapabilities capabilities =
@@ -64,7 +66,7 @@ public final class Ili2dbReadCoordinator {
         Map<String, String> settings = catalogReader.readSettings(context, capabilities, diagnostics);
         List<ModelRow> models = catalogReader.readModels(context, capabilities, diagnostics);
 
-        Set<String> effectiveModels = effectiveModelNames(request, models, diagnostics);
+        Set<String> effectiveModels = effectiveModelNames(selection, models, diagnostics);
         if (effectiveModels.isEmpty()) {
             // Das Root-Modell fehlt; die FATAL-Diagnostic ist bereits erfasst.
             return new Ili2dbReadResult(null, null, JdbcSchemaSnapshot.empty(),
@@ -92,10 +94,11 @@ public final class Ili2dbReadCoordinator {
         );
 
         JdbcSchemaSnapshot schema = inspectSchema(context, tableNames, diagnostics);
-        GeometrySchemaSnapshot geometry = inspectGeometry(context, request, tableNames, diagnostics);
+        GeometrySchemaSnapshot geometry = inspectGeometry(
+            context, includeGeometryMetadata, tableNames, diagnostics);
 
         ModelMetadataBuilder builder = assembler.assemble(context, catalog, schema, geometry,
-            request.modelSelection(), diagnostics);
+            selection, diagnostics);
         relationshipDeriver.derive(builder);
         associationDeriver.derive(builder, diagnostics);
 
@@ -119,10 +122,9 @@ public final class Ili2dbReadCoordinator {
      *       wird Root-only gelesen (WARNING).</li>
      * </ul>
      */
-    private Set<String> effectiveModelNames(Ili2dbReadRequest request,
+    private Set<String> effectiveModelNames(ModelSelection selection,
                                             List<ModelRow> databaseModels,
                                             List<Ili2dbDiagnostic> diagnostics) {
-        ModelSelection selection = request.modelSelection();
         Set<String> available = new LinkedHashSet<>();
         for (ModelRow row : databaseModels) {
             if (row.modelName() != null && !row.modelName().isBlank()) {
@@ -195,11 +197,11 @@ public final class Ili2dbReadCoordinator {
     }
 
     private GeometrySchemaSnapshot inspectGeometry(Ili2dbReadContext context,
-                                                   Ili2dbReadRequest request,
+                                                   boolean includeGeometryMetadata,
                                                    List<String> tableNames,
                                                    List<Ili2dbDiagnostic> diagnostics)
         throws SQLException {
-        if (!request.includeGeometryMetadata()) {
+        if (!includeGeometryMetadata) {
             return GeometrySchemaSnapshot.empty();
         }
         List<QualifiedSqlName> tables = new ArrayList<>();

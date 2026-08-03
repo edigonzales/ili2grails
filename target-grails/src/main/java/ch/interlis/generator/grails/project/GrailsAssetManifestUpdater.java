@@ -1,12 +1,8 @@
 package ch.interlis.generator.grails.project;
 
 import ch.interlis.generator.grails.project.plan.TextFileEdit;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Updates the application asset manifest (application.js / application.css)
@@ -35,12 +31,6 @@ public final class GrailsAssetManifestUpdater {
         "//= require ili-carbon-input-bridge.js"
     );
 
-    public void update(Path grailsProjectDir) throws IOException {
-        Objects.requireNonNull(grailsProjectDir, "grailsProjectDir");
-        applyPlan(grailsProjectDir, "grails-app/assets/javascripts/application.js", true);
-        applyPlan(grailsProjectDir, "grails-app/assets/stylesheets/application.css", false);
-    }
-
     /**
      * Reine Planungsfunktion (Spezifikation §41.5): kein Write.
      */
@@ -53,19 +43,6 @@ public final class GrailsAssetManifestUpdater {
             : ensureJavascriptRequiresInContent(existingContent);
         return new TextFileEdit(relativePath, updatedContent,
             !updatedContent.equals(existingContent), "asset requires");
-    }
-
-    private void applyPlan(Path grailsProjectDir, String relative, boolean javascript)
-        throws IOException {
-        Path target = grailsProjectDir.resolve(relative);
-        if (!Files.exists(target)) {
-            return;
-        }
-        TextFileEdit edit = plan(Path.of(relative),
-            Files.readString(target, StandardCharsets.UTF_8));
-        if (edit.changed()) {
-            Files.writeString(target, edit.updatedContent(), StandardCharsets.UTF_8);
-        }
     }
 
     private String ensureJavascriptRequiresInContent(String content) {
@@ -106,50 +83,6 @@ public final class GrailsAssetManifestUpdater {
 
     static List<String> applicationCssRequiresForTesting() {
         return APPLICATION_CSS_REQUIRES;
-    }
-
-    private void ensureJavascriptRequires(Path applicationJs) throws IOException {
-        if (!Files.exists(applicationJs)) {
-            return;
-        }
-        String content = Files.readString(applicationJs, StandardCharsets.UTF_8);
-        String updatedContent = removeLegacyRequires(content);
-        for (String requireLine : APPLICATION_JS_REQUIRES) {
-            if (updatedContent.contains(requireLine)) {
-                continue;
-            }
-            if (updatedContent.contains("//= require_self")) {
-                updatedContent = updatedContent.replace("//= require_self", requireLine + "\n//= require_self");
-            } else {
-                updatedContent = updatedContent + "\n" + requireLine + "\n";
-            }
-        }
-        if (!updatedContent.equals(content)) {
-            Files.writeString(applicationJs, updatedContent, StandardCharsets.UTF_8);
-        }
-    }
-
-    private void ensureStylesheetRequires(Path applicationCss) throws IOException {
-        if (!Files.exists(applicationCss)) {
-            return;
-        }
-        String content = Files.readString(applicationCss, StandardCharsets.UTF_8);
-        String updatedContent = content;
-        for (String requireLine : APPLICATION_CSS_REQUIRES) {
-            if (updatedContent.contains(requireLine)) {
-                continue;
-            }
-            if (updatedContent.contains("*= require_self")) {
-                updatedContent = updatedContent.replace("*= require_self", requireLine + "\n *= require_self");
-            } else if (updatedContent.contains("*/")) {
-                updatedContent = updatedContent.replace("*/", " " + requireLine + "\n */");
-            } else {
-                updatedContent = updatedContent + "\n" + requireLine + "\n";
-            }
-        }
-        if (!updatedContent.equals(content)) {
-            Files.writeString(applicationCss, updatedContent, StandardCharsets.UTF_8);
-        }
     }
 
     private String removeLegacyRequires(String content) {

@@ -405,7 +405,9 @@ class RealIli2dbSmokeTest {
         String registryContent = Files.readString(registryFile, StandardCharsets.UTF_8);
         assertThat(registryContent).contains("ASSOCIATIONS = [");
         assertThat(registryContent).contains("CONTEXTS = [");
-        assertThat(registryContent).contains("ENTITIES = [");
+        assertThat(registryContent)
+            .contains("implements AssociationRegistry", "INSTANCE = new InterlisAssociationRegistry")
+            .doesNotContain("ENTITIES = [", "legacyEntity", "EntityDescriptor");
         assertThat(registryContent).contains("AssociationCreateMode.QUICK");
     }
 

@@ -1,5 +1,7 @@
 package ch.interlis.generator.grails.runtime
 
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
+
 /**
  * Server-rendered entry point for the Bootstrap application shell.
  *
@@ -7,6 +9,8 @@ package ch.interlis.generator.grails.runtime
  * query domain data or depend on authentication state.
  */
 class InterlisUiController {
+
+    InterlisRuntimeRegistry runtimeRegistry
 
     static allowedMethods = [index: "GET", domains: "GET"]
 
@@ -21,7 +25,7 @@ class InterlisUiController {
     private void renderExplorer(Object rawQuery) {
         applySecurityHeaders()
         Map<String, Object> navigationModel =
-            InterlisNavigationSupport.navigationModel(grailsApplication)
+            InterlisNavigationSupport.navigationModel(grailsApplication, runtimeRegistry)
         String query = normalizedQuery(rawQuery)
         render view: "index", model: [
             appTitle      : InterlisUiDescriptorSupport.appTitle(grailsApplication),

@@ -1,6 +1,7 @@
 package ch.interlis.generator.grails.runtime
 
-
+import ch.interlis.generator.grails.runtime.api.descriptor.DomainDescriptor
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
 import org.locationtech.jts.geom.Geometry
 
 import java.time.temporal.TemporalAccessor
@@ -20,6 +21,7 @@ final class InterlisWorkspaceSupport {
     }
 
     static Map<String, Object> showModel(def grailsApplication,
+                                         InterlisRuntimeRegistry runtimeRegistry,
                                          Class domainType,
                                          Object instance,
                                          Map<String, Object> descriptor) {
@@ -35,14 +37,17 @@ final class InterlisWorkspaceSupport {
         return [
             workspaceDisplayLabel      : displayLabel(
                 grailsApplication,
+                runtimeRegistry,
                 instance,
                 descriptor?.list?.displayFields instanceof Collection
                     ? descriptor.list.displayFields as Collection<String>
                     : []
             ),
             workspaceDomainLabel       : descriptor?.label?.toString() ?: domainType?.simpleName,
-            workspaceDetailSections    : detailSections(grailsApplication, instance, descriptor),
-            workspaceRelationshipLinks : relationshipLinks(grailsApplication, instance, descriptor)
+            workspaceDetailSections    : detailSections(
+                grailsApplication, runtimeRegistry, instance, descriptor),
+            workspaceRelationshipLinks : relationshipLinks(
+                grailsApplication, runtimeRegistry, instance, descriptor)
         ]
     }
 
@@ -52,6 +57,24 @@ final class InterlisWorkspaceSupport {
 
     static String displayLabel(def grailsApplication, Object value) {
         return displayLabel(grailsApplication, value, [])
+    }
+
+    static String displayLabel(def grailsApplication,
+                               InterlisRuntimeRegistry runtimeRegistry,
+                               Object value,
+                               Collection<String> displayFields) {
+        if (value == null) {
+            return ""
+        }
+        String label = displayFields
+            ? (hasConfiguredDisplayValue(value, displayFields)
+                ? InterlisRelationshipOptions.optionLabel(value, displayFields) : null)
+            : InterlisRelationshipOptions.displayLabel(grailsApplication, runtimeRegistry, value)
+        if (label != null && !label.isBlank()) {
+            return label
+        }
+        Object id = readProperty(value, "id")
+        return id == null ? "" : "#${id}"
     }
 
     static String displayLabel(def grailsApplication,
@@ -82,6 +105,12 @@ final class InterlisWorkspaceSupport {
     }
 
     static String renderValue(def grailsApplication, Object value) {
+        return renderValue(grailsApplication, null, value)
+    }
+
+    static String renderValue(def grailsApplication,
+                              InterlisRuntimeRegistry runtimeRegistry,
+                              Object value) {
         if (value == null) {
             return ""
         }
@@ -95,7 +124,9 @@ final class InterlisWorkspaceSupport {
             return value.format("yyyy-MM-dd HH:mm:ss")
         }
         if (value instanceof Collection) {
-            return ((Collection) value).collect { Object item -> renderValue(grailsApplication, item) }
+            return ((Collection) value).collect { Object item ->
+                renderValue(grailsApplication, runtimeRegistry, item)
+            }
                 .findAll { String item -> item != null && !item.isBlank() }
                 .join(", ")
         }
@@ -103,7 +134,7 @@ final class InterlisWorkspaceSupport {
             return value.geometryType
         }
         String relationshipLabel = grailsApplication != null
-            ? InterlisRelationshipOptions.displayLabel(grailsApplication, value)
+            ? InterlisRelationshipOptions.displayLabel(grailsApplication, runtimeRegistry, value)
             : InterlisRelationshipOptions.displayLabel(value)
         if (relationshipLabel != null) {
             return relationshipLabel
@@ -159,6 +190,7 @@ final class InterlisWorkspaceSupport {
     }
 
     private static List<Map<String, Object>> detailSections(def grailsApplication,
+                                                             InterlisRuntimeRegistry runtimeRegistry,
                                                              Object instance,
                                                              Map<String, Object> descriptor) {
         List<Map<String, Object>> sections = descriptor?.detail?.sections instanceof Collection
@@ -171,10 +203,10 @@ final class InterlisWorkspaceSupport {
                 Map<String, Object> field = [
                     name : fieldName,
                     label: fieldLabel(descriptor, fieldName),
-                    value: renderValue(grailsApplication, value)
+                    value: renderValue(grailsApplication, runtimeRegistry, value)
                 ]
                 Map<String, Object> link = relationshipLinkForField(
-                    grailsApplication, instance, descriptor, fieldName, value
+                    grailsApplication, runtimeRegistry, instance, descriptor, fieldName, value
                 )
                 if (link != null) {
                     field.link = link
@@ -187,6 +219,7 @@ final class InterlisWorkspaceSupport {
     }
 
     private static Map<String, Object> relationshipLinkForField(def grailsApplication,
+                                                                 InterlisRuntimeRegistry runtimeRegistry,
                                                                  Object instance,
                                                                  Map<String, Object> descriptor,
                                                                  String fieldName,
@@ -203,9 +236,9 @@ final class InterlisWorkspaceSupport {
         if (relationship == null) {
             return null
         }
-        Map<String, Object> registry = registryEntry(value, relationship.targetClass?.toString())
+        DomainDescriptor registry = registryEntry(runtimeRegistry, value, relationship.targetClass?.toString())
         String id = readProperty(value, "id")?.toString()
-        String controller = registry?.controller?.toString()
+        String controller = registry?.controllerName()
         if (registry == null || id == null || controller == null || controller.isBlank()) {
             return null
         }
@@ -213,7 +246,7 @@ final class InterlisWorkspaceSupport {
             controller: controller,
             action    : "show",
             id        : id,
-            label     : renderValue(grailsApplication, value)
+            label     : renderValue(grailsApplication, runtimeRegistry, value)
         ]
     }
 
@@ -234,6 +267,7 @@ final class InterlisWorkspaceSupport {
     }
 
     private static List<Map<String, Object>> relationshipLinks(def grailsApplication,
+                                                                InterlisRuntimeRegistry runtimeRegistry,
                                                                 Object instance,
                                                                 Map<String, Object> descriptor) {
         Set<String> integratedFields = descriptor?.detail?.sections instanceof Collection
@@ -253,8 +287,9 @@ final class InterlisWorkspaceSupport {
             if (target instanceof Collection) {
                 return null
             }
-            Map<String, Object> registryEntry = registryEntry(target, meta.targetClass?.toString())
-            if (registryEntry == null) {
+            DomainDescriptor targetDescriptor = registryEntry(
+                runtimeRegistry, target, meta.targetClass?.toString())
+            if (targetDescriptor == null) {
                 return null
             }
             if (target == null) {
@@ -263,7 +298,7 @@ final class InterlisWorkspaceSupport {
                     label      : meta.label?.toString() ?: humanize(fieldName),
                     valueLabel : "",
                     id         : null,
-                    controller : registryEntry.controller?.toString(),
+                    controller : targetDescriptor.controllerName(),
                     empty      : true
                 ]
             }
@@ -272,9 +307,10 @@ final class InterlisWorkspaceSupport {
             [
                 name       : fieldName,
                 label      : meta.label?.toString() ?: humanize(fieldName),
-                valueLabel : InterlisRelationshipOptions.optionLabel(grailsApplication, target),
+                valueLabel : InterlisRelationshipOptions.optionLabel(
+                    grailsApplication, runtimeRegistry, target),
                 id         : targetId,
-                controller : registryEntry?.controller?.toString(),
+                controller : targetDescriptor.controllerName(),
                 empty      : false
             ]
         }.findAll { it != null } as List<Map<String, Object>>
@@ -287,12 +323,15 @@ final class InterlisWorkspaceSupport {
         return fieldMeta?.label?.toString() ?: humanize(fieldName)
     }
 
-    private static Map<String, Object> registryEntry(Object target, String targetClassName) {
+    private static DomainDescriptor registryEntry(InterlisRuntimeRegistry runtimeRegistry,
+                                                   Object target,
+                                                   String targetClassName) {
+        if (runtimeRegistry == null) {
+            return null
+        }
         Class candidate = target?.class
         while (candidate != null) {
-            Map<String, Object> exact = GeneratedRegistryAccessor.uiRegistryType().legacyDomains().find {
-                it.domainClassName?.toString() == candidate.name
-            } as Map<String, Object>
+            DomainDescriptor exact = runtimeRegistry.domainByClassName(candidate.name).orElse(null)
             if (exact != null) {
                 return exact
             }
@@ -301,10 +340,8 @@ final class InterlisWorkspaceSupport {
         if (targetClassName == null) {
             return null
         }
-        return GeneratedRegistryAccessor.uiRegistryType().legacyDomains().find {
-            it.domainClassName?.toString() == targetClassName
-                || it.className?.toString() == targetClassName
-        } as Map<String, Object>
+        DomainDescriptor qualified = runtimeRegistry.domainByClassName(targetClassName).orElse(null)
+        return qualified ?: runtimeRegistry.domains().find { it.className() == targetClassName }
     }
 
     private static Object readProperty(Object value, String propertyName) {

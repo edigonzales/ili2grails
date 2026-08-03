@@ -8,7 +8,6 @@ import ch.interlis.generator.reader.ili2db.metrics.JdbcInvocationKind;
 import ch.interlis.generator.reader.ili2db.metrics.JdbcInvocationSummary;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.RecordComponent;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
@@ -30,8 +29,7 @@ class Ili2dbReadCoordinatorDiagnosticTest {
             createIli2dbFixture(stmt, true, false);
 
             Ili2dbMetadataReader reader = Ili2dbMetadataReader.create(connection, null);
-            Ili2dbReadResult result = reader.read(
-                ModelSelection.rootOnly("MissingRoot"), Ili2dbFailurePolicy.DIAGNOSTIC);
+            Ili2dbReadResult result = reader.read(ModelSelection.rootOnly("MissingRoot"));
 
             assertThat(result.hasFatalDiagnostics()).isTrue();
             assertThat(result.diagnostics())
@@ -54,15 +52,13 @@ class Ili2dbReadCoordinatorDiagnosticTest {
             createIli2dbFixture(stmt, true, false);
 
             Ili2dbMetadataReader reader = Ili2dbMetadataReader.create(connection, null);
-            Ili2dbReadResult result = reader.read(
-                ModelSelection.rootOnly("FixtureModel"), Ili2dbFailurePolicy.DIAGNOSTIC);
+            Ili2dbReadResult result = reader.read(ModelSelection.rootOnly("FixtureModel"));
 
             // Root vorhanden; die Anfrage enthält eine nicht vorhandene Dependency.
             Ili2dbReadResult dependencyResult = reader.read(
                 new ModelSelection("FixtureModel",
                     new java.util.LinkedHashSet<>(List.of("FixtureModel", "NotImportedDependency")),
-                    ch.interlis.generator.metadata.selection.ModelSelectionSource.ROOT_ONLY_FALLBACK),
-                Ili2dbFailurePolicy.DIAGNOSTIC);
+                    ch.interlis.generator.metadata.selection.ModelSelectionSource.ROOT_ONLY_FALLBACK));
 
             assertThat(dependencyResult.hasFatalDiagnostics()).isFalse();
             assertThat(dependencyResult.diagnostics())
@@ -85,13 +81,12 @@ class Ili2dbReadCoordinatorDiagnosticTest {
              Statement stmt = connection.createStatement()) {
             createIli2dbFixture(stmt, false, true);
 
-            Ili2dbMetadataReader reader = Ili2dbMetadataReader.create(connection, null);
             List<Ili2dbDiagnostic> diagnostics = new ArrayList<>();
             new Ili2dbReadCoordinator().read(
                 new Ili2dbReadContext(connection, null,
                     ch.interlis.generator.reader.sql.SqlIdentifierRenderer.from(connection.getMetaData()),
                     ch.interlis.generator.reader.ili2db.schema.DatabaseDialect.H2),
-                Ili2dbReadRequest.diagnostic(ModelSelection.rootOnly("FixtureModel")));
+                ModelSelection.rootOnly("FixtureModel"), true);
             // detektieren über den Katalog-Reader, um die Klassifikation direkt zu prüfen
             new ch.interlis.generator.reader.ili2db.catalog.Ili2dbCatalogReader().detectCapabilities(
                 new Ili2dbReadContext(connection, null,
@@ -108,7 +103,7 @@ class Ili2dbReadCoordinatorDiagnosticTest {
     }
 
     @Test
-    void strictPolicyRejectsErrorDiagnostics() throws Exception {
+    void readMetadataRejectsErrorDiagnostics() throws Exception {
         try (Connection connection = DriverManager.getConnection(inMemoryUrl("strict_error"));
              Statement stmt = connection.createStatement()) {
             createIli2dbFixture(stmt, true, false);
@@ -124,7 +119,7 @@ class Ili2dbReadCoordinatorDiagnosticTest {
     }
 
     @Test
-    void diagnosticPolicyReturnsUsablePartialMetadataForRecoverableErrors() throws Exception {
+    void readReturnsUsablePartialMetadataForRecoverableErrors() throws Exception {
         try (Connection connection = DriverManager.getConnection(inMemoryUrl("diag_partial"));
              Statement stmt = connection.createStatement()) {
             createIli2dbFixture(stmt, true, false);
@@ -132,7 +127,7 @@ class Ili2dbReadCoordinatorDiagnosticTest {
                 + "('FixtureModel.Topic.Sample.broken', 'broken_fk', 'sample', 'NoSuchClass')");
 
             Ili2dbMetadataReader reader = Ili2dbMetadataReader.create(connection, null);
-            Ili2dbReadResult result = reader.read(fullSelection(), Ili2dbFailurePolicy.DIAGNOSTIC);
+            Ili2dbReadResult result = reader.read(fullSelection());
 
             assertThat(result.hasErrorDiagnostics()).isTrue();
             assertThat(result.hasFatalDiagnostics()).isFalse();
@@ -158,27 +153,15 @@ class Ili2dbReadCoordinatorDiagnosticTest {
     }
 
     @Test
-    void requestAndContextCannotCarryConflictingSelections() throws Exception {
-        // Request und Context sind fachlich getrennt (Spezifikation §13):
-        // der Context trägt keine Auswahl, der Request keinen Schema-Namen.
-        RecordComponent[] contextComponents = Ili2dbReadContext.class.getRecordComponents();
-        RecordComponent[] requestComponents = Ili2dbReadRequest.class.getRecordComponents();
-        for (RecordComponent component : contextComponents) {
-            assertThat(component.getName())
-                .as("Ili2dbReadContext component")
-                .isNotIn("modelSelection", "failurePolicy");
-        }
-        for (RecordComponent component : requestComponents) {
-            assertThat(component.getName())
-                .as("Ili2dbReadRequest component")
-                .isNotIn("schemaName");
-        }
-        assertThat(requestComponents)
-            .extracting(RecordComponent::getName)
-            .contains("modelSelection", "failurePolicy", "includeEnumValues", "includeGeometryMetadata");
-        assertThat(contextComponents)
-            .extracting(RecordComponent::getName)
+    void readerExposesOneDiagnosticReadPathAndContextStaysTechnical() throws Exception {
+        assertThat(Ili2dbReadContext.class.getRecordComponents())
+            .extracting(java.lang.reflect.RecordComponent::getName)
             .contains("connection", "schema", "identifiers", "dialect");
+        assertThat(Ili2dbMetadataReader.class.getMethod("read", ModelSelection.class))
+            .isNotNull();
+        assertThat(java.util.Arrays.stream(Ili2dbMetadataReader.class.getMethods())
+            .filter(method -> method.getName().equals("read")))
+            .hasSize(1);
     }
 
     @Test

@@ -1,7 +1,8 @@
 package ch.interlis.generator.grails.runtime
 
-
-
+import ch.interlis.generator.grails.runtime.api.descriptor.DomainDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
 
 import java.util.Locale
 
@@ -12,11 +13,13 @@ final class InterlisNavigationSupport {
     private InterlisNavigationSupport() {
     }
 
-    static List<Map<String, Object>> menuEntries(def grailsApplication) {
-        return navigationModel(grailsApplication).allEntries as List<Map<String, Object>>
+    static List<Map<String, Object>> menuEntries(def grailsApplication,
+                                                 InterlisRuntimeRegistry runtimeRegistry) {
+        return navigationModel(grailsApplication, runtimeRegistry).allEntries as List<Map<String, Object>>
     }
 
-    static Map<String, Object> navigationModel(def grailsApplication) {
+    static Map<String, Object> navigationModel(def grailsApplication,
+                                               InterlisRuntimeRegistry runtimeRegistry) {
         Map<String, Object> controllers = controllerIndex(grailsApplication)
         List<Map<String, Object>> workspaces = workspaceEntries(grailsApplication, controllers)
         Set<String> representedControllers = new LinkedHashSet<>()
@@ -25,15 +28,15 @@ final class InterlisNavigationSupport {
         }
         List<Map<String, Object>> domains = []
 
-        GeneratedRegistryAccessor.uiRegistryType().legacyDomains().each { Map<String, Object> registryEntry ->
-            String controller = text(registryEntry.controller)
+        runtimeRegistry.domains().each { DomainDescriptor registryEntry ->
+            String controller = text(registryEntry.controllerName())
             if (controller == null) {
                 return
             }
             // Mark hidden registry entries as represented as well, so that an
             // association domain is not reintroduced by the fallback scan.
             representedControllers.add(controller)
-            if (registryEntry.navigationVisible == false) {
+            if (!registryEntry.navigationVisible()) {
                 return
             }
             def artefact = controllers[controller]
@@ -50,13 +53,13 @@ final class InterlisNavigationSupport {
                 return
             }
             Class domainType = domainTypeForController(artefact)
-            if (domainType != null && !showController(artefact, domainType)) {
+            if (domainType != null && !showController(artefact, domainType, runtimeRegistry)) {
                 return
             }
             fallback << [
                 controller: logicalName,
                 namespace : artefact.namespace?.toString(),
-                label     : defaultLabel(artefact, domainType),
+                label     : defaultLabel(artefact, domainType, runtimeRegistry),
                 className : artefact.shortName?.toString()?.replaceFirst(/Controller$/, ''),
                 modelName : null,
                 topicName : null,
@@ -121,14 +124,16 @@ final class InterlisNavigationSupport {
         }
     }
 
-    static boolean showController(def controllerArtefact, Class domainType) {
+    static boolean showController(def controllerArtefact, Class domainType,
+                                  InterlisRuntimeRegistry runtimeRegistry) {
         if (domainType == null) {
             return showUnknownController(controllerArtefact)
         }
-        return InterlisAssociationRegistrySupport.showInNavigation(domainType)
+        return InterlisAssociationRegistrySupport.showInNavigation(runtimeRegistry, domainType)
     }
 
-    static String defaultLabel(def controllerArtefact, Class domainType) {
+    static String defaultLabel(def controllerArtefact, Class domainType,
+                               InterlisRuntimeRegistry runtimeRegistry = null) {
         if (controllerArtefact == null) {
             return "Unbekannt"
         }
@@ -140,9 +145,11 @@ final class InterlisNavigationSupport {
             shortName = "Unbekannt"
         }
         try {
-            def entity = GeneratedRegistryAccessor.associationRegistryType().legacyEntity(domainType?.name)
-            if (entity?.iliName != null) {
-                String iliName = entity.iliName.toString()
+            DomainDescriptor domain = domainType == null || runtimeRegistry == null
+                ? null
+                : runtimeRegistry.domainByClassName(domainType.name).orElse(null)
+            if (domain?.iliName() != null) {
+                String iliName = domain.iliName()
                 int lastDot = iliName.lastIndexOf('.')
                 return lastDot >= 0 ? iliName.substring(lastDot + 1) : iliName
             }
@@ -151,22 +158,22 @@ final class InterlisNavigationSupport {
         return shortName
     }
 
-    private static Map<String, Object> domainEntry(Map<String, Object> registryEntry, def artefact) {
-        String topicName = text(registryEntry.topicName)
-        String modelName = text(registryEntry.modelName) ?: "Unbekanntes Modell"
-        String label = text(registryEntry.label) ?: defaultLabel(artefact, null)
+    private static Map<String, Object> domainEntry(DomainDescriptor registryEntry, def artefact) {
+        String topicName = text(registryEntry.topicName())
+        String modelName = text(registryEntry.modelName()) ?: "Unbekanntes Modell"
+        String label = text(registryEntry.label()) ?: defaultLabel(artefact, null)
         return [
-            controller       : text(registryEntry.controller),
+            controller       : text(registryEntry.controllerName()),
             namespace        : artefact.namespace?.toString(),
             label            : label,
-            className        : text(registryEntry.className) ?: label,
+            className        : text(registryEntry.className()) ?: label,
             modelName        : modelName,
             topicName        : topicName,
             topicLabel       : topicLabel(topicName),
-            iliName          : text(registryEntry.iliName),
-            domainClassName  : text(registryEntry.domainClassName),
-            associationDomain: registryEntry.associationDomain == true,
-            navigationVisible: registryEntry.navigationVisible != false,
+            iliName          : text(registryEntry.iliName()),
+            domainClassName  : text(registryEntry.domainClassName()),
+            associationDomain: registryEntry.kind() == DomainKind.ASSOCIATION,
+            navigationVisible: registryEntry.navigationVisible(),
             fallback         : false
         ]
     }

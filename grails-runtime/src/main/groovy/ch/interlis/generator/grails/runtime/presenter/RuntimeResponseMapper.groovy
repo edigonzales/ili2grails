@@ -6,7 +6,7 @@ import ch.interlis.generator.grails.runtime.api.command.InverseRelationshipComma
 import ch.interlis.generator.grails.runtime.api.command.ReassignmentConfirmation
 
 /**
- * Converts typed command results into the legacy JSON/response map shape at
+ * Converts typed command results into the JSON/response map shape at
  * the web boundary. Runtime services never produce these maps themselves.
  */
 final class RuntimeResponseMapper {
@@ -14,7 +14,7 @@ final class RuntimeResponseMapper {
     private RuntimeResponseMapper() {
     }
 
-    static Map<String, Object> toLegacyMap(AssociationCommandResult result) {
+    static Map<String, Object> toMap(AssociationCommandResult result) {
         if (result == null) {
             return [success: false, status: 500, code: 'INTERNAL_ERROR',
                     message: 'Die Zuordnung konnte nicht verarbeitet werden.',
@@ -25,7 +25,7 @@ final class RuntimeResponseMapper {
             status: result.httpStatus(),
             code: result.code()?.name(),
             message: result.message(),
-            fieldErrors: toLegacyFieldErrors(result.fieldErrors())
+            fieldErrors: toFieldErrors(result.fieldErrors())
         ]
         if (result.messageCode() != null) {
             map.messageCode = result.messageCode()
@@ -36,7 +36,7 @@ final class RuntimeResponseMapper {
         return map
     }
 
-    static Map<String, Object> toLegacyMap(InverseRelationshipCommandResult result) {
+    static Map<String, Object> toMap(InverseRelationshipCommandResult result) {
         if (result == null) {
             return [success: false, status: 500, code: 'INTERNAL_ERROR',
                     message: 'Die Zuordnung konnte nicht verarbeitet werden.',
@@ -47,7 +47,7 @@ final class RuntimeResponseMapper {
             status: result.httpStatus(),
             code: result.code()?.name(),
             message: result.message(),
-            fieldErrors: toLegacyFieldErrors(result.fieldErrors())
+            fieldErrors: toFieldErrors(result.fieldErrors())
         ]
         if (result.messageCode() != null) {
             map.messageCode = result.messageCode()
@@ -71,7 +71,7 @@ final class RuntimeResponseMapper {
         return map
     }
 
-    private static Map<String, String> toLegacyFieldErrors(List<FieldError> fieldErrors) {
+    private static Map<String, String> toFieldErrors(List<FieldError> fieldErrors) {
         Map<String, String> errors = [:]
         (fieldErrors ?: []).each { FieldError error ->
             if (error.field() != null && !error.field().isBlank()) {

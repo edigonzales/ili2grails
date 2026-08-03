@@ -1,5 +1,7 @@
 package ch.interlis.generator.grails.runtime
 
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
+
 /**
  * Central server-side render path for the small Bootstrap Icons subset used by
  * the managed Bootstrap overlay. The SVG paths are embedded locally; no icon
@@ -8,6 +10,17 @@ package ch.interlis.generator.grails.runtime
 class InterlisUiTagLib {
 
     static namespace = "ili"
+
+    InterlisRuntimeRegistry runtimeRegistry
+
+    def navigation = { attrs ->
+        String variableName = attrs.var?.toString()
+        if (!variableName) {
+            throw new IllegalArgumentException("ili:navigation requires a var attribute")
+        }
+        pageScope[variableName] = InterlisNavigationSupport.navigationModel(grailsApplication, runtimeRegistry)
+        return null
+    }
 
     private static final Map<String, String> ICON_PATHS = [
         search: '''<path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>''',

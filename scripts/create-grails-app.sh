@@ -73,9 +73,9 @@ if ! command -v java >/dev/null 2>&1; then
 fi
 
 JAVA_VERSION="$(java -version 2>&1 | sed -n 's/.*version "\([0-9][0-9]*\).*"/\1/p' | head -n 1)"
-if [[ -z "$JAVA_VERSION" || "$JAVA_VERSION" -lt 17 || "$JAVA_VERSION" -gt 21 ]]; then
-    echo "Fehler: Dieses Repo benötigt Java 17 bis 21; gefunden wurde Java ${JAVA_VERSION:-unbekannt}." >&2
-    echo "Beispiel: export JAVA_HOME=/Users/<user>/.sdkman/candidates/java/21.0.7-tem" >&2
+if [[ -z "$JAVA_VERSION" || "$JAVA_VERSION" -ne 17 ]]; then
+    echo "Fehler: Dieses Repo benötigt exakt JDK 17; gefunden wurde Java ${JAVA_VERSION:-unbekannt}." >&2
+    echo "Beispiel: export JAVA_HOME=/pfad/zu/jdk-17" >&2
     exit 1
 fi
 
@@ -97,8 +97,8 @@ fi
 
 cd "$REPO_ROOT"
 
-echo "==> Generator bauen"
-./gradlew :cli:installDist
+echo "==> Generator bauen und lokale Runtime vorbereiten"
+./gradlew :cli:installDist prepareLocalRuntime
 
 if [[ ! -x "$GENERATOR" ]]; then
     echo "Fehler: Generator-Executable nicht gefunden: $GENERATOR" >&2

@@ -1,56 +1,88 @@
 package ch.interlis.generator.grails;
 
+import ch.interlis.generator.grails.project.RuntimeCoordinates;
+import ch.interlis.generator.grails.project.plan.TextFileEdit;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class GrailsBuildGradleUpdaterTest {
 
+    private static final String BUILD_FILE = """
+        buildscript {
+            repositories { mavenCentral() }
+        }
+
+        repositories {
+            mavenCentral()
+        }
+
+        dependencies {
+            implementation "org.grails:grails-core:7.0.6"
+        }
+        """;
+
     @Test
-    void addsJtsDependencyWhenMissing(@TempDir Path tempDir) throws Exception {
-        Path buildGradle = tempDir.resolve("build.gradle");
-        Files.writeString(buildGradle, String.join("\n",
-            "dependencies {",
-            "    implementation \"org.grails:grails-core:7.0.6\"",
-            "}",
-            ""
-        ));
+    void defaultThemeAddsOnlyRuntimeAndDatabaseDependencies() {
+        GenerationConfig config = GenerationConfig.builder(Path.of("app"), "com.example").build();
 
-        new GrailsBuildGradleUpdater().ensureJtsDependency(buildGradle);
+        TextFileEdit first = plan(BUILD_FILE, config);
+        TextFileEdit second = plan(first.updatedContent(), config);
 
-        String updated = Files.readString(buildGradle);
-        assertThat(updated).contains("org.locationtech.jts:jts-core");
-        assertThat(updated).contains("org.postgresql:postgresql:42.7.7");
-        assertThat(updated).contains("org.webjars:bootstrap:5.3.3");
-        assertThat(updated).contains("org.webjars.npm:ol:9.2.4");
-        assertThat(updated).contains("org.webjars.npm:proj4:2.11.0");
-        assertThat(updated).doesNotContain("sqlite-jdbc");
-        assertThat(updated).doesNotContain("sqlite-dialect");
-        assertThat(updated).doesNotContain("hibernate-spatial");
+        assertThat(first.updatedContent())
+            .contains("// <ili2grails-runtime-repository>", "mavenLocal()")
+            .contains("// <ili2grails-dependencies>")
+            .contains(RuntimeCoordinates.ili2grailsRuntime().notation())
+            .contains("org.postgresql:postgresql:42.7.7")
+            .doesNotContain("jts-core", "hibernate-spatial", "webjars:bootstrap", "webjars.npm:ol", "webjars.npm:proj4");
+        assertThat(second.changed()).isFalse();
+        assertThat(second.updatedContent()).isEqualTo(first.updatedContent());
     }
 
     @Test
-    void addsSpatialDependencyWhenGeometryIsEnabled(@TempDir Path tempDir) throws Exception {
-        Path buildGradle = tempDir.resolve("build.gradle");
-        Files.writeString(buildGradle, String.join("\n",
-            "dependencies {",
-            "    implementation \"org.grails:grails-core:7.0.6\"",
-            "    implementation \"org.hibernate.orm:hibernate-spatial\"",
-            "}",
-            ""
-        ));
+    void bootstrapOpenlayersGeometryAddsOnlyConfiguredDependencies() {
+        GenerationConfig config = GenerationConfig.builder(Path.of("app"), "com.example")
+            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+            .mapEditor(GenerationConfig.MAP_EDITOR_OPENLAYERS)
+            .geometryEnabled(true)
+            .build();
 
-        new GrailsBuildGradleUpdater().ensureDependencies(buildGradle, true);
+        String content = plan(BUILD_FILE, config).updatedContent();
 
-        String updated = Files.readString(buildGradle);
-        assertThat(updated).contains("org.hibernate:hibernate-spatial:5.6.15.Final");
-        assertThat(updated).containsOnlyOnce("org.webjars:bootstrap:5.3.3");
-        assertThat(updated).containsOnlyOnce("org.webjars.npm:ol:9.2.4");
-        assertThat(updated).containsOnlyOnce("org.webjars.npm:proj4:2.11.0");
-        assertThat(updated).doesNotContain("org.hibernate.orm:hibernate-spatial");
+        assertThat(content)
+            .contains("org.locationtech.jts:jts-core:1.19.0")
+            .contains("org.hibernate:hibernate-spatial:5.6.15.Final")
+            .contains("org.webjars:bootstrap:5.3.3")
+            .contains("org.webjars.npm:ol:9.2.4")
+            .contains("org.webjars.npm:proj4:2.11.0");
+    }
+
+    @Test
+    void migratesKnownLinesAndPreservesDifferentApplicationVersions() {
+        String existing = BUILD_FILE.replace(
+            "implementation \"org.grails:grails-core:7.0.6\"",
+            """
+                implementation "org.grails:grails-core:7.0.6"
+                implementation "org.webjars:bootstrap:5.3.3"
+                implementation "org.webjars.npm:ol:8.0.0"
+                implementation "ch.interlis.generator:ili2grails-runtime:9.9.9"""
+        );
+        GenerationConfig config = GenerationConfig.builder(Path.of("app"), "com.example")
+            .uiTheme(GenerationConfig.UI_THEME_BOOTSTRAP)
+            .build();
+
+        String content = plan(existing, config).updatedContent();
+
+        assertThat(content).containsOnlyOnce("org.webjars:bootstrap:5.3.3");
+        assertThat(content).contains("org.webjars.npm:ol:8.0.0");
+        assertThat(content).contains("ili2grails-runtime:9.9.9");
+        assertThat(content).containsOnlyOnce(RuntimeCoordinates.ili2grailsRuntime().notation());
+    }
+
+    private TextFileEdit plan(String content, GenerationConfig config) {
+        return new GrailsBuildGradleUpdater().plan(
+            Path.of("build.gradle"), content, config, RuntimeCoordinates.ili2grailsRuntime());
     }
 }

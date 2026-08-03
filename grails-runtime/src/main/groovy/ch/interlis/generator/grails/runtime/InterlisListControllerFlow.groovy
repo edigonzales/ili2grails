@@ -95,7 +95,7 @@ final class InterlisListControllerFlow<T> {
         model.putAll(controller.inverseRelationshipModel(instance))
         model.putAll(controller.associationModel(instance))
         model.putAll(InterlisWorkspaceSupport.showModel(
-            context.grailsApplication, context.domainType, instance, descriptor))
+            context.grailsApplication, context.runtimeRegistry, context.domainType, instance, descriptor))
         model.put("uiDescriptor", descriptor)
         model.put("runtimeWriteAllowed", controller.runtimeWriteAllowed())
         controller.respond instance, model: model

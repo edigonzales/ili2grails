@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Runtime-Descriptor-Diagnostic-Verträge (Spezifikation §63).
@@ -25,12 +24,6 @@ class RuntimeDescriptorDiagnosticTest {
 
         assertThat(plan.hasBlockingDiagnostics()).isTrue();
         assertThat(plan.blockingDiagnostics()).hasSize(1);
-        assertThatThrownBy(plan::throwIfBlocking)
-            .isInstanceOf(RuntimeDescriptorPlanningException.class)
-            .satisfies(exception -> assertThat(
-                ((RuntimeDescriptorPlanningException) exception).getDiagnostics())
-                .extracting(RuntimeDescriptorDiagnostic::code)
-                .contains(RuntimeDescriptorDiagnosticCode.UNRESOLVED_TARGET_CLASS));
     }
 
     @Test
@@ -44,7 +37,6 @@ class RuntimeDescriptorDiagnosticTest {
 
         assertThat(plan.hasBlockingDiagnostics()).isFalse();
         assertThat(plan.blockingDiagnostics()).isEmpty();
-        plan.throwIfBlocking(); // must not throw
     }
 
     @Test

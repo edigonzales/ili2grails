@@ -1,5 +1,8 @@
 package ch.interlis.generator.grails.runtime
 
+import ch.interlis.generator.grails.runtime.api.descriptor.InverseRelationshipDescriptor
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
+
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -9,6 +12,8 @@ class InterlisInverseRelationshipQueryService {
 
     def grailsApplication
     def grailsLinkGenerator
+    InterlisRuntimeRegistry runtimeRegistry
+    ch.interlis.generator.grails.runtime.config.InterlisRuntimeOverridesService overridesService
 
     List<Map<String, Object>> sections(Class ownerType,
                                         Serializable ownerId,
@@ -22,14 +27,15 @@ class InterlisInverseRelationshipQueryService {
             return []
         }
         int defaultLimit = boundedMax(maxPerSection ?: 10)
-        return InterlisInverseRelationshipSupport.descriptors(grailsApplication, ownerType).collect {
-            Map<String, Object> descriptor ->
+        return InterlisInverseRelationshipSupport.descriptors(
+            runtimeRegistry, overridesService, ownerType).collect {
+            InverseRelationshipDescriptor descriptor ->
                 Class relatedType = InterlisInverseRelationshipSupport.resolveRelatedClass(
-                    grailsApplication,
+                    runtimeRegistry,
                     descriptor
                 )
                 Map<String, Object> state = sectionState(
-                    descriptor.name?.toString(),
+                    descriptor.name(),
                     sourceParams,
                     relatedType,
                     defaultLimit
@@ -63,18 +69,19 @@ class InterlisInverseRelationshipQueryService {
                              Integer offset,
                              String sort,
                              String order) {
-        Map<String, Object> descriptor = InterlisInverseRelationshipSupport.requireDescriptor(
-            grailsApplication,
+        InverseRelationshipDescriptor descriptor = InterlisInverseRelationshipSupport.requireDescriptor(
+            runtimeRegistry,
+            overridesService,
             ownerType,
             relationshipName
         )
-        if (descriptor.visible != true) {
+        if (!descriptor.visible()) {
             throw new InterlisInverseRelationshipSupport.InverseRelationshipNotFoundException(
                 "Inverse relationship '${relationshipName}' is disabled"
             )
         }
         Class relatedType = InterlisInverseRelationshipSupport.resolveRelatedClass(
-            grailsApplication,
+            runtimeRegistry,
             descriptor
         )
         Map<String, Object> targetDescriptor = descriptorFor(relatedType)
@@ -104,22 +111,24 @@ class InterlisInverseRelationshipQueryService {
                                    String query,
                                    Integer max,
                                    Integer offset) {
-        Map<String, Object> descriptor = InterlisInverseRelationshipSupport.requireDescriptor(
-            grailsApplication,
+        InverseRelationshipDescriptor descriptor = InterlisInverseRelationshipSupport.requireDescriptor(
+            runtimeRegistry,
+            overridesService,
             ownerType,
             relationshipName
         )
-        if (descriptor.visible != true || descriptor.writable != true) {
+        if (!descriptor.visible() || !descriptor.writable()) {
             return [results: [], pagination: [more: false, total: 0, nextOffset: safeOffset(offset ?: 0)]]
         }
         Class relatedType = InterlisInverseRelationshipSupport.resolveRelatedClass(
-            grailsApplication,
+            runtimeRegistry,
             descriptor
         )
         return InterlisRelationshipOptions.optionPageForInverseRelationship(
             grailsApplication,
+            runtimeRegistry,
             relatedType,
-            descriptor.relatedProperty?.toString(),
+            descriptor.relatedPropertyName(),
             ownerId,
             query,
             boundedMax(max ?: 25),
@@ -128,10 +137,10 @@ class InterlisInverseRelationshipQueryService {
     }
 
     private Map<String, Object> buildSection(Object owner,
-                                             Map<String, Object> descriptor,
+                                             InverseRelationshipDescriptor descriptor,
                                              Map<String, Object> state) {
         Class relatedType = InterlisInverseRelationshipSupport.resolveRelatedClass(
-            grailsApplication,
+            runtimeRegistry,
             descriptor
         )
         Map<String, Object> page = relationshipPage(
@@ -143,27 +152,27 @@ class InterlisInverseRelationshipQueryService {
             state.sort?.toString(),
             state.order?.toString()
         )
-        String relatedController = InterlisInverseRelationshipSupport.controllerForClass(relatedType)
-        String relatedProperty = descriptor.relatedProperty?.toString()
+        String relatedController = InterlisInverseRelationshipSupport.controllerForClass(runtimeRegistry, relatedType)
+        String relatedProperty = descriptor.relatedPropertyName()
         String relatedDomainLabel = descriptorFor(relatedType)?.label?.toString()
             ?: relatedType?.simpleName
         Map<String, Object> pagination = InterlisListQuerySupport.scopedPaginationModel(
-            "inverse." + descriptor.name,
+            "inverse." + descriptor.name(),
             state,
             page.total as Number,
             state.scopedParams as Map<String, Object>
         )
         return [
             ownerId          : owner.id?.toString(),
-            name             : descriptor.name,
-            label            : descriptor.label,
-            relatedLabel     : descriptor.relatedLabel,
+            name             : descriptor.name(),
+            label            : descriptor.label(),
+            relatedLabel     : descriptor.relatedLabel(),
             relatedDomainLabel: relatedDomainLabel,
             relatedController: relatedController,
             relatedProperty  : relatedProperty,
-            writable         : descriptor.writable == true,
-            mandatory        : descriptor.mandatory == true,
-            domId            : domId(descriptor.name?.toString()),
+            writable         : descriptor.writable(),
+            mandatory        : descriptor.mandatory(),
+            domId            : domId(descriptor.name()),
             total            : page.total,
             max              : page.max,
             offset           : page.offset,
@@ -173,26 +182,26 @@ class InterlisInverseRelationshipQueryService {
             order            : state.order,
             columns          : page.columns,
             displayColumn    : page.displayColumn,
-            sortParams       : sortParams(state, "inverse." + descriptor.name, page.columns),
+            sortParams       : sortParams(state, "inverse." + descriptor.name(), page.columns),
             rows             : page.rows,
             pagination       : pagination,
-            queryFormParams  : queryFormParams(state, "inverse." + descriptor.name),
+            queryFormParams  : queryFormParams(state, "inverse." + descriptor.name()),
             contextualCreate: contextualCreate(owner, descriptor, relatedController, relatedProperty)
         ]
     }
 
     private Map<String, Object> relationshipPage(Serializable ownerId,
-                                                 Map<String, Object> descriptor,
+                                                 InverseRelationshipDescriptor descriptor,
                                                  String query,
                                                  int max,
                                                  int offset,
                                                  String sort,
                                                  String order) {
         Class relatedType = InterlisInverseRelationshipSupport.resolveRelatedClass(
-            grailsApplication,
+            runtimeRegistry,
             descriptor
         )
-        String relatedProperty = descriptor.relatedProperty?.toString()
+        String relatedProperty = descriptor.relatedPropertyName()
         if (relatedType == null || relatedProperty == null || relatedProperty.isBlank()) {
             return [
                 total: 0,
@@ -206,7 +215,8 @@ class InterlisInverseRelationshipQueryService {
         }
         Map<String, Object> relatedDescriptor = descriptorFor(relatedType)
         List<String> searchColumns = query
-            ? InterlisRelationshipOptions.inverseRelationshipSearchFields(grailsApplication, relatedType)
+            ? InterlisRelationshipOptions.inverseRelationshipSearchFields(
+                grailsApplication, runtimeRegistry, relatedType)
             : []
         String safeSortField = safeSort(relatedDescriptor, sort)
         String safeOrderValue = safeOrder(order)
@@ -251,7 +261,7 @@ class InterlisInverseRelationshipQueryService {
             }
         } as Number ?: 0
 
-        String controller = InterlisInverseRelationshipSupport.controllerForClass(relatedType)
+        String controller = InterlisInverseRelationshipSupport.controllerForClass(runtimeRegistry, relatedType)
         Map<String, Object> columnModel = columnModel(relatedDescriptor)
         List<Map<String, Object>> rows = (results as List<Object>).collect { Object related ->
             tableRow(related, controller, columnModel.columns as List<Map<String, Object>>,
@@ -311,10 +321,10 @@ class InterlisInverseRelationshipQueryService {
     }
 
     private Map<String, Object> contextualCreate(Object owner,
-                                                  Map<String, Object> descriptor,
+                                                  InverseRelationshipDescriptor descriptor,
                                                   String controller,
                                                   String relatedProperty) {
-        if (owner == null || descriptor?.writable != true
+        if (owner == null || descriptor == null || !descriptor.writable()
             || controller == null || controller.isBlank()
             || relatedProperty == null || relatedProperty.isBlank()) {
             return null
@@ -370,14 +380,15 @@ class InterlisInverseRelationshipQueryService {
         columns.each { Map<String, Object> column ->
             String key = column.key?.toString()
             Object value = readProperty(related, key)
-            values[key] = InterlisWorkspaceSupport.renderValue(grailsApplication, value)
+            values[key] = InterlisWorkspaceSupport.renderValue(grailsApplication, runtimeRegistry, value)
             if (key == displayColumn && controller != null && id != null) {
                 links[key] = [controller: controller, action: "show", id: id]
             }
         }
         return [
             id        : id,
-            label     : InterlisRelationshipOptions.optionLabel(grailsApplication, related),
+            label     : InterlisRelationshipOptions.optionLabel(
+                grailsApplication, runtimeRegistry, related),
             controller: controller,
             url       : relatedUrl(controller, related.id),
             values    : values,
@@ -390,7 +401,7 @@ class InterlisInverseRelationshipQueryService {
             return [:]
         }
         try {
-            return InterlisUiDescriptorSupport.descriptor(grailsApplication, domainType)
+            return InterlisUiDescriptorSupport.descriptor(grailsApplication, runtimeRegistry, domainType)
         } catch (Exception ignored) {
             return [:]
         }

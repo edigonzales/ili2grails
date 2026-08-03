@@ -41,7 +41,6 @@ class GrailsRuntimeSmokeTest {
         boolean required = InfrastructureSupport.required("grailsRuntimeSmokeRequired");
         ExternalToolStatus status = new VerificationEnvironmentDetector().detectGrails(new CommandRunner());
         InfrastructureSupport.requireTool(status, required, "grails runtime smoke test");
-        RuntimeApiTestSupport.publishRuntimeToMavenLocal(Path.of("."));
     }
 
     @Test
@@ -50,7 +49,6 @@ class GrailsRuntimeSmokeTest {
         ModelMetadata metadata = collisionMetadata();
         GenerationConfig config = grailsConfig(appDir, true);
 
-        new GrailsTemplateOverlayInstaller().install(appDir, config);
         GrailsCrudGenerator generator = new GrailsCrudGenerator();
 
         // 1. Erste Generation
@@ -92,7 +90,6 @@ class GrailsRuntimeSmokeTest {
         ModelMetadata metadata = collisionMetadata();
         GenerationConfig config = grailsConfig(appDir, true);
 
-        new GrailsTemplateOverlayInstaller().install(appDir, config);
         new GrailsCrudGenerator().generate(metadata, config);
 
         String buildGradle = Files.readString(appDir.resolve("build.gradle"));
@@ -109,7 +106,6 @@ class GrailsRuntimeSmokeTest {
         ModelMetadata metadata = simpleMetadata();
         GenerationConfig config = grailsConfig(appDir, false, true);
 
-        new GrailsTemplateOverlayInstaller().install(appDir, config);
         new GrailsCrudGenerator().generate(metadata, config);
 
         TargetNameRegistry registry = TargetNameRegistry.forMetadata(metadata, config);
@@ -140,7 +136,6 @@ class GrailsRuntimeSmokeTest {
         ModelMetadata metadata = simpleMetadata();
         GenerationConfig config = grailsConfig(appDir, false, true);
 
-        new GrailsTemplateOverlayInstaller().install(appDir, config);
         new GrailsCrudGenerator().generate(metadata, config);
 
         Path registryFile = appDir.resolve(
@@ -250,7 +245,6 @@ class GrailsRuntimeSmokeTest {
             .geometryEnabled(false)
             .build();
 
-        new GrailsTemplateOverlayInstaller().install(appDir, config);
         new GrailsCrudGenerator().generate(metadata, config);
         generateScaffolding(appDir, metadata, config);
         Path applicationYaml = appDir.resolve("grails-app/conf/application.yml");
@@ -285,7 +279,6 @@ class GrailsRuntimeSmokeTest {
             .geometryEnabled(false)
             .build();
 
-        new GrailsTemplateOverlayInstaller().install(appDir, config);
         new GrailsCrudGenerator().generate(metadata, config);
         generateScaffolding(appDir, metadata, config);
         String h2Configuration = Files.readString(appDir.resolve("grails-app/conf/application.yml"))
@@ -320,7 +313,6 @@ class GrailsRuntimeSmokeTest {
             .geometryEnabled(false)
             .build();
 
-        new GrailsTemplateOverlayInstaller().install(appDir, config);
         new GrailsCrudGenerator().generate(metadata, config);
         MultiDomainWorkspaceFixture.install(appDir);
         generateScaffolding(appDir, metadata, config);
@@ -367,7 +359,6 @@ class GrailsRuntimeSmokeTest {
         appDir.resolve("grailsw").toFile().setExecutable(true);
         assertThat(appDir.resolve("build.gradle")).exists();
         assertThat(appDir.resolve("grailsw")).exists();
-        RuntimeApiTestSupport.installRuntimePluginDependency(appDir);
         return appDir;
     }
 
@@ -445,6 +436,7 @@ class GrailsRuntimeSmokeTest {
             import ch.interlis.generator.grails.runtime.InterlisRelationshipOptions
             import ch.interlis.generator.grails.runtime.InterlisUiDescriptorSupport
             import ch.interlis.generator.grails.runtime.InterlisWorkspaceSupport
+            import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
             import grails.testing.mixin.integration.Integration
             import grails.gorm.transactions.Rollback
             import org.springframework.dao.DataIntegrityViolationException
@@ -457,6 +449,7 @@ class GrailsRuntimeSmokeTest {
             class ListQueryIntegrationSpec extends Specification {
 
                 def grailsApplication
+                InterlisRuntimeRegistry runtimeRegistry
 
                 def "executes safe descriptor-driven list criteria on H2"() {
                     given:
@@ -470,9 +463,11 @@ class GrailsRuntimeSmokeTest {
                         year: 2024, validFrom: LocalDate.of(2024, 1, 1), municipality: bern).with { saveIt(it) }
                     new Record(name: 'Archiv Zürich', status: RecordStatus.ARCHIVED, active: false,
                         year: 2020, validFrom: LocalDate.of(2020, 1, 1), municipality: zurich).with { saveIt(it) }
-                    def descriptor = InterlisUiDescriptorSupport.descriptor(grailsApplication, Record)
+                    def descriptor = InterlisUiDescriptorSupport.descriptor(
+                        grailsApplication, runtimeRegistry, Record)
                     def workspace = InterlisWorkspaceSupport.showModel(
-                        grailsApplication, Record, Record.findByName('Bahnhof Bern'), descriptor)
+                        grailsApplication, runtimeRegistry, Record,
+                        Record.findByName('Bahnhof Bern'), descriptor)
                     when:
                     def query = InterlisListQuerySupport.parse([
                         q: 'Bern', max: '10', offset: '0', sort: 'year', order: 'desc',
@@ -512,7 +507,8 @@ class GrailsRuntimeSmokeTest {
                 def "builds sectioned form state and preserves submitted relationship selection"() {
                     given:
                     def municipality = new Municipality(name: 'Form Bern').save(failOnError: true)
-                    def descriptor = InterlisUiDescriptorSupport.descriptor(grailsApplication, Record)
+                    def descriptor = InterlisUiDescriptorSupport.descriptor(
+                        grailsApplication, runtimeRegistry, Record)
                     def invalid = new Record(name: 'Retained value', year: 1800, municipality: municipality)
 
                     when:
@@ -521,7 +517,8 @@ class GrailsRuntimeSmokeTest {
                         submittedValues: [name: invalid.name]
                     ])
                     def selected = InterlisRelationshipOptions.optionForId(
-                        grailsApplication, Record, 'municipality', municipality.id.toString(), [])
+                        grailsApplication, runtimeRegistry, Record, 'municipality',
+                        municipality.id.toString(), [])
 
                     then:
                     !invalid.validate()
@@ -547,6 +544,8 @@ class GrailsRuntimeSmokeTest {
             import com.example.domain.Department
             import com.example.domain.Employee
             import ch.interlis.generator.grails.runtime.InterlisInverseRelationshipContextSupport
+            import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
+            import ch.interlis.generator.grails.runtime.config.InterlisRuntimeOverridesService
             import grails.testing.mixin.integration.Integration
             import grails.gorm.transactions.Rollback
             import spock.lang.Specification
@@ -559,6 +558,8 @@ class GrailsRuntimeSmokeTest {
                 def interlisInverseRelationshipCommandService
                 def grailsApplication
                 def sessionFactory
+                InterlisRuntimeRegistry runtimeRegistry
+                InterlisRuntimeOverridesService overridesService
 
                 def "validates and reapplies a direct relationship create context"() {
                     given:
@@ -566,7 +567,7 @@ class GrailsRuntimeSmokeTest {
 
                     when:
                     def context = InterlisInverseRelationshipContextSupport.prepareCreateContext(
-                        grailsApplication, Employee, [
+                        runtimeRegistry, overridesService, grailsApplication, Employee, [
                             relationshipField: 'department',
                             relationshipOwnerId: planning.id.toString()
                         ]
@@ -581,7 +582,7 @@ class GrailsRuntimeSmokeTest {
 
                     when:
                     InterlisInverseRelationshipContextSupport.prepareCreateContext(
-                        grailsApplication, Employee, [
+                        runtimeRegistry, overridesService, grailsApplication, Employee, [
                             relationshipField: 'department',
                             relationshipOwnerId: '999999999'
                         ]
@@ -676,6 +677,7 @@ class GrailsRuntimeSmokeTest {
                 def parcelWorkspaceService
                 def parcelWorkspaceCommandService
                 def sessionFactory
+                def runtimeRegistry
 
                 def "renders populated and empty multi-domain workspace sections"() {
                     given:
@@ -687,7 +689,7 @@ class GrailsRuntimeSmokeTest {
                     when:
                     def populated = parcelWorkspaceService.showModel(selected.id)
                     def emptyModel = parcelWorkspaceService.showModel(empty.id)
-                    def navigation = InterlisNavigationSupport.navigationModel(grailsApplication)
+                    def navigation = InterlisNavigationSupport.navigationModel(grailsApplication, runtimeRegistry)
 
                     then:
                     populated.workspaceRoot.anumber == 'P-100'

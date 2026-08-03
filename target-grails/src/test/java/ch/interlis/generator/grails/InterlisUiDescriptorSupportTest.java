@@ -4,6 +4,11 @@ import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.model.builder.AttributeMetadataBuilder;
 import ch.interlis.generator.model.builder.ModelMetadataBuilder;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor;
+import ch.interlis.generator.grails.runtime.api.registry.AssociationRegistry;
+import ch.interlis.generator.grails.runtime.api.registry.DomainRegistry;
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry;
 import groovy.lang.GroovyClassLoader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -13,6 +18,8 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.Collection;
+import java.util.Optional;
 import java.util.List;
 import java.util.Map;
 
@@ -412,9 +419,11 @@ class InterlisUiDescriptorSupportTest {
             )))
         ));
         Method showModel = runtime.workspaceType.getMethod(
-            "showModel", Object.class, Class.class, Object.class, Map.class
+            "showModel", Object.class, InterlisRuntimeRegistry.class,
+            Class.class, Object.class, Map.class
         );
-        Map<String, Object> model = map(showModel.invoke(null, Map.of(), runtime.domainType, address, descriptor));
+        Map<String, Object> model = map(showModel.invoke(
+            null, Map.of(), runtime.runtimeRegistry, runtime.domainType, address, descriptor));
 
         assertThat(model.get("workspaceDisplayLabel")).isEqualTo("Bahnhofstrasse Zentrum");
         String detailText = model.get("workspaceDetailSections").toString();
@@ -428,7 +437,8 @@ class InterlisUiDescriptorSupportTest {
             .doesNotContain("java.util.ArrayList");
 
         runtime.domainType.getMethod("setMunicipality", municipalityType).invoke(address, new Object[] {null});
-        Map<String, Object> emptyModel = map(showModel.invoke(null, Map.of(), runtime.domainType, address, descriptor));
+        Map<String, Object> emptyModel = map(showModel.invoke(
+            null, Map.of(), runtime.runtimeRegistry, runtime.domainType, address, descriptor));
         assertThat(emptyModel.get("workspaceDetailSections").toString())
             .contains("municipality", "value=");
     }
@@ -465,32 +475,37 @@ class InterlisUiDescriptorSupportTest {
             .domainPackage("com.example.ui")
             .enumPackage("com.example.enums")
             .build();
-        new GrailsUiRegistryGenerator().generate(
+        var registryPlan = new GrailsUiRegistryGenerator().plan(
             GrailsUiRegistryGeneratorTest.plan(metadata, config),
             config,
             TargetNameRegistry.forMetadata(metadata, config)
         );
+        Path registryTarget = tempDir.resolve(registryPlan.relativePath());
+        Files.createDirectories(registryTarget.getParent());
+        Files.write(registryTarget, registryPlan.content());
 
         GroovyClassLoader classLoader = new GroovyClassLoader(getClass().getClassLoader());
-        classLoader.parseClass(
-            Files.readString(RuntimeSourcePaths.generatedRegistryAccessorSource()),
-            "GeneratedRegistryAccessor.groovy");
         Path registrySource = tempDir.resolve(
             "src/main/groovy/ch/interlis/generator/grails/generated/InterlisUiRegistry.groovy"
         );
         assertThat(Files.readString(registrySource))
             .contains("'com.example.ui.Address'");
-        classLoader.parseClass(registrySource.toFile());
+        Class<?> registryType = classLoader.parseClass(registrySource.toFile());
         classLoader.parseClass(domainSource(), "Address.groovy");
         Class<?> domainType = classLoader.loadClass("com.example.ui.Address");
         Class<?> municipalityType = classLoader.loadClass("com.example.ui.Municipality");
+        var instanceField = registryType.getDeclaredField("INSTANCE");
+        instanceField.setAccessible(true);
+        InterlisRuntimeRegistry runtimeRegistry = runtimeRegistry(
+            (DomainRegistry) instanceField.get(null), classLoader);
         assertThat(Files.readString(registrySource))
             .contains("'com.example.ui.Municipality'");
         classLoader.parseClass(Files.readString(TABLE_MODEL_SOURCE), "InterlisTableModel.groovy");
         Class<?> supportType = classLoader.parseClass(Files.readString(RUNTIME_SOURCE), "InterlisUiDescriptorSupport.groovy");
         classLoader.parseClass(Files.readString(RELATIONSHIP_OPTIONS_SOURCE), "InterlisRelationshipOptions.groovy");
         Class<?> workspaceType = classLoader.parseClass(Files.readString(WORKSPACE_SOURCE), "InterlisWorkspaceSupport.groovy");
-        return new GeneratedRuntime(supportType, domainType, municipalityType, workspaceType, classLoader);
+        return new GeneratedRuntime(
+            supportType, domainType, municipalityType, workspaceType, classLoader, runtimeRegistry);
     }
 
     private AttributeMetadataBuilder attribute(String name, String javaType) {
@@ -561,7 +576,8 @@ class InterlisUiDescriptorSupportTest {
             .filter(method -> method.getName().equals("descriptor"))
             .findFirst()
             .orElseThrow();
-        return (Map<String, Object>) descriptor.invoke(null, application, runtime.domainType);
+        return (Map<String, Object>) descriptor.invoke(
+            null, application, runtime.runtimeRegistry, runtime.domainType);
     }
 
     private InvocationTargetException invocationFailure(GeneratedRuntime runtime,
@@ -584,6 +600,24 @@ class InterlisUiDescriptorSupportTest {
                                     Class<?> domainType,
                                     Class<?> municipalityType,
                                     Class<?> workspaceType,
-                                    GroovyClassLoader classLoader) {
+                                    GroovyClassLoader classLoader,
+                                    InterlisRuntimeRegistry runtimeRegistry) {
+    }
+
+    private InterlisRuntimeRegistry runtimeRegistry(DomainRegistry domains, ClassLoader classLoader) {
+        AssociationRegistry associations = new AssociationRegistry() {
+            public Collection<AssociationDescriptor> associations() { return List.of(); }
+            public Optional<AssociationDescriptor> association(String name) { return Optional.empty(); }
+            public Collection<AssociationContextDescriptor> contexts() { return List.of(); }
+            public Optional<AssociationContextDescriptor> context(String id) { return Optional.empty(); }
+            public List<AssociationContextDescriptor> contextsForParticipant(String name) { return List.of(); }
+        };
+        return new InterlisRuntimeRegistry(domains, associations, name -> {
+            try {
+                return classLoader.loadClass(name);
+            } catch (ClassNotFoundException ignored) {
+                return null;
+            }
+        });
     }
 }

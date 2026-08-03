@@ -1,5 +1,7 @@
 package ch.interlis.generator.grails.runtime
 
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
+
 final class InterlisRelationshipOptions {
 
     private static final List<String> DISPLAY_FIELD_PREFERENCES = [
@@ -25,6 +27,7 @@ final class InterlisRelationshipOptions {
     }
 
     static Map<String, Object> optionPage(def grailsApplication,
+                                          InterlisRuntimeRegistry runtimeRegistry,
                                           Class domainType,
                                           String field,
                                           String query,
@@ -35,7 +38,7 @@ final class InterlisRelationshipOptions {
         if (targetType == null) {
             return [results: [], pagination: [more: false, total: 0, nextOffset: offset]]
         }
-        return optionPageForTargetType(grailsApplication, targetType, query, max, offset)
+        return optionPageForTargetType(grailsApplication, runtimeRegistry, targetType, query, max, offset)
     }
 
     /**
@@ -44,6 +47,7 @@ final class InterlisRelationshipOptions {
      * is no longer available in the current option page.
      */
     static Map<String, String> optionForId(def grailsApplication,
+                                           InterlisRuntimeRegistry runtimeRegistry,
                                            Class domainType,
                                            String field,
                                            String id,
@@ -66,11 +70,12 @@ final class InterlisRelationshipOptions {
         }
         return [
             id   : record.id?.toString() ?: id,
-            label: optionLabel(record, displayFieldsFor(grailsApplication, targetType))
+            label: optionLabel(record, displayFieldsFor(grailsApplication, runtimeRegistry, targetType))
         ]
     }
 
     static Map<String, Object> optionPageForTargetType(def grailsApplication,
+                                                       InterlisRuntimeRegistry runtimeRegistry,
                                                        Class targetType,
                                                        String query,
                                                        Integer max,
@@ -79,7 +84,7 @@ final class InterlisRelationshipOptions {
             return [results: [], pagination: [more: false, total: 0, nextOffset: offset]]
         }
         Collection<String> targetGeometryFields = geometryFieldsFor(targetType)
-        List<String> displayFields = displayFieldsFor(grailsApplication, targetType)
+        List<String> displayFields = displayFieldsFor(grailsApplication, runtimeRegistry, targetType)
         List<String> searchColumns = searchFieldsFor(grailsApplication, targetType, targetGeometryFields, displayFields)
         String sortField = sortableFieldFor(grailsApplication, targetType, displayFields)
         Map<String, Object> pagination = [
@@ -132,6 +137,7 @@ final class InterlisRelationshipOptions {
     }
 
     static Map<String, Object> optionPageForInverseRelationship(def grailsApplication,
+                                                                InterlisRuntimeRegistry runtimeRegistry,
                                                                 Class relatedType,
                                                                 String relatedProperty,
                                                                 Serializable ownerId,
@@ -142,8 +148,9 @@ final class InterlisRelationshipOptions {
             return [results: [], pagination: [more: false, total: 0, nextOffset: offset]]
         }
         Collection<String> targetGeometryFields = geometryFieldsFor(relatedType)
-        List<String> displayFields = displayFieldsFor(grailsApplication, relatedType)
-        List<String> searchColumns = inverseRelationshipSearchFields(grailsApplication, relatedType)
+        List<String> displayFields = displayFieldsFor(grailsApplication, runtimeRegistry, relatedType)
+        List<String> searchColumns = inverseRelationshipSearchFields(
+            grailsApplication, runtimeRegistry, relatedType)
         String sortField = sortableFieldFor(grailsApplication, relatedType, displayFields) ?: "id"
         int pageMax = Math.max(1, Math.min(max ?: 25, 100))
         int pageOffset = Math.max(offset ?: 0, 0)
@@ -209,12 +216,14 @@ final class InterlisRelationshipOptions {
      * autocomplete. The paginated related-record view uses this method so
      * browsing and assigning search the same business-facing fields.
      */
-    static List<String> inverseRelationshipSearchFields(def grailsApplication, Class targetType) {
+    static List<String> inverseRelationshipSearchFields(def grailsApplication,
+                                                         InterlisRuntimeRegistry runtimeRegistry,
+                                                         Class targetType) {
         if (targetType == null) {
             return []
         }
         Collection<String> targetGeometryFields = geometryFieldsFor(targetType)
-        List<String> displayFields = displayFieldsFor(grailsApplication, targetType)
+        List<String> displayFields = displayFieldsFor(grailsApplication, runtimeRegistry, targetType)
         return searchFieldsFor(
             grailsApplication,
             targetType,
@@ -235,10 +244,16 @@ final class InterlisRelationshipOptions {
     }
 
     static String displayLabel(def grailsApplication, Object value) {
+        return displayLabel(grailsApplication, null, value)
+    }
+
+    static String displayLabel(def grailsApplication,
+                               InterlisRuntimeRegistry runtimeRegistry,
+                               Object value) {
         if (value == null || value instanceof CharSequence || value instanceof Number || value instanceof Boolean) {
             return null
         }
-        List<String> displayFields = displayFieldsFor(grailsApplication, value.getClass())
+        List<String> displayFields = displayFieldsFor(grailsApplication, runtimeRegistry, value.getClass())
         if (!hasDisplayValue(value, displayFields, false)) {
             return null
         }
@@ -250,7 +265,14 @@ final class InterlisRelationshipOptions {
     }
 
     static String optionLabel(def grailsApplication, Object value) {
-        return buildOptionLabel(value, displayFieldsFor(grailsApplication, value?.getClass()), false)
+        return optionLabel(grailsApplication, null, value)
+    }
+
+    static String optionLabel(def grailsApplication,
+                              InterlisRuntimeRegistry runtimeRegistry,
+                              Object value) {
+        return buildOptionLabel(
+            value, displayFieldsFor(grailsApplication, runtimeRegistry, value?.getClass()), false)
     }
 
     static String optionLabel(Object value, Collection<String> displayFields) {
@@ -321,12 +343,19 @@ final class InterlisRelationshipOptions {
         return type != null
     }
 
-    private static List<String> displayFieldsFor(def grailsApplication, Class targetType) {
+    private static List<String> displayFieldsFor(def grailsApplication,
+                                                 InterlisRuntimeRegistry runtimeRegistry,
+                                                 Class targetType) {
         targetType = persistentDomainType(grailsApplication, targetType)
         try {
-            List<String> configured = configuredDisplayFields(grailsApplication, targetType)
+            List<String> configured = configuredDisplayFields(
+                grailsApplication, runtimeRegistry, targetType)
             if (!configured.isEmpty()) {
                 return configured
+            }
+            def registered = runtimeRegistry?.domainByClassName(targetType?.name)?.orElse(null)
+            if (registered != null && !registered.display().displayFields().isEmpty()) {
+                return registered.display().displayFields()
             }
         } catch (IllegalArgumentException invalidConfiguration) {
             throw invalidConfiguration
@@ -343,17 +372,29 @@ final class InterlisRelationshipOptions {
         return fallbackDisplayFields(grailsApplication, targetType)
     }
 
-    private static List<String> configuredDisplayFields(def grailsApplication, Class targetType) {
-        try {
-            Class supportType = InterlisRelationshipOptions.class.classLoader.loadClass(
-                "ch.interlis.generator.grails.runtime.InterlisUiDescriptorSupport"
-            )
-            def method = supportType.getDeclaredMethod("displayFieldsFor", Object, Class)
-            method.accessible = true
-            return method.invoke(null, grailsApplication, targetType) as List<String>
-        } catch (ClassNotFoundException ignored) {
+    private static List<String> configuredDisplayFields(def grailsApplication,
+                                                        InterlisRuntimeRegistry runtimeRegistry,
+                                                        Class targetType) {
+        if (runtimeRegistry == null) {
             return []
         }
+        def domain = runtimeRegistry.domainByClassName(targetType?.name).orElse(null)
+        if (domain == null) {
+            return []
+        }
+        Object rawDomains = grailsApplication?.config?.ili2grails?.ui?.domains
+        Collection configuredDomains = rawDomains instanceof Collection
+            ? rawDomains as Collection
+            : (rawDomains instanceof Map && !rawDomains.isEmpty() ? [rawDomains] : [])
+        Map configuredDomain = configuredDomains.find { Object raw ->
+            raw instanceof Map && raw.iliName?.toString() == domain.iliName()
+        } as Map
+        Object rawDisplayFields = configuredDomain?.list instanceof Map
+            ? configuredDomain.list.displayFields
+            : null
+        return rawDisplayFields instanceof Collection
+            ? rawDisplayFields.collect { it.toString() }.findAll { !it.isBlank() }
+            : []
     }
 
     private static List<String> displayFieldsFor(Class targetType) {

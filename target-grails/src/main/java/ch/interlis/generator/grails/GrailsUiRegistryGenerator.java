@@ -13,9 +13,6 @@ import ch.interlis.generator.grails.source.GroovySourceWriter;
 import ch.interlis.generator.grails.project.plan.PlannedProjectFile;
 import ch.interlis.generator.model.ModelMetadata;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,8 +25,7 @@ import java.util.Objects;
  *
  * <p>The registry implements {@link
  * ch.interlis.generator.grails.runtime.api.registry.DomainRegistry} and holds
- * immutable {@link DomainDescriptor} instances. The legacy static map API is
- * kept for the migration window only and delegates to the typed data.</p>
+ * immutable {@link DomainDescriptor} instances.</p>
  */
 public final class GrailsUiRegistryGenerator {
 
@@ -57,15 +53,6 @@ public final class GrailsUiRegistryGenerator {
             "generated typed UI registry");
     }
 
-    public void generate(RuntimeDescriptorPlan plan,
-                         GenerationConfig config,
-                         TargetNameRegistry registry) throws IOException {
-        PlannedProjectFile planned = plan(plan, config, registry);
-        Path target = config.getOutputDir().resolve(RELATIVE_PATH);
-        Files.createDirectories(target.getParent());
-        Files.write(target, planned.content());
-    }
-
     String renderRegistry(RuntimeDescriptorPlan plan) {
         List<DomainDescriptor> domains = plan.domains().stream()
             .sorted(java.util.Comparator.comparing(
@@ -74,7 +61,6 @@ public final class GrailsUiRegistryGenerator {
 
         StringBuilder source = new StringBuilder();
         source.append("package ").append(GENERATED_PACKAGE).append("\n\n");
-        source.append("import ch.interlis.generator.grails.runtime.api.compat.LegacyDescriptorMapAdapter\n");
         source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor\n");
         source.append("import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor\n");
         source.append("import ch.interlis.generator.grails.runtime.api.descriptor.DisplayDescriptor\n");
@@ -142,36 +128,6 @@ public final class GrailsUiRegistryGenerator {
         source.append("    @Override\n");
         source.append("    List<DomainDescriptor> byModel(String modelName) {\n");
         source.append("        return byModelName[modelName] ?: []\n");
-        source.append("    }\n\n");
-
-        source.append("    // ------------------------------------------------------------------\n");
-        source.append("    // Legacy map API for the pre-plugin runtime (migration only).\n");
-        source.append("    // ------------------------------------------------------------------\n\n");
-
-        source.append("    @Deprecated(forRemoval = true)\n");
-        source.append("    static List<Map<String, Object>> legacyDomains() {\n");
-        source.append("        return DOMAINS.collect { DomainDescriptor d ->\n");
-        source.append("            LegacyDescriptorMapAdapter.toLegacyDomainMap(d)\n");
-        source.append("        }\n");
-        source.append("    }\n\n");
-
-        source.append("    @Deprecated(forRemoval = true)\n");
-        source.append("    static Map<String, Object> domain(String iliName) {\n");
-        source.append("        DomainDescriptor descriptor = INSTANCE.byIliName[iliName]\n");
-        source.append("        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyDomainMap(descriptor)\n");
-        source.append("    }\n\n");
-
-        source.append("    @Deprecated(forRemoval = true)\n");
-        source.append("    static Map<String, Object> domainForClassName(String domainClassName) {\n");
-        source.append("        DomainDescriptor descriptor = INSTANCE.byClassName[domainClassName]\n");
-        source.append("        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyDomainMap(descriptor)\n");
-        source.append("    }\n\n");
-
-        source.append("    @Deprecated(forRemoval = true)\n");
-        source.append("    static List<Map<String, Object>> domainsForModel(String modelName) {\n");
-        source.append("        return INSTANCE.byModel(modelName).collect { DomainDescriptor d ->\n");
-        source.append("            LegacyDescriptorMapAdapter.toLegacyDomainMap(d)\n");
-        source.append("        }\n");
         source.append("    }\n\n");
 
         source.append("}\n");
@@ -313,6 +269,7 @@ public final class GrailsUiRegistryGenerator {
             + indent + "    " + source.stringLiteral(inverse.relatedControllerName()) + ",\n"
             + indent + "    " + source.stringLiteral(inverse.relatedPropertyName()) + ",\n"
             + indent + "    " + source.stringLiteral(inverse.relatedLabel()) + ",\n"
+            + indent + "    " + inverse.mandatory() + ",\n"
             + indent + "    " + inverse.generatedWritable() + ",\n"
             + indent + "    " + inverse.visible() + ",\n"
             + indent + "    " + source.enumLiteral(InverseRelationshipMode.class, inverse.mode()) + "\n"

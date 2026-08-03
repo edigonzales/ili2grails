@@ -16,6 +16,7 @@ public record InverseRelationshipDescriptor(
     String relatedControllerName,
     String relatedPropertyName,
     String relatedLabel,
+    boolean mandatory,
     boolean generatedWritable,
     boolean visible,
     InverseRelationshipMode mode

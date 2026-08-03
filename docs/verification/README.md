@@ -1,7 +1,8 @@
 # Verifikation
 
-Dieses Dokument beschreibt die reproduzierbaren Verifikations-Einstiegspunkte
-von ili2grails (Spezifikation P2, Teil V).
+Dieses Dokument ist die Detailreferenz für die reproduzierbaren
+Verifikations-Einstiegspunkte. Der aktuelle Produkt- und Buildvertrag steht in
+der [README](../../README.md).
 
 ## Zwei Profile
 
@@ -134,8 +135,10 @@ angeforderten Reportdateien. Bei Blockern ist der Exit-Code ungleich null.
 
 - Benutzerveränderte, manifest-verwaltete Dateien blockieren den gesamten
   Apply (`USER_MODIFIED_MANAGED_FILE`).
-- `grails-app/views/layouts/main.gsp` ist immer application-owned; das
-  Plugin liefert sein Default-Layout aus dem Plugin-JAR.
+- `grails-app/views/layouts/main.gsp` ist application-owned. Ein unverändertes
+  Grails-Scaffold-Layout darf durch eine kleine Delegation zum app-lokalen
+  `ili2grails`-Layout ersetzt werden; Views und Assets des Bootstrap-Themes
+  bleiben generatorverwaltet in der Anwendung.
 - Legacy-Runtime-Dateien werden nur bei exakt bekanntem SHA-256 gelöscht.
 - Ein einzelner Blocker bedeutet: keine Projektdatei wird verändert.
 

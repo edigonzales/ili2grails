@@ -12,13 +12,13 @@ import ch.interlis.generator.grails.GrailsInverseRelationshipPlanner;
 import ch.interlis.generator.grails.GrailsRelationshipMapper;
 import ch.interlis.generator.grails.GrailsUiRegistryGenerator;
 import ch.interlis.generator.grails.RuntimeDescriptorPlan;
+import ch.interlis.generator.grails.RuntimeDescriptorDiagnostic;
 import ch.interlis.generator.grails.RuntimeDescriptorPlanner;
 import ch.interlis.generator.grails.TargetNameRegistry;
 import ch.interlis.generator.grails.project.GrailsApplicationConfigurationUpdater;
 import ch.interlis.generator.grails.project.GrailsAssetManifestUpdater;
 import ch.interlis.generator.grails.project.GrailsProjectFileOwner;
 import ch.interlis.generator.grails.project.GrailsProjectFileOwnership;
-import ch.interlis.generator.grails.project.GrailsRuntimeDependencyInstaller;
 import ch.interlis.generator.grails.project.GrailsScaffoldingTemplateInstaller;
 import ch.interlis.generator.grails.project.LegacyFileMatch;
 import ch.interlis.generator.grails.project.LegacyRuntimeScanResult;
@@ -59,8 +59,6 @@ public final class GrailsGenerationPlanner {
     private final GrailsBuildGradleUpdater buildGradleUpdater = new GrailsBuildGradleUpdater();
     private final GrailsApplicationYamlUpdater applicationYamlUpdater =
         new GrailsApplicationYamlUpdater();
-    private final GrailsRuntimeDependencyInstaller dependencyInstaller =
-        new GrailsRuntimeDependencyInstaller();
     private final GrailsAssetManifestUpdater assetUpdater = new GrailsAssetManifestUpdater();
     private final GrailsApplicationConfigurationUpdater configUpdater =
         new GrailsApplicationConfigurationUpdater();
@@ -87,10 +85,23 @@ public final class GrailsGenerationPlanner {
         RuntimeDescriptorPlan descriptorPlan = new RuntimeDescriptorPlanner(
             registry, relationshipMapper, associationPlanner, inversePlanner)
             .plan(metadata, config);
-        descriptorPlan.throwIfBlocking();
-        if (descriptorPlan.hasBlockingDiagnostics()) {
-            throw new ch.interlis.generator.grails.RuntimeDescriptorPlanningException(
-                "Runtime descriptor planning has blocking diagnostics", descriptorPlan.blockingDiagnostics());
+        for (RuntimeDescriptorDiagnostic diagnostic : descriptorPlan.diagnostics()) {
+            Map<String, String> details = new LinkedHashMap<>(diagnostic.details());
+            details.put("runtimeCode", diagnostic.code().name());
+            if (diagnostic.subject() != null) {
+                details.put("subject", diagnostic.subject());
+            }
+            ProjectCustomizationDiagnostic.Level level = switch (diagnostic.severity()) {
+                case INFO -> ProjectCustomizationDiagnostic.Level.INFO;
+                case WARNING -> ProjectCustomizationDiagnostic.Level.WARNING;
+                case ERROR -> ProjectCustomizationDiagnostic.Level.ERROR;
+            };
+            diagnostics.add(new GenerationDiagnostic(
+                level,
+                GenerationDiagnosticCode.RUNTIME_DESCRIPTOR_INVALID,
+                null,
+                diagnostic.message(),
+                details));
         }
 
         // 2. Generator-Artefakte (reine Planungsfunktionen)
@@ -100,10 +111,12 @@ public final class GrailsGenerationPlanner {
         plannedFiles.addAll(enumGenerator.plan(metadata, config, registry));
         plannedFiles.add(associationRegistryGenerator.plan(descriptorPlan, config));
         plannedFiles.add(uiRegistryGenerator.plan(descriptorPlan, config, registry));
-        plannedFiles.addAll(scaffoldingInstaller.plan());
-        plannedFiles.addAll(scaffoldingInstaller.planUiViews());
-        plannedFiles.addAll(scaffoldingInstaller.planUiAssets());
-        plannedFiles.addAll(scaffoldingInstaller.planUiStylesheet());
+        if (GenerationConfig.UI_THEME_BOOTSTRAP.equals(config.getUiTheme())) {
+            plannedFiles.addAll(scaffoldingInstaller.plan());
+            plannedFiles.addAll(scaffoldingInstaller.planUiViews());
+            plannedFiles.addAll(scaffoldingInstaller.planUiAssets());
+            plannedFiles.addAll(scaffoldingInstaller.planUiStylesheet());
+        }
 
         // 3. Text-Updater für application-owned idempotente Dateien
         plannedFiles.addAll(planTextEdits(projectRoot, config, runtimeCoordinates));
@@ -242,15 +255,8 @@ public final class GrailsGenerationPlanner {
         Path buildGradle = projectRoot.resolve("build.gradle");
         if (Files.isRegularFile(buildGradle)) {
             String content = Files.readString(buildGradle, StandardCharsets.UTF_8);
-            TextFileEdit dependencies = buildGradleUpdater.plan(
-                Path.of("build.gradle"), content, config.isGeometryEnabled());
-            TextFileEdit withRuntime = dependencyInstaller.plan(
-                Path.of("build.gradle"), dependencies.updatedContent(), runtimeCoordinates);
-            TextFileEdit combined = new TextFileEdit(Path.of("build.gradle"),
-                withRuntime.updatedContent(),
-                dependencies.changed() || withRuntime.changed(),
-                "managed dependencies and runtime plugin");
-            edits.put(Path.of("build.gradle"), combined);
+            edits.put(Path.of("build.gradle"), buildGradleUpdater.plan(
+                Path.of("build.gradle"), content, config, runtimeCoordinates));
         }
         Path applicationYaml = projectRoot.resolve("grails-app/conf/application.yml");
         if (Files.isRegularFile(applicationYaml)) {
@@ -260,17 +266,20 @@ public final class GrailsGenerationPlanner {
                 config.getSchema(), config.isGeometryEnabled(), config.getDefaultSrid(),
                 config.getLanguage()));
         }
-        Path applicationJs = projectRoot.resolve("grails-app/assets/javascripts/application.js");
-        if (Files.isRegularFile(applicationJs)) {
-            edits.put(Path.of("grails-app/assets/javascripts/application.js"),
-                assetUpdater.plan(Path.of("grails-app/assets/javascripts/application.js"),
-                    Files.readString(applicationJs, StandardCharsets.UTF_8)));
-        }
-        Path applicationCss = projectRoot.resolve("grails-app/assets/stylesheets/application.css");
-        if (Files.isRegularFile(applicationCss)) {
-            edits.put(Path.of("grails-app/assets/stylesheets/application.css"),
-                assetUpdater.plan(Path.of("grails-app/assets/stylesheets/application.css"),
-                    Files.readString(applicationCss, StandardCharsets.UTF_8)));
+        boolean bootstrapTheme = GenerationConfig.UI_THEME_BOOTSTRAP.equals(config.getUiTheme());
+        if (bootstrapTheme) {
+            Path applicationJs = projectRoot.resolve("grails-app/assets/javascripts/application.js");
+            if (Files.isRegularFile(applicationJs)) {
+                edits.put(Path.of("grails-app/assets/javascripts/application.js"),
+                    assetUpdater.plan(Path.of("grails-app/assets/javascripts/application.js"),
+                        Files.readString(applicationJs, StandardCharsets.UTF_8)));
+            }
+            Path applicationCss = projectRoot.resolve("grails-app/assets/stylesheets/application.css");
+            if (Files.isRegularFile(applicationCss)) {
+                edits.put(Path.of("grails-app/assets/stylesheets/application.css"),
+                    assetUpdater.plan(Path.of("grails-app/assets/stylesheets/application.css"),
+                        Files.readString(applicationCss, StandardCharsets.UTF_8)));
+            }
         }
         Path resourcesGroovy = projectRoot.resolve("grails-app/conf/spring/resources.groovy");
         if (Files.isRegularFile(resourcesGroovy)) {
@@ -278,13 +287,15 @@ public final class GrailsGenerationPlanner {
                 configUpdater.plan(Path.of("grails-app/conf/spring/resources.groovy"),
                     Files.readString(resourcesGroovy, StandardCharsets.UTF_8), config));
         }
-        Path mainGsp = projectRoot.resolve("grails-app/views/layouts/main.gsp");
-        if (Files.isRegularFile(mainGsp)
-            && ModelMetadataFingerprint.sha256(Files.readAllBytes(mainGsp))
-                .equals(GRAILS_SCAFFOLD_MAIN_GSP_SHA256)) {
-            planned.add(PlannedProjectFile.text(Path.of("grails-app/views/layouts/main.gsp"),
-                GrailsProjectFileOwner.APPLICATION_OWNED, MAIN_GSP_DELEGATION,
-                "replace unmodified Grails scaffold main.gsp with the ili2grails shell layout"));
+        if (bootstrapTheme) {
+            Path mainGsp = projectRoot.resolve("grails-app/views/layouts/main.gsp");
+            if (Files.isRegularFile(mainGsp)
+                && ModelMetadataFingerprint.sha256(Files.readAllBytes(mainGsp))
+                    .equals(GRAILS_SCAFFOLD_MAIN_GSP_SHA256)) {
+                planned.add(PlannedProjectFile.text(Path.of("grails-app/views/layouts/main.gsp"),
+                    GrailsProjectFileOwner.APPLICATION_OWNED, MAIN_GSP_DELEGATION,
+                    "replace unmodified Grails scaffold main.gsp with the ili2grails shell layout"));
+            }
         }
 
         for (TextFileEdit edit : edits.values()) {

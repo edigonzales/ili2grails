@@ -86,6 +86,7 @@ final class InterlisRuntimeOverridesService {
             generated.relatedControllerName(),
             generated.relatedPropertyName(),
             generated.relatedLabel(),
+            generated.mandatory(),
             generated.generatedWritable(),
             visible,
             mode

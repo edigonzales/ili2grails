@@ -9,7 +9,6 @@ import ch.interlis.generator.grails.runtime.api.descriptor.AssociationCreateMode
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationStorageKind
-import ch.interlis.generator.grails.runtime.api.lifecycle.InterlisLifecycleHooks
 import ch.interlis.generator.grails.runtime.api.persistence.LockResult
 import ch.interlis.generator.grails.runtime.api.persistence.LockStatus
 import ch.interlis.generator.grails.runtime.api.persistence.RuntimeRecordLoader
@@ -45,7 +44,6 @@ class InterlisAssociationCommandService {
     def grailsApplication
     InterlisRuntimeRegistry runtimeRegistry
     InterlisAuthorizationPolicy authorizationPolicy
-    InterlisLifecycleHooks lifecycleHooks
     RuntimeRecordLoader recordLoader
     InterlisRuntimeSafetyState runtimeSafetyState
 
@@ -148,7 +146,6 @@ class InterlisAssociationCommandService {
         }
 
         try {
-            lifecycleHooks.beforeAssociationCreate(operationContext, participant, target)
             instance.save(flush: true, failOnError: false)
         } catch (DataIntegrityViolationException e) {
             log.warn("Quick-link create failed for association ${context.associationName()} " +
@@ -165,8 +162,6 @@ class InterlisAssociationCommandService {
         if (instance.hasErrors() || instance.id == null) {
             return validationFailure(instance)
         }
-        lifecycleHooks.afterAssociationCreate(operationContext, instance)
-
         return AssociationCommandResult.created(
             instance.id?.toString(),
             "interlis.association.created",

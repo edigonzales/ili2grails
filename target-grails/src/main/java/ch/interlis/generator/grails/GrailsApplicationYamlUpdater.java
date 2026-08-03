@@ -9,10 +9,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -28,42 +24,6 @@ public class GrailsApplicationYamlUpdater {
     private static final String POSTGRES_DIALECT = "org.hibernate.dialect.PostgreSQLDialect";
     private static final String POSTGIS_DIALECT = "org.hibernate.spatial.dialect.postgis.PostgisDialect";
     private static final String H2_DRIVER = "org.h2.Driver";
-
-    void ensureDevelopmentDataSourceUrl(Path applicationYamlPath, String jdbcUrl, String schema) throws IOException {
-        ensureDevelopmentDataSourceUrl(applicationYamlPath, jdbcUrl, schema, false, 2056);
-    }
-
-    void ensureDevelopmentDataSourceUrl(Path applicationYamlPath,
-                                        String jdbcUrl,
-                                        String schema,
-                                        boolean geometryEnabled,
-                                        Integer defaultSrid) throws IOException {
-        ensureDevelopmentDataSourceUrl(
-            applicationYamlPath,
-            jdbcUrl,
-            schema,
-            geometryEnabled,
-            defaultSrid,
-            GenerationConfig.LANGUAGE_DE_CH
-        );
-    }
-
-    void ensureDevelopmentDataSourceUrl(Path applicationYamlPath,
-                                        String jdbcUrl,
-                                        String schema,
-                                        boolean geometryEnabled,
-                                        Integer defaultSrid,
-                                        String language) throws IOException {
-        if (!Files.exists(applicationYamlPath)) {
-            return;
-        }
-        TextFileEdit edit = plan(Path.of("grails-app/conf/application.yml"),
-            Files.readString(applicationYamlPath, StandardCharsets.UTF_8),
-            jdbcUrl, schema, geometryEnabled, defaultSrid, language);
-        if (edit.changed()) {
-            Files.writeString(applicationYamlPath, edit.updatedContent(), StandardCharsets.UTF_8);
-        }
-    }
 
     /**
      * Reine Planungsfunktion (Spezifikation §41.5): kein Write.
@@ -171,26 +131,6 @@ public class GrailsApplicationYamlUpdater {
             changed = true;
         }
         return changed;
-    }
-
-    private List<Object> readDocuments(Path applicationYamlPath) throws IOException {
-        List<Object> documents = new ArrayList<>();
-        try (Reader reader = Files.newBufferedReader(applicationYamlPath, StandardCharsets.UTF_8)) {
-            MappingIterator<Object> iterator = YAML_MAPPER.readerFor(Object.class).readValues(reader);
-            while (iterator.hasNext()) {
-                documents.add(iterator.next());
-            }
-        }
-        return documents;
-    }
-
-    private void writeDocuments(Path applicationYamlPath, List<Object> documents) throws IOException {
-        try (Writer writer = Files.newBufferedWriter(applicationYamlPath, StandardCharsets.UTF_8);
-            SequenceWriter sequenceWriter = YAML_MAPPER.writer().writeValues(writer)) {
-            for (Object document : documents) {
-                sequenceWriter.write(document);
-            }
-        }
     }
 
     private boolean updateDevelopmentDataSource(List<Object> documents, String jdbcUrl, String schema) {

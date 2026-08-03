@@ -1,5 +1,11 @@
 package ch.interlis.generator.grails.runtime
 
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationAttributeDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationCreateMode
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
 import groovy.util.logging.Slf4j
 
 
@@ -10,6 +16,7 @@ class InterlisAssociationQueryService {
     static transactional = false
 
     def grailsApplication
+    InterlisRuntimeRegistry runtimeRegistry
 
     List<Map<String, Object>> sections(Class participantType, Serializable participantId, Integer maxPerSection) {
         if (participantType == null || participantId == null) {
@@ -20,19 +27,20 @@ class InterlisAssociationQueryService {
             return []
         }
         Integer limit = boundedMax(maxPerSection ?: 10)
-        List<Map<String, Object>> contexts = InterlisAssociationRegistrySupport.contextsForParticipant(participantType)
+        List<AssociationContextDescriptor> contexts =
+            InterlisAssociationRegistrySupport.contextsForParticipant(runtimeRegistry, participantType)
         if (contexts.isEmpty()) {
             return []
         }
         List<Map<String, Object>> result = []
-        contexts.each { Map<String, Object> ctx ->
+        contexts.each { AssociationContextDescriptor ctx ->
             try {
                 Map<String, Object> section = buildSection(participantType, participant, ctx, limit)
                 if (section != null) {
                     result.add(section)
                 }
             } catch (Exception e) {
-                log.warn("Failed to build association section for context ${ctx.id} on ${participantType.simpleName}#${participantId}: ${e.message}", e)
+                log.warn("Failed to build association section for context ${ctx.id()} on ${participantType.simpleName}#${participantId}: ${e.message}", e)
             }
         }
         return result
@@ -40,26 +48,28 @@ class InterlisAssociationQueryService {
 
     Map<String, Object> page(Class participantType, Serializable participantId, String contextId,
                              Integer max, Integer offset, String sort, String requestedOrder) {
-        Map<String, Object> context = InterlisAssociationRegistrySupport.requireContext(participantType, contextId)
+        AssociationContextDescriptor context =
+            InterlisAssociationRegistrySupport.requireContext(runtimeRegistry, participantType, contextId)
         Object participant = participantType.get(participantId)
         if (participant == null) {
             return [total: 0, rows: [], max: max, offset: offset, contextId: contextId]
         }
         Integer pageMax = boundedMax(max ?: 10)
         Integer pageOffset = safeOffset(offset ?: 0)
-        Class associationType = InterlisAssociationRegistrySupport.resolveAssociationClass(grailsApplication, context)
+        Class associationType = InterlisAssociationRegistrySupport.resolveAssociationClass(runtimeRegistry, context)
         if (associationType == null) {
             return [total: 0, rows: [], max: pageMax, offset: pageOffset, contextId: contextId]
         }
-        String fixedProperty = context.fixedProperty
+        String fixedProperty = context.fixedPropertyName()
         String sortField = safeSort(sort, associationType)
         String sortOrder = safeOrder(requestedOrder)
-        Map<String, Object> associationDescriptor = GeneratedRegistryAccessor.associationRegistryType().legacyAssociation(context.associationName)
-        List<Map<String, Object>> editableRoleList = InterlisAssociationRegistrySupport.editableRoles(associationDescriptor, context)
+        AssociationDescriptor associationDescriptor = runtimeRegistry.requireAssociation(context.associationName())
+        List<AssociationRoleDescriptor> editableRoleList =
+            InterlisAssociationRegistrySupport.editableRoles(associationDescriptor, context)
         def results = associationType.createCriteria().list(max: pageMax, offset: pageOffset) {
             eq(fixedProperty + ".id", participantId)
-            editableRoleList.each { Map<String, Object> roleDesc ->
-                fetchMode(roleDesc.property, org.hibernate.FetchMode.JOIN)
+            editableRoleList.each { AssociationRoleDescriptor roleDesc ->
+                fetchMode(roleDesc.propertyName(), org.hibernate.FetchMode.JOIN)
             }
             if (sortField == "id") {
                 order("id", sortOrder)
@@ -89,47 +99,52 @@ class InterlisAssociationQueryService {
 
     Map<String, Object> optionPage(Class participantType, String contextId, String roleName,
                                    String query, Integer max, Integer offset) {
-        Map<String, Object> context = InterlisAssociationRegistrySupport.requireContext(participantType, contextId)
-        Map<String, Object> associationDesc = GeneratedRegistryAccessor.associationRegistryType().legacyAssociation(context.associationName)
-        Map<String, Object> roleDesc = InterlisAssociationRegistrySupport.role(associationDesc, roleName)
+        AssociationContextDescriptor context =
+            InterlisAssociationRegistrySupport.requireContext(runtimeRegistry, participantType, contextId)
+        AssociationDescriptor associationDesc = runtimeRegistry.requireAssociation(context.associationName())
+        AssociationRoleDescriptor roleDesc = InterlisAssociationRegistrySupport.role(associationDesc, roleName)
         if (roleDesc == null) {
             return [results: [], pagination: [more: false, total: 0, nextOffset: offset]]
         }
-        String targetDomainClass = roleDesc.targetDomainClass
-        Class targetType = InterlisAssociationRegistrySupport.resolveDomainClass(grailsApplication, targetDomainClass)
+        String targetDomainClass = roleDesc.targetDomainClassName()
+        Class targetType = InterlisAssociationRegistrySupport.resolveDomainClass(runtimeRegistry, targetDomainClass)
         if (targetType == null) {
             return [results: [], pagination: [more: false, total: 0, nextOffset: offset]]
         }
-        return InterlisRelationshipOptions.optionPageForTargetType(grailsApplication, targetType, query,
+        return InterlisRelationshipOptions.optionPageForTargetType(
+            grailsApplication, runtimeRegistry, targetType, query,
             boundedMax(max ?: 25), safeOffset(offset ?: 0))
     }
 
-    Map<String, Object> describeAssociationRow(Map<String, Object> association, Map<String, Object> context,
+    Map<String, Object> describeAssociationRow(AssociationDescriptor association,
+                                               AssociationContextDescriptor context,
                                                Object associationInstance) {
         if (associationInstance == null) {
             return null
         }
         List<Map<String, Object>> counterparts = []
-        List<Map<String, Object>> editableRoleList = InterlisAssociationRegistrySupport.editableRoles(association, context)
-        editableRoleList.each { Map<String, Object> roleDesc ->
-            String property = roleDesc.property
+        List<AssociationRoleDescriptor> editableRoleList =
+            InterlisAssociationRegistrySupport.editableRoles(association, context)
+        editableRoleList.each { AssociationRoleDescriptor roleDesc ->
+            String property = roleDesc.propertyName()
             Object target = associationInstance."${property}"
             if (target != null) {
                 String targetController = resolveTargetController(roleDesc)
                 counterparts.add([
-                    role: roleDesc.name,
+                    role: roleDesc.name(),
                     property: property,
                     id: target.id?.toString(),
-                    label: InterlisRelationshipOptions.optionLabel(grailsApplication, target),
+                    label: InterlisRelationshipOptions.optionLabel(
+                        grailsApplication, runtimeRegistry, target),
                     controller: targetController
                 ])
             }
         }
         List<Map<String, Object>> attrList = []
-        List<Map<String, Object>> attrs = association.attributes as List<Map<String, Object>>
+        List<AssociationAttributeDescriptor> attrs = association.attributes()
         if (attrs != null) {
-            attrs.each { Map<String, Object> attrDesc ->
-                String property = attrDesc.property
+            attrs.each { AssociationAttributeDescriptor attrDesc ->
+                String property = attrDesc.propertyName()
                 Object value = null
                 try {
                     value = associationInstance."${property}"
@@ -137,17 +152,16 @@ class InterlisAssociationQueryService {
                 }
                 attrList.add([
                     property: property,
-                    label: attrDesc.label ?: property,
+                    label: attrDesc.label() ?: property,
                     value: value
                 ])
             }
         }
-        String associationDomainClass = association.domainClassQualifiedName
-        boolean deleteAllowed = (context.writable == true) &&
-            (context.removable == true) &&
-            (context.createMode == "QUICK")
-        boolean editAllowed = (context.writable == true) &&
-            (context.createMode == "CONTEXTUAL_FORM" || context.createMode == "NARY_CONTEXTUAL_FORM")
+        String associationDomainClass = association.domainClassName()
+        boolean deleteAllowed = context.writable() && context.removable() &&
+            context.createMode() == AssociationCreateMode.QUICK
+        boolean editAllowed = context.writable() &&
+            context.createMode() == AssociationCreateMode.CONTEXTUAL_FORM
         return [
             associationId: associationInstance.id?.toString(),
             associationLabel: buildAssociationLabel(associationInstance, editableRoleList, attrList),
@@ -161,21 +175,22 @@ class InterlisAssociationQueryService {
     }
 
     private Map<String, Object> buildSection(Class participantType, Object participant,
-                                             Map<String, Object> context, Integer limit) {
-        Map<String, Object> associationDesc = GeneratedRegistryAccessor.associationRegistryType().legacyAssociation(context.associationName)
+                                             AssociationContextDescriptor context, Integer limit) {
+        AssociationDescriptor associationDesc = runtimeRegistry.association(context.associationName()).orElse(null)
         if (associationDesc == null) {
             return null
         }
-        Class associationType = InterlisAssociationRegistrySupport.resolveAssociationClass(grailsApplication, context)
+        Class associationType = InterlisAssociationRegistrySupport.resolveAssociationClass(runtimeRegistry, context)
         if (associationType == null) {
             return null
         }
-        String fixedProperty = context.fixedProperty
-        List<Map<String, Object>> editableRoleList = InterlisAssociationRegistrySupport.editableRoles(associationDesc, context)
+        String fixedProperty = context.fixedPropertyName()
+        List<AssociationRoleDescriptor> editableRoleList =
+            InterlisAssociationRegistrySupport.editableRoles(associationDesc, context)
         def results = associationType.createCriteria().list(max: limit) {
             eq(fixedProperty + ".id", participant.id)
-            editableRoleList.each { Map<String, Object> roleDesc ->
-                fetchMode(roleDesc.property, org.hibernate.FetchMode.JOIN)
+            editableRoleList.each { AssociationRoleDescriptor roleDesc ->
+                fetchMode(roleDesc.propertyName(), org.hibernate.FetchMode.JOIN)
             }
             order("id", "asc")
         }
@@ -191,20 +206,20 @@ class InterlisAssociationQueryService {
         List<Map<String, String>> columns = buildColumns(associationDesc, context)
         String label = resolveLabel(context)
         String quickTargetRole = null
-        if (context.createMode == "QUICK" && editableRoleList.size() == 1) {
-            quickTargetRole = editableRoleList.get(0).name
+        if (context.createMode() == AssociationCreateMode.QUICK && editableRoleList.size() == 1) {
+            quickTargetRole = editableRoleList.get(0).name()
         }
         return [
-            contextId: context.id,
+            contextId: context.id(),
             label: label,
-            messageCode: context.messageCode,
-            presentation: context.presentation,
-            createMode: context.createMode,
-            writable: context.writable ?: false,
-            removable: context.removable ?: false,
+            messageCode: context.messageCode(),
+            presentation: context.presentation(),
+            createMode: context.createMode().name(),
+            writable: context.writable(),
+            removable: context.removable(),
             quickTargetRole: quickTargetRole,
             associationController: resolveAssociationController(associationDesc),
-            domId: domId(context.id),
+            domId: domId(context.id()),
             total: total,
             max: limit,
             offset: 0,
@@ -215,29 +230,31 @@ class InterlisAssociationQueryService {
         ]
     }
 
-    private List<Map<String, String>> buildColumns(Map<String, Object> associationDesc, Map<String, Object> context) {
+    private List<Map<String, String>> buildColumns(AssociationDescriptor associationDesc,
+                                                   AssociationContextDescriptor context) {
         List<Map<String, String>> columns = []
-        List<Map<String, Object>> editableRoleList = InterlisAssociationRegistrySupport.editableRoles(associationDesc, context)
-        editableRoleList.each { Map<String, Object> roleDesc ->
+        List<AssociationRoleDescriptor> editableRoleList =
+            InterlisAssociationRegistrySupport.editableRoles(associationDesc, context)
+        editableRoleList.each { AssociationRoleDescriptor roleDesc ->
             columns.add([
-                key: roleDesc.name,
-                label: roleDesc.label ?: roleDesc.name
+                key: roleDesc.name(),
+                label: roleDesc.label() ?: roleDesc.name()
             ])
         }
-        List<Map<String, Object>> attrs = associationDesc.attributes as List<Map<String, Object>>
+        List<AssociationAttributeDescriptor> attrs = associationDesc.attributes()
         if (attrs != null) {
-            attrs.each { Map<String, Object> attrDesc ->
+            attrs.each { AssociationAttributeDescriptor attrDesc ->
                 columns.add([
-                    key: attrDesc.property,
-                    label: attrDesc.label ?: attrDesc.property
+                    key: attrDesc.propertyName(),
+                    label: attrDesc.label() ?: attrDesc.propertyName()
                 ])
             }
         }
         return columns
     }
 
-    private String resolveLabel(Map<String, Object> context) {
-        String code = context.messageCode
+    private String resolveLabel(AssociationContextDescriptor context) {
+        String code = context.messageCode()
         if (code != null) {
             try {
                 String message = grailsApplication.mainContext.getBean(
@@ -249,11 +266,11 @@ class InterlisAssociationQueryService {
             } catch (Exception ignored) {
             }
         }
-        return context.defaultLabel ?: context.id ?: ""
+        return context.defaultLabel() ?: context.id() ?: ""
     }
 
-    private String resolveEmptyMessage(Map<String, Object> context) {
-        String associationName = context.associationName
+    private String resolveEmptyMessage(AssociationContextDescriptor context) {
+        String associationName = context.associationName()
         if (associationName == null) {
             return InterlisMessageSupport.text(
                 grailsApplication,
@@ -280,14 +297,16 @@ class InterlisAssociationQueryService {
     }
 
     private String buildAssociationLabel(Object associationInstance,
-                                         List<Map<String, Object>> editableRoles,
+                                         List<AssociationRoleDescriptor> editableRoles,
                                          List<Map<String, Object>> attrs) {
         List<String> parts = []
-        editableRoles.each { Map<String, Object> roleDesc ->
-            String property = roleDesc.property
+        editableRoles.each { AssociationRoleDescriptor roleDesc ->
+            String property = roleDesc.propertyName()
             try {
                 Object target = associationInstance."${property}"
-                String label = target != null ? InterlisRelationshipOptions.optionLabel(grailsApplication, target) : null
+                String label = target != null
+                    ? InterlisRelationshipOptions.optionLabel(grailsApplication, runtimeRegistry, target)
+                    : null
                 if (label != null && !label.isBlank()) {
                     parts.add(label)
                 }
@@ -309,8 +328,8 @@ class InterlisAssociationQueryService {
         return parts.isEmpty() ? (associationInstance.id?.toString() ?: "") : parts.join(" - ")
     }
 
-    private String resolveTargetController(Map<String, Object> roleDesc) {
-        String targetDomainClass = roleDesc.targetDomainClass
+    private String resolveTargetController(AssociationRoleDescriptor roleDesc) {
+        String targetDomainClass = roleDesc.targetDomainClassName()
         if (targetDomainClass == null) {
             return null
         }
@@ -319,8 +338,8 @@ class InterlisAssociationQueryService {
         return className[0].toLowerCase() + className[1..-1]
     }
 
-    private String resolveAssociationController(Map<String, Object> association) {
-        String className = association.domainClassName
+    private String resolveAssociationController(AssociationDescriptor association) {
+        String className = association.controllerName()
         if (className == null || className.isBlank()) {
             return null
         }

@@ -441,20 +441,23 @@ final class InterlisListQuerySupport {
     }
 
     static Map<String, Object> relationshipOptions(def grailsApplication,
+                                                    ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry runtimeRegistry,
                                                     Class domainType,
                                                     Map<String, Object> definition,
                                                     String selectedId,
                                                     Integer max = DEFAULT_MAX) {
         String field = definition?.name?.toString()
         Map<String, Object> page = InterlisRelationshipOptions.optionPage(
-            grailsApplication, domainType, field, null, Math.min(max ?: DEFAULT_MAX, MAX_MAX), 0, []
+            grailsApplication, runtimeRegistry, domainType, field, null,
+            Math.min(max ?: DEFAULT_MAX, MAX_MAX), 0, []
         )
         List<Map<String, String>> results = (page.results ?: []) as List<Map<String, String>>
         if (selectedId != null && results.every { it.id != selectedId }) {
             Class targetType = definition.targetType as Class
             Object selected = targetType?.get(selectedId as Long)
             if (selected != null) {
-                results = [[id: selected.id.toString(), label: InterlisRelationshipOptions.optionLabel(grailsApplication, selected)]] + results
+                results = [[id: selected.id.toString(), label: InterlisRelationshipOptions.optionLabel(
+                    grailsApplication, runtimeRegistry, selected)]] + results
             }
         }
         return [results: results, pagination: page.pagination]

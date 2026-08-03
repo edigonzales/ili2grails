@@ -8,7 +8,6 @@ import ch.interlis.generator.model.GeometryKind;
 import ch.interlis.generator.model.ModelMetadata;
 import ch.interlis.generator.model.ModelMetadataFactory;
 import ch.interlis.generator.reader.ili2db.Ili2dbDiagnostic;
-import ch.interlis.generator.reader.ili2db.Ili2dbFailurePolicy;
 import ch.interlis.generator.reader.ili2db.Ili2dbReadContext;
 import ch.interlis.generator.reader.ili2db.catalog.AttributeMappingRow;
 import ch.interlis.generator.reader.ili2db.catalog.ClassMappingRow;

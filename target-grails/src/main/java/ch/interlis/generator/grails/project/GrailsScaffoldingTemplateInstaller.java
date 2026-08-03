@@ -3,10 +3,8 @@ package ch.interlis.generator.grails.project;
 import ch.interlis.generator.grails.project.plan.PlannedProjectFile;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Installs the generation-time scaffolding templates into the Grails project.
@@ -41,15 +39,6 @@ public final class GrailsScaffoldingTemplateInstaller {
         "_inverse-relationship-sections.gsp",
         "_inverse-relationship-picker.gsp"
     );
-
-    public void install(Path grailsProjectDir) throws IOException {
-        Objects.requireNonNull(grailsProjectDir, "grailsProjectDir");
-        for (PlannedProjectFile planned : plan()) {
-            Path target = grailsProjectDir.resolve(planned.relativePath());
-            Files.createDirectories(target.getParent());
-            Files.write(target, planned.content());
-        }
-    }
 
     /**
      * Reine Planungsfunktion (Spezifikation §41.6): alle Ressourcen werden

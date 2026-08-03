@@ -1,5 +1,10 @@
 package ch.interlis.generator.grails.runtime
 
+import ch.interlis.generator.grails.runtime.api.descriptor.InverseRelationshipDescriptor
+import ch.interlis.generator.grails.runtime.api.descriptor.RelationshipDescriptor
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
+import ch.interlis.generator.grails.runtime.config.InterlisRuntimeOverridesService
+
 /**
  * Validates the direct 1:n context used when a new related record is created
  * from an owner page. The request supplies only a relationship field and an
@@ -11,7 +16,9 @@ final class InterlisInverseRelationshipContextSupport {
     private InterlisInverseRelationshipContextSupport() {
     }
 
-    static Map<String, Object> prepareCreateContext(def grailsApplication,
+    static Map<String, Object> prepareCreateContext(InterlisRuntimeRegistry runtimeRegistry,
+                                                      InterlisRuntimeOverridesService overridesService,
+                                                      def grailsApplication,
                                                       Class relatedType,
                                                       Map params) {
         String field = params?.relationshipField?.toString()
@@ -29,17 +36,15 @@ final class InterlisInverseRelationshipContextSupport {
             throw new IllegalArgumentException("Related domain type is required")
         }
 
-        Map<String, Object> relationshipMeta = InterlisUiDescriptorSupport.staticDomainMap(
-            relatedType,
-            "interlisRelationshipMeta"
-        )[field] as Map<String, Object>
+        RelationshipDescriptor relationshipMeta =
+            runtimeRegistry.requireDomain(relatedType).relationships().get(field)
         if (relationshipMeta == null) {
             throw new IllegalArgumentException(
                 "Unknown relationship field '${field}' for ${relatedType.name}"
             )
         }
-        String ownerClassName = relationshipMeta.targetClass?.toString()
-        Class ownerType = resolveDomainClass(grailsApplication, ownerClassName)
+        String ownerClassName = relationshipMeta.targetDomainClassName()
+        Class ownerType = runtimeRegistry.resolveDomainClass(ownerClassName)
         if (ownerType == null) {
             // Generated relationship metadata may contain a simple domain name
             // while the runtime mapping context is keyed by the fully qualified
@@ -51,15 +56,14 @@ final class InterlisInverseRelationshipContextSupport {
                 "Could not resolve owner domain '${ownerClassName}' for ${relatedType.name}.${field}"
             )
         }
-        Map<String, Object> inverseMeta = InterlisInverseRelationshipSupport.descriptors(
-            grailsApplication,
-            ownerType
-        ).find { Map<String, Object> candidate ->
-            candidate.relatedDomainClass?.toString() == relatedType.name
-                && candidate.relatedProperty?.toString() == field
-                && candidate.visible == true
-                && candidate.writable == true
-        } as Map<String, Object>
+        InverseRelationshipDescriptor inverseMeta = InterlisInverseRelationshipSupport.descriptors(
+            runtimeRegistry, overridesService, ownerType
+        ).find { InverseRelationshipDescriptor candidate ->
+            candidate.relatedDomainClassName() == relatedType.name
+                && candidate.relatedPropertyName() == field
+                && candidate.visible()
+                && candidate.writable()
+        }
         if (inverseMeta == null) {
             throw new IllegalArgumentException(
                 "Relationship ${relatedType.name}.${field} is not an editable inverse context"
@@ -74,17 +78,18 @@ final class InterlisInverseRelationshipContextSupport {
         }
         return [
             contextKind         : "DIRECT_RELATIONSHIP",
-            contextId           : "inverse:${ownerType.name}:${inverseMeta.name ?: field}",
+            contextId           : "inverse:${ownerType.name}:${inverseMeta.name() ?: field}",
             owner               : owner,
             ownerId             : owner.id,
             ownerType           : ownerType,
             ownerDomainClass    : ownerType.name,
-            ownerLabel          : InterlisRelationshipOptions.optionLabel(grailsApplication, owner),
+            ownerLabel          : InterlisRelationshipOptions.optionLabel(
+                grailsApplication, runtimeRegistry, owner),
             relatedDomainClass  : relatedType.name,
             fixedProperty       : field,
             relationshipField   : field,
-            relationshipName    : inverseMeta.name?.toString(),
-            label               : inverseMeta.label?.toString()
+            relationshipName    : inverseMeta.name(),
+            label               : inverseMeta.label()
         ]
     }
 
@@ -105,37 +110,15 @@ final class InterlisInverseRelationshipContextSupport {
         instance."${property}" = owner
     }
 
-    static Map<String, Object> redirectTarget(def grailsApplication,
+    static Map<String, Object> redirectTarget(InterlisRuntimeRegistry runtimeRegistry,
                                                Map<String, Object> contextState) {
         Class ownerType = contextState?.ownerType as Class
-        String controller = InterlisInverseRelationshipSupport.controllerForClass(ownerType)
+        String controller = InterlisInverseRelationshipSupport.controllerForClass(
+            runtimeRegistry, ownerType)
         if (controller == null || contextState?.ownerId == null) {
             return null
         }
         return [controller: controller, action: "show", id: contextState.ownerId]
-    }
-
-    private static Class resolveDomainClass(def grailsApplication, String className) {
-        if (className == null || className.isBlank()) {
-            return null
-        }
-        def persistentEntity = grailsApplication?.mappingContext?.getPersistentEntity(className)
-        Class resolved = persistentEntity?.javaClass as Class
-        if (resolved != null) {
-            return resolved
-        }
-        resolved = grailsApplication?.mappingContext?.persistentEntities?.find { entity ->
-            Class candidate = entity?.javaClass as Class
-            candidate != null && (candidate.name == className || candidate.simpleName == className)
-        }?.javaClass as Class
-        if (resolved != null) {
-            return resolved
-        }
-        try {
-            return grailsApplication?.classLoader?.loadClass(className) as Class
-        } catch (Exception ignored) {
-            return null
-        }
     }
 
     private static Object loadOwner(Class ownerType, String ownerId) {

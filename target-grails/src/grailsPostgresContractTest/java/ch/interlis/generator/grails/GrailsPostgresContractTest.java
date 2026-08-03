@@ -235,7 +235,6 @@ public class GrailsPostgresContractTest {
 
             appPath[0] = appDir;
             Path appCreated = createGrailsApp(appDir, "contract-app-" + scenario.id());
-            new GrailsTemplateOverlayInstaller().install(appDir, config);
             new GrailsCrudGenerator().generate(metadata, config);
             generateScaffolding(appDir, metadata, config);
             patchDataSource(appDir, schemaName);
@@ -437,7 +436,6 @@ public class GrailsPostgresContractTest {
             appDir.resolve("gradlew").toFile().setExecutable(true);
             appDir.resolve("grailsw").toFile().setExecutable(true);
         }
-        RuntimeApiTestSupport.installRuntimePluginDependency(appDir);
         return appDir;
     }
 

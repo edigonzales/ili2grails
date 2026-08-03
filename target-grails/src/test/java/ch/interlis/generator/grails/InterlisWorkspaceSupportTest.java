@@ -60,28 +60,13 @@ class InterlisWorkspaceSupportTest {
 
     private Class<?> runtimeType() throws Exception {
         GroovyClassLoader classLoader = new GroovyClassLoader(getClass().getClassLoader());
-        classLoader.parseClass(
-            Files.readString(RuntimeSourcePaths.generatedRegistryAccessorSource()),
-            "GeneratedRegistryAccessor.groovy");
-        classLoader.parseClass("""
-            package ch.interlis.generator.grails.generated
-            class InterlisUiRegistry {
-                static final List DOMAINS = []
-            }
-            """, "InterlisUiRegistry.groovy");
         classLoader.parseClass("""
             package ch.interlis.generator.grails.runtime
             class InterlisRelationshipOptions {
-                static String optionLabel(Object value) { value?.toString() }
-                static String displayLabel(Object value) { value?.toString() }
+                static String optionLabel(Object... values) { values?.last()?.toString() }
+                static String displayLabel(Object... values) { values?.last()?.toString() }
             }
             """, "InterlisRelationshipOptions.groovy");
-        classLoader.parseClass("""
-            package ch.interlis.generator.grails.runtime
-            class InterlisUiDescriptorSupport {
-                static Map staticDomainMap(Class type, String name) { [:] }
-            }
-            """, "InterlisUiDescriptorSupport.groovy");
         return classLoader.parseClass(Files.readString(RUNTIME_SOURCE), "InterlisWorkspaceSupport.groovy");
     }
 

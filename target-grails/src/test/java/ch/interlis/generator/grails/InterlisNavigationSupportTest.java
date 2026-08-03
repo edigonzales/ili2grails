@@ -1,5 +1,12 @@
 package ch.interlis.generator.grails;
 
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.DomainDescriptor;
+import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind;
+import ch.interlis.generator.grails.runtime.api.registry.AssociationRegistry;
+import ch.interlis.generator.grails.runtime.api.registry.DomainRegistry;
+import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry;
 import groovy.lang.GroovyClassLoader;
 import org.junit.jupiter.api.Test;
 
@@ -8,6 +15,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Collection;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -21,7 +30,8 @@ class InterlisNavigationSupportTest {
         Class<?> supportType = runtimeType();
         Object application = fakeApplication(supportType.getClassLoader());
 
-        Map<String, Object> model = invoke(supportType, "navigationModel", application);
+        Map<String, Object> model = invoke(
+            supportType, "navigationModel", application, runtimeRegistry());
         List<Map<String, Object>> domains = list(model.get("domains"));
 
         assertThat(domains).extracting(entry -> entry.get("controller"))
@@ -47,7 +57,8 @@ class InterlisNavigationSupportTest {
     void searchesLabelClassTopicAndModelAndIsDeterministic() throws Exception {
         Class<?> supportType = runtimeType();
         Object application = fakeApplication(supportType.getClassLoader());
-        Map<String, Object> model = invoke(supportType, "navigationModel", application);
+        InterlisRuntimeRegistry registry = runtimeRegistry();
+        Map<String, Object> model = invoke(supportType, "navigationModel", application, registry);
 
         assertThat(list(invokeRaw(supportType, "searchDomains", model, "Adresse")))
             .extracting(entry -> entry.get("controller"))
@@ -65,7 +76,7 @@ class InterlisNavigationSupportTest {
             .extracting(entry -> entry.get("controller"))
             .containsExactly("address", "zebra");
 
-        Map<String, Object> secondRun = invoke(supportType, "navigationModel", application);
+        Map<String, Object> secondRun = invoke(supportType, "navigationModel", application, registry);
         assertThat(secondRun).isEqualTo(model);
     }
 
@@ -77,7 +88,8 @@ class InterlisNavigationSupportTest {
                 "controller", "parcelWorkspace", "action", "index")
         ));
 
-        Map<String, Object> model = invoke(supportType, "navigationModel", application);
+        Map<String, Object> model = invoke(
+            supportType, "navigationModel", application, runtimeRegistry());
         List<Map<String, Object>> workspaces = list(model.get("workspaces"));
 
         assertThat(workspaces).singleElement().satisfies(workspace -> {
@@ -101,7 +113,8 @@ class InterlisNavigationSupportTest {
                 "controller", "doesNotExist", "action", "index")
         ));
 
-        assertThatThrownBy(() -> invoke(supportType, "navigationModel", application))
+        assertThatThrownBy(() -> invoke(
+            supportType, "navigationModel", application, runtimeRegistry()))
             .hasRootCauseInstanceOf(IllegalArgumentException.class)
             .hasRootCauseMessage("Ungültige ili2grails.ui.workspaces-Konfiguration " +
                 "(id=broken-workspace, controller=doesNotExist): Controller ist nicht registriert");
@@ -110,52 +123,23 @@ class InterlisNavigationSupportTest {
     @Test
     void treatsMissingWorkspaceConfigurationAsUnconfigured() throws Exception {
         Class<?> supportType = runtimeType();
-        Map<String, Object> model = invoke(supportType, "navigationModel", baseApplication(supportType));
+        Map<String, Object> model = invoke(
+            supportType, "navigationModel", baseApplication(supportType), runtimeRegistry());
 
         assertThat(list(model.get("workspaces"))).isEmpty();
     }
 
     private Class<?> runtimeType() throws Exception {
         GroovyClassLoader classLoader = new GroovyClassLoader(getClass().getClassLoader());
-        classLoader.parseClass(
-            Files.readString(RuntimeSourcePaths.generatedRegistryAccessorSource()),
-            "GeneratedRegistryAccessor.groovy");
-        classLoader.parseClass("""
-            package ch.interlis.generator.grails.generated
-            class InterlisAssociationRegistry {
-                static final Map ENTITIES = [:]
-                static Map<String, Object> legacyEntity(String name) { ENTITIES[name] }
-            }
-            """, "InterlisAssociationRegistry.groovy");
-        classLoader.parseClass("""
-            package ch.interlis.generator.grails.generated
-            class InterlisUiRegistry {
-                static final List DOMAINS = [
-                    [controller: 'zebra', modelName: 'ZetaModel', topicName: 'ZetaModel.Zones',
-                     label: 'Zonenobjekt', className: 'Zebra', iliName: 'ZetaModel.Zones.Animal',
-                     navigationVisible: true, associationDomain: false],
-                    [controller: 'address', modelName: 'AlphaModel', topicName: 'AlphaModel.Addresses',
-                     label: 'Adresse', className: 'Address', iliName: 'AlphaModel.Addresses.Address',
-                     navigationVisible: true, associationDomain: false],
-                    [controller: 'hiddenAssociation', modelName: 'AlphaModel', topicName: 'AlphaModel.Addresses',
-                     label: 'Technical Link', className: 'HiddenAssociation',
-                     iliName: 'AlphaModel.Addresses.HiddenAssociation',
-                     navigationVisible: false, associationDomain: true],
-                    [controller: 'missing', modelName: 'AlphaModel', topicName: 'AlphaModel.Addresses',
-                     label: 'Missing', className: 'Missing', iliName: 'AlphaModel.Addresses.Missing',
-                     navigationVisible: true, associationDomain: false]
-                ]
-                static List legacyDomains() { DOMAINS }
-            }
-            """, "InterlisUiRegistry.groovy");
         classLoader.parseClass("""
             package ch.interlis.generator.grails.runtime
             abstract class InterlisCrudControllerSupport<T> { }
             """, "InterlisCrudControllerSupport.groovy");
         classLoader.parseClass("""
             package ch.interlis.generator.grails.runtime
+            import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
             class InterlisAssociationRegistrySupport {
-                static boolean showInNavigation(Class domainType) { true }
+                static boolean showInNavigation(InterlisRuntimeRegistry registry, Class domainType) { true }
             }
             """, "InterlisAssociationRegistrySupport.groovy");
         return classLoader.parseClass(Files.readString(RUNTIME_SOURCE), "InterlisNavigationSupport.groovy");
@@ -244,6 +228,47 @@ class InterlisNavigationSupportTest {
     private void setString(Class<?> type, Object target, String property, String value) throws Exception {
         String setter = "set" + Character.toUpperCase(property.charAt(0)) + property.substring(1);
         type.getMethod(setter, String.class).invoke(target, value);
+    }
+
+    private InterlisRuntimeRegistry runtimeRegistry() {
+        List<DomainDescriptor> descriptors = List.of(
+            domain("ZetaModel.Zones.Animal", "ZetaModel", "ZetaModel.Zones",
+                "example.Zebra", "zebra", "Zebra", "Zonenobjekt", DomainKind.CLASS, true),
+            domain("AlphaModel.Addresses.Address", "AlphaModel", "AlphaModel.Addresses",
+                "example.Address", "address", "Address", "Adresse", DomainKind.CLASS, true),
+            domain("AlphaModel.Addresses.HiddenAssociation", "AlphaModel", "AlphaModel.Addresses",
+                "example.HiddenAssociation", "hiddenAssociation", "HiddenAssociation",
+                "Technical Link", DomainKind.ASSOCIATION, false),
+            domain("AlphaModel.Addresses.Missing", "AlphaModel", "AlphaModel.Addresses",
+                "example.Missing", "missing", "Missing", "Missing", DomainKind.CLASS, true)
+        );
+        DomainRegistry domains = new DomainRegistry() {
+            public Collection<DomainDescriptor> domains() { return descriptors; }
+            public Optional<DomainDescriptor> byIliName(String name) {
+                return descriptors.stream().filter(value -> value.iliName().equals(name)).findFirst();
+            }
+            public Optional<DomainDescriptor> byDomainClassName(String name) {
+                return descriptors.stream().filter(value -> value.domainClassName().equals(name)).findFirst();
+            }
+            public List<DomainDescriptor> byModel(String name) {
+                return descriptors.stream().filter(value -> value.modelName().equals(name)).toList();
+            }
+        };
+        AssociationRegistry associations = new AssociationRegistry() {
+            public Collection<AssociationDescriptor> associations() { return List.of(); }
+            public Optional<AssociationDescriptor> association(String name) { return Optional.empty(); }
+            public Collection<AssociationContextDescriptor> contexts() { return List.of(); }
+            public Optional<AssociationContextDescriptor> context(String id) { return Optional.empty(); }
+            public List<AssociationContextDescriptor> contextsForParticipant(String name) { return List.of(); }
+        };
+        return new InterlisRuntimeRegistry(domains, associations, name -> null);
+    }
+
+    private DomainDescriptor domain(String iliName, String model, String topic,
+                                    String className, String controller, String simpleName,
+                                    String label, DomainKind kind, boolean visible) {
+        return new DomainDescriptor(iliName, model, topic, className, controller, simpleName,
+            label, kind, visible, null, Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     private Object invokeRaw(Class<?> type, String name, Object... arguments) throws Exception {

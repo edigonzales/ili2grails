@@ -1,14 +1,11 @@
 package ch.interlis.generator.grails.generated
 
-import ch.interlis.generator.grails.runtime.api.compat.LegacyDescriptorMapAdapter
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationAttributeDescriptor
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationContextDescriptor
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationCreateMode
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationDescriptor
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationRoleDescriptor
 import ch.interlis.generator.grails.runtime.api.descriptor.AssociationStorageKind
-import ch.interlis.generator.grails.runtime.api.descriptor.DomainKind
-import ch.interlis.generator.grails.runtime.api.descriptor.EntityDescriptor
 import ch.interlis.generator.grails.runtime.api.descriptor.RuntimeCoreType
 import ch.interlis.generator.grails.runtime.api.registry.AssociationRegistry
 
@@ -726,49 +723,6 @@ final class InterlisAssociationRegistry implements AssociationRegistry {
         'ch.example.association.domain.Person': ['AssociationCases.Base.AssociationWithAttribute::PersonRole', 'AssociationCases.Base.EmptyAssociation::PersonRole', 'AssociationCases.Base.ExternalCompositeAssociation::Owner', 'AssociationCases.Base.OrderedAssociation::Owner', 'AssociationCases.Base.PhysicalMismatchAssociation::SemanticOwner', 'AssociationCases.Base.SameTargetAssociation::PrimaryPerson', 'AssociationCases.Base.SameTargetAssociation::SecondaryPerson', 'AssociationCases.Extended.ExtendedTopicAssociation::ExtendedPersonRole', 'AssociationCases.Extended.TernaryAssociation::PersonRole']
     ]
 
-    static final Map<String, EntityDescriptor> ENTITIES = [
-        'ch.example.association.domain.AssociationWithAttribute': new EntityDescriptor(
-            'AssociationCases.Base.AssociationWithAttribute',
-            DomainKind.ASSOCIATION,
-            false
-        ),
-        'ch.example.association.domain.EmptyAssociation': new EntityDescriptor(
-            'AssociationCases.Base.EmptyAssociation',
-            DomainKind.ASSOCIATION,
-            false
-        ),
-        'ch.example.association.domain.ExtendedTopicAssociation': new EntityDescriptor(
-            'AssociationCases.Extended.ExtendedTopicAssociation',
-            DomainKind.ASSOCIATION,
-            false
-        ),
-        'ch.example.association.domain.ExternalCompositeAssociation': new EntityDescriptor(
-            'AssociationCases.Base.ExternalCompositeAssociation',
-            DomainKind.ASSOCIATION,
-            false
-        ),
-        'ch.example.association.domain.OrderedAssociation': new EntityDescriptor(
-            'AssociationCases.Base.OrderedAssociation',
-            DomainKind.ASSOCIATION,
-            false
-        ),
-        'ch.example.association.domain.PhysicalMismatchAssociation': new EntityDescriptor(
-            'AssociationCases.Base.PhysicalMismatchAssociation',
-            DomainKind.ASSOCIATION,
-            false
-        ),
-        'ch.example.association.domain.SameTargetAssociation': new EntityDescriptor(
-            'AssociationCases.Base.SameTargetAssociation',
-            DomainKind.ASSOCIATION,
-            false
-        ),
-        'ch.example.association.domain.TernaryAssociation': new EntityDescriptor(
-            'AssociationCases.Extended.TernaryAssociation',
-            DomainKind.ASSOCIATION,
-            false
-        )
-    ]
-
     static final InterlisAssociationRegistry INSTANCE = new InterlisAssociationRegistry(ASSOCIATIONS, CONTEXTS)
 
     private final Map<String, AssociationDescriptor> associationsByName
@@ -802,46 +756,4 @@ final class InterlisAssociationRegistry implements AssociationRegistry {
             .findAll { it != null }
     }
 
-    // ------------------------------------------------------------------
-    // Legacy map API for the pre-plugin runtime (migration only).
-    // ------------------------------------------------------------------
-
-    @Deprecated(forRemoval = true)
-    static Map<String, Object> legacyAssociation(String associationName) {
-        AssociationDescriptor descriptor = INSTANCE.associationsByName[associationName]
-        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyAssociationMap(descriptor)
-    }
-
-    @Deprecated(forRemoval = true)
-    static Map<String, Object> legacyContext(String contextId) {
-        AssociationContextDescriptor descriptor = INSTANCE.contextsById[contextId]
-        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyContextMap(descriptor)
-    }
-
-    @Deprecated(forRemoval = true)
-    static List<Map<String, Object>> legacyContextsForParticipant(String domainClassName) {
-        return INSTANCE.contextsForParticipant(domainClassName).collect {
-            AssociationContextDescriptor descriptor ->
-                LegacyDescriptorMapAdapter.toLegacyContextMap(descriptor)
-        }
-    }
-
-    @Deprecated(forRemoval = true)
-    static List<Map<String, Object>> legacyEntities() {
-        return ENTITIES.values().collect { EntityDescriptor e ->
-            LegacyDescriptorMapAdapter.toLegacyEntityMap(e)
-        }
-    }
-
-    @Deprecated(forRemoval = true)
-    static Map<String, Object> legacyEntity(String domainClassName) {
-        EntityDescriptor descriptor = ENTITIES[domainClassName]
-        return descriptor == null ? null : LegacyDescriptorMapAdapter.toLegacyEntityMap(descriptor)
-    }
-
-    @Deprecated(forRemoval = true)
-    static boolean legacyShowInNavigation(String domainClassName) {
-        EntityDescriptor entity = ENTITIES[domainClassName]
-        return entity == null || entity.showInNavigation()
-    }
 }

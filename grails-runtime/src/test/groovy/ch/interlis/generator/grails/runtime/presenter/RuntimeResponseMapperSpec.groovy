@@ -16,7 +16,7 @@ class RuntimeResponseMapperSpec extends Specification {
             'Die Zuordnung wurde erstellt.')
 
         when:
-        Map<String, Object> map = RuntimeResponseMapper.toLegacyMap(result)
+        Map<String, Object> map = RuntimeResponseMapper.toMap(result)
 
         then:
         map.success == true
@@ -35,7 +35,7 @@ class RuntimeResponseMapperSpec extends Specification {
             [new FieldError('name', 'blank', 'Name fehlt')])
 
         when:
-        Map<String, Object> map = RuntimeResponseMapper.toLegacyMap(result)
+        Map<String, Object> map = RuntimeResponseMapper.toMap(result)
 
         then:
         map.success == false
@@ -50,7 +50,7 @@ class RuntimeResponseMapperSpec extends Specification {
         def result = InverseRelationshipCommandResult.reassignmentRequired(confirmation)
 
         when:
-        Map<String, Object> map = RuntimeResponseMapper.toLegacyMap(result)
+        Map<String, Object> map = RuntimeResponseMapper.toMap(result)
 
         then:
         map.status == 409
@@ -66,7 +66,7 @@ class RuntimeResponseMapperSpec extends Specification {
 
     def "maps null results to internal error fallback"() {
         when:
-        Map<String, Object> map = RuntimeResponseMapper.toLegacyMap(null as AssociationCommandResult)
+        Map<String, Object> map = RuntimeResponseMapper.toMap(null as AssociationCommandResult)
 
         then:
         map.success == false

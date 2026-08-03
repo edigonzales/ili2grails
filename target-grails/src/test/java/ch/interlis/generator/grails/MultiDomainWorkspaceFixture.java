@@ -401,12 +401,14 @@ public final class MultiDomainWorkspaceFixture {
             import com.example.domain.Parcel
             import ch.interlis.generator.grails.runtime.InterlisUiDescriptorSupport
             import ch.interlis.generator.grails.runtime.InterlisWorkspaceSupport
+            import ch.interlis.generator.grails.runtime.api.registry.InterlisRuntimeRegistry
 
             class ParcelWorkspaceService {
 
                 static transactional = false
                 private static final int MAX_ITEMS = 25
                 def grailsApplication
+                InterlisRuntimeRegistry runtimeRegistry
 
                 Map<String, Object> indexModel() {
                     List<Map<String, Object>> rows = Parcel.createCriteria().list {
@@ -437,9 +439,9 @@ public final class MultiDomainWorkspaceFixture {
                     }
 
                     Map<String, Object> descriptor =
-                        InterlisUiDescriptorSupport.descriptor(grailsApplication, Parcel)
+                        InterlisUiDescriptorSupport.descriptor(grailsApplication, runtimeRegistry, Parcel)
                     Map<String, Object> model = InterlisWorkspaceSupport.showModel(
-                        grailsApplication, Parcel, parcel, descriptor
+                        grailsApplication, runtimeRegistry, Parcel, parcel, descriptor
                     )
                     model.workspaceRoot = parcel
                     model.workspaceTableSections = [

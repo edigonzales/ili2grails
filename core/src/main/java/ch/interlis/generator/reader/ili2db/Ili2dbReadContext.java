@@ -11,9 +11,8 @@ import java.util.Objects;
  * Technische Ausführungsumgebung eines ili2db-Lesedurchgangs: Verbindung,
  * Schema, Identifier-Rendering und Dialekt.
  *
- * <p>Enthält bewusst keine fachliche Auswahl (siehe {@link Ili2dbReadRequest}):
- * der Request ist die einzige Wahrheit für {@code ModelSelection} und
- * {@code Ili2dbFailurePolicy} (Spezifikation §13).</p>
+ * <p>Enthält bewusst keine fachliche Modellauswahl. Diese wird dem
+ * Coordinator direkt übergeben.</p>
  */
 public record Ili2dbReadContext(
     Connection connection,
